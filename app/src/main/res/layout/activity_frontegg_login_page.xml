@@ -6,7 +6,7 @@
     android:layout_height="match_parent"
     tools:context=".FronteggLoginPage">
 
-    <com.frontegg.demo.FronteggWebView
+    <com.frontegg.android.FronteggWebView
         android:id="@+id/custom_webview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>

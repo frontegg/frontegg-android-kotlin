@@ -1,15 +1,13 @@
-package com.frontegg.demo
+package com.frontegg.android-ktx
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
 import android.util.AttributeSet
 import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import androidx.core.content.ContextCompat.startActivity
 import java.security.MessageDigest
 import java.util.*
 
@@ -70,6 +68,12 @@ open class FronteggWebView : WebView {
 
                 if (!request?.url.toString().contains("davidantoon.stg.frontegg.com")) {
                     if (request?.url.toString().startsWith(APP_SCHEME)) {
+
+                        if(request?.url.toString().startsWith("frontegg://oauth/callback")) {
+                            val code = request?.url?.getQueryParameter("code")
+                            Log.d("CALLBACK CODE", "${code}")
+
+                        }
                         return true
                     }
                     if (request?.url.toString().contains("google")) {
@@ -82,6 +86,9 @@ open class FronteggWebView : WebView {
                         return true
                     }
                 }
+
+
+
                 return super.shouldOverrideUrlLoading(view, request)
             }
 

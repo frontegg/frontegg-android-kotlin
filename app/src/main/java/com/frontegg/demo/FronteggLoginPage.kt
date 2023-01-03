@@ -2,6 +2,7 @@ package com.frontegg.demo
 
 import android.os.Bundle
 import androidx.appcompat.app.AppCompatActivity
+import com.frontegg.android.FronteggWebView
 
 class FronteggLoginPage : AppCompatActivity() {
 
@@ -11,11 +12,9 @@ class FronteggLoginPage : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_frontegg_login_page)
         webView = findViewById(R.id.custom_webview)
-    }
 
+        val data: String? = intent.data?.toString()
 
-    override fun onResume() {
-        super.onResume()
         val str = "<html>\n" +
                 "<head>\n" +
                 "  <script type='text/javascript'>\n" +
@@ -103,7 +102,24 @@ class FronteggLoginPage : AppCompatActivity() {
                 "</body>\n" +
                 "\n" +
                 "</html>\n"
-        webView.loadDataWithBaseURL("frontegg://oauth/authenticate",str, "text/html", "utf-8", null);
+
+        if (data != null) {
+            webView.loadUrl(data)
+        } else {
+            webView.loadDataWithBaseURL(
+                "frontegg://oauth/authenticate",
+                str,
+                "text/html",
+                "utf-8",
+                null
+            );
+        }
+
+    }
+
+
+    override fun onResume() {
+        super.onResume()
 
 //        webView.loadUrl("https://portal.frontegg.com/")
     }

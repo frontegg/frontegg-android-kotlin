@@ -1,8 +1,10 @@
 package com.frontegg.demo
 
-import androidx.appcompat.app.AppCompatActivity
+import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
+import androidx.appcompat.app.AppCompatActivity
+
 
 class AuthRedirectActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -12,6 +14,13 @@ class AuthRedirectActivity : AppCompatActivity() {
 
 
         findViewById<TextView>(R.id.responseData).setText(intent.data.toString())
+
+
+        val intent = Intent(this, FronteggLoginPage::class.java)
+        intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP
+        startActivity(intent)
+        finish()
+
 
     }
 
