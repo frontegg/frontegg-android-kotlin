@@ -4,6 +4,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import com.frontegg.android.views.FronteggLoginPage
 
 
 class AuthRedirectActivity : AppCompatActivity() {
@@ -11,10 +12,7 @@ class AuthRedirectActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_auth_redirect)
 
-
-
         findViewById<TextView>(R.id.responseData).setText(intent.data.toString())
-
 
         val intent = Intent(this, FronteggLoginPage::class.java)
         intent.flags = Intent.FLAG_ACTIVITY_CLEAR_TOP

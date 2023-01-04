@@ -15,7 +15,7 @@ class FronteggJSModule() {
 
     @JavascriptInterface
     fun getBaseUrl(): String {
-        return "https://davidantoon.stg.frontegg.com"
+        return "https://auth.davidantoon.me"
     }
 
     @JavascriptInterface

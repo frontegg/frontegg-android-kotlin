@@ -18,7 +18,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             "request.url.path: ${request?.url}"
         )
 
-        if (!request?.url.toString().contains("davidantoon.stg.frontegg.com")) {
+        if (!request?.url.toString().contains("auth.davidantoon.me")) {
             if (request?.url.toString().startsWith(Constants.APP_SCHEME)) {
 
                 if (request?.url.toString().startsWith("frontegg://oauth/callback")) {
@@ -38,8 +38,6 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 return true
             }
         }
-
-
 
         return super.shouldOverrideUrlLoading(view, request)
     }

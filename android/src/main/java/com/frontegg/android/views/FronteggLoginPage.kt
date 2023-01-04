@@ -1,10 +1,11 @@
-package com.frontegg.demo
+package com.frontegg.android.views
 
+import android.app.Activity
 import android.os.Bundle
-import androidx.appcompat.app.AppCompatActivity
 import com.frontegg.android.FronteggWebView
+import com.frontegg.android.R
 
-class FronteggLoginPage : AppCompatActivity() {
+class FronteggLoginPage : Activity() {
 
     lateinit var webView: FronteggWebView
 
