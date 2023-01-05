@@ -1,8 +1,11 @@
 package com.frontegg.android.services
 
+import com.frontegg.android.models.User
+import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import okhttp3.Call
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -10,17 +13,16 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import java.io.IOException
 
-open class Api {
-    private var baseUrl: String
-    private var clientId: String
+open class Api(
+    private var baseUrl: String,
+    private var clientId: String,
     private var credentialManager: CredentialManager
+) {
     private var httpClient: OkHttpClient
 
-    constructor(baseUrl: String, clientId: String, credentialManager: CredentialManager) {
-        this.baseUrl = baseUrl
-        this.clientId = clientId
-        this.credentialManager = credentialManager
+    init {
         this.httpClient = OkHttpClient()
     }
 
@@ -40,7 +42,7 @@ open class Api {
         return headers.toHeaders()
     }
 
-    private fun postRequest(path: String, body: JsonObject) {
+    private fun buildPostRequest(path: String, body: JsonObject): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
@@ -52,19 +54,30 @@ open class Api {
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
-        this.httpClient.newCall(request)
+        return this.httpClient.newCall(request)
     }
 
-    private fun getRequest(path: String) {
-        val url = "${this.baseUrl}/$path".toHttpUrl()
+    private fun buildGetRequest(path: String): Call {
+        val url = "$baseUrl/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
-        val headers = this.prepareHeaders();
+        val headers = prepareHeaders();
 
         requestBuilder.method("GET", null)
         requestBuilder.headers(headers);
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
-        this.httpClient.newCall(request)
+        return this.httpClient.newCall(request)
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class)
+    public fun me(): User? {
+        val call = buildGetRequest(ApiConstants.me)
+        val response = call.execute()
+        if(response.isSuccessful){
+            return Gson().fromJson(response.body!!.string(), User::class.java)
+        }
+
+        return null
     }
 }
