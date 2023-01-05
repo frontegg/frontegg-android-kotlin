@@ -1,6 +1,8 @@
 package com.frontegg.android
 
 import android.content.Context
+import com.frontegg.android.exceptions.FronteggException
+import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
 import com.frontegg.android.services.*
 
 class FronteggApp(context: Context) {
@@ -22,8 +24,11 @@ class FronteggApp(context: Context) {
     }
 
     companion object {
-        private lateinit var instance: FronteggApp
-        public fun getInstance(): FronteggApp {
+        private var instance: FronteggApp? = null
+        public fun getInstance(): FronteggApp? {
+            if(instance == null){
+                throw FronteggException(FRONTEGG_APP_MUST_BE_INITIALIZED)
+            }
             return instance
         }
     }
