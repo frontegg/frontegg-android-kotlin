@@ -2,13 +2,27 @@ package com.frontegg.android
 
 import android.content.Context
 import android.content.Intent
+import android.net.Uri
 import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import com.frontegg.android.utils.FronteggJSModule
+import java.net.URL
 
 class FronteggWebClient(val context: Context) : WebViewClient() {
 
+    private fun replaceUriParameter(uri: Uri, key: String, newValue: String): Uri? {
+        val params: Set<String> = uri.getQueryParameterNames()
+        val newUri: Uri.Builder = uri.buildUpon().clearQuery()
+        for (param in params) {
+            newUri.appendQueryParameter(
+                param,
+                if (param == key) newValue else uri.getQueryParameter(param)
+            )
+        }
+        return newUri.build()
+    }
     override fun shouldOverrideUrlLoading(
         view: WebView?,
         request: WebResourceRequest?
@@ -33,6 +47,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                     "FronteggWebView.shouldOverrideUrlLoading",
                     "going out: ${request?.url}"
                 )
+
                 val browserIntent = Intent(Intent.ACTION_VIEW, request!!.url)
                 context.startActivity(browserIntent);
                 return true
