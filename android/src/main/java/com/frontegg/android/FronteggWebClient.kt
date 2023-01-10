@@ -11,6 +11,9 @@ import com.frontegg.android.utils.FronteggJSModule
 import java.net.URL
 
 class FronteggWebClient(val context: Context) : WebViewClient() {
+    companion object {
+        private val TAG = FronteggWebClient::class.java.simpleName
+    }
 
     private fun replaceUriParameter(uri: Uri, key: String, newValue: String): Uri? {
         val params: Set<String> = uri.getQueryParameterNames()
@@ -23,6 +26,24 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         }
         return newUri.build()
     }
+
+    enum class OverrideUrlType {
+        MobileOauthCallback,
+        SsoOauthCallback,
+        Forward
+    }
+
+    private fun getOverrideUrlType(url: Uri): OverrideUrlType {
+
+        if(url.toString().startsWith(FronteggApp.getInstance().baseUrl)){
+            if(url.path == "/mobile/oauth/callback") {
+                return OverrideUrlType.MobileOauthCallback
+            }
+        }
+
+        return OverrideUrlType.Forward
+    }
+
     override fun shouldOverrideUrlLoading(
         view: WebView?,
         request: WebResourceRequest?
@@ -32,13 +53,22 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             "request.url.path: ${request?.url}"
         )
 
+        val shouldOverrideUrlType = getOverrideUrlType(request!!.url)
+
+        when(shouldOverrideUrlType) {
+            OverrideUrlType.MobileOauthCallback -> {
+
+            }
+            else -> {
+                return super.shouldOverrideUrlLoading(view, request)
+            }
+        }
         if (!request?.url.toString().contains("auth.davidantoon.me")) {
             if (request?.url.toString().startsWith(Constants.APP_SCHEME)) {
 
                 if (request?.url.toString().startsWith("frontegg://oauth/callback")) {
                     val code = request?.url?.getQueryParameter("code")
                     Log.d("CALLBACK CODE", "${code}")
-
                 }
                 return true
             }
