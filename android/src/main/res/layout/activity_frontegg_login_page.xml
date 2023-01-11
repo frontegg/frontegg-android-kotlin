@@ -4,11 +4,15 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context=".FronteggLoginPage">
+    tools:context=".FronteggLoginPage"
+    android:orientation="vertical">
+
 
     <com.frontegg.android.FronteggWebView
         android:id="@+id/custom_webview"
         android:layout_width="match_parent"
         android:layout_height="match_parent"/>
+
+
 
 </LinearLayout>

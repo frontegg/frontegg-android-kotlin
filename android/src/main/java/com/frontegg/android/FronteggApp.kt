@@ -1,11 +1,12 @@
 package com.frontegg.android
 
+import android.annotation.SuppressLint
 import android.content.Context
 import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
 import com.frontegg.android.services.*
 
-class FronteggApp private constructor(context: Context) {
+class FronteggApp private constructor(val context: Context) {
 
     val auth: FronteggAuth
     val baseUrl: String
@@ -22,6 +23,7 @@ class FronteggApp private constructor(context: Context) {
     }
 
     companion object {
+        @SuppressLint("StaticFieldLeak")
         private var instance: FronteggApp? = null
         public fun getInstance(): FronteggApp {
             if (instance == null) {
