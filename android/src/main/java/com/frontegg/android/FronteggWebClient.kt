@@ -76,7 +76,8 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         if (url.toString().startsWith(FronteggApp.getInstance().baseUrl)) {
             when (url.path) {
                 "/mobile/oauth/callback" -> return OverrideUrlType.HostedLoginCallback
-                "/mobile/sso/callback" -> return OverrideUrlType.SocialLoginCallback
+                "/mobile/social-login/callback" -> return OverrideUrlType.SocialLoginCallback
+                "/mobile/sso/callback" -> return OverrideUrlType.SsoCallback
             }
         } else if (oauthUrls.find { u -> url.toString().startsWith(u) } != null) {
             return OverrideUrlType.SocialLoginRedirectToBrowser

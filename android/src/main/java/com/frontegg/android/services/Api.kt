@@ -1,5 +1,6 @@
 package com.frontegg.android.services
 
+import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.User
 import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
@@ -82,7 +83,7 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun refreshToken(refreshToken: String): User? {
+    public fun refreshToken(refreshToken: String): AuthResponse? {
 
 
         val body = JsonObject()
@@ -92,7 +93,7 @@ open class Api(
         val call = buildPostRequest(ApiConstants.refreshToken, body)
         val response = call.execute()
         if(response.isSuccessful){
-            return Gson().fromJson(response.body!!.string(), User::class.java)
+            return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
         }
         return null
     }

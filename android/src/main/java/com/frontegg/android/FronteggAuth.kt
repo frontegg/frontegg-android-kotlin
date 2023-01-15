@@ -5,6 +5,7 @@ import com.frontegg.android.models.User
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.utils.CredentialKeys
+import com.frontegg.android.utils.JWTHelper
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.BiFunction
@@ -60,7 +61,7 @@ class FronteggAuth(
     val initializing: ObservableValue<Boolean> = ObservableValue(true)
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     val externalLink: ObservableValue<Boolean> = ObservableValue(false);
-    val pendingAppLink: String? = null
+    var pendingAppLink: String? = null
 
     init {
 
@@ -94,10 +95,47 @@ class FronteggAuth(
         val refreshToken = this.refreshToken.value ?: return
 
 
-        val data = api.refreshToken(refreshToken)
+        try {
 
-        Log.d("TEXT", "data: $data")
+            val data = api.refreshToken(refreshToken)
+
+            if (data != null) {
+                setCredentials(data.access_token, data.refresh_token)
+            }
+            Log.d("TEXT", "data: $data")
+        } catch (e: java.lang.Exception) {
+            Log.e(TAG, e.message, e)
+        }
     }
 
+    public fun setCredentials(accessToken: String, refreshToken: String) {
 
+        if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
+            && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
+        ) {
+
+            val decoded = JWTHelper.decode(accessToken)
+            var user = api.me()
+
+            this.refreshToken.value = refreshToken
+            this.accessToken.value = accessToken
+            this.user.value = user
+            this.isAuthenticated.value = true
+            this.pendingAppLink = null
+
+//            let offset = Double ((decode["exp"] as ! Int) - Int(Date().timeIntervalSince1970)) * 0.9
+//            DispatchQueue.global(qos:.utility).asyncAfter(deadline: .now()+offset) {
+//                Task {
+//                    await self . refreshTokenIfNeeded ()
+//                }
+        } else {
+            this.refreshToken.value = null
+            this.accessToken.value = null
+            this.user.value = null
+            this.isAuthenticated.value = false
+        }
+
+        this.isLoading.value = false
+        this.initializing.value = false
+    }
 }

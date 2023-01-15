@@ -22,9 +22,9 @@ class CredentialManager(context: Context) {
     /**
      * Save value for key into the shared preference
      */
-    fun save(key: CredentialKeys, value: String) {
+    fun save(key: CredentialKeys, value: String): Boolean {
         Log.d(TAG, "Saving Frontegg $key in shared preference")
-        sp.edit().putString(key.toString(), value).apply()
+        return sp.edit().putString(key.toString(), value).commit()
     }
 
     /**
