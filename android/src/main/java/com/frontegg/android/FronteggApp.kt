@@ -25,6 +25,7 @@ class FronteggApp private constructor(val context: Context) {
     companion object {
         @SuppressLint("StaticFieldLeak")
         private var instance: FronteggApp? = null
+
         public fun getInstance(): FronteggApp {
             if (instance == null) {
                 throw FronteggException(FRONTEGG_APP_MUST_BE_INITIALIZED)

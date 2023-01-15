@@ -5,12 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.util.AttributeSet
 import android.util.Log
-import android.webkit.JavascriptInterface
-import android.webkit.WebResourceRequest
 import android.webkit.WebView
-import android.webkit.WebViewClient
 import com.frontegg.android.utils.FronteggJSModule
-import java.security.MessageDigest
+import okhttp3.internal.userAgent
 import java.util.*
 
 
@@ -28,6 +25,13 @@ open class FronteggWebView : WebView {
         initView(context)
     }
 
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        (webViewClient as FronteggWebClient).destroy()
+
+        Log.d("TEST", "ACCESS_TOKEN onDetachedFromWindow")
+    }
     @SuppressLint("SetJavaScriptEnabled")
     fun initView(context: Context) {
         settings.javaScriptEnabled = true
@@ -38,7 +42,8 @@ open class FronteggWebView : WebView {
         this.addJavascriptInterface(FronteggJSModule(), "FronteggNative")
         webViewClient = FronteggWebClient(context)
 
-//            override fun shouldOverrideUrlLoading(view: WebView?, url: String): Boolean {
+
+        //            override fun shouldOverrideUrlLoading(view: WebView?, url: String): Boolean {
 //                if (url.startsWith(APP_SCHEME)) {
 //                    val urlData = URLDecoder.decode(url.substring(APP_SCHEME.length), "UTF-8")
 ////                    respondToData(urlData)
@@ -69,4 +74,6 @@ open class FronteggWebView : WebView {
 //            //            }
 //        })
 }
+
+
 

@@ -80,4 +80,21 @@ open class Api(
 
         return null
     }
+
+    @Throws(IllegalArgumentException::class, IOException::class)
+    public fun refreshToken(refreshToken: String): User? {
+
+
+        val body = JsonObject()
+        body.addProperty("grant_type", "refresh_token")
+        body.addProperty("refresh_token", refreshToken)
+
+        val call = buildPostRequest(ApiConstants.refreshToken, body)
+        val response = call.execute()
+        if(response.isSuccessful){
+            return Gson().fromJson(response.body!!.string(), User::class.java)
+        }
+        return null
+    }
+
 }

@@ -1,48 +1,103 @@
 package com.frontegg.android
 
-import androidx.databinding.BaseObservable
-import androidx.databinding.Bindable
-import androidx.databinding.ObservableField
-import androidx.databinding.Observable
+import android.util.Log
 import com.frontegg.android.models.User
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.utils.CredentialKeys
+import io.reactivex.rxjava3.core.Observable
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.functions.BiFunction
+import io.reactivex.rxjava3.functions.Consumer
+import io.reactivex.rxjava3.subjects.PublishSubject
+
+
+class ObservableValue<T>(value: T) {
+    private class NullableObject<K>(var innerValue: K)
+
+    val observable: PublishSubject<T> = PublishSubject.create()
+
+    private var nullableObject: NullableObject<T>
+    var value: T
+        set(newValue) {
+            nullableObject.innerValue = newValue
+            observable.onNext(newValue)
+        }
+        get() {
+            return nullableObject.innerValue
+        }
+
+    init {
+        this.nullableObject = NullableObject(value)
+    }
+
+    fun subscribe(onNext: Consumer<T>): Disposable {
+        return observable.subscribe(onNext)
+    }
+}
 
 class FronteggAuth(
     val baseUrl: String,
     val clientId: String,
     val api: Api,
     val credentialManager: CredentialManager
-) : BaseObservable() {
+) {
 
-    @get:Bindable
-    val accessToken: ObservableField<String?> = ObservableField()
-    val refreshToken: ObservableField<String?> = ObservableField()
-    val user: ObservableField<User?> = ObservableField()
-    val isAuthenticated: ObservableField<Boolean> = ObservableField(false)
-    val isLoading: ObservableField<Boolean> = ObservableField(true)
-    val initializing: ObservableField<Boolean> = ObservableField(true)
-    val showLoader: ObservableField<Boolean> = ObservableField(true)
-    val externalLink: ObservableField<Boolean> = ObservableField(false);
+    companion object {
+        private val TAG = FronteggAuth::class.java.simpleName
+
+        val instance: FronteggAuth
+            get() {
+                return FronteggApp.getInstance().auth
+            }
+    }
+
+    var accessToken: ObservableValue<String?> = ObservableValue(null)
+    var refreshToken: ObservableValue<String?> = ObservableValue(null)
+    val user: ObservableValue<User?> = ObservableValue(null)
+    val isAuthenticated: ObservableValue<Boolean> = ObservableValue(false)
+    val isLoading: ObservableValue<Boolean> = ObservableValue(true)
+    val initializing: ObservableValue<Boolean> = ObservableValue(true)
+    val showLoader: ObservableValue<Boolean> = ObservableValue(true)
+    val externalLink: ObservableValue<Boolean> = ObservableValue(false);
     val pendingAppLink: String? = null
 
     init {
 
+        Observable.merge(
+            isLoading.observable,
+            isAuthenticated.observable,
+            initializing.observable,
+        ).subscribe {
+            showLoader.value = initializing.value || (!isAuthenticated.value && isLoading.value)
+            Log.d(TAG, "showLoader subscription, ")
+        }
+
+
+        val accessToken = credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
+        val refreshToken = credentialManager.getOrNull(CredentialKeys.REFRESH_TOKEN)
+
+        if (accessToken != null && refreshToken != null) {
+            this.accessToken.value = accessToken
+            this.refreshToken.value = refreshToken
+            this.isLoading.value = false
+
+
+            this.refreshTokenIfNeeded()
+        } else {
+            this.isLoading.value = false
+            this.initializing.value = true
+        }
     }
-}
 
-fun <T : Observable> T.addOnPropertyChanged(callback: (T) -> Unit): () -> Unit = {
+    private fun refreshTokenIfNeeded() {
+        val refreshToken = this.refreshToken.value ?: return
 
-    val changeCallback = object : Observable.OnPropertyChangedCallback() {
-        override fun onPropertyChanged(observable: Observable?, i: Int) =
-            callback(observable as T)
-    }
-    addOnPropertyChangedCallback(changeCallback)
 
-    val unsubscribe: () -> Unit = {
-        removeOnPropertyChangedCallback(changeCallback)
+        val data = api.refreshToken(refreshToken)
+
+        Log.d("TEXT", "data: $data")
     }
 
-    @Suppress("UNUSED_EXPRESSION")
-    unsubscribe
+
 }

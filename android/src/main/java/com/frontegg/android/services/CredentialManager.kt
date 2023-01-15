@@ -31,10 +31,18 @@ class CredentialManager(context: Context) {
      * Get value by key from the shared preference
      */
     @Throws(KeyNotFoundException::class)
-    fun get(key: CredentialKeys): String? {
+    fun get(key: CredentialKeys): String {
         Log.d(TAG, "get Frontegg $key in shared preference ")
         return sp.getString(key.toString(), null)
             ?: throw KeyNotFoundException(Throwable("key not found $key"))
+    }
+
+    /**
+     * Get value by key from the shared preference
+     */
+    fun getOrNull(key: CredentialKeys): String? {
+        Log.d(TAG, "get Frontegg $key in shared preference ")
+        return sp.getString(key.toString(), null)
     }
 
 
