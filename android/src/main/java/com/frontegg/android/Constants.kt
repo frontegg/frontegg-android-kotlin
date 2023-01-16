@@ -13,5 +13,9 @@ class Constants {
             "https://slack.com/openid/connect/authorize",
             "https://appleid.apple.com"
         )
+
+        fun OauthCallbackUrl(baseUrl: String): String {
+            return "$baseUrl/mobile/oauth/callback"
+        }
     }
 }

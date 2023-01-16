@@ -6,6 +6,7 @@ import android.content.Intent
 import android.util.AttributeSet
 import android.util.Log
 import android.webkit.WebView
+import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.FronteggJSModule
 import okhttp3.internal.userAgent
 import java.util.*
@@ -13,9 +14,6 @@ import java.util.*
 
 
 open class FronteggWebView : WebView {
-
-
-
 
     constructor(context: Context) : super(context) {
         initView(context)
@@ -41,7 +39,6 @@ open class FronteggWebView : WebView {
 
         this.addJavascriptInterface(FronteggJSModule(), "FronteggNative")
         webViewClient = FronteggWebClient(context)
-
 
         //            override fun shouldOverrideUrlLoading(view: WebView?, url: String): Boolean {
 //                if (url.startsWith(APP_SCHEME)) {
@@ -73,6 +70,14 @@ open class FronteggWebView : WebView {
 //            //                return true
 //            //            }
 //        })
+
+
+    fun loadOauthAuthorize(){
+
+        val authorizeUrl = AuthorizeUrlGenerator()
+        val url = authorizeUrl.generate()
+        this.loadUrl(url)
+    }
 }
 
 

@@ -27,7 +27,6 @@ class FronteggLoginPage : Activity() {
 
 
         val authorizeUrl = AuthorizeUrlGenerator()
-
         val url = authorizeUrl.generate()
 
         if (data != null) {
@@ -43,8 +42,10 @@ class FronteggLoginPage : Activity() {
     private var disposeShowLoader: Disposable? = null
     private var loaderLayout: View? = null
 
-    private val showLoader: Consumer<Boolean> = Consumer {
-        loaderLayout?.visibility = if (it) View.VISIBLE else View.GONE
+    private val showLoader: Consumer<NullableObject<Boolean>> = Consumer {
+        runOnUiThread {
+            loaderLayout?.visibility = if (it.value) View.VISIBLE else View.GONE
+        }
     }
 
     override fun onPause() {

@@ -36,7 +36,7 @@ open class Api(
         headers.plus(Pair("Accept", "application/json"))
         headers.plus(Pair("Origin", this.baseUrl))
 
-        val accessToken = this.credentialManager.get(CredentialKeys.ACCESS_TOKEN)
+        val accessToken = this.credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
         if (accessToken != null) {
             headers.plus(Pair("authorization", "Bearer $accessToken"))
         }
@@ -75,7 +75,7 @@ open class Api(
     public fun me(): User? {
         val call = buildGetRequest(ApiConstants.me)
         val response = call.execute()
-        if(response.isSuccessful){
+        if (response.isSuccessful) {
             return Gson().fromJson(response.body!!.string(), User::class.java)
         }
 
@@ -92,7 +92,30 @@ open class Api(
 
         val call = buildPostRequest(ApiConstants.refreshToken, body)
         val response = call.execute()
-        if(response.isSuccessful){
+        if (response.isSuccessful) {
+            return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+        }
+        return null
+    }
+
+
+    @Throws(IllegalArgumentException::class, IOException::class)
+    public fun exchangeToken(
+        code: String,
+        redirectUrl: String,
+        codeVerifier: String
+    ): AuthResponse? {
+
+        val body = JsonObject()
+        body.addProperty("code", code)
+        body.addProperty("redirect_uri", redirectUrl)
+        body.addProperty("code_verifier", codeVerifier)
+        body.addProperty("grant_type", "authorization_code")
+
+
+        val call = buildPostRequest(ApiConstants.exchangeToken, body)
+        val response = call.execute()
+        if (response.isSuccessful) {
             return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
         }
         return null

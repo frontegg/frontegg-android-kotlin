@@ -2,6 +2,7 @@ package com.frontegg.android.utils
 
 import android.net.Uri
 import android.util.Log
+import com.frontegg.android.Constants
 import com.frontegg.android.FronteggApp
 import java.security.MessageDigest
 import java.util.*
@@ -47,7 +48,7 @@ class AuthorizeUrlGenerator {
         val credentialManager = FronteggApp.getInstance().credentialManager
         credentialManager.save(CredentialKeys.CODE_VERIFIER, codeVerifier);
 
-        val redirectUrl = "$baseUrl/mobile/oauth/callback"
+        val redirectUrl = Constants.OauthCallbackUrl(baseUrl)
         val authorizeUrlBuilder = Uri.Builder()
             .encodedPath(baseUrl)
             .appendEncodedPath("oauth/authorize")

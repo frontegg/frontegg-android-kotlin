@@ -6,33 +6,38 @@ import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
+import com.google.gson.JsonObject
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.BiFunction
 import io.reactivex.rxjava3.functions.Consumer
 import io.reactivex.rxjava3.subjects.PublishSubject
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.launch
 
+class NullableObject<K>(var value: K)
 
 class ObservableValue<T>(value: T) {
-    private class NullableObject<K>(var innerValue: K)
 
-    val observable: PublishSubject<T> = PublishSubject.create()
+    val observable: PublishSubject<NullableObject<T>> = PublishSubject.create()
 
     private var nullableObject: NullableObject<T>
     var value: T
         set(newValue) {
-            nullableObject.innerValue = newValue
-            observable.onNext(newValue)
+            nullableObject.value = newValue
+            observable.onNext(nullableObject)
         }
         get() {
-            return nullableObject.innerValue
+            return nullableObject.value
         }
 
     init {
         this.nullableObject = NullableObject(value)
     }
 
-    fun subscribe(onNext: Consumer<T>): Disposable {
+    fun subscribe(onNext: Consumer<NullableObject<T>>): Disposable {
         return observable.subscribe(onNext)
     }
 }
@@ -51,6 +56,7 @@ class FronteggAuth(
             get() {
                 return FronteggApp.getInstance().auth
             }
+
     }
 
     var accessToken: ObservableValue<String?> = ObservableValue(null)
@@ -83,8 +89,9 @@ class FronteggAuth(
             this.refreshToken.value = refreshToken
             this.isLoading.value = false
 
-
-            this.refreshTokenIfNeeded()
+            GlobalScope.launch(Dispatchers.IO) {
+                refreshTokenIfNeeded()
+            }
         } else {
             this.isLoading.value = false
             this.initializing.value = true
@@ -102,13 +109,12 @@ class FronteggAuth(
             if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
             }
-            Log.d("TEXT", "data: $data")
         } catch (e: java.lang.Exception) {
             Log.e(TAG, e.message, e)
         }
     }
 
-    public fun setCredentials(accessToken: String, refreshToken: String) {
+    fun setCredentials(accessToken: String, refreshToken: String) {
 
         if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
@@ -137,5 +143,25 @@ class FronteggAuth(
 
         this.isLoading.value = false
         this.initializing.value = false
+    }
+
+    fun handleHostedLoginCallback(webView: FronteggWebView, code: String): Boolean {
+
+        val codeVerifier = credentialManager.get(CredentialKeys.CODE_VERIFIER)
+        val redirectUrl = Constants.OauthCallbackUrl(baseUrl)
+
+        GlobalScope.launch(Dispatchers.IO) {
+            val data = api.exchangeToken(code, redirectUrl, codeVerifier)
+            if (data != null) {
+                setCredentials(data.access_token, data.refresh_token)
+            } else {
+                launch(Dispatchers.Main) {
+                    webView.loadOauthAuthorize()
+                }
+            }
+        }
+
+        return true
+
     }
 }

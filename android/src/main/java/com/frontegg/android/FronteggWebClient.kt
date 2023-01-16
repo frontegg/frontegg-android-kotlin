@@ -4,11 +4,17 @@ import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
+import android.net.UrlQuerySanitizer
 import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import com.frontegg.android.Constants.Companion.oauthUrls
+import com.frontegg.android.utils.AuthorizeUrlGenerator
+import com.frontegg.android.utils.CredentialKeys
+import com.google.gson.Gson
+import com.google.gson.JsonElement
+import com.google.gson.JsonObject
 import io.reactivex.rxjava3.disposables.Disposable
 
 
@@ -21,7 +27,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 
     init {
         disposable = FronteggAuth.instance.accessToken.subscribe {
-            Log.d(TAG, "ACCESS_TOKEN changes: $it")
+            Log.d(TAG, "ACCESS_TOKEN changes: ${it.value}")
         }
         FronteggAuth.instance.initializing.value = false
 
@@ -67,7 +73,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         HostedLoginCallback,
         SocialLoginCallback,
         SocialLoginRedirectToBrowser,
-        SsoCallback,
+        SamlCallback,
         Forward
     }
 
@@ -76,8 +82,8 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         if (url.toString().startsWith(FronteggApp.getInstance().baseUrl)) {
             when (url.path) {
                 "/mobile/oauth/callback" -> return OverrideUrlType.HostedLoginCallback
-                "/mobile/social-login/callback" -> return OverrideUrlType.SocialLoginCallback
-                "/mobile/sso/callback" -> return OverrideUrlType.SsoCallback
+                "/mobile/sso/callback" -> return OverrideUrlType.SocialLoginCallback
+                "/auth/saml/callback" -> return OverrideUrlType.SamlCallback
             }
         } else if (oauthUrls.find { u -> url.toString().startsWith(u) } != null) {
             return OverrideUrlType.SocialLoginRedirectToBrowser
@@ -91,10 +97,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         view: WebView?,
         request: WebResourceRequest?
     ): Boolean {
-
         val urlType = getOverrideUrlType(request!!.url)
-
-
         Log.d(
             "FronteggWebView.shouldOverrideUrlLoading",
             "type: $urlType, url: ${request.url}"
@@ -102,16 +105,12 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 
         when (urlType) {
             OverrideUrlType.HostedLoginCallback -> {
-                val query = request.url?.query
-                Log.d(TAG, "HostedLoginCallback: ${query}")
-                return true
+                return handleHostedLoginCallback(view, request.url?.query)
             }
             OverrideUrlType.SocialLoginCallback -> {
-                val query = request.url?.query
-                Log.d(TAG, "SocialLoginCallback: ${query}")
-                return true
+                return handleSocialLoginCallback(view, request.url?.query)
             }
-            OverrideUrlType.SsoCallback -> {
+            OverrideUrlType.SamlCallback -> {
                 val query = request.url?.query
                 Log.d(TAG, "SsoCallback: ${query}")
                 return true
@@ -138,24 +137,71 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 
     override fun onLoadResource(view: WebView?, url: String?) {
         val urlType = getOverrideUrlType(Uri.parse(url))
-        val fronteggAuth = FronteggApp.getInstance().auth
-        Log.d(
-            "FronteggWebView.onLoadResource",
-            "type: $urlType, url: $url"
-        )
+        Log.d(TAG, "onLoadResource type: $urlType, url: $url")
 
+        val uri = Uri.parse(url);
+        val query = uri.query
         when (urlType) {
-            OverrideUrlType.SocialLoginCallback,
-            OverrideUrlType.HostedLoginCallback -> {
-
-                Log.d(TAG, "ACCESS_TOKEN will change")
+            OverrideUrlType.SocialLoginCallback -> {
+                if (handleSocialLoginCallback(view, query)) {
+                    super.onLoadResource(view, url)
+                }
             }
-
+            OverrideUrlType.HostedLoginCallback -> {
+                if (!handleHostedLoginCallback(view, query)) {
+                    super.onLoadResource(view, url)
+                }
+            }
             else -> {
                 super.onLoadResource(view, url)
             }
         }
+    }
 
+    private fun handleSocialLoginCallback(webView: WebView?, query: String?): Boolean {
+        Log.d(TAG, "handleSocialLoginCallback received query: $query")
+        if (query == null || webView == null) {
+            Log.d(
+                TAG,
+                "handleSocialLoginCallback failed of nullable value, query: $query, webView: $webView"
+            )
+            return false
+        }
+        val baseUrl = FronteggApp.getInstance().baseUrl
+        val successUrl = "$baseUrl/oauth/account/social/success?$query"
+        webView.loadUrl(successUrl)
+        return true
+    }
+
+
+    private fun handleHostedLoginCallback(webView: WebView?, query: String?): Boolean {
+        Log.d(TAG, "handleHostedLoginCallback received query: $query")
+        if (query == null || webView == null) {
+            Log.d(
+                TAG,
+                "handleHostedLoginCallback failed of nullable value, query: $query, webView: $webView"
+            )
+            return false
+        }
+
+        val querySanitizer = UrlQuerySanitizer()
+        querySanitizer.allowUnregisteredParamaters = true
+        querySanitizer.parseQuery(query)
+        val code = querySanitizer.getValue("code")
+
+        if (code == null) {
+            Log.d(TAG, "handleHostedLoginCallback failed of nullable code value, query: $query")
+            return false
+        }
+
+        if(FronteggAuth.instance.handleHostedLoginCallback(webView as FronteggWebView, code)){
+            return true
+        }
+
+        val authorizeUrl = AuthorizeUrlGenerator()
+        val url = authorizeUrl.generate()
+        webView.loadUrl(url)
+        return false
     }
 
 }
