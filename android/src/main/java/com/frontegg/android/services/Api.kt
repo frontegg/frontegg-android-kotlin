@@ -38,7 +38,7 @@ open class Api(
 
         val accessToken = this.credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
         if (accessToken != null) {
-            headers.plus(Pair("authorization", "Bearer $accessToken"))
+            headers.plus(Pair("Authorization", "Bearer $accessToken"))
         }
         return headers.toHeaders()
     }
@@ -72,7 +72,7 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun me(): User? {
+    public fun me(accessToken: String): User? {
         val call = buildGetRequest(ApiConstants.me)
         val response = call.execute()
         if (response.isSuccessful) {

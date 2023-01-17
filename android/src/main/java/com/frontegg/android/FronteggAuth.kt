@@ -1,21 +1,19 @@
 package com.frontegg.android
 
-import android.util.Log
 import com.frontegg.android.models.User
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
-import com.google.gson.JsonObject
 import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
-import io.reactivex.rxjava3.functions.BiFunction
 import io.reactivex.rxjava3.functions.Consumer
 import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
+import java.util.Timer
+import java.util.TimerTask
 
 class NullableObject<K>(var value: K)
 
@@ -39,6 +37,12 @@ class ObservableValue<T>(value: T) {
 
     fun subscribe(onNext: Consumer<NullableObject<T>>): Disposable {
         return observable.subscribe(onNext)
+    }
+
+    fun subscribe2(onNext: (NullableObject<T>) -> Unit) {
+        observable.subscribe {
+            onNext(it)
+        }
     }
 }
 
@@ -68,6 +72,8 @@ class FronteggAuth(
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     val externalLink: ObservableValue<Boolean> = ObservableValue(false);
     var pendingAppLink: String? = null
+    var timer: Timer = Timer()
+    var taskRunner: TimerTask? = null
 
     init {
 
@@ -77,40 +83,39 @@ class FronteggAuth(
             initializing.observable,
         ).subscribe {
             showLoader.value = initializing.value || (!isAuthenticated.value && isLoading.value)
-            Log.d(TAG, "showLoader subscription, ")
         }
 
+        GlobalScope.launch(Dispatchers.IO) {
 
-        val accessToken = credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
-        val refreshToken = credentialManager.getOrNull(CredentialKeys.REFRESH_TOKEN)
+            val accessTokenSaved = credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
+            val refreshTokenSaved = credentialManager.getOrNull(CredentialKeys.REFRESH_TOKEN)
 
-        if (accessToken != null && refreshToken != null) {
-            this.accessToken.value = accessToken
-            this.refreshToken.value = refreshToken
-            this.isLoading.value = false
+            if (accessTokenSaved != null && refreshTokenSaved != null) {
+                accessToken.value = accessTokenSaved
+                refreshToken.value = refreshTokenSaved
 
-            GlobalScope.launch(Dispatchers.IO) {
-                refreshTokenIfNeeded()
+                if (!refreshTokenIfNeeded()) {
+                    accessToken.value = null
+                    refreshToken.value = null
+                    isLoading.value = false
+                    initializing.value = false
+                }
+            } else {
+                isLoading.value = false
+                initializing.value = false
             }
-        } else {
-            this.isLoading.value = false
-            this.initializing.value = true
         }
     }
 
-    private fun refreshTokenIfNeeded() {
-        val refreshToken = this.refreshToken.value ?: return
+    private fun refreshTokenIfNeeded(): Boolean {
+        val refreshToken = this.refreshToken.value ?: return false
 
-
-        try {
-
-            val data = api.refreshToken(refreshToken)
-
-            if (data != null) {
-                setCredentials(data.access_token, data.refresh_token)
-            }
-        } catch (e: java.lang.Exception) {
-            Log.e(TAG, e.message, e)
+        val data = api.refreshToken(refreshToken)
+        return if (data != null) {
+            setCredentials(data.access_token, data.refresh_token)
+            true
+        } else {
+            false
         }
     }
 
@@ -121,7 +126,7 @@ class FronteggAuth(
         ) {
 
             val decoded = JWTHelper.decode(accessToken)
-            var user = api.me()
+            val user = api.me(accessToken)
 
             this.refreshToken.value = refreshToken
             this.accessToken.value = accessToken
@@ -129,11 +134,12 @@ class FronteggAuth(
             this.isAuthenticated.value = true
             this.pendingAppLink = null
 
-//            let offset = Double ((decode["exp"] as ! Int) - Int(Date().timeIntervalSince1970)) * 0.9
-//            DispatchQueue.global(qos:.utility).asyncAfter(deadline: .now()+offset) {
-//                Task {
-//                    await self . refreshTokenIfNeeded ()
-//                }
+            if (taskRunner != null) {
+                taskRunner?.cancel()
+            }
+//            taskRunner = timer.scheduleAtFixedRate(0, decoded.exp) {
+//                refreshTokenIfNeeded()
+//            }
         } else {
             this.refreshToken.value = null
             this.accessToken.value = null

@@ -6,6 +6,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
+import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentFirstBinding
 
 /**
@@ -25,8 +26,8 @@ class FirstFragment : Fragment() {
     ): View? {
 
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
-        return binding.root
 
+        return binding.root
     }
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
@@ -34,6 +35,12 @@ class FirstFragment : Fragment() {
 
         binding.buttonFirst.setOnClickListener {
             findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
+        }
+
+        FronteggAuth.instance.user.subscribe2 {
+            activity?.runOnUiThread {
+                binding.textviewFirst.text = it.value?.email
+            }
         }
     }
 
