@@ -11,9 +11,6 @@ plugins {
 group 'com.frontegg'
 version '0.1.1'
 
-def NEXUS_USERNAME = "david"
-def NEXUS_PASSWORD = "david"
-
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
     targetCompatibility = JavaVersion.VERSION_1_8
@@ -58,10 +55,9 @@ publishing {
         maven {
 
             credentials {
-                username = "$NEXUS_USERNAME"
-                password = "$NEXUS_PASSWORD"
+                username = System.getenv('NEXUS_USERNAME')
+                password = System.getenv('NEXUS_PASSWORD')
             }
-
 
             name = "OSSRH"
             url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
