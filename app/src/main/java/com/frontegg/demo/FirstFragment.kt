@@ -1,5 +1,6 @@
 package com.frontegg.demo
 
+import android.content.Intent
 import android.os.Bundle
 import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
@@ -35,6 +36,14 @@ class FirstFragment : Fragment() {
 
         binding.buttonFirst.setOnClickListener {
             findNavController().navigate(R.id.action_FirstFragment_to_SecondFragment)
+        }
+
+        binding.logoutButton.setOnClickListener {
+            FronteggAuth.instance.logout()
+            if(activity != null) {
+                activity?.startActivity(Intent(activity, FronteggLoginPage::class.java))
+                activity?.finish()
+            }
         }
 
         FronteggAuth.instance.user.subscribe2 {

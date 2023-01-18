@@ -12,6 +12,6 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
-rootProject.name = "My Application"
+rootProject.name = "Frontegg Android Kotlin"
 include ':app'
 include ':android'

@@ -1,5 +1,6 @@
 package com.frontegg.android
 
+import android.content.Context
 import com.frontegg.android.models.User
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
@@ -9,6 +10,7 @@ import io.reactivex.rxjava3.core.Observable
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 import io.reactivex.rxjava3.subjects.PublishSubject
+import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
@@ -43,9 +45,11 @@ class ObservableValue<T>(value: T) {
         observable.subscribe {
             onNext(it)
         }
+        onNext(nullableObject)
     }
 }
 
+@OptIn(DelicateCoroutinesApi::class)
 class FronteggAuth(
     val baseUrl: String,
     val clientId: String,
@@ -70,7 +74,7 @@ class FronteggAuth(
     val isLoading: ObservableValue<Boolean> = ObservableValue(true)
     val initializing: ObservableValue<Boolean> = ObservableValue(true)
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
-    val externalLink: ObservableValue<Boolean> = ObservableValue(false);
+    val externalLink: ObservableValue<Boolean> = ObservableValue(false)
     var pendingAppLink: String? = null
     var timer: Timer = Timer()
     var taskRunner: TimerTask? = null
@@ -169,5 +173,20 @@ class FronteggAuth(
 
         return true
 
+    }
+
+
+    fun logout() {
+        GlobalScope.launch(Dispatchers.IO) {
+            isLoading.value = true
+            isAuthenticated.value = false
+            accessToken.value = null
+            refreshToken.value = null
+            user.value = null
+            user.value = null
+            taskRunner?.cancel()
+            api.logout()
+            credentialManager.clear()
+        }
     }
 }

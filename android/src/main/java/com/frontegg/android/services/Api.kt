@@ -30,20 +30,24 @@ open class Api(
 
     private fun prepareHeaders(): Headers {
 
-        val headers: Map<String, String> = mapOf()
-
-        headers.plus(Pair("Content-Type", "application/json"))
-        headers.plus(Pair("Accept", "application/json"))
-        headers.plus(Pair("Origin", this.baseUrl))
+        val headers: MutableMap<String, String> = mutableMapOf(
+            Pair("Content-Type", "application/json"),
+            Pair("Accept", "application/json"),
+            Pair("Origin", this.baseUrl)
+        )
 
         val accessToken = this.credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
         if (accessToken != null) {
-            headers.plus(Pair("Authorization", "Bearer $accessToken"))
+            headers.put("Authorization", "Bearer $accessToken")
         }
         return headers.toHeaders()
     }
 
-    private fun buildPostRequest(path: String, body: JsonObject): Call {
+    private fun buildPostRequest(
+        path: String,
+        body: JsonObject,
+        additionalHeaders: Map<String, String> = mapOf()
+    ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
@@ -121,4 +125,16 @@ open class Api(
         return null
     }
 
+    fun logout() {
+        val refreshToken = this.credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
+
+        if (refreshToken != null) {
+            val call = buildPostRequest(
+                ApiConstants.logout, JsonObject(), mapOf(
+                    Pair("fe_refresh_$clientId", refreshToken)
+                )
+            )
+            call.execute()
+        }
+    }
 }
