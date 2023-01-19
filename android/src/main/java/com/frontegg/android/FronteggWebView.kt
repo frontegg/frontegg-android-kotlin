@@ -22,13 +22,6 @@ open class FronteggWebView : WebView {
         initView(context)
     }
 
-
-    override fun onDetachedFromWindow() {
-        super.onDetachedFromWindow()
-        (webViewClient as FronteggWebClient).destroy()
-
-        Log.d("TEST", "ACCESS_TOKEN onDetachedFromWindow")
-    }
     @SuppressLint("SetJavaScriptEnabled")
     fun initView(context: Context) {
         settings.javaScriptEnabled = true

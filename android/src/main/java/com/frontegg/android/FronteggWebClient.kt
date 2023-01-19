@@ -21,33 +21,14 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         private val TAG = FronteggWebClient::class.java.simpleName
     }
 
-    private var disposable: Disposable
-
-    init {
-        disposable = FronteggAuth.instance.accessToken.subscribe {
-            Log.d(TAG, "ACCESS_TOKEN changes: ${it.value}")
-        }
-        FronteggAuth.instance.initializing.value = false
-
-
-    }
-
-
-    fun destroy() {
-        disposable.dispose()
-    }
-
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
-        Log.d("PageProgress", "startLoading: $url")
-
         FronteggAuth.instance.isLoading.value = true
 
     }
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
-        Log.d("PageProgress", "finishLoading: $url")
         when (getOverrideUrlType(Uri.parse(url))) {
             OverrideUrlType.SocialLoginCallback,
             OverrideUrlType.HostedLoginCallback ->
@@ -114,13 +95,8 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         view: WebView?,
         request: WebResourceRequest?
     ): Boolean {
-        val urlType = getOverrideUrlType(request!!.url)
-        Log.d(
-            "FronteggWebView.shouldOverrideUrlLoading",
-            "type: $urlType, url: ${request.url}"
-        )
 
-        when (urlType) {
+        when (getOverrideUrlType(request!!.url)) {
             OverrideUrlType.HostedLoginCallback -> {
                 return handleHostedLoginCallback(view, request.url?.query)
             }
@@ -154,7 +130,6 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 
     override fun onLoadResource(view: WebView?, url: String?) {
         val urlType = getOverrideUrlType(Uri.parse(url))
-//        Log.d(TAG, "onLoadResource type: $urlType, url: $url")
 
         val uri = Uri.parse(url);
         val query = uri.query
