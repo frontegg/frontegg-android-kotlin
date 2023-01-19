@@ -12,7 +12,6 @@ import okhttp3.internal.userAgent
 import java.util.*
 
 
-
 open class FronteggWebView : WebView {
 
     constructor(context: Context) : super(context) {

@@ -1,15 +1,16 @@
 package com.frontegg.android
 
+import android.app.Activity
 import android.content.Context
+import android.webkit.CookieManager
 import com.frontegg.android.models.User
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
+import com.frontegg.android.utils.ObservableValue
 import io.reactivex.rxjava3.core.Observable
-import io.reactivex.rxjava3.disposables.Disposable
-import io.reactivex.rxjava3.functions.Consumer
-import io.reactivex.rxjava3.subjects.PublishSubject
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
@@ -17,37 +18,6 @@ import kotlinx.coroutines.launch
 import java.util.Timer
 import java.util.TimerTask
 
-class NullableObject<K>(var value: K)
-
-class ObservableValue<T>(value: T) {
-
-    val observable: PublishSubject<NullableObject<T>> = PublishSubject.create()
-
-    private var nullableObject: NullableObject<T>
-    var value: T
-        set(newValue) {
-            nullableObject.value = newValue
-            observable.onNext(nullableObject)
-        }
-        get() {
-            return nullableObject.value
-        }
-
-    init {
-        this.nullableObject = NullableObject(value)
-    }
-
-    fun subscribe(onNext: Consumer<NullableObject<T>>): Disposable {
-        return observable.subscribe(onNext)
-    }
-
-    fun subscribe2(onNext: (NullableObject<T>) -> Unit) {
-        observable.subscribe {
-            onNext(it)
-        }
-        onNext(nullableObject)
-    }
-}
 
 @OptIn(DelicateCoroutinesApi::class)
 class FronteggAuth(
@@ -176,17 +146,23 @@ class FronteggAuth(
     }
 
 
-    fun logout() {
-        GlobalScope.launch(Dispatchers.IO) {
-            isLoading.value = true
-            isAuthenticated.value = false
-            accessToken.value = null
-            refreshToken.value = null
-            user.value = null
-            user.value = null
-            taskRunner?.cancel()
-            api.logout()
-            credentialManager.clear()
+    fun logout(context: Context, callback: () -> Unit) {
+        CookieManager.getInstance().removeAllCookies {
+            CookieManager.getInstance().flush();
+            GlobalScope.launch(Dispatchers.IO) {
+                taskRunner?.cancel()
+                isLoading.value = true
+                isAuthenticated.value = false
+                accessToken.value = null
+                refreshToken.value = null
+                user.value = null
+                api.logout()
+                credentialManager.clear()
+                (context as Activity).runOnUiThread {
+                    callback()
+                }
+            }
         }
+
     }
 }

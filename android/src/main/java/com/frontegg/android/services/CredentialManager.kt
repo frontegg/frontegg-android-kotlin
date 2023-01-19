@@ -1,5 +1,6 @@
 package com.frontegg.android.services
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
@@ -49,8 +50,9 @@ class CredentialManager(context: Context) {
     /**
      * Remove all keys from shared preferences
      */
+    @SuppressLint("ApplySharedPref")
     fun clear(){
         Log.d(TAG, "clear Frontegg shared preference ")
-        sp.edit().clear().apply()
+        sp.edit().clear().commit()
     }
 }

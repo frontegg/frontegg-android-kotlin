@@ -4,14 +4,16 @@ import android.app.Activity
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.widget.LinearLayout
 import com.frontegg.android.utils.AuthorizeUrlGenerator
+import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 
-abstract class AbstractFronteggLoginPage : Activity() {
+abstract class AbstractFronteggActivity : Activity() {
 
     companion object {
-        private val TAG = AbstractFronteggLoginPage::class.java.simpleName
+        private val TAG = AbstractFronteggActivity::class.java.simpleName
     }
 
     lateinit var webView: FronteggWebView
@@ -19,14 +21,18 @@ abstract class AbstractFronteggLoginPage : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        setContentView(R.layout.activity_frontegg_login_page)
+        setContentView(R.layout.activity_frontegg_login)
         webView = findViewById(R.id.custom_webview)
 
         val authorizeUrl = AuthorizeUrlGenerator()
         val url = authorizeUrl.generate()
 
         webViewUrl = intent.data?.toString() ?: url
+
         loaderLayout = findViewById(R.id.loaderView)
+        val loaderView = layoutInflater.inflate(FronteggApp.getInstance().loaderId,  null)
+
+        loaderLayout!!.addView(loaderView)
 
 
         if (!FronteggAuth.instance.initializing.value
@@ -39,7 +45,7 @@ abstract class AbstractFronteggLoginPage : Activity() {
     }
 
     private val disposables: ArrayList<Disposable> = arrayListOf()
-    private var loaderLayout: View? = null
+    private var loaderLayout: LinearLayout? = null
 
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         runOnUiThread {

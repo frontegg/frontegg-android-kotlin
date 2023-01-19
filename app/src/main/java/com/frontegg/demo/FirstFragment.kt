@@ -9,6 +9,7 @@ import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
 import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentFirstBinding
+import io.reactivex.rxjava3.disposables.Disposable
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -20,11 +21,12 @@ class FirstFragment : Fragment() {
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
+    private val disposables: ArrayList<Disposable> = arrayListOf()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
-    ): View? {
+    ): View {
 
         _binding = FragmentFirstBinding.inflate(inflater, container, false)
 
@@ -39,22 +41,23 @@ class FirstFragment : Fragment() {
         }
 
         binding.logoutButton.setOnClickListener {
-            FronteggAuth.instance.logout()
-            if(activity != null) {
-                activity?.startActivity(Intent(activity, FronteggLoginPage::class.java))
-                activity?.finish()
-            }
+            activity?.startActivity(Intent(activity, FronteggLogoutActivity::class.java))
+            activity?.finish()
         }
 
-        FronteggAuth.instance.user.subscribe2 {
+        disposables.add(FronteggAuth.instance.user.subscribe {
             activity?.runOnUiThread {
                 binding.textviewFirst.text = it.value?.email
             }
-        }
+        })
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
+        disposables.forEach {
+            it.dispose()
+        }
+        disposables.clear()
     }
 }

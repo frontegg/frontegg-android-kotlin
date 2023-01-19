@@ -9,12 +9,10 @@ import android.util.Log
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import com.frontegg.android.Constants.Companion.oauthUrls
+import com.frontegg.android.utils.Constants.Companion.loginRoutes
+import com.frontegg.android.utils.Constants.Companion.oauthUrls
 import com.frontegg.android.utils.AuthorizeUrlGenerator
-import com.frontegg.android.utils.CredentialKeys
-import com.google.gson.Gson
-import com.google.gson.JsonElement
-import com.google.gson.JsonObject
+import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
 import io.reactivex.rxjava3.disposables.Disposable
 
 
@@ -41,19 +39,24 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
+        Log.d("PageProgress", "startLoading: $url")
 
         FronteggAuth.instance.isLoading.value = true
+
     }
 
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
-
+        Log.d("PageProgress", "finishLoading: $url")
         when (getOverrideUrlType(Uri.parse(url))) {
             OverrideUrlType.SocialLoginCallback,
             OverrideUrlType.HostedLoginCallback ->
                 FronteggAuth.instance.isLoading.value = true
-            else ->
+            OverrideUrlType.Unknown,
+            OverrideUrlType.loginRoutes ->
                 FronteggAuth.instance.isLoading.value = false
+            else ->
+                FronteggAuth.instance.isLoading.value = true
         }
     }
 
@@ -74,23 +77,37 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         SocialLoginCallback,
         SocialLoginRedirectToBrowser,
         SamlCallback,
-        Forward
+        loginRoutes,
+        internalRoutes,
+        Unknown,
     }
 
     private fun getOverrideUrlType(url: Uri): OverrideUrlType {
 
+        if (url.toString() === "https://auth.davidantoon.me/oauth/account/login") {
+            Log.d("test", "catched")
+        }
         if (url.toString().startsWith(FronteggApp.getInstance().baseUrl)) {
             when (url.path) {
                 "/mobile/oauth/callback" -> return OverrideUrlType.HostedLoginCallback
                 "/mobile/sso/callback" -> return OverrideUrlType.SocialLoginCallback
                 "/auth/saml/callback" -> return OverrideUrlType.SamlCallback
+                else -> {
+                    if (successLoginRoutes.find { u -> url.path.toString().startsWith(u)} != null) {
+                        return OverrideUrlType.internalRoutes
+                    }else if (loginRoutes.find { u -> url.path.toString().startsWith(u)} != null) {
+                        return OverrideUrlType.loginRoutes
+                    }else {
+                        return OverrideUrlType.internalRoutes
+                    }
+                }
             }
         } else if (oauthUrls.find { u -> url.toString().startsWith(u) } != null) {
             return OverrideUrlType.SocialLoginRedirectToBrowser
         }
 
 
-        return OverrideUrlType.Forward
+        return OverrideUrlType.Unknown
     }
 
     override fun shouldOverrideUrlLoading(
@@ -127,7 +144,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 context.startActivity(browserIntent);
                 return true
             }
-            OverrideUrlType.Forward -> {
+            else -> {
                 return super.shouldOverrideUrlLoading(view, request)
             }
         }
@@ -137,7 +154,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 
     override fun onLoadResource(view: WebView?, url: String?) {
         val urlType = getOverrideUrlType(Uri.parse(url))
-        Log.d(TAG, "onLoadResource type: $urlType, url: $url")
+//        Log.d(TAG, "onLoadResource type: $urlType, url: $url")
 
         val uri = Uri.parse(url);
         val query = uri.query
@@ -194,7 +211,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             return false
         }
 
-        if(FronteggAuth.instance.handleHostedLoginCallback(webView as FronteggWebView, code)){
+        if (FronteggAuth.instance.handleHostedLoginCallback(webView as FronteggWebView, code)) {
             return true
         }
 

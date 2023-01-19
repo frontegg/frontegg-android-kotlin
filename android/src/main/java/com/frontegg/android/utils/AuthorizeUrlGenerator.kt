@@ -2,7 +2,6 @@ package com.frontegg.android.utils
 
 import android.net.Uri
 import android.util.Log
-import com.frontegg.android.Constants
 import com.frontegg.android.FronteggApp
 import java.security.MessageDigest
 import java.util.*
