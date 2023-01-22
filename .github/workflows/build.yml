@@ -1,4 +1,4 @@
-name: Frontegg Android SDK 
+name: Frontegg Android SDK
 
 on:
   push
@@ -39,4 +39,5 @@ jobs:
           NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
         run: ./gradlew publish
