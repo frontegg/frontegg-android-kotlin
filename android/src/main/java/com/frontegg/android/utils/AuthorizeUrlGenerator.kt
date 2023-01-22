@@ -44,7 +44,7 @@ class AuthorizeUrlGenerator {
         val nonce = createRandomString()
         val codeVerifier = createRandomString()
         val codeChallenge = generateCodeChallenge(codeVerifier)
-        
+
         val credentialManager = FronteggApp.getInstance().credentialManager
         credentialManager.save(CredentialKeys.CODE_VERIFIER, codeVerifier);
 

@@ -33,6 +33,8 @@ jobs:
           distribution: temurin
       - name: Print Env
         run: echo "NEXUS_USERNAME = $NEXUS_USERNAME"
+        env:
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
       - name: Build and test
         run: ./gradlew build --no-daemon
       - name: prepare release
