@@ -44,9 +44,7 @@ class AuthorizeUrlGenerator {
         val nonce = createRandomString()
         val codeVerifier = createRandomString()
         val codeChallenge = generateCodeChallenge(codeVerifier)
-
-        Log.d(TAG, "Saving the codeVerifier in temporary storage to be able to validate the response")
-
+        
         val credentialManager = FronteggApp.getInstance().credentialManager
         credentialManager.save(CredentialKeys.CODE_VERIFIER, codeVerifier);
 
