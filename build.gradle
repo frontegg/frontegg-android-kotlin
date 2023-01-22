@@ -23,7 +23,7 @@ java {
 publishing {
     publications {
         mavenJava(MavenPublication) {
-            artifactId = 'frontegg-android-kotlin'
+            artifactId = 'android'
             from components.java
 
             pom {
