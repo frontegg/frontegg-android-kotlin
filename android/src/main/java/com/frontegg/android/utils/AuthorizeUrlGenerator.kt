@@ -32,7 +32,10 @@ class AuthorizeUrlGenerator {
         val bytes = md.digest(input)
         val digest =  Base64.getEncoder().encodeToString(bytes)
 
-        return digest.replace("=", "").replace("\\+", "-").replace("\\/", "_")
+        return digest
+            .replace("=", "")
+            .replace("+", "-")
+            .replace("/", "_")
 
     }
 

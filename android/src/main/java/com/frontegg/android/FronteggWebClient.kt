@@ -64,26 +64,24 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
     }
 
     private fun getOverrideUrlType(url: Uri): OverrideUrlType {
-
-        if (url.toString() === "https://auth.davidantoon.me/oauth/account/login") {
-            Log.d("test", "catched")
-        }
         if (url.toString().startsWith(FronteggApp.getInstance().baseUrl)) {
-            when (url.path) {
-                "/mobile/oauth/callback" -> return OverrideUrlType.HostedLoginCallback
-                "/mobile/sso/callback" -> return OverrideUrlType.SocialLoginCallback
-                "/auth/saml/callback" -> return OverrideUrlType.SamlCallback
+            return when (url.path) {
+                "/mobile/oauth/callback" -> OverrideUrlType.HostedLoginCallback
+                "/mobile/sso/callback" -> OverrideUrlType.SocialLoginCallback
+                "/auth/saml/callback" -> OverrideUrlType.SamlCallback
                 else -> {
                     if (successLoginRoutes.find { u -> url.path.toString().startsWith(u)} != null) {
-                        return OverrideUrlType.internalRoutes
+                        OverrideUrlType.internalRoutes
                     }else if (loginRoutes.find { u -> url.path.toString().startsWith(u)} != null) {
-                        return OverrideUrlType.loginRoutes
+                        OverrideUrlType.loginRoutes
                     }else {
-                        return OverrideUrlType.internalRoutes
+                        OverrideUrlType.internalRoutes
                     }
                 }
             }
-        } else if (oauthUrls.find { u -> url.toString().startsWith(u) } != null) {
+        }
+
+        if (oauthUrls.find { u -> url.toString().startsWith(u) } != null) {
             return OverrideUrlType.SocialLoginRedirectToBrowser
         }
 
