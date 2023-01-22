@@ -29,7 +29,6 @@ publishing {
             pom {
                 signing {
                     sign publishing.publications.mavenJava
-                    sign configurations.archives
                 }
                 name = 'Frontegg Android Kotlin'
                 description = 'Frontegg Android Kotlin'
