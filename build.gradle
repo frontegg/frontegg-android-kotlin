@@ -1,0 +1,73 @@
+// Top-level build file where you can add configuration options common to all sub-projects/modules.
+plugins {
+    id 'com.android.application' version '7.3.1' apply false
+    id 'com.android.library' version '7.3.1' apply false
+    id 'org.jetbrains.kotlin.android' version '1.7.10' apply false
+    id 'maven-publish'
+    id 'signing'
+    id 'java-library'
+}
+
+group 'com.frontegg'
+version '0.1.1'
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+
+    withJavadocJar()
+    withSourcesJar()
+}
+
+
+publishing {
+    publications {
+        mavenJava(MavenPublication) {
+            artifactId = 'android'
+            from components.java
+
+            pom {
+                signing {
+                    useInMemoryPgpKeys(System.getenv('GPG_PRIVATE_KEY'), System.getenv("GPG_PASSPHRASE"))
+                    sign publishing.publications.mavenJava
+                }
+                name = 'Frontegg Android Kotlin'
+                description = 'Frontegg Android Kotlin'
+                url = 'https://github.com/frontegg/frontegg-android-kotlin'
+                licenses {
+                    license {
+                        name = 'The MIT License (MIT)'
+                        url = 'https://raw.githubusercontent.com/frontegg/frontegg-android-kotlin/master/LICENSE'
+                    }
+                }
+                developers {
+                    developer {
+                        id = 'frontegg'
+                        name = 'Frontegg Support'
+                        email = 'support@frontegg.com'
+                    }
+                }
+                scm {
+                    connection = 'scm:git:git://github.com/frontegg/frontegg-android-kotlin.git'
+                    developerConnection = 'scm:git:ssh://github.com/frontegg/frontegg-android-kotlin.git'
+                    url = 'https://github.com/frontegg/frontegg-android-kotlin'
+                }
+            }
+        }
+    }
+    repositories {
+        maven {
+
+            credentials {
+                username = System.getenv('NEXUS_USERNAME')
+                password = System.getenv('NEXUS_PASSWORD')
+            }
+            name = "OSSRH"
+            url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+        }
+    }
+}
+//
+//signing {
+//    sign publishing.publications.mavenJava
+//}
