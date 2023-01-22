@@ -99,7 +99,7 @@ class FronteggAuth(
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
         ) {
 
-            val decoded = JWTHelper.decode(accessToken)
+            @Suppress("UNUSED_VARIABLE") val decoded = JWTHelper.decode(accessToken)
             val user = api.me(accessToken)
 
             this.refreshToken.value = refreshToken

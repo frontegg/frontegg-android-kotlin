@@ -12,8 +12,8 @@ group 'com.frontegg'
 version '0.1.1'
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
 
     withJavadocJar()
     withSourcesJar()
@@ -27,6 +27,10 @@ publishing {
             from components.java
 
             pom {
+                signing {
+                    sign publishing.publications.mavenJava
+                    sign configurations.archives
+                }
                 name = 'Frontegg Android Kotlin'
                 description = 'Frontegg Android Kotlin'
                 url = 'https://github.com/frontegg/frontegg-android-kotlin'
@@ -58,13 +62,12 @@ publishing {
                 username = System.getenv('NEXUS_USERNAME')
                 password = System.getenv('NEXUS_PASSWORD')
             }
-
             name = "OSSRH"
             url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
         }
     }
 }
-
-signing {
-    sign publishing.publications.mavenJava
-}
+//
+//signing {
+//    sign publishing.publications.mavenJava
+//}
