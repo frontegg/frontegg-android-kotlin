@@ -4,25 +4,41 @@
 Frontegg is a web platform where SaaS companies can set up their fully managed, scalable and brand aware - SaaS features
 and integrate them into their SaaS portals in up to 5 lines of code.
 
-## Table of Contents
-
-- [Project Requirements](#project-requirements)
-    - [Supported Languages](#supported-languages)
-- [Getting Started](#getting-started)
-    - [Prepare Frontegg workspace](#prepare-frontegg-workspace)
-    - [Add frontegg package to the project](#add-frontegg-package-to-the-project)
-    - [Setup build variables](#setup-build-variables)
-    - [Initialize FronteggApp](#initialize-fronteggapp)
-    - [Add custom loading screen](#Add-custom-loading-screen)
-    - [Config Android AssetLinks](#config-android-assetlinks)
-
 ## Project Requirements
 
-### Supported Languages
+- ### Android SDK 26+
+  Set defaultConfig's minSDK to 26+ in build.gradle:
+- ```groovy
+  android {
+      defaultConfig {
+          minSdk 26
+      }
+  }
+  ```
+- ### Java 8+
+  Set target java 8 byte code for Android and Kotlin plugins respectively build.gradle:
+  ```groovy
+  android {
+      compileOptions {
+          sourceCompatibility JavaVersion.VERSION_1_8
+          targetCompatibility JavaVersion.VERSION_1_8
+      }
+  
+      kotlinOptions {
+          jvmTarget = '1.8'
+      }
+  }
+  ```
 
-**Android SDK:** The minimum supported version is 26.
 
 ## Getting Started
+
+  - [Prepare Frontegg workspace](#prepare-frontegg-workspace)
+  - [Add frontegg package to the project](#add-frontegg-package-to-the-project)
+  - [Setup build variables](#setup-build-variables)
+  - [Initialize FronteggApp](#initialize-fronteggapp)
+  - [Add custom loading screen](#add-custom-loading-screen)
+  - [Config Android AssetLinks](#config-android-assetlinks)
 
 ### Prepare Frontegg workspace
 
@@ -182,6 +198,61 @@ Register the `FronteggLogoutActivity` in the app's manifest file
     android:name=".FronteggLogoutActivity"
     android:theme="@style/Theme.MyApplication.NoActionBar"/>
 ```
+
+### Add custom loading screen
+In order to customize Frontegg loading screen:
+
+- Create new layout file contains your loader screen design:
+```xml
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center"
+    android:orientation="vertical"
+    tools:ignore="UseCompoundDrawables">
+
+    <ImageView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:contentDescription="@string/logo"
+        android:src="@mipmap/ic_launcher_round" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:gravity="center"
+        android:text="@string/app_name"
+        android:textSize="20sp" />
+
+</LinearLayout>
+```
+
+- Add `R.layout.loader` FronteggApp.init as the 4th argument:
+```kotlin
+  package com.frontegg.demo
+  
+  import android.app.Application
+  import com.frontegg.android.FronteggApp
+    
+  class App : Application() {
+    
+      override fun onCreate() {
+          super.onCreate()
+          
+          FronteggApp.init(
+              BuildConfig.FRONTEGG_DOMAIN,
+              BuildConfig.FRONTEGG_CLIENT_ID,
+              this,
+              R.layout.loader // <<-- here
+          )
+      }
+  }
+```
+
+
 
 ### Config Android AssetLinks 
 Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account.
