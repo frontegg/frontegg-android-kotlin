@@ -1,17 +1,24 @@
 name: Frontegg Android SDK
 
 on:
-  push
-
+  push:
+    branches-ignore:
+      - master
 env:
+  CI: true
   LANG: en_US.UTF-8
+
+concurrency:
+  group: ci-push-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-and-test:
     name: Build And Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           fetch-depth: 0
@@ -31,7 +38,7 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
           cache: 'gradle'
           distribution: temurin
-      - name: Build and test
+      - name: Build Libraries
         run: ./gradlew build --no-daemon
 #      - name: prepare release
 #        env:

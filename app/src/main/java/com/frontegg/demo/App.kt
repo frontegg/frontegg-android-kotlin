@@ -7,7 +7,11 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        FronteggApp.init(this, R.layout.loader)
+        FronteggApp.init(
+            BuildConfig.FRONTEGG_DOMAIN,
+            BuildConfig.FRONTEGG_CLIENT_ID,
+            this,
+            R.layout.loader
+        )
     }
-
 }
