@@ -186,11 +186,39 @@ Register the `FronteggLogoutActivity` in the app's manifest file
 ### Config Android AssetLinks 
 Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account.
 
-In order to add your `AssetLinks` to your Frontegg application, you will need to update in each of your integrated Frontegg Environments the `AssetLinks` that you would like to use with that Environment. Send a POST request to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` with the following payload:
+To add your `AssetLinks` to your Frontegg application, you will need to update in each of your integrated Frontegg Environments the `AssetLinks` that you would like to use with that Environment. Send a POST request to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` with the following payload:
 ```
 {
     "packageName": "YOUR_APPLICATION_PACKAGE_NAME",
     "sha256CertFingerprints": ["YOUR_KEYSTORE_CERT_FINGERPRINTS"]
 }
 ```
-In order to use our API’s, follow [this guide](‘https://docs.frontegg.com/reference/getting-started-with-your-api’) to generate a vendor token.
+
+Each Android app has multiple certificate fingerprint, to get your `DEBUG` sha256CertFingerprint you have to run the following command:
+
+For Debug mode, run the following command and copy the `SHA-256` value
+```bash
+./gradlew signingReport
+
+###################
+#  Example Output:
+###################
+
+#  Variant: debugAndroidTest
+#  Config: debug
+#  Store: /Users/davidfrontegg/.android/debug.keystore
+#  Alias: AndroidDebugKey
+#  MD5: 25:F5:99:23:FC:12:CA:10:8C:43:F4:02:7D:AD:DC:B6
+#  SHA1: FC:3C:88:D6:BF:4E:62:2E:F0:24:1D:DB:D7:15:36:D6:3E:14:84:50
+#  SHA-256: D9:6B:4A:FD:62:45:81:65:98:4D:5C:8C:A0:68:7B:7B:A5:31:BD:2B:9B:48:D9:CF:20:AE:56:FD:90:C1:C5:EE
+#  Valid until: Tuesday, 18 June 2052
+
+```
+
+
+For Release mode, Extract the SHA256 using keytool from your `Release` keystore file:
+```bash
+keytool -list -v -keystore /PATH/file.jks -alias YourAlias -storepass *** -keypass ***
+```
+
+In order to use our API’s, follow [this guide](https://docs.frontegg.com/reference/getting-started-with-your-api) to generate a vendor token.
