@@ -36,12 +36,13 @@
 
                 <data android:scheme="http" />
                 <data android:scheme="https" />
-                <data android:host="auth.davidantoon.me" />
+                <data android:host="${frontegg_domain}" />
             </intent-filter>
         </activity>
         <activity
             android:name=".FronteggLogoutActivity"
-            android:theme="@style/Theme.MyApplication.NoActionBar"></activity>
+            android:theme="@style/Theme.MyApplication.NoActionBar"/>
+
         <activity
             android:name=".MainActivity"
             android:theme="@style/Theme.MyApplication.NoActionBar">
