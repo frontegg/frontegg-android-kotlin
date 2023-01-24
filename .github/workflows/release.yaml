@@ -40,8 +40,6 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
           cache: 'gradle'
           distribution: temurin
-      - name: Build Libraries
-        run: ./gradlew build --no-daemon
 
       - name: prepare release
         env:
