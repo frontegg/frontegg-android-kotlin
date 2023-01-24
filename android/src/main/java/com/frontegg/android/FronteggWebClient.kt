@@ -93,7 +93,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         if (urlPath != null && url.toString().startsWith(FronteggApp.getInstance().baseUrl)) {
 
             return when (urlPath) {
-                "/oauth/mobile/oauth/callback" -> OverrideUrlType.HostedLoginCallback
+                "/oauth/mobile/callback" -> OverrideUrlType.HostedLoginCallback
                 else -> {
 
                     if (urlPath.startsWith("/frontegg/identity/resources/auth/v2/user/sso/default")
