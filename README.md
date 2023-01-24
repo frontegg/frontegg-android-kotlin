@@ -274,6 +274,13 @@ In order to customize Frontegg loading screen:
   }
 ```
 
+### Permissions
+
+Add `INTERNET` permission to the app's manifest file.
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
 
 
 ### Config Android AssetLinks 
