@@ -6,16 +6,16 @@ and integrate them into their SaaS portals in up to 5 lines of code.
 
 ## Project Requirements
 
-- ### Android SDK 26+
+- Android SDK 26+
   Set defaultConfig's minSDK to 26+ in build.gradle:
-- ```groovy
+  ```groovy
   android {
       defaultConfig {
           minSdk 26
       }
   }
   ```
-- ### Java 8+
+- Java 8+
   Set target java 8 byte code for Android and Kotlin plugins respectively build.gradle:
   ```groovy
   android {

@@ -15,8 +15,9 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import java.util.Timer
-import java.util.TimerTask
+import java.time.Instant
+import java.util.*
+import kotlin.concurrent.scheduleAtFixedRate
 
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -93,7 +94,7 @@ class FronteggAuth(
         }
     }
 
-    fun setCredentials(accessToken: String, refreshToken: String) {
+    private fun setCredentials(accessToken: String, refreshToken: String) {
 
         if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
@@ -111,9 +112,15 @@ class FronteggAuth(
             if (taskRunner != null) {
                 taskRunner?.cancel()
             }
-//            taskRunner = timer.scheduleAtFixedRate(0, decoded.exp) {
-//                refreshTokenIfNeeded()
-//            }
+            if(decoded.exp > 0) {
+                val now: Long = Instant.now().toEpochMilli()
+                val offset = (((decoded.exp * 1000) - now) * 0.8).toLong()
+                taskRunner = timer.scheduleAtFixedRate(offset, offset) {
+                    refreshTokenIfNeeded()
+                }
+            }else {
+                taskRunner?.cancel()
+            }
         } else {
             this.refreshToken.value = null
             this.accessToken.value = null
@@ -128,7 +135,7 @@ class FronteggAuth(
     fun handleHostedLoginCallback(webView: FronteggWebView, code: String): Boolean {
 
         val codeVerifier = credentialManager.get(CredentialKeys.CODE_VERIFIER)
-        val redirectUrl = Constants.OauthCallbackUrl(baseUrl)
+        val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
 
         GlobalScope.launch(Dispatchers.IO) {
             val data = api.exchangeToken(code, redirectUrl, codeVerifier)

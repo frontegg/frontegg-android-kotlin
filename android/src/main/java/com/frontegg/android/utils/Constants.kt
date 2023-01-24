@@ -30,8 +30,12 @@ class Constants {
             "/oauth/account/",
         )
 
-        fun OauthCallbackUrl(baseUrl: String): String {
+        fun oauthCallbackUrl(baseUrl: String): String {
             return "$baseUrl/mobile/oauth/callback"
+        }
+
+        fun socialLoginRedirectUrl(baseUrl: String): String {
+            return "$baseUrl/oauth/account/social/success"
         }
     }
 }
