@@ -114,6 +114,21 @@ class App : Application() {
 }
 ```
 
+Register the custom `App` in the app's manifest file
+
+**AndroidManifest.xml:**
+```xml
+
+<application
+        android:name=".App"
+        <!--  ... -->
+        >
+    <!--  ... -->
+</application>
+
+```
+android:name=".App"
+
 ### Add Frontegg Activity
 
 Create `FronteggActivity` class that extends `com.frontegg.android.AbstractFronteggActivity` to handle authenticated redirects
@@ -148,10 +163,10 @@ Register the `FronteggActivity` in the app's manifest file
 **AndroidManifest.xml:**
 ```xml
 <activity
-    android:name="[APP_PACKAGE_NAME].FronteggActivity"
+    android:name=".FronteggActivity"
     android:exported="true"
     android:label="@string/app_name"
-    android:theme="@style/Theme.MyApplication.NoActionBar">
+    android:theme="@style/Theme.Design.NoActionBar">
     <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
@@ -173,7 +188,7 @@ Register the `FronteggActivity` in the app's manifest file
 
 Create `FronteggLogoutActivity` class that extends `com.frontegg.android.AbstractFronteggLogoutActivity` to handle logout redirects
 
-**FronteggLogoutAcivity.kt:**
+**FronteggLogoutActivity.kt:**
 
 ```kotlin
 package com.frontegg.demo
@@ -203,7 +218,7 @@ Register the `FronteggLogoutActivity` in the app's manifest file
 ```xml
 <activity
     android:name=".FronteggLogoutActivity"
-    android:theme="@style/Theme.MyApplication.NoActionBar"/>
+    android:theme="@style/Theme.Design.NoActionBar"/>
 ```
 
 ### Add custom loading screen
