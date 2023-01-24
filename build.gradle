@@ -8,8 +8,8 @@ plugins {
     id 'java-library'
 }
 
-group 'com.frontegg.sdk'
-version '1.0.1'
+group 'com.frontegg.android'
+version '1.0.2'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
@@ -31,7 +31,7 @@ publishing {
                     useInMemoryPgpKeys(System.getenv('GPG_PRIVATE_KEY'), System.getenv("GPG_PASSPHRASE"))
                     sign publishing.publications.mavenJava
                 }
-                name = 'Frontegg Android Kotlin'
+                name = 'android'
                 description = 'Frontegg Android Kotlin'
                 url = 'https://github.com/frontegg/frontegg-android-kotlin'
                 licenses {
@@ -67,7 +67,3 @@ publishing {
         }
     }
 }
-//
-//signing {
-//    sign publishing.publications.mavenJava
-//}
