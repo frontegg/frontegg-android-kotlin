@@ -34,6 +34,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
 ## Getting Started
 
   - [Prepare Frontegg workspace](#prepare-frontegg-workspace)
+  - [Setup Hosted Login](#setup-hosted-login)
   - [Add frontegg package to the project](#add-frontegg-package-to-the-project)
   - [Setup build variables](#setup-build-variables)
   - [Initialize FronteggApp](#initialize-fronteggapp)
@@ -45,6 +46,12 @@ and integrate them into their SaaS portals in up to 5 lines of code.
 Navigate to [Frontegg Portal Settings](https://portal.frontegg.com/development/settings), If you don't have application
 follow integration steps after signing up.
 Copy FronteggDomain to future steps from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/domains)
+
+### Setup Hosted Login
+
+- Navigate to [Login Method Settings](https://portal.frontegg.com/development/authentication/hosted)
+- Toggle Hosted login method
+- Add `{{LOGIN_URL}}/mobile/oauth/callback`
 
 ### Add frontegg package to the project
 

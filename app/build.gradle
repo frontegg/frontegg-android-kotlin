@@ -3,8 +3,10 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-def fronteggDomain = "auth.davidantoon.me"
-def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+
+
+def fronteggDomain = "https://test.frontegg.com"
+def fronteggClientId = "f7a3f13d-4cb5-4078-b785-e0189c287d4b"
 android {
     namespace 'com.frontegg.demo'
     compileSdk 33

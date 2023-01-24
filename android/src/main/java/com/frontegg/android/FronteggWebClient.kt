@@ -6,12 +6,9 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.UrlQuerySanitizer
 import android.util.Log
-import android.webkit.WebResourceRequest
-import android.webkit.WebView
-import android.webkit.WebViewClient
+import android.webkit.*
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
-import com.frontegg.android.utils.Constants.Companion.oauthCallbackUrl
 import com.frontegg.android.utils.Constants.Companion.oauthUrls
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
@@ -43,6 +40,27 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         }
     }
 
+    override fun onReceivedError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        error: WebResourceError?
+    ) {
+        super.onReceivedError(view, request, error)
+    }
+
+    override fun onReceivedHttpError(
+        view: WebView?,
+        request: WebResourceRequest?,
+        errorResponse: WebResourceResponse?
+    ) {
+        if(view!!.url == request?.url.toString()){
+            Log.d(TAG, "onReceivedHttpError: Direct load url, ${request?.url?.path}")
+        }else {
+            Log.d(TAG, "onReceivedHttpError: HTTP api call, ${request?.url?.path}")
+        }
+        super.onReceivedHttpError(view, request, errorResponse)
+    }
+
     private fun setUriParameter(uri: Uri, key: String, newValue: String): Uri? {
         val params: Set<String> = uri.queryParameterNames
         val newUri: Uri.Builder = uri.buildUpon().clearQuery()
@@ -65,7 +83,6 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         HostedLoginCallback,
         SocialLoginRedirectToBrowser,
         SocialOauthPreLogin,
-        SamlCallback,
         loginRoutes,
         internalRoutes,
         Unknown
@@ -76,8 +93,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         if (urlPath != null && url.toString().startsWith(FronteggApp.getInstance().baseUrl)) {
 
             return when (urlPath) {
-                "/mobile/oauth/callback" -> OverrideUrlType.HostedLoginCallback
-                "/auth/saml/callback" -> OverrideUrlType.SamlCallback
+                "/oauth/mobile/oauth/callback" -> OverrideUrlType.HostedLoginCallback
                 else -> {
 
                     if (urlPath.startsWith("/frontegg/identity/resources/auth/v2/user/sso/default")
@@ -114,11 +130,6 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             when (getOverrideUrlType(request.url)) {
                 OverrideUrlType.HostedLoginCallback -> {
                     return handleHostedLoginCallback(view, request.url?.query)
-                }
-                OverrideUrlType.SamlCallback -> {
-                    val query = request.url?.query
-                    Log.d(TAG, "SsoCallback: $query")
-                    return true
                 }
                 OverrideUrlType.SocialLoginRedirectToBrowser -> {
                     FronteggAuth.instance.isLoading.value = true
