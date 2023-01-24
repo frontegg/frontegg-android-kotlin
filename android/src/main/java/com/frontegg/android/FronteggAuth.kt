@@ -2,6 +2,7 @@ package com.frontegg.android
 
 import android.app.Activity
 import android.content.Context
+import android.util.Log
 import android.webkit.CookieManager
 import com.frontegg.android.models.User
 import com.frontegg.android.services.Api
@@ -17,7 +18,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.time.Instant
 import java.util.*
-import kotlin.concurrent.scheduleAtFixedRate
+import kotlin.concurrent.schedule
 
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -48,7 +49,7 @@ class FronteggAuth(
     val externalLink: ObservableValue<Boolean> = ObservableValue(false)
     var pendingAppLink: String? = null
     var timer: Timer = Timer()
-    var taskRunner: TimerTask? = null
+    var refreshTaskRunner: TimerTask? = null
 
     init {
 
@@ -84,7 +85,7 @@ class FronteggAuth(
 
     private fun refreshTokenIfNeeded(): Boolean {
         val refreshToken = this.refreshToken.value ?: return false
-
+        Log.d(TAG, "refreshTokenIfNeeded()")
         val data = api.refreshToken(refreshToken)
         return if (data != null) {
             setCredentials(data.access_token, data.refresh_token)
@@ -109,17 +110,15 @@ class FronteggAuth(
             this.isAuthenticated.value = true
             this.pendingAppLink = null
 
-            if (taskRunner != null) {
-                taskRunner?.cancel()
-            }
+            refreshTaskRunner?.cancel()
+
             if(decoded.exp > 0) {
                 val now: Long = Instant.now().toEpochMilli()
-                val offset = (((decoded.exp * 1000) - now) * 0.8).toLong()
-                taskRunner = timer.scheduleAtFixedRate(offset, offset) {
+                val offset = (((decoded.exp * 1000) - now) * 0.80).toLong()
+                Log.d(TAG, "setCredentials, schedule for $offset")
+                refreshTaskRunner = timer.schedule(offset) {
                     refreshTokenIfNeeded()
                 }
-            }else {
-                taskRunner?.cancel()
             }
         } else {
             this.refreshToken.value = null
@@ -157,7 +156,7 @@ class FronteggAuth(
         CookieManager.getInstance().removeAllCookies {
             CookieManager.getInstance().flush();
             GlobalScope.launch(Dispatchers.IO) {
-                taskRunner?.cancel()
+                refreshTaskRunner?.cancel()
                 isLoading.value = true
                 isAuthenticated.value = false
                 accessToken.value = null

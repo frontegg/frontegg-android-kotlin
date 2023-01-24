@@ -66,9 +66,6 @@ abstract class AbstractFronteggActivity : Activity() {
 
 
     private val isInitializingConsumer: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isInitializingConsumer: ${it.value}")
-        Log.d(TAG, "isInitializingConsumer: isAuth ${FronteggAuth.instance.isAuthenticated.value}")
-
         if (!it.value && !FronteggAuth.instance.isAuthenticated.value) {
             runOnUiThread {
                 if(webViewUrl != null) {
