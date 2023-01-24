@@ -22,6 +22,8 @@ abstract class AbstractFronteggActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_frontegg_login)
+        overridePendingTransition(R.anim.fadein, R.anim.fadeout)
+
         webView = findViewById(R.id.custom_webview)
 
         val authorizeUrl = AuthorizeUrlGenerator()
