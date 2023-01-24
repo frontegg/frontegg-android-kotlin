@@ -1,7 +1,12 @@
 plugins {
     id 'com.android.library'
     id 'org.jetbrains.kotlin.android'
+    id 'maven-publish'
+    id 'signing'
 }
+
+group 'com.frontegg.android'
+version '1.0.2'
 
 android {
     namespace 'com.frontegg.android'
@@ -10,7 +15,7 @@ android {
     defaultConfig {
         minSdk 26
         targetSdk 33
-
+        versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
     }
@@ -29,6 +34,14 @@ android {
         jvmTarget = '1.8'
     }
     buildToolsVersion '30.0.3'
+
+    publishing {
+        singleVariant("release") {
+            // if you don't want sources/javadoc, remove these lines
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
 }
 
 dependencies {
@@ -41,4 +54,56 @@ dependencies {
     testImplementation 'junit:junit:4.13.2'
     androidTestImplementation 'androidx.test.ext:junit:1.1.4'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                groupId 'com.frontegg.sdk'
+                artifactId 'android'
+                version = android.defaultConfig.versionName
+                from components.release
+
+                pom {
+                    signing {
+                        useInMemoryPgpKeys(System.getenv('GPG_PRIVATE_KEY'), System.getenv("GPG_PASSPHRASE"))
+                        sign publishing.publications.mavenJava
+                    }
+                    name = 'android'
+                    description = 'Frontegg Android Kotlin'
+                    url = 'https://github.com/frontegg/frontegg-android-kotlin'
+                    licenses {
+                        license {
+                            name = 'The MIT License (MIT)'
+                            url = 'https://raw.githubusercontent.com/frontegg/frontegg-android-kotlin/master/LICENSE'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'frontegg'
+                            name = 'Frontegg Support'
+                            email = 'support@frontegg.com'
+                        }
+                    }
+                    scm {
+                        connection = 'scm:git:git://github.com/frontegg/frontegg-android-kotlin.git'
+                        developerConnection = 'scm:git:ssh://github.com/frontegg/frontegg-android-kotlin.git'
+                        url = 'https://github.com/frontegg/frontegg-android-kotlin'
+                    }
+                }
+            }
+        }
+        repositories {
+            maven {
+
+                credentials {
+                    username = System.getenv('NEXUS_USERNAME')
+                    password = System.getenv('NEXUS_PASSWORD')
+                }
+                name = "OSSRH"
+                url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+            }
+        }
+    }
 }
