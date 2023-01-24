@@ -22,6 +22,8 @@ abstract class AbstractFronteggActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_frontegg_login)
+        overridePendingTransition(R.anim.fadein, R.anim.fadeout)
+
         webView = findViewById(R.id.custom_webview)
 
         val authorizeUrl = AuthorizeUrlGenerator()
@@ -64,9 +66,6 @@ abstract class AbstractFronteggActivity : Activity() {
 
 
     private val isInitializingConsumer: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isInitializingConsumer: ${it.value}")
-        Log.d(TAG, "isInitializingConsumer: isAuth ${FronteggAuth.instance.isAuthenticated.value}")
-
         if (!it.value && !FronteggAuth.instance.isAuthenticated.value) {
             runOnUiThread {
                 if(webViewUrl != null) {

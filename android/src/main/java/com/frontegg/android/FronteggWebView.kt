@@ -2,13 +2,9 @@ package com.frontegg.android
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.content.Intent
 import android.util.AttributeSet
-import android.util.Log
 import android.webkit.WebView
 import com.frontegg.android.utils.AuthorizeUrlGenerator
-import com.frontegg.android.utils.FronteggJSModule
-import okhttp3.internal.userAgent
 import java.util.*
 
 
@@ -29,7 +25,6 @@ open class FronteggWebView : WebView {
         settings.loadWithOverviewMode = true
         settings.domStorageEnabled = true
 
-        this.addJavascriptInterface(FronteggJSModule(), "FronteggNative")
         webViewClient = FronteggWebClient(context)
     }
 

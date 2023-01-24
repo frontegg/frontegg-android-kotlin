@@ -17,6 +17,7 @@ abstract class AbstractFronteggLogoutActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_frontegg_logout)
+        overridePendingTransition(R.anim.fadein, R.anim.fadeout)
 
         loaderLayout = findViewById(R.id.loaderView)
         val loaderView = layoutInflater.inflate(FronteggApp.getInstance().loaderId, null)
