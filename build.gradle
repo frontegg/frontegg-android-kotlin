@@ -8,8 +8,8 @@ plugins {
     id 'java-library'
 }
 
-group 'com.frontegg'
-version '0.1.1'
+group 'com.frontegg.sdk'
+version '0.1.2'
 
 java {
     sourceCompatibility = JavaVersion.VERSION_1_8
