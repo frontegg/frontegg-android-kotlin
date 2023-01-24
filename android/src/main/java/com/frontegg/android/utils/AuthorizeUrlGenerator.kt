@@ -48,7 +48,7 @@ class AuthorizeUrlGenerator {
         val credentialManager = FronteggApp.getInstance().credentialManager
         credentialManager.save(CredentialKeys.CODE_VERIFIER, codeVerifier);
 
-        val redirectUrl = Constants.OauthCallbackUrl(baseUrl)
+        val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
         val authorizeUrlBuilder = Uri.Builder()
             .encodedPath(baseUrl)
             .appendEncodedPath("oauth/authorize")
@@ -62,8 +62,6 @@ class AuthorizeUrlGenerator {
 
 
         val authorizeUrl = authorizeUrlBuilder.build()
-
-        Log.d(TAG, "authorizeUrl: $authorizeUrl")
         return authorizeUrl.toString()
 
 

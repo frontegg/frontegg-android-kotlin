@@ -28,7 +28,7 @@ open class Api(
     }
 
 
-    private fun prepareHeaders(): Headers {
+    private fun prepareHeaders(additionalHeaders: Map<String, String> = mapOf()): Headers {
 
         val headers: MutableMap<String, String> = mutableMapOf(
             Pair("Content-Type", "application/json"),
@@ -36,9 +36,13 @@ open class Api(
             Pair("Origin", this.baseUrl)
         )
 
+        additionalHeaders.forEach {
+            headers[it.key] = it.value
+        }
+
         val accessToken = this.credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
         if (accessToken != null) {
-            headers.put("Authorization", "Bearer $accessToken")
+            headers["Authorization"] = "Bearer $accessToken"
         }
         return headers.toHeaders()
     }
@@ -51,8 +55,9 @@ open class Api(
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
-            Gson().toJson(body).toRequestBody("application/json; charset=utf-8".toMediaType())
-        val headers = this.prepareHeaders();
+            body.toString()
+                .toRequestBody("application/json; charset=utf-8".toMediaType())
+        val headers = this.prepareHeaders(additionalHeaders);
 
         requestBuilder.method("POST", bodyRequest)
         requestBuilder.headers(headers);
