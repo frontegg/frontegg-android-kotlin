@@ -61,7 +61,7 @@ Copy FronteggDomain to future steps from [Frontegg Portal Domain](https://portal
 ```groovy
     dependencies {
       // Add the Frontegg Android Kotlin SDK
-      implementation 'com.frontegg:android:1.+'
+      implementation 'com.frontegg.sdk:android:1.+'
     }
 ```
 
