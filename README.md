@@ -1,5 +1,5 @@
 
-![Frontegg_Android_SDK (Kotlin)](https://github.com/frontegg/frontegg-android-kotlin/raw/master/logo.png)
+![Frontegg_Android_SDK (Kotlin)](./logo.png)
 
 Frontegg is a web platform where SaaS companies can set up their fully managed, scalable and brand aware - SaaS features
 and integrate them into their SaaS portals in up to 5 lines of code.
@@ -108,11 +108,27 @@ class App : Application() {
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
-            this // Application Context
+            this, // Application Context
+            null
         )
     }
 }
 ```
+
+Register the custom `App` in the app's manifest file
+
+**AndroidManifest.xml:**
+```xml
+
+<application
+        android:name=".App"
+        <!--  ... -->
+        >
+    <!--  ... -->
+</application>
+
+```
+android:name=".App"
 
 ### Add Frontegg Activity
 
@@ -148,10 +164,10 @@ Register the `FronteggActivity` in the app's manifest file
 **AndroidManifest.xml:**
 ```xml
 <activity
-    android:name="[APP_PACKAGE_NAME].FronteggActivity"
+    android:name=".FronteggActivity"
     android:exported="true"
     android:label="@string/app_name"
-    android:theme="@style/Theme.MyApplication.NoActionBar">
+    android:theme="@style/Theme.Design.NoActionBar">
     <intent-filter>
         <action android:name="android.intent.action.MAIN" />
         <category android:name="android.intent.category.LAUNCHER" />
@@ -173,7 +189,7 @@ Register the `FronteggActivity` in the app's manifest file
 
 Create `FronteggLogoutActivity` class that extends `com.frontegg.android.AbstractFronteggLogoutActivity` to handle logout redirects
 
-**FronteggLogoutAcivity.kt:**
+**FronteggLogoutActivity.kt:**
 
 ```kotlin
 package com.frontegg.demo
@@ -203,7 +219,7 @@ Register the `FronteggLogoutActivity` in the app's manifest file
 ```xml
 <activity
     android:name=".FronteggLogoutActivity"
-    android:theme="@style/Theme.MyApplication.NoActionBar"/>
+    android:theme="@style/Theme.Design.NoActionBar"/>
 ```
 
 ### Add custom loading screen
@@ -259,6 +275,13 @@ In order to customize Frontegg loading screen:
   }
 ```
 
+### Permissions
+
+Add `INTERNET` permission to the app's manifest file.
+
+```xml
+<uses-permission android:name="android.permission.INTERNET" />
+```
 
 
 ### Config Android AssetLinks 
