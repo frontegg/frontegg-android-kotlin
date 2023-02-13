@@ -1,5 +1,5 @@
 
-![Frontegg_Android_SDK (Kotlin)](https://github.com/frontegg/frontegg-android-kotlin/raw/master/logo.png)
+![Frontegg_Android_SDK (Kotlin)](./logo.png)
 
 Frontegg is a web platform where SaaS companies can set up their fully managed, scalable and brand aware - SaaS features
 and integrate them into their SaaS portals in up to 5 lines of code.
@@ -108,7 +108,8 @@ class App : Application() {
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
-            this // Application Context
+            this, // Application Context
+            null
         )
     }
 }
