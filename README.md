@@ -285,7 +285,7 @@ Add `INTERNET` permission to the app's manifest file.
 
 
 ### Config Android AssetLinks 
-Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account.
+Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account / login with IdPs.
 
 To add your `AssetLinks` to your Frontegg application, you will need to update in each of your integrated Frontegg Environments the `AssetLinks` that you would like to use with that Environment. Send a POST request to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` with the following payload:
 ```
