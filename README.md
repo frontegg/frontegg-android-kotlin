@@ -68,12 +68,12 @@ Copy FronteggDomain to future steps from [Frontegg Portal Domain](https://portal
 ### Setup build variables 
 
 To setup your Android application to communicate with Frontegg, you have to use `manifestPlaceholders` property in your build.gradle
-file, this property will store hostname of from Frontegg Portal:
+file, this property will store frontegg hostname (without https) and client id from previous step:
 
 ```groovy
 
-def fronteggDomain = "DOMAIN_HOST_FROM_PREVIOUS_STEPS"
-def fronteggClientId = "CLIENT_ID_FROM_PREVIOUS_STEP"
+def fronteggDomain = "DOMAIN_HOST.com"
+def fronteggClientId = "CLIENT_ID"
 
 android {
     defaultConfig {
