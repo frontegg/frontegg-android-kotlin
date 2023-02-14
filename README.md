@@ -68,12 +68,12 @@ Copy FronteggDomain to future steps from [Frontegg Portal Domain](https://portal
 ### Setup build variables 
 
 To setup your Android application to communicate with Frontegg, you have to use `manifestPlaceholders` property in your build.gradle
-file, this property will store hostname of from Frontegg Portal:
+file, this property will store frontegg hostname (without https) and client id from previous step:
 
 ```groovy
 
-def fronteggDomain = "DOMAIN_HOST_FROM_PREVIOUS_STEPS"
-def fronteggClientId = "CLIENT_ID_FROM_PREVIOUS_STEP"
+def fronteggDomain = "DOMAIN_HOST.com"
+def fronteggClientId = "CLIENT_ID"
 
 android {
     defaultConfig {
@@ -285,7 +285,7 @@ Add `INTERNET` permission to the app's manifest file.
 
 
 ### Config Android AssetLinks 
-Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account.
+Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account / login with IdPs.
 
 To add your `AssetLinks` to your Frontegg application, you will need to update in each of your integrated Frontegg Environments the `AssetLinks` that you would like to use with that Environment. Send a POST request to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` with the following payload:
 ```

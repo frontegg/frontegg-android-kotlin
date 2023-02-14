@@ -6,6 +6,7 @@ public open class FronteggException(message: String, cause: Throwable? = null) :
     public companion object {
         public const val UNKNOWN_ERROR: String = "frontegg.error.unknown"
         public const val FRONTEGG_APP_MUST_BE_INITIALIZED: String = "frontegg.error.app_must_be_initialized"
+        public const val FRONTEGG_DOMAIN_MUST_NOT_START_WITH_HTTPS: String = "frontegg.error.domain_must_not_start_with_https"
         public const val KEY_NOT_FOUND_SHARED_PREFERENCES_ERROR: String = "frontegg.error.key_not_found_shared_preferences"
     }
 }
