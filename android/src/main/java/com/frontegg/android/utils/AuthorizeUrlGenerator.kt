@@ -1,14 +1,13 @@
 package com.frontegg.android.utils
 
 import android.net.Uri
-import android.util.Log
 import com.frontegg.android.FronteggApp
 import java.security.MessageDigest
-import java.util.*
+import java.util.Base64
 
 class AuthorizeUrlGenerator {
     companion object {
-        private val TAG  = AuthorizeUrlGenerator::class.java.simpleName
+        private val TAG = AuthorizeUrlGenerator::class.java.simpleName
     }
 
     private var clientId: String
@@ -26,11 +25,11 @@ class AuthorizeUrlGenerator {
             .joinToString("")
     }
 
-    private fun generateCodeChallenge(codeVerifier: String):String {
+    private fun generateCodeChallenge(codeVerifier: String): String {
         val md = MessageDigest.getInstance("SHA-256")
         val input = codeVerifier.toByteArray()
         val bytes = md.digest(input)
-        val digest =  Base64.getEncoder().encodeToString(bytes)
+        val digest = Base64.getEncoder().encodeToString(bytes)
 
         return digest
             .replace("=", "")

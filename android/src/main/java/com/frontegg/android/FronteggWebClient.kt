@@ -6,7 +6,11 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.UrlQuerySanitizer
 import android.util.Log
-import android.webkit.*
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
 import com.frontegg.android.utils.Constants.Companion.oauthUrls
@@ -32,9 +36,11 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         when (getOverrideUrlType(Uri.parse(url))) {
             OverrideUrlType.HostedLoginCallback ->
                 FronteggAuth.instance.isLoading.value = true
+
             OverrideUrlType.Unknown,
             OverrideUrlType.loginRoutes ->
                 FronteggAuth.instance.isLoading.value = false
+
             else ->
                 FronteggAuth.instance.isLoading.value = true
         }
@@ -53,9 +59,9 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         request: WebResourceRequest?,
         errorResponse: WebResourceResponse?
     ) {
-        if(view!!.url == request?.url.toString()){
+        if (view!!.url == request?.url.toString()) {
             Log.d(TAG, "onReceivedHttpError: Direct load url, ${request?.url?.path}")
-        }else {
+        } else {
             Log.d(TAG, "onReceivedHttpError: HTTP api call, ${request?.url?.path}")
         }
         super.onReceivedHttpError(view, request, errorResponse)
@@ -131,12 +137,14 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 OverrideUrlType.HostedLoginCallback -> {
                     return handleHostedLoginCallback(view, request.url?.query)
                 }
+
                 OverrideUrlType.SocialLoginRedirectToBrowser -> {
                     FronteggAuth.instance.isLoading.value = true
                     val browserIntent = Intent(Intent.ACTION_VIEW, url)
                     context.startActivity(browserIntent)
                     return true
                 }
+
                 else -> {
                     return super.shouldOverrideUrlLoading(view, request)
                 }
@@ -164,12 +172,14 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 }
                 super.onLoadResource(view, url)
             }
+
             OverrideUrlType.SocialOauthPreLogin -> {
                 if (setSocialLoginRedirectUri(view, uri)) {
                     return
                 }
                 super.onLoadResource(view, url)
             }
+
             else -> {
                 super.onLoadResource(view, url)
             }

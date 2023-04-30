@@ -32,7 +32,7 @@ abstract class AbstractFronteggActivity : Activity() {
         webViewUrl = intent.data?.toString() ?: url
 
         loaderLayout = findViewById(R.id.loaderView)
-        val loaderView = layoutInflater.inflate(FronteggApp.getInstance().loaderId,  null)
+        val loaderView = layoutInflater.inflate(FronteggApp.getInstance().loaderId, null)
 
         loaderLayout!!.addView(loaderView)
 
@@ -68,7 +68,7 @@ abstract class AbstractFronteggActivity : Activity() {
     private val isInitializingConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         if (!it.value && !FronteggAuth.instance.isAuthenticated.value) {
             runOnUiThread {
-                if(webViewUrl != null) {
+                if (webViewUrl != null) {
                     webView.loadUrl(webViewUrl!!)
                 }
             }

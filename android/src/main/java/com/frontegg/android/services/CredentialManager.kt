@@ -51,7 +51,7 @@ class CredentialManager(context: Context) {
      * Remove all keys from shared preferences
      */
     @SuppressLint("ApplySharedPref")
-    fun clear(){
+    fun clear() {
         Log.d(TAG, "clear Frontegg shared preference ")
         sp.edit().clear().commit()
     }
