@@ -1,19 +1,21 @@
 package com.frontegg.demo
 
-import androidx.test.espresso.web.sugar.Web.onWebView
-import androidx.test.espresso.web.webdriver.DriverAtoms.clearElement
-import androidx.test.espresso.web.webdriver.DriverAtoms.findElement
-import androidx.test.espresso.web.webdriver.DriverAtoms.webClick
-import androidx.test.espresso.web.webdriver.DriverAtoms.webKeys
-import androidx.test.espresso.web.webdriver.Locator
+import androidx.test.espresso.web.webdriver.*
+import androidx.test.espresso.web.webdriver.DriverAtoms.*
 import androidx.test.ext.junit.rules.ActivityScenarioRule
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.filters.LargeTest
+import com.frontegg.android.FronteggWebView
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.async
+import kotlinx.coroutines.delay
 import org.junit.Assert.*
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.util.concurrent.TimeUnit
+
 
 @LargeTest
 @RunWith(AndroidJUnit4::class)
@@ -25,32 +27,19 @@ open class LoginWithPasswordTest {
     @Test
     fun useAppContext() {
 
-//        val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-//        assertEquals("com.frontegg.demo", appContext.packageName)
-//
-//        ActivityScenario.launch(FronteggActivity::class.java)
-        Thread.sleep(5000)
+        var webView: FronteggWebView? = null
+        mActivityScenarioRule.scenario.onActivity {
+            webView = it.webView
+        }
 
-        onWebView()
-            .withTimeout(20, TimeUnit.SECONDS)
-            .withElement(
-                findElement(Locator.CSS_SELECTOR, "input[data-test-id=\"input-email\"]")
-            )
-            .perform(clearElement())
-            .perform(webClick())
-            .perform(webKeys("test@frontegg.com"))
+        val webHelper = WebViewHelper(webView!!)
+        webHelper.typeText("input-email", "test@frontegg.com")
+        webHelper.click("submit-btn")
+        webHelper.typeText("input-password", "test-password")
+        webHelper.click("submit-btn")
+        webHelper.getContent("submit-btn")
 
-        Thread.sleep(5000)
-
-        onWebView()
-            .withTimeout(20, TimeUnit.SECONDS)
-            .withElement(
-                findElement(Locator.CSS_SELECTOR, "button[data-test-id=\"submit-btn\"]")
-            )
-            .perform(webClick())
-
-        Thread.sleep(20000)
-
+        Thread.sleep(10000)
 
     }
 }
