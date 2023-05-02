@@ -50,7 +50,7 @@ class AuthorizeUrlGenerator {
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
         val authorizeUrlBuilder = Uri.Builder()
             .encodedPath(baseUrl)
-            .appendEncodedPath("oauth/authorize")
+            .appendEncodedPath("frontegg/oauth/authorize")
             .appendQueryParameter("response_type", "code")
             .appendQueryParameter("client_id", clientId)
             .appendQueryParameter("scope", "openid email profile")

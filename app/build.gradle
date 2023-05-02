@@ -3,7 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-def fronteggDomain = "auth.davidantoon.me"
+def fronteggDomain = "http://10.0.2.2:4001"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
 
 android {
@@ -20,7 +20,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders = [
-                "frontegg_domain" : fronteggDomain,
+                "frontegg_domain" : "9971-85-130-184-19.ngrok-free.app",
                 frontegg_client_id: fronteggClientId
         ]
 

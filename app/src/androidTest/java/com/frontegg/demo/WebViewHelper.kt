@@ -10,7 +10,6 @@ import java.util.Scanner
 import java.util.concurrent.CompletableFuture
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
-import kotlin.concurrent.timerTask
 
 
 class WebViewHelper(private val webView: FronteggWebView) {
@@ -112,8 +111,12 @@ class WebViewHelper(private val webView: FronteggWebView) {
         this.evaluateJavascript("await typeText(`$testId`, `$text`)")
     }
 
-    fun getContent(testId: String) {
-        this.evaluateJavascript("await getContent(`$testId`)")
+    fun findWithText(searchText: String) {
+        this.evaluateJavascript("await findWithText(`$searchText`, `contains`)")
+    }
+
+    fun exist(selector: Boolean) {
+        this.evaluateJavascript("await findElement(`$selector`)")
     }
 
     fun getAttr(testId: String, attr: String) {

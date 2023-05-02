@@ -5,7 +5,7 @@ import android.content.Context
 import androidx.annotation.LayoutRes
 import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
-import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_DOMAIN_MUST_NOT_START_WITH_HTTPS
+import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_DOMAIN_MUST_START_WITH_HTTPS
 import com.frontegg.android.services.*
 
 class FronteggApp private constructor(
@@ -47,10 +47,10 @@ class FronteggApp private constructor(
             context: Context,
             loaderId: Int?
         ) {
-            val baseUrl: String = if (fronteggDomain.startsWith("https")) {
-                throw FronteggException(FRONTEGG_DOMAIN_MUST_NOT_START_WITH_HTTPS)
+            val baseUrl: String = if (fronteggDomain.startsWith("http")) {
+                fronteggDomain
             } else {
-                "https://$fronteggDomain"
+                throw FronteggException(FRONTEGG_DOMAIN_MUST_START_WITH_HTTPS)
             }
 
             instance = FronteggApp(context, baseUrl, clientId, loaderId)
