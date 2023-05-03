@@ -8,9 +8,9 @@ env:
   CI: true
   LANG: en_US.UTF-8
 
-concurrency:
-  group: ci-push-${{ github.ref }}
-  cancel-in-progress: true
+#concurrency:
+#  group: ci-push-${{ github.ref }}
+#  cancel-in-progress: true
 
 jobs:
   build-and-test:
@@ -54,22 +54,9 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 29
-          script: echo "Emulator installed"
-
-      - name: Start Emulator
-        run: |
-          echo "Starting emulator"
-          nohup $ANDROID_HOME/emulator/emulator -avd emulator -no-window -no-audio -no-boot-anim &
-
-      - name: Wait for emulator to start
-        run: |
-          echo "Waiting for emulator to start"
-          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done; input keyevent 82'
-
-      - name: Run Tests
-        run: |
-          ./gradlew :app:connectedCheck -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.LoginWithPasswordTest
-          ./gradlew :app:connectedCheck -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.loginWithSAMLTest
+          script: |
+            ./gradlew :app:connectedCheck -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.LoginWithPasswordTest
+            ./gradlew :app:connectedCheck -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.loginWithSAMLTest
 
       - name: Upload test results
         if: always()
