@@ -2,9 +2,12 @@ package com.frontegg.demo
 
 import android.os.Looper
 import android.util.Log
+import androidx.test.espresso.IdlingResource
 import android.webkit.WebView
 import androidx.test.platform.app.InstrumentationRegistry
 import com.frontegg.android.FronteggWebView
+import java.lang.Exception
+import java.lang.RuntimeException
 import java.net.URL
 import java.util.Scanner
 import java.util.concurrent.CompletableFuture
@@ -56,7 +59,7 @@ class WebViewHelper(private val webView: FronteggWebView) {
     }
 
     private fun getUrlContent(): String {
-        val url = URL("http://10.0.2.2:3004/android-helpers.js")
+        val url = URL("http://10.0.2.2:3004/ui-helpers.js")
         val scanner = Scanner(url.openStream())
         scanner.useDelimiter("\\Z")
         return if (scanner.hasNext()) scanner.next() else ""
@@ -72,10 +75,14 @@ class WebViewHelper(private val webView: FronteggWebView) {
         val interfaceName = "WaitForPromise_${id++}"
         val completableFuture = CompletableFuture<Boolean?>()
         webView.addPromiseListener(interfaceName) { result, error ->
-            completableFuture.complete(true)
+            if(error != null) {
+                completableFuture.completeExceptionally(Exception(error))
+            }else {
+                completableFuture.complete(true)
+            }
         }
         InstrumentationRegistry.getInstrumentation().runOnMainSync {
-            webView.evaluateJavascript("$js.then(res=>FronteggHanlder.then(\"$interfaceName\", res)).catch(e =>FronteggHanlder.catch(\"$interfaceName\",e))") { }
+            webView.evaluateJavascript("$js.then(res=>FronteggHanlder.then(\"$interfaceName\", res)).catch(e => FronteggHanlder.catch(\"$interfaceName\", e))") { }
         }
 
         return completableFuture.get(20, TimeUnit.SECONDS)
@@ -123,3 +130,4 @@ class WebViewHelper(private val webView: FronteggWebView) {
         this.evaluateJavascript("await getAttr(`$testId`,`$attr`)")
     }
 }
+

@@ -119,7 +119,7 @@ object Mocker {
         request.inputStream.bufferedReader().use(BufferedReader::readText)
     }
 
-    fun mockSuccessPasswordLogin(oauthCode: String) {
+    fun mockSuccessPasswordLogin(oauthCode: String): JSONObject {
         val requestBody = mutableListOf(
             clientId,
             mapOf("email" to "test@frontegg.com")
@@ -159,5 +159,7 @@ object Mocker {
             mapOf("options" to mapOf("redirectUrl" to "$baseUrl/oauth/mobile/callback?code=$oauthCode"))
         )
         mock(MockMethod.mockLogout, emptyMap())
+
+        return mockedUser
     }
 }

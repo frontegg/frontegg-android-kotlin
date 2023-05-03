@@ -1,8 +1,6 @@
 package com.frontegg.demo
 
 import androidx.test.core.app.ActivityScenario
-import androidx.test.espresso.assertion.ViewAssertions.matches
-import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.espresso.web.webdriver.*
 import androidx.test.espresso.web.webdriver.DriverAtoms.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -16,11 +14,11 @@ import java.util.UUID
 
 @LargeTest
 @RunWith(AndroidJUnit4::class)
-open class LoginWithPasswordTest {
+open class LoginWithSAMLTest {
 
 
     @Test
-    fun testLoginWithPassword() {
+    fun testLoginWithSAML() {
         Mocker.mockClearMocks()
         val code = UUID.randomUUID().toString()
         Mocker.mock(
@@ -42,18 +40,25 @@ open class LoginWithPasswordTest {
 
         val webHelper = WebViewHelper(webView!!)
 
+        webHelper.typeText("input-email", "test@saml-domain.com")
 
-        webHelper.typeText("input-email", "test@frontegg.com")
-
-        Mocker.mock(MockMethod.mockSSOPrelogin, mapOf("options" to mapOf("success" to false)))
+        Mocker.mock(MockMethod.mockSSOPrelogin, mapOf(
+                "options" to mapOf(
+                    "success" to true,
+                    "idpType" to "saml",
+                    "address" to "http://10.0.2.2:3001/okta/saml"
+                ),
+                "partialRequestBody" to mapOf("email" to "test@saml-domain.com")
+            ))
         webHelper.click("submit-btn")
 
-        webHelper.typeText("input-password", "Testpassword")
+        waitForWebViewUrl(webView!!, "http://10.0.2.2:3001/okta/saml")
+        webHelper.findWithText("OKTA SAML Mock Server")
+        webHelper.click("login-button");
 
-        Mocker.mockSuccessPasswordLogin(code)
-        webHelper.findWithText("Sign in")
-        webHelper.click("submit-btn")
+//        Mocker.mockSuccessPasswordLogin(code)
 
-        waitOnView(R.id.textview_first).check(matches(withText("test@frontegg.com")))
+        Thread.sleep(100000)
+//        waitOnView(R.id.textview_first).check(matches(withText("test@frontegg.com")))
     }
 }

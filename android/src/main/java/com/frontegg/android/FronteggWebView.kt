@@ -11,7 +11,7 @@ import java.util.*
 
 open class FronteggWebView : WebView {
 
-    private val activePromise: MutableMap<String, (result: Any?, error: Any?) -> Unit> =
+    private val activePromise: MutableMap<String, (result: String?, error: String?) -> Unit> =
         mutableMapOf()
 
     constructor(context: Context) : super(context) {
@@ -37,25 +37,25 @@ open class FronteggWebView : WebView {
 
     private class WebAppInterface(private val webView: FronteggWebView) {
         @JavascriptInterface
-        fun then(id: String, result: Any?) {
+        fun then(id: String, result: String?) {
             webView.notifyThen(id, result)
         }
 
         @JavascriptInterface
-        fun catch(id: String, error: Any?) {
+        fun catch(id: String, error: String?) {
             webView.notifyCatch(id, error)
         }
     }
 
 
-    private fun notifyThen(id: String, result: Any?) {
+    private fun notifyThen(id: String, result: String?) {
         val callback = this.activePromise[id]
         if (callback != null) {
             callback(result, null)
             this.activePromise.remove(id)
         }
     }
-    private fun notifyCatch(id: String, error: Any?) {
+    private fun notifyCatch(id: String, error: String?) {
         val callback = this.activePromise[id]
         if (callback != null) {
             callback(null, error)
@@ -69,7 +69,7 @@ open class FronteggWebView : WebView {
         this.loadUrl(url)
     }
 
-    fun addPromiseListener(id:String, completion:(result: Any?, error: Any?) -> Unit ){
+    fun addPromiseListener(id:String, completion:(result: String?, error: String?) -> Unit ){
         this.activePromise[id] = completion
 
     }

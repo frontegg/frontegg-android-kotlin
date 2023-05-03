@@ -38,5 +38,42 @@ jobs:
           gpg-passphrase: GPG_PASSPHRASE
           cache: 'gradle'
           distribution: temurin
-      - name: Build Libraries
-        run: ./gradlew build --no-daemon
+
+      - name: Grant execute permissions for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Cache Gradle packages
+        uses: actions/cache@v2
+        with:
+          path: ~/.gradle/caches
+          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-
+
+      - name: Install Android Emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 29
+          script: echo "Emulator installed"
+
+      - name: Start Emulator
+        run: |
+          echo "Starting emulator"
+          nohup $ANDROID_HOME/emulator/emulator -avd emulator -no-window -no-audio -no-boot-anim &
+
+      - name: Wait for emulator to start
+        run: |
+          echo "Waiting for emulator to start"
+          $ANDROID_HOME/platform-tools/adb wait-for-device shell 'while [[ -z $(getprop sys.boot_completed) ]]; do sleep 1; done; input keyevent 82'
+
+      - name: Run Tests
+        run: |
+          ./gradlew :app:connectedCheck -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.LoginWithPasswordTest
+          ./gradlew :app:connectedCheck -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.loginWithSAMLTest
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v2
+        with:
+          name: test-results
+          path: app/build/reports/androidTests/connected/
