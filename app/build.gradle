@@ -20,7 +20,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders = [
-                "frontegg_domain" : "9971-85-130-184-19.ngrok-free.app",
+                "frontegg_domain" : fronteggDomain,
                 frontegg_client_id: fronteggClientId
         ]
 

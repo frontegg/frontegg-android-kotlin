@@ -56,6 +56,22 @@ jobs:
           disable-animations: false
           script: echo "Generated AVD snapshot for caching."
 
+      - name: Clone Mock Server
+        uses: actions/checkout@v3
+        with:
+          repository: frontegg/frontegg-mock-server
+          ssh-key: ${{ secrets.MOCK_SERVER_SSH_KEY }}
+          ref: "master"
+          path: mocker
+      - name: Run Mock Server
+        working-directory: mocker
+        env:
+          ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: "${{ github.workspace }}/app/build.gradle"
+        run: |
+          echo "ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: $ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH"
+          yarn install
+          (yarn start:mobile-mock&)
+          sleep 20
       - name: Run tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
