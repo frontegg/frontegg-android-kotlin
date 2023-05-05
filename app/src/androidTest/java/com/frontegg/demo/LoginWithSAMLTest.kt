@@ -15,8 +15,6 @@ import java.util.UUID
 @LargeTest
 @RunWith(AndroidJUnit4::class)
 open class LoginWithSAMLTest {
-
-
     @Test
     fun testLoginWithSAML() {
         Mocker.mockClearMocks()
@@ -42,14 +40,16 @@ open class LoginWithSAMLTest {
 
         webHelper.typeText("input-email", "test@saml-domain.com")
 
-        Mocker.mock(MockMethod.mockSSOPrelogin, mapOf(
+        Mocker.mock(
+            MockMethod.mockSSOPrelogin, mapOf(
                 "options" to mapOf(
                     "success" to true,
                     "idpType" to "saml",
                     "address" to "http://10.0.2.2:3001/okta/saml"
                 ),
                 "partialRequestBody" to mapOf("email" to "test@saml-domain.com")
-            ))
+            )
+        )
         webHelper.click("submit-btn")
 
         waitForWebViewUrl(webView!!, "http://10.0.2.2:3001/okta/saml")

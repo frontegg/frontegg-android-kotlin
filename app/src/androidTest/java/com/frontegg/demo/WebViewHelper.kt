@@ -34,15 +34,18 @@ class WebViewHelper(private val webView: FronteggWebView) {
 
     private fun waitForWebView(): Boolean {
         val latch = CountDownLatch(1)
-        val timeoutInSeconds = 5L
-
+        val timeoutInSeconds = 20L
+        lateinit var intervalFunction: Runnable
         val intervalInMillis = 200L
-        val intervalFunction = Runnable {
+        intervalFunction = Runnable {
             if (latch.count > 0) {
-                val jsCheck =
-                    "document.querySelectorAll('frontegg-login-box-container-default').length === 0"
+                val jsCheck = "document.querySelectorAll('frontegg-login-box-container-default').length > 0"
                 val handler: (result: String) -> Unit = {
-                    if (it != "true") latch.countDown() else Thread.sleep(intervalInMillis)
+                    if (it == "true") latch.countDown() else {
+                        Thread.sleep(intervalInMillis)
+                        Thread(intervalFunction).start()
+                        Thread.interrupted()
+                    }
                 }
                 if (Looper.getMainLooper().isCurrentThread) {
                     webView.evaluateJavascript(jsCheck, handler)
@@ -74,7 +77,7 @@ class WebViewHelper(private val webView: FronteggWebView) {
 
         val interfaceName = "WaitForPromise_${id++}"
         val completableFuture = CompletableFuture<Boolean?>()
-        webView.addPromiseListener(interfaceName) { result, error ->
+        webView.addPromiseListener(interfaceName) { _, error ->
             if(error != null) {
                 completableFuture.completeExceptionally(Exception(error))
             }else {
@@ -85,7 +88,7 @@ class WebViewHelper(private val webView: FronteggWebView) {
             webView.evaluateJavascript("$js.then(res=>FronteggHanlder.then(\"$interfaceName\", res)).catch(e => FronteggHanlder.catch(\"$interfaceName\", e))") { }
         }
 
-        return completableFuture.get(20, TimeUnit.SECONDS)
+        return completableFuture.get(40, TimeUnit.SECONDS)
     }
 
     private fun WebView.evaluateJavascriptSync(js: String): Boolean? {
