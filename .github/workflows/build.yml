@@ -27,15 +27,19 @@ jobs:
           ssh-key: ${{ secrets.MOCK_SERVER_SSH_KEY }}
           ref: "master"
           path: mocker
+      - name: Install Mock Server
+        working-directory: mocker
+        env:
+          ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: "${{ github.workspace }}/app/build.gradle"
+        run: yarn install
       - name: Run Mock Server
         working-directory: mocker
         env:
           ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: "${{ github.workspace }}/app/build.gradle"
         run: |
           echo "ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: $ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH"
-          yarn install
           (yarn start:mobile-mock&)
-          sleep 30
+          sleep 40
       - name: Setup JDK 11
         uses: actions/setup-java@v3
         with:
