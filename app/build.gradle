@@ -21,7 +21,7 @@ android {
 
         manifestPlaceholders = [
                 "frontegg_domain" : fronteggDomain,
-                frontegg_client_id: fronteggClientId
+                "frontegg_client_id": fronteggClientId
         ]
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""

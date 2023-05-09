@@ -37,6 +37,7 @@ jobs:
         env:
           ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: "${{ github.workspace }}/app/build.gradle"
           SERVER_HOSTNAME: "10.0.2.2"
+          NGROCK_AUTH_TOKEN: "${{ secrets.NGROCK_AUTH_TOKEN }}"
         run: |
           echo "ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: $ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH"
           echo "SERVER_HOSTNAME: $SERVER_HOSTNAME"
