@@ -36,8 +36,10 @@ jobs:
         working-directory: mocker
         env:
           ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: "${{ github.workspace }}/app/build.gradle"
+          SERVER_HOSTNAME: "10.0.2.2"
         run: |
           echo "ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: $ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH"
+          echo "SERVER_HOSTNAME: $SERVER_HOSTNAME"
           (yarn start:mobile-mock&)
           sleep 40
       - name: Setup JDK 11
