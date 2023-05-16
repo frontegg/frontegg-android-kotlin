@@ -1,13 +1,13 @@
 package com.frontegg.demo
 
+import android.app.Activity
 import android.os.Looper
-import android.util.Log
-import androidx.test.espresso.IdlingResource
 import android.webkit.WebView
 import androidx.test.platform.app.InstrumentationRegistry
+import androidx.test.platform.app.InstrumentationRegistry.getInstrumentation
+import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
+import androidx.test.runner.lifecycle.Stage
 import com.frontegg.android.FronteggWebView
-import java.lang.Exception
-import java.lang.RuntimeException
 import java.net.URL
 import java.util.Scanner
 import java.util.concurrent.CompletableFuture
@@ -39,7 +39,8 @@ class WebViewHelper(private val webView: FronteggWebView) {
         val intervalInMillis = 200L
         intervalFunction = Runnable {
             if (latch.count > 0) {
-                val jsCheck = "document.querySelectorAll('frontegg-login-box-container-default').length > 0"
+                val jsCheck =
+                    "document.querySelectorAll('frontegg-login-box-container-default').length > 0"
                 val handler: (result: String) -> Unit = {
                     if (it == "true") latch.countDown() else {
                         Thread.sleep(intervalInMillis)
@@ -78,9 +79,9 @@ class WebViewHelper(private val webView: FronteggWebView) {
         val interfaceName = "WaitForPromise_${id++}"
         val completableFuture = CompletableFuture<Boolean?>()
         webView.addPromiseListener(interfaceName) { _, error ->
-            if(error != null) {
+            if (error != null) {
                 completableFuture.completeExceptionally(Exception(error))
-            }else {
+            } else {
                 completableFuture.complete(true)
             }
         }
@@ -134,3 +135,25 @@ class WebViewHelper(private val webView: FronteggWebView) {
     }
 }
 
+
+fun getCurrentActivity(): Activity? {
+    val currentActivity = arrayOf<Activity?>(null)
+    getInstrumentation().runOnMainSync {
+        val resumedActivities: Collection<*> = ActivityLifecycleMonitorRegistry.getInstance()
+            .getActivitiesInStage(Stage.RESUMED)
+        if (resumedActivities.iterator().hasNext()) {
+            currentActivity[0] = resumedActivities.iterator().next() as Activity?
+        }
+    }
+    return currentActivity[0]
+}
+
+fun killAllActivities() {
+    getInstrumentation().runOnMainSync {
+        val resumedActivities: Collection<*> = ActivityLifecycleMonitorRegistry.getInstance()
+            .getActivitiesInStage(Stage.RESUMED)
+        if (resumedActivities.iterator().hasNext()) {
+            (resumedActivities.iterator().next() as Activity?)?.finish()
+        }
+    }
+}

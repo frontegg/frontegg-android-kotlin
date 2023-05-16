@@ -1,5 +1,6 @@
 package com.frontegg.android
 
+import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
 import android.util.Log
@@ -21,6 +22,7 @@ import java.util.*
 import kotlin.concurrent.schedule
 
 
+@SuppressLint("CheckResult")
 @OptIn(DelicateCoroutinesApi::class)
 class FronteggAuth(
     val baseUrl: String,
@@ -101,7 +103,7 @@ class FronteggAuth(
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
         ) {
 
-            @Suppress("UNUSED_VARIABLE") val decoded = JWTHelper.decode(accessToken)
+            val decoded = JWTHelper.decode(accessToken)
             val user = api.me(accessToken)
 
             this.refreshToken.value = refreshToken
@@ -154,7 +156,7 @@ class FronteggAuth(
 
     fun logout(context: Context, callback: () -> Unit) {
         CookieManager.getInstance().removeAllCookies {
-            CookieManager.getInstance().flush();
+            CookieManager.getInstance().flush()
             GlobalScope.launch(Dispatchers.IO) {
                 refreshTaskRunner?.cancel()
                 isLoading.value = true

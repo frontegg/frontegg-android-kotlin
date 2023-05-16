@@ -7,9 +7,9 @@ import android.util.Log
 import com.frontegg.android.exceptions.KeyNotFoundException
 import com.frontegg.android.utils.CredentialKeys
 
-class CredentialManager(context: Context) {
+open class CredentialManager(context: Context) {
     companion object {
-        private const val SHARED_PREFERENCES_NAME: String =
+        const val SHARED_PREFERENCES_NAME: String =
             "com.frontegg.services.CredentialManager"
         private val TAG = CredentialManager::class.java.simpleName
     }

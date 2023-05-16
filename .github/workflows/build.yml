@@ -29,8 +29,6 @@ jobs:
           path: mocker
       - name: Install Mock Server
         working-directory: mocker
-        env:
-          ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: "${{ github.workspace }}/app/build.gradle"
         run: yarn install
       - name: Run Mock Server
         working-directory: mocker
@@ -38,9 +36,11 @@ jobs:
           ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: "${{ github.workspace }}/app/build.gradle"
           SERVER_HOSTNAME: "10.0.2.2"
           NGROCK_AUTH_TOKEN: "${{ secrets.NGROCK_AUTH_TOKEN }}"
+          NGROCK_SUBDOMAIN: "frontegg-test"
         run: |
           echo "ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH: $ANDROID_ASSOCIATED_DOMAIN_GRADLE_PATH"
           echo "SERVER_HOSTNAME: $SERVER_HOSTNAME"
+          echo "NGROCK_SUBDOMAIN: $NGROCK_SUBDOMAIN"
           (yarn start:mobile-mock&)
           sleep 40
       - name: Setup JDK 11
@@ -66,10 +66,11 @@ jobs:
         if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
+          avd-name: "AndroidEmulator"
           api-level: ${{env.API_LEVEL}}
           force-avd-creation: false
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: false
+          disable-animations: true
           script: echo "Generated AVD snapshot for caching."
 
       - name: Run tests

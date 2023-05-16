@@ -1,6 +1,9 @@
 package com.frontegg.demo
 
+import android.content.Intent
 import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.espresso.action.ViewActions.click
 import androidx.test.espresso.assertion.ViewAssertions.matches
 import androidx.test.espresso.matcher.ViewMatchers.withText
 import androidx.test.espresso.web.webdriver.*
@@ -34,7 +37,10 @@ open class LoginWithPasswordTest {
             )
         )
 
-        val scenario = ActivityScenario.launch(FronteggActivity::class.java)
+        val intent = Intent(ApplicationProvider.getApplicationContext(), FronteggActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val scenario = ActivityScenario.launch<FronteggActivity>(intent)
+
         var webView: FronteggWebView? = null
         scenario.onActivity {
             webView = it.webView
@@ -55,5 +61,16 @@ open class LoginWithPasswordTest {
         webHelper.click("submit-btn")
 
         waitOnView(R.id.textview_first).check(matches(withText("test@frontegg.com")))
+        waitOnView(R.id.logout_button).perform(click())
+
+        Thread.sleep(5000)
+//        killAllActivities()
+//        Thread.sleep(5000)
+//        val activity = getCurrentActivity()!!
+//        val sp = activity.getSharedPreferences(CredentialManager.SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
+//        sp.edit().clear().commit()
+//        Thread.sleep(5000)
+//        activity.finishAndRemoveTask()
+//        Thread.sleep(5000)
     }
 }

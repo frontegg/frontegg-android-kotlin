@@ -1,6 +1,10 @@
 package com.frontegg.demo
 
+import android.content.Context
+import android.content.Intent
 import androidx.test.core.app.ActivityScenario
+import androidx.test.core.app.ApplicationProvider
+import androidx.test.core.app.ApplicationProvider.getApplicationContext
 import androidx.test.espresso.web.webdriver.*
 import androidx.test.espresso.web.webdriver.DriverAtoms.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -30,7 +34,10 @@ open class LoginWithSAMLTest {
             )
         )
 
-        val scenario = ActivityScenario.launch(FronteggActivity::class.java)
+        val intent = Intent(getApplicationContext(), FronteggActivity::class.java)
+        intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+        val scenario = ActivityScenario.launch<FronteggActivity>(intent)
+
         var webView: FronteggWebView? = null
         scenario.onActivity {
             webView = it.webView
@@ -54,11 +61,11 @@ open class LoginWithSAMLTest {
 
         waitForWebViewUrl(webView!!, "http://10.0.2.2:3001/okta/saml")
         webHelper.findWithText("OKTA SAML Mock Server")
-        webHelper.click("login-button");
+        webHelper.click("login-button")
 
-//        Mocker.mockSuccessPasswordLogin(code)
+        Thread.sleep(5000)
 
-        Thread.sleep(100000)
-//        waitOnView(R.id.textview_first).check(matches(withText("test@frontegg.com")))
+//        getCurrentActivity()?.finish()
+//        Thread.sleep(5000)
     }
 }
