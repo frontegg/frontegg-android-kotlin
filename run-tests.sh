@@ -1,4 +1,4 @@
 #!/usr/bin/env bash
 
-./gradlew :app:connectedCheck -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.LoginWithPasswordTest
-./gradlew :app:connectedCheck -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.LoginWithSAMLTest
+./gradlew :app:connectedCheck --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.LoginWithPasswordTest
+./gradlew :app:connectedCheck --stacktrace -Pandroid.testInstrumentationRunnerArguments.class=com.frontegg.demo.LoginWithSAMLTest

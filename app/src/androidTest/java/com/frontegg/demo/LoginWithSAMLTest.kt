@@ -5,6 +5,9 @@ import android.content.Intent
 import androidx.test.core.app.ActivityScenario
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.core.app.ApplicationProvider.getApplicationContext
+import androidx.test.espresso.action.ViewActions
+import androidx.test.espresso.assertion.ViewAssertions
+import androidx.test.espresso.matcher.ViewMatchers
 import androidx.test.espresso.web.webdriver.*
 import androidx.test.espresso.web.webdriver.DriverAtoms.*
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -65,7 +68,9 @@ open class LoginWithSAMLTest {
 
         Thread.sleep(5000)
 
-//        getCurrentActivity()?.finish()
-//        Thread.sleep(5000)
+        waitOnView(R.id.textview_first).check(ViewAssertions.matches(ViewMatchers.withText("test@saml-domain.com")))
+        Thread.sleep(5000)
+        waitOnView(R.id.logout_button).perform(ViewActions.click())
+
     }
 }
