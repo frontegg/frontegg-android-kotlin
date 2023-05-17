@@ -60,10 +60,11 @@ open class LoginWithPasswordTest {
         webHelper.findWithText("Sign in")
         webHelper.click("submit-btn")
 
+        Thread.sleep(10000)
         waitOnView(R.id.textview_first).check(matches(withText("test@frontegg.com")))
         waitOnView(R.id.logout_button).perform(click())
 
-        Thread.sleep(5000)
+        Thread.sleep(10000)
 //        killAllActivities()
 //        Thread.sleep(5000)
 //        val activity = getCurrentActivity()!!

@@ -22,7 +22,7 @@ import java.util.concurrent.TimeUnit
  * @param viewId The id of the view to wait for.
  * @param timeout The timeout of until when to wait for.
  */
-fun waitOnView(viewId: Int, timeout: Int = 10000): ViewInteraction {
+fun waitOnView(viewId: Int, timeout: Int = 20000): ViewInteraction {
     return try {
         onView(withId(viewId)).check(
             matches(
@@ -50,7 +50,7 @@ class UrlNotMatchError(targetUrl: String) : Exception("WebView url does not matc
  * @param webView
  * @param timeout The timeout of until when to wait for.
  */
-fun waitForWebViewUrl(webView: WebView, targetUrl: String, timeout: Int = 10000): Boolean {
+fun waitForWebViewUrl(webView: WebView, targetUrl: String, timeout: Int = 20000): Boolean {
     val latch = CountDownLatch(1)
 
     lateinit var intervalFunction: Runnable

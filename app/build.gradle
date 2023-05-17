@@ -3,7 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-def fronteggDomain = "http://10.0.2.2:4001"
+def fronteggDomain = "https://frontegg-test.ngrok.io"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
 
 android {

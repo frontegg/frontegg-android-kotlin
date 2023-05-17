@@ -36,7 +36,7 @@ enum class MockDataMethod(val rawValue: String) {
 
 object Mocker {
 
-    var baseUrl: String = "http://10.0.2.2:4001"
+    var baseUrl: String = BuildConfig.FRONTEGG_DOMAIN
     var clientId: String = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
 
     fun getNgrokUrl(): String {
@@ -98,7 +98,7 @@ object Mocker {
         val request = url.openConnection() as HttpURLConnection
         request.setRequestProperty("Accept", "application/json")
         request.setRequestProperty("Content-Type", "application/json")
-        request.setRequestProperty("Origin", "http://10.0.2.2:4001")
+        request.setRequestProperty("Origin", baseUrl)
         request.requestMethod = "GET"
 
         val data = request.inputStream.bufferedReader().use { it.readText() }
@@ -114,7 +114,7 @@ object Mocker {
         val request = url.openConnection() as HttpURLConnection
         request.setRequestProperty("Accept", "application/json")
         request.setRequestProperty("Content-Type", "application/json")
-        request.setRequestProperty("Origin", "http://10.0.2.2:4001")
+        request.setRequestProperty("Origin", baseUrl)
         request.requestMethod = "POST"
         request.inputStream.bufferedReader().use(BufferedReader::readText)
     }
