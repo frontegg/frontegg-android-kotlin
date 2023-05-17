@@ -162,4 +162,50 @@ object Mocker {
 
         return mockedUser
     }
+
+    fun mockSuccessSamlLogin(oauthCode: String) {
+        val requestBody = mutableListOf(
+            clientId,
+            mapOf("email" to "test@saml-domain.com")
+        )
+        val mockedUser = mockData(MockDataMethod.generateUser, requestBody).getJSONObject("data")
+
+        mock(MockMethod.mockGetMeTenants, mapOf("options" to mockedUser))
+        mock(MockMethod.mockGetMe, mapOf("options" to mockedUser))
+        mock(MockMethod.mockSessionsConfigurations, emptyMap())
+
+        mock(MockMethod.mockSSOAuthSamlCallback, mapOf("options" to mapOf(
+            "success" to true,
+            "baseUrl" to baseUrl,
+            "refreshTokenCookie" to mockedUser.getString("refreshTokenCookie")
+        )))
+
+        mock(
+            MockMethod.mockHostedLoginRefreshToken, mapOf(
+                "partialRequestBody" to emptyMap<String, Any>(),
+                "options" to mapOf(
+                    "success" to true,
+                    "refreshTokenResponse" to mockedUser["refreshTokenResponse"],
+                    "refreshTokenCookie" to mockedUser["refreshTokenCookie"]
+                )
+            )
+        )
+        mock(
+            MockMethod.mockEmbeddedRefreshToken, mapOf(
+                "options" to mapOf(
+                    "success" to true,
+                    "refreshTokenResponse" to mockedUser["refreshTokenResponse"],
+                    "refreshTokenCookie" to mockedUser["refreshTokenCookie"]
+                )
+            )
+        )
+
+        mock(
+            MockMethod.mockOauthPostlogin,
+            mapOf("options" to mapOf("redirectUrl" to "$baseUrl/oauth/mobile/callback?code=$oauthCode"))
+        )
+        mock(MockMethod.mockLogout, emptyMap())
+
+
+    }
 }

@@ -64,13 +64,13 @@ open class LoginWithSAMLTest {
 
         waitForWebViewUrl(webView!!, "http://10.0.2.2:3001/okta/saml")
         webHelper.findWithText("OKTA SAML Mock Server")
+
+        Mocker.mockSuccessSamlLogin(code)
         webHelper.click("login-button")
 
         Thread.sleep(5000)
 
         waitOnView(R.id.textview_first).check(ViewAssertions.matches(ViewMatchers.withText("test@saml-domain.com")))
-        Thread.sleep(5000)
-        waitOnView(R.id.logout_button).perform(ViewActions.click())
 
     }
 }
