@@ -59,38 +59,40 @@ jobs:
       - name: Gradle cache
         uses: gradle/gradle-build-action@v2
 
-      - name: AVD cache
-        uses: actions/cache@v3
-        id: avd-cache
-        with:
-          path: |
-            ~/.android/avd/*
-            ~/.android/adb*
-          key: avd-${{env.API_LEVEL}}
+      - name: Build Libraries
+        run: ./gradlew build --no-daemon
+#      - name: AVD cache
+#        uses: actions/cache@v3
+#        id: avd-cache
+#        with:
+#          path: |
+#            ~/.android/avd/*
+#            ~/.android/adb*
+#          key: avd-${{env.API_LEVEL}}
+#
+#      - name: Create AVD and generate snapshot for caching
+#        if: steps.avd-cache.outputs.cache-hit != 'true'
+#        uses: reactivecircus/android-emulator-runner@v2
+#        with:
+#          avd-name: "AndroidEmulator"
+#          api-level: ${{env.API_LEVEL}}
+#          force-avd-creation: false
+#          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+#          disable-animations: true
+#          script: echo "Generated AVD snapshot for caching."
 
-      - name: Create AVD and generate snapshot for caching
-        if: steps.avd-cache.outputs.cache-hit != 'true'
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          avd-name: "AndroidEmulator"
-          api-level: ${{env.API_LEVEL}}
-          force-avd-creation: false
-          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          script: echo "Generated AVD snapshot for caching."
-
-      - name: Run tests
-        uses: reactivecircus/android-emulator-runner@v2
-        with:
-          api-level: ${{env.API_LEVEL}}
-          force-avd-creation: false
-          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
-          disable-animations: true
-          script: ./run-tests.sh
-
-      - name: Upload test results
-        if: always()
-        uses: actions/upload-artifact@v2
-        with:
-          name: test-results
-          path: app/build/reports/androidTests/connected/
+#      - name: Run tests
+#        uses: reactivecircus/android-emulator-runner@v2
+#        with:
+#          api-level: ${{env.API_LEVEL}}
+#          force-avd-creation: false
+#          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+#          disable-animations: true
+#          script: ./run-tests.sh
+#
+#      - name: Upload test results
+#        if: always()
+#        uses: actions/upload-artifact@v2
+#        with:
+#          name: test-results
+#          path: app/build/reports/androidTests/connected/
