@@ -18,6 +18,7 @@ class FronteggApp private constructor(
     val auth: FronteggAuth
     val api: Api
     val credentialManager: CredentialManager
+    val packageName: String;
 
     @LayoutRes
     var loaderId: Int
@@ -28,6 +29,8 @@ class FronteggApp private constructor(
         credentialManager = CredentialManager(context)
         api = Api(baseUrl, clientId, credentialManager)
         auth = FronteggAuth(baseUrl, clientId, api, credentialManager)
+
+        packageName = context.packageName
     }
 
     companion object {

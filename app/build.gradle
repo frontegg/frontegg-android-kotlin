@@ -3,8 +3,9 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-def fronteggDomain = "https://test.frontegg.com"
-def fronteggClientId = "f7a3f13d-4cb5-4078-b785-e0189c287d4b"
+def fronteggDomain = "auth.davidantoon.me"
+def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+
 android {
     namespace 'com.frontegg.demo'
     compileSdk 33
@@ -19,11 +20,11 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders = [
-                "frontegg_domain":fronteggDomain,
-                frontegg_client_id: fronteggClientId
+                "frontegg_domain" : fronteggDomain,
+                "frontegg_client_id": fronteggClientId
         ]
 
-        buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
+        buildConfigField "String", 'FRONTEGG_DOMAIN', "\"https://$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
     }
 
@@ -43,20 +44,38 @@ android {
     buildFeatures {
         viewBinding true
     }
-    buildToolsVersion '30.0.3'
+    buildToolsVersion buildToolsVersion
+
 }
+
 
 dependencies {
 
-    implementation 'androidx.core:core-ktx:1.9.0'
-    implementation 'androidx.appcompat:appcompat:1.5.1'
+    implementation 'androidx.core:core-ktx:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
-    implementation 'com.google.android.material:material:1.7.0'
+    implementation 'com.google.android.material:material:1.8.0'
     implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.navigation:navigation-fragment-ktx:2.5.3'
     implementation 'androidx.navigation:navigation-ui-ktx:2.5.3'
     implementation project(path: ':android')
+    implementation 'androidx.browser:browser:1.5.0'
+
+    androidTestImplementation 'org.jetbrains.kotlin:kotlin-stdlib:' + rootProject.kotlinVersion
+    androidTestImplementation 'androidx.test:core:' + rootProject.coreVersion
+    androidTestImplementation 'androidx.test:core-ktx:' + rootProject.coreVersion
+    androidTestImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
+    androidTestImplementation 'androidx.test.ext:junit-ktx:' + rootProject.extJUnitVersion
+    androidTestImplementation 'androidx.test:rules:1.6.0-alpha01'
+    androidTestImplementation 'androidx.test:runner:1.6.0-alpha02'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test.espresso:espresso-intents:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test.espresso:espresso-web:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test:monitor:1.7.0-alpha01'
+
+
+    testImplementation 'androidx.test:core:' + rootProject.coreVersion;
+    testImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
     testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.4'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
+
 }
