@@ -1,7 +1,8 @@
 package com.frontegg.android
 
-import android.app.Activity
-import android.content.Context
+import android.annotation.SuppressLint
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
 import com.frontegg.android.models.User
@@ -21,6 +22,7 @@ import java.util.*
 import kotlin.concurrent.schedule
 
 
+@SuppressLint("CheckResult")
 @OptIn(DelicateCoroutinesApi::class)
 class FronteggAuth(
     val baseUrl: String,
@@ -100,7 +102,7 @@ class FronteggAuth(
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
         ) {
 
-            @Suppress("UNUSED_VARIABLE") val decoded = JWTHelper.decode(accessToken)
+            val decoded = JWTHelper.decode(accessToken)
             val user = api.me(accessToken)
 
             this.refreshToken.value = refreshToken
@@ -111,7 +113,7 @@ class FronteggAuth(
 
             refreshTaskRunner?.cancel()
 
-            if(decoded.exp > 0) {
+            if (decoded.exp > 0) {
                 val now: Long = Instant.now().toEpochMilli()
                 val offset = (((decoded.exp * 1000) - now) * 0.80).toLong()
                 Log.d(TAG, "setCredentials, schedule for $offset")
@@ -130,7 +132,7 @@ class FronteggAuth(
         this.initializing.value = false
     }
 
-    fun handleHostedLoginCallback( code: String): Boolean {
+    fun handleHostedLoginCallback(code: String): Boolean {
 
         val codeVerifier = credentialManager.get(CredentialKeys.CODE_VERIFIER)
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
@@ -145,13 +147,11 @@ class FronteggAuth(
         }
 
         return true
-
     }
 
-
-    fun logout(context: Context, callback: () -> Unit) {
+    fun logout(callback: () -> Unit = {}) {
         CookieManager.getInstance().removeAllCookies {
-            CookieManager.getInstance().flush();
+            CookieManager.getInstance().flush()
             GlobalScope.launch(Dispatchers.IO) {
                 refreshTaskRunner?.cancel()
                 isLoading.value = true
@@ -161,7 +161,8 @@ class FronteggAuth(
                 user.value = null
                 api.logout()
                 credentialManager.clear()
-                (context as Activity).runOnUiThread {
+                val handler = Handler(Looper.getMainLooper())
+                handler.post {
                     callback()
                 }
             }

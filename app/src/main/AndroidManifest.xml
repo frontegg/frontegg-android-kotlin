@@ -36,21 +36,6 @@
                     android:scheme="https" />
             </intent-filter>
         </activity>
-        <activity
-            android:name="com.frontegg.demo.FronteggActivity"
-            android:exported="true"
-            android:theme="@style/Theme.MyApplication.NoActionBar"></activity>
-        <activity
-            android:name=".FronteggLogoutActivity"
-            android:theme="@style/Theme.MyApplication.NoActionBar"/>
-
-        <!--        <activity-->
-        <!--            android:name=".MainActivity"-->
-        <!--            android:theme="@style/Theme.MyApplication.NoActionBar">-->
-        <!--            <meta-data-->
-        <!--                android:name="android.app.lib_name"-->
-        <!--                android:value="" />-->
-        <!--        </activity>-->
     </application>
 
 </manifest>

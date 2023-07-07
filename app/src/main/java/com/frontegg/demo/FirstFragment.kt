@@ -7,6 +7,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.navigation.fragment.findNavController
+import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentFirstBinding
 import io.reactivex.rxjava3.disposables.Disposable
@@ -41,8 +42,8 @@ class FirstFragment : Fragment() {
         }
 
         binding.logoutButton.setOnClickListener {
-            activity?.startActivity(Intent(activity, FronteggLogoutActivity::class.java))
-            activity?.finish()
+
+            FronteggAuth.instance.logout()
         }
 
         disposables.add(FronteggAuth.instance.user.subscribe {
