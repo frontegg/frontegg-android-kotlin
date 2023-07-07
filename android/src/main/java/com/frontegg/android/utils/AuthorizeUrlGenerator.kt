@@ -40,15 +40,15 @@ class AuthorizeUrlGenerator {
     }
 
 
-    fun generate(): String {
+    fun generate(): Pair<String, String> {
         val nonce = createRandomString()
         val codeVerifier = createRandomString()
         val codeChallenge = generateCodeChallenge(codeVerifier)
 
         val credentialManager = FronteggApp.getInstance().credentialManager
         credentialManager.save(CredentialKeys.CODE_VERIFIER, codeVerifier);
-
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
+
         val authorizeUrlBuilder = Uri.Builder()
             .encodedPath(baseUrl)
             .appendEncodedPath("oauth/authorize")
@@ -61,8 +61,16 @@ class AuthorizeUrlGenerator {
             .appendQueryParameter("nonce", nonce)
 
 
-        val authorizeUrl = authorizeUrlBuilder.build()
-        return authorizeUrl.toString()
+        val url = authorizeUrlBuilder.build().toString()
+        Log.d(TAG, "Generated url: $url")
+
+        val authorizeUrl = Uri.Builder()
+            .encodedPath(baseUrl)
+            .appendEncodedPath("frontegg/oauth/logout")
+            .appendQueryParameter("post_logout_redirect_uri", url)
+            .build().toString()
+
+        return Pair(authorizeUrl, codeVerifier)
 
 
     }
