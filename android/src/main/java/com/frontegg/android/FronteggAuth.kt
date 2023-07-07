@@ -46,7 +46,6 @@ class FronteggAuth(
     val isLoading: ObservableValue<Boolean> = ObservableValue(true)
     val initializing: ObservableValue<Boolean> = ObservableValue(true)
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
-    val externalLink: ObservableValue<Boolean> = ObservableValue(false)
     var pendingAppLink: String? = null
     var timer: Timer = Timer()
     var refreshTaskRunner: TimerTask? = null
@@ -131,7 +130,7 @@ class FronteggAuth(
         this.initializing.value = false
     }
 
-    fun handleHostedLoginCallback(webView: FronteggWebView, code: String): Boolean {
+    fun handleHostedLoginCallback( code: String): Boolean {
 
         val codeVerifier = credentialManager.get(CredentialKeys.CODE_VERIFIER)
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
@@ -141,9 +140,7 @@ class FronteggAuth(
             if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
             } else {
-                launch(Dispatchers.Main) {
-                    webView.loadOauthAuthorize()
-                }
+                // TODO: handle error
             }
         }
 
