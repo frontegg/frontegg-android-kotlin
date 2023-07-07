@@ -103,7 +103,7 @@ class FronteggAuth(
         ) {
 
             val decoded = JWTHelper.decode(accessToken)
-            val user = api.me(accessToken)
+            val user = api.me()
 
             this.refreshToken.value = refreshToken
             this.accessToken.value = accessToken
