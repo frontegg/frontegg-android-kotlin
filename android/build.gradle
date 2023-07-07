@@ -17,6 +17,7 @@ android {
         targetSdk 33
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+        versionName "$version"
     }
 
     buildTypes {
@@ -93,13 +94,12 @@ afterEvaluate {
         }
         repositories {
             maven {
-
+                name = "OSSRH"
+                url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
                 credentials {
                     username = System.getenv('NEXUS_USERNAME')
                     password = System.getenv('NEXUS_PASSWORD')
                 }
-                name = "OSSRH"
-                url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
             }
         }
     }
