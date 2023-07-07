@@ -14,7 +14,7 @@ concurrency:
 
 jobs:
   publish-packages:
-    if: "github.event.pull_request.merged == true"
+#    if: "github.event.pull_request.merged == true"
     name: "Publish Libraries"
     runs-on: ubuntu-latest
     steps:
