@@ -4,6 +4,9 @@ on:
     types: [ closed ]
     branches:
       - master
+  push:
+    branches:
+      - FR-12452-support-react-native
 
 concurrency:
   group: ci-release-${{ github.ref }}
