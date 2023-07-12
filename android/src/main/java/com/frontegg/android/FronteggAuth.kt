@@ -1,6 +1,7 @@
 package com.frontegg.android
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -170,5 +171,9 @@ class FronteggAuth(
             }
         }
 
+    }
+
+    fun login(activity: Activity) {
+        AuthenticationActivity.authenticateUsingBrowser(activity)
     }
 }
