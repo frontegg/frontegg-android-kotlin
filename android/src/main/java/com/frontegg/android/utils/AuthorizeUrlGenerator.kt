@@ -8,7 +8,7 @@ import java.util.*
 
 class AuthorizeUrlGenerator {
     companion object {
-        private val TAG  = AuthorizeUrlGenerator::class.java.simpleName
+        private val TAG = AuthorizeUrlGenerator::class.java.simpleName
     }
 
     private var clientId: String
@@ -26,11 +26,11 @@ class AuthorizeUrlGenerator {
             .joinToString("")
     }
 
-    private fun generateCodeChallenge(codeVerifier: String):String {
+    private fun generateCodeChallenge(codeVerifier: String): String {
         val md = MessageDigest.getInstance("SHA-256")
         val input = codeVerifier.toByteArray()
         val bytes = md.digest(input)
-        val digest =  Base64.getEncoder().encodeToString(bytes)
+        val digest = Base64.getEncoder().encodeToString(bytes)
 
         return digest
             .replace("=", "")
@@ -40,15 +40,15 @@ class AuthorizeUrlGenerator {
     }
 
 
-    fun generate(): String {
+    fun generate(): Pair<String, String> {
         val nonce = createRandomString()
         val codeVerifier = createRandomString()
         val codeChallenge = generateCodeChallenge(codeVerifier)
 
         val credentialManager = FronteggApp.getInstance().credentialManager
-        credentialManager.save(CredentialKeys.CODE_VERIFIER, codeVerifier);
-
+        credentialManager.save(CredentialKeys.CODE_VERIFIER, codeVerifier)
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
+
         val authorizeUrlBuilder = Uri.Builder()
             .encodedPath(baseUrl)
             .appendEncodedPath("oauth/authorize")
@@ -61,8 +61,16 @@ class AuthorizeUrlGenerator {
             .appendQueryParameter("nonce", nonce)
 
 
-        val authorizeUrl = authorizeUrlBuilder.build()
-        return authorizeUrl.toString()
+        val url = authorizeUrlBuilder.build().toString()
+        Log.d(TAG, "Generated url: $url")
+
+        val authorizeUrl = Uri.Builder()
+            .encodedPath(baseUrl)
+            .appendEncodedPath("frontegg/oauth/logout")
+            .appendQueryParameter("post_logout_redirect_uri", url)
+            .build().toString()
+
+        return Pair(authorizeUrl, codeVerifier)
 
 
     }

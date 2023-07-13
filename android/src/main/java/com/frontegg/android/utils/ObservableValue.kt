@@ -29,11 +29,4 @@ class ObservableValue<T>(value: T) {
         onNext.accept(nullableObject)
         return disposable
     }
-
-    fun subscribe2(onNext: (NullableObject<T>) -> Unit) {
-        observable.subscribe {
-            onNext(it)
-        }
-        onNext(nullableObject)
-    }
 }

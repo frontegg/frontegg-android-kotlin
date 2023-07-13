@@ -81,7 +81,7 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun me(accessToken: String): User? {
+    public fun me(): User? {
         val call = buildGetRequest(ApiConstants.me)
         val response = call.execute()
         if (response.isSuccessful) {

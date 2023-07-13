@@ -20,7 +20,6 @@ class JWTHelper {
 
     companion object {
         fun decode(token: String): JWT {
-
             val chunks: List<String> = token.split(Regex("\\."), 0)
             val decoder: Base64.Decoder = Base64.getUrlDecoder()
             val payload = String(decoder.decode(chunks[1]))

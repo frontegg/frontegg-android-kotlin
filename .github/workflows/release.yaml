@@ -4,6 +4,9 @@ on:
     types: [ closed ]
     branches:
       - master
+  push:
+    branches:
+      - FR-12452-support-react-native
 
 concurrency:
   group: ci-release-${{ github.ref }}
@@ -11,19 +14,15 @@ concurrency:
 
 jobs:
   publish-packages:
-    if: "github.event.pull_request.merged == true"
+#    if: "github.event.pull_request.merged == true"
     name: "Publish Libraries"
     runs-on: ubuntu-latest
     steps:
       - name: "Checkout"
         uses: actions/checkout@v3
         with:
-          fetch-depth: "0"
-      - name: Checkout repo
-        uses: actions/checkout@v3
-        with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          fetch-depth: 0
+          fetch-depth: "0"
       - name: Set git config
         run: |
           git config --global user.name 'github-actions'

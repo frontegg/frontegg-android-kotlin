@@ -1,5 +1,7 @@
 package com.frontegg.android.utils
 
+import com.frontegg.android.FronteggApp
+
 class ApiConstants {
     companion object {
         const val me: String = "identity/resources/users/v2/me"
@@ -12,30 +14,10 @@ class ApiConstants {
 class Constants {
 
     companion object {
-        val oauthUrls = listOf(
-            "https://www.facebook.com",
-            "https://accounts.google.com",
-            "https://github.com/login/oauth/authorize",
-            "https://login.microsoftonline.com",
-            "https://slack.com/openid/connect/authorize",
-            "https://appleid.apple.com",
-            "https://www.linkedin.com/oauth/"
-        )
-
-
-        val successLoginRoutes = listOf(
-            "/oauth/account/social/success",
-        )
-        val loginRoutes = listOf(
-            "/oauth/account/",
-        )
 
         fun oauthCallbackUrl(baseUrl: String): String {
-            return "$baseUrl/oauth/mobile/callback"
+            return "$baseUrl/android/${FronteggApp.getInstance().packageName}/callback"
         }
 
-        fun socialLoginRedirectUrl(baseUrl: String): String {
-            return "$baseUrl/oauth/account/social/success"
-        }
     }
 }

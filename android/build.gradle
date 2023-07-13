@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'com.frontegg.android'
-version '1.0.2'
+version '1.0.4'
 
 android {
     namespace 'com.frontegg.android'
@@ -15,9 +15,10 @@ android {
     defaultConfig {
         minSdk 26
         targetSdk 33
-        versionName "1.0.2"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
+        versionName "$version"
+
     }
 
     buildTypes {
@@ -51,9 +52,7 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.8.9'
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:1.6.1"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.6.1"
-    testImplementation 'junit:junit:4.13.2'
-    androidTestImplementation 'androidx.test.ext:junit:1.1.4'
-    androidTestImplementation 'androidx.test.espresso:espresso-core:3.5.0'
+    implementation "androidx.browser:browser:1.5.0"
 }
 
 afterEvaluate {
@@ -96,13 +95,12 @@ afterEvaluate {
         }
         repositories {
             maven {
-
+                name = "OSSRH"
+                url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
                 credentials {
                     username = System.getenv('NEXUS_USERNAME')
                     password = System.getenv('NEXUS_PASSWORD')
                 }
-                name = "OSSRH"
-                url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
             }
         }
     }
