@@ -46,7 +46,7 @@ class FirstFragment : Fragment() {
 
             FronteggAuth.instance.login(requireActivity())
         }
-
+        val tenantIds = FronteggAuth.instance.user.value?.tenantIds ?: listOf()
         disposables.add(FronteggAuth.instance.user.subscribe {
             activity?.runOnUiThread {
                 binding.textviewFirst.text = it.value?.email

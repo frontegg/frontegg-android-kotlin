@@ -1,10 +1,27 @@
-
 ![Frontegg_Android_SDK (Kotlin)](./logo.png)
 
 Frontegg is a web platform where SaaS companies can set up their fully managed, scalable and brand aware - SaaS features
 and integrate them into their SaaS portals in up to 5 lines of code.
 
-## Project Requirements
+## Table of Contents
+
+- [Get Started](#get-started)
+    - [Project Requirements](#project-requirements)
+    - [Prepare Frontegg workspace](#prepare-frontegg-workspace)
+    - [Setup Hosted Login](#setup-hosted-login)
+    - [Add Frontegg package to the project](#add-frontegg-package-to-the-project)
+    - [Set minimum sdk version](#set-minimum-sdk-version)
+    - [Configure build config fields](#configure-build-config-fields)
+    - [Config Android AssetLinks](#config-android-assetlinks)
+- [Usage](#usage)
+    - [Initialize FronteggApp](#initialize-fronteggapp)
+    - [Login with Frontegg](#login-with-frontegg)
+    - [Logout user](#logout)
+    - [Switch Tenant](#switch-tenant)
+
+## Get Started
+
+### Project Requirements
 
 - Android SDK 26+
   Set defaultConfig's minSDK to 26+ in build.gradle:
@@ -30,34 +47,27 @@ and integrate them into their SaaS portals in up to 5 lines of code.
   }
   ```
 
-
-## Getting Started
-
-  - [Prepare Frontegg workspace](#prepare-frontegg-workspace)
-  - [Setup Hosted Login](#setup-hosted-login)
-  - [Add frontegg package to the project](#add-frontegg-package-to-the-project)
-  - [Setup build variables](#setup-build-variables)
-  - [Initialize FronteggApp](#initialize-fronteggapp)
-  - [Add custom loading screen](#add-custom-loading-screen)
-  - [Config Android AssetLinks](#config-android-assetlinks)
-
 ### Prepare Frontegg workspace
 
 Navigate to [Frontegg Portal Settings](https://portal.frontegg.com/development/settings), If you don't have application
 follow integration steps after signing up.
-Copy FronteggDomain to future steps from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/domains)
+Copy FronteggDomain to future steps
+from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/domains)
 
 ### Setup Hosted Login
 
 - Navigate to [Login Method Settings](https://portal.frontegg.com/development/authentication/hosted)
 - Toggle Hosted login method
-- Add `{{LOGIN_URL}}/mobile/callback`
+- Add `{{ANDROID_PACKAGE_NAME}}://{{FRONTEGG_BASE_URL}}/ios/oauth/callback`
+- Replace `ANDROID_PACKAGE_NAME` with your application identifier
+- Replace `FRONTEGG_BASE_URL` with your Frontegg base url
 
-### Add frontegg package to the project
+### Add Frontegg package to the project
 
 - Open you project
 - Find your app's build.gradle file
-- Add the following to your dependencies section: 
+- Add the following to your dependencies section:
+
 ```groovy
     dependencies {
       // Add the Frontegg Android Kotlin SDK
@@ -65,10 +75,25 @@ Copy FronteggDomain to future steps from [Frontegg Portal Domain](https://portal
     }
 ```
 
-### Setup build variables 
+### Set minimum sdk version
 
-To setup your Android application to communicate with Frontegg, you have to use `manifestPlaceholders` property in your build.gradle
-file, this property will store frontegg hostname (without https) and client id from previous step:
+To set up your Android minimum sdk version, open root gradle file at`android/build.gradle`,
+and add/edit the `minSdkVersion` under `buildscript.ext`:
+
+```groovy
+buildscript {
+    ext {
+        minSdkVersion = 26
+        // ...
+    }
+}
+```
+
+### Configure build config fields
+
+To set up your Android application on to communicate with Frontegg, you have to add `buildConfigField` property the
+gradle `android/app/build.gradle`.
+This property will store frontegg hostname (without https) and client id from previous step:
 
 ```groovy
 
@@ -77,202 +102,29 @@ def fronteggClientId = "CLIENT_ID"
 
 android {
     defaultConfig {
+        
         manifestPlaceholders = [
-                "frontegg_domain" : fronteggDomain,
+                package_name : applicationId,
+                frontegg_domain : fronteggDomain,
                 frontegg_client_id: fronteggClientId
         ]
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
     }
-    /* Use buildTypes for release / debug configurations */
-    // ...
-}
-```
-
-### Initialize FronteggApp
-
-Create a custom `App` class that extends `android.app.Application` to initialize `FronteggApp`
-
-```kotlin
-package com.frontegg.demo
-
-import android.app.Application
-import com.frontegg.android.FronteggApp
-
-class App : Application() {
-
-    override fun onCreate() {
-        super.onCreate()
-        
-        FronteggApp.init(
-            BuildConfig.FRONTEGG_DOMAIN,
-            BuildConfig.FRONTEGG_CLIENT_ID,
-            this, // Application Context
-            null
-        )
-    }
-}
-```
-
-Register the custom `App` in the app's manifest file
-
-**AndroidManifest.xml:**
-```xml
-
-<application
-        android:name=".App"
-        <!--  ... -->
-        >
-    <!--  ... -->
-</application>
-
-```
-android:name=".App"
-
-### Add Frontegg Activity
-
-Create `FronteggActivity` class that extends `com.frontegg.android.AbstractFronteggActivity` to handle authenticated redirects
-
-**FronteggAcivity.kt:**
-
-```kotlin
-package com.frontegg.demo
-
-import android.content.Intent
-import com.frontegg.android.AbstractFronteggActivity
-
-class FronteggActivity: AbstractFronteggActivity() {
-
-    /**
-     * This function will be called everytime the FronteggActivity
-     * successfully authenticated and should redirect the user to 
-     * authenticated screens
-     * 
-     * NOTE: Replace the `MainActivity::class.java` with your Main Activity class  
-     */
-    override fun navigateToAuthenticated() {
-        val intent = Intent(this, MainActivity::class.java)
-        startActivity(intent)
-        finish()
-    }
-}
-```
-
-Register the `FronteggActivity` in the app's manifest file
-
-**AndroidManifest.xml:**
-```xml
-<activity
-    android:name=".FronteggActivity"
-    android:exported="true"
-    android:label="@string/app_name"
-    android:theme="@style/Theme.Design.NoActionBar">
-    <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
-        <category android:name="android.intent.category.LAUNCHER" />
-    </intent-filter>
-    <intent-filter  android:autoVerify="true">
-        <action android:name="android.intent.action.VIEW" />
-        <category android:name="android.intent.category.DEFAULT" />
-        <category android:name="android.intent.category.BROWSABLE" />
-
-        <data android:scheme="http" />
-        <data android:scheme="https" />
-        <data android:host="${frontegg_domain}" />
-    </intent-filter>
-</activity>
-```
-
-### Add Frontegg Logout Activity 
-
-
-Create `FronteggLogoutActivity` class that extends `com.frontegg.android.AbstractFronteggLogoutActivity` to handle logout redirects
-
-**FronteggLogoutActivity.kt:**
-
-```kotlin
-package com.frontegg.demo
-
-import android.content.Intent
-import com.frontegg.android.AbstractFronteggLogoutActivity
-
-class FronteggLogoutActivity: AbstractFronteggLogoutActivity() {
-    /**
-     * This function will be called everytime the FronteggLogoutActivity
-     * successfully logged out and should redirect the user to
-     * your the previous created `FronteggActivity`
-     *
-     * NOTE: Replace the `FronteggActivity::class.java` with your `FronteggActivity` class
-     */
-    override fun navigateToFronteggLogin() {
-        val intent = Intent(this, FronteggActivity::class.java)
-        startActivity(intent)
-        finish()
-    }
-}
-```
-
-Register the `FronteggLogoutActivity` in the app's manifest file
-
-**AndroidManifest.xml:**
-```xml
-<activity
-    android:name=".FronteggLogoutActivity"
-    android:theme="@style/Theme.Design.NoActionBar"/>
-```
-
-### Add custom loading screen
-In order to customize Frontegg loading screen:
-
-- Create new layout file contains your loader screen design:
-```xml
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:gravity="center"
-    android:orientation="vertical"
-    tools:ignore="UseCompoundDrawables">
-
-    <ImageView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:contentDescription="@string/logo"
-        android:src="@mipmap/ic_launcher_round" />
-
-    <TextView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:gravity="center"
-        android:text="@string/app_name"
-        android:textSize="20sp" />
-
-</LinearLayout>
-```
-
-- Add `R.layout.loader` FronteggApp.init as the 4th argument:
-```kotlin
-  package com.frontegg.demo
-  
-  import android.app.Application
-  import com.frontegg.android.FronteggApp
     
-  class App : Application() {
     
-      override fun onCreate() {
-          super.onCreate()
-          
-          FronteggApp.init(
-              BuildConfig.FRONTEGG_DOMAIN,
-              BuildConfig.FRONTEGG_CLIENT_ID,
-              this,
-              R.layout.loader // <<-- here
-          )
-      }
+}
+```
+
+Add bundleConfig=true if not exists inside the android section inside the app gradle `android/app/build.gradle`
+
+```groovy
+android {
+  buildFeatures {
+    buildConfig = true
   }
+}
 ```
 
 ### Permissions
@@ -280,14 +132,19 @@ In order to customize Frontegg loading screen:
 Add `INTERNET` permission to the app's manifest file.
 
 ```xml
-<uses-permission android:name="android.permission.INTERNET" />
+
+<uses-permission android:name="android.permission.INTERNET"/>
 ```
 
+### Config Android AssetLinks
 
-### Config Android AssetLinks 
-Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account / login with IdPs.
+Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account /
+login with IdPs.
 
-To add your `AssetLinks` to your Frontegg application, you will need to update in each of your integrated Frontegg Environments the `AssetLinks` that you would like to use with that Environment. Send a POST request to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` with the following payload:
+To add your `AssetLinks` to your Frontegg application, you will need to update in each of your integrated Frontegg
+Environments the `AssetLinks` that you would like to use with that Environment. Send a POST request
+to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` with the following payload:
+
 ```
 {
     "packageName": "YOUR_APPLICATION_PACKAGE_NAME",
@@ -295,9 +152,11 @@ To add your `AssetLinks` to your Frontegg application, you will need to update i
 }
 ```
 
-Each Android app has multiple certificate fingerprint, to get your `DEBUG` sha256CertFingerprint you have to run the following command:
+Each Android app has multiple certificate fingerprint, to get your `DEBUG` sha256CertFingerprint you have to run the
+following command:
 
 For Debug mode, run the following command and copy the `SHA-256` value
+
 ```bash
 ./gradlew signingReport
 
@@ -316,10 +175,129 @@ For Debug mode, run the following command and copy the `SHA-256` value
 
 ```
 
-
 For Release mode, Extract the SHA256 using keytool from your `Release` keystore file:
+
 ```bash
 keytool -list -v -keystore /PATH/file.jks -alias YourAlias -storepass *** -keypass ***
 ```
 
-In order to use our API’s, follow [this guide](https://docs.frontegg.com/reference/getting-started-with-your-api) to generate a vendor token.
+In order to use our API’s, follow [this guide](https://docs.frontegg.com/reference/getting-started-with-your-api) to
+generate a vendor token.
+
+## Usage
+
+### Initialize FronteggApp
+
+Create a custom `App` class that extends `android.app.Application` to initialize `FronteggApp`
+In order to force FronteggApp to use Trusted Web Activity "TWA" for login, pass `true` to forth parameter.
+
+```kotlin
+package com.frontegg.demo
+
+import android.app.Application
+import com.frontegg.android.FronteggApp
+
+class App : Application() {
+
+    override fun onCreate() {
+        super.onCreate()
+        
+        FronteggApp.init(
+            BuildConfig.FRONTEGG_DOMAIN,
+            BuildConfig.FRONTEGG_CLIENT_ID,
+            this, // Application Context
+            false // use Trusted Web Activtiy "TWA" for login (optional)
+        )
+    }
+}
+```
+
+Register the custom `App` in the app's manifest file
+
+**AndroidManifest.xml:**
+
+```xml
+
+<application
+        android:name=".App">
+    <!--  ... -->
+</application>
+
+```
+
+android:name=".App"
+
+## Login with Frontegg
+
+In order to login with Frontegg, you have to call `FronteggAuth.instance.login` method with `activtity` context.
+Login method will open Frontegg hosted login page, and will return user data after successful login.
+
+```kotlin
+
+import com.frontegg.android.FronteggAuth
+
+class FirstFragment : Fragment() {
+  // ...
+  
+  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {  
+    
+    binding.loginButton.setOnClickListener {
+        FronteggAuth.instance.login(requireActivity())
+    }
+  }
+  // ...
+}
+
+```
+
+## Logout user
+
+In order to logout user, you have to call `FronteggAuth.instance.logout` method.
+Logout method will clear all user data from the device.
+
+```kotlin
+
+import com.frontegg.android.FronteggAuth
+
+class FirstFragment : Fragment() {
+  // ...
+  
+  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {  
+    
+    binding.logoutButton.setOnClickListener {
+        FronteggAuth.instance.logout()
+    }
+  }
+  // ...
+}
+
+```
+
+## Switch Tenant
+
+In order to switch tenant, you have to call `FronteggAuth.instance.switchTenant` method with `activtity` context.
+
+```kotlin
+
+import com.frontegg.android.FronteggAuth
+
+class FirstFragment : Fragment() {
+  // ...
+  
+  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {  
+    
+    val tenantIds = FronteggAuth.instance.user.value?.tenantIds ?: listOf()
+    
+    /**
+      *  pick one from `tenantIds` list:
+      */
+    val tenantToSwitchTo = tenantIds[0] 
+    
+    binding.switchTenant.setOnClickListener {
+        FronteggAuth.instance.switchTenant(tenantToSwitchTo)
+    }
+  }
+  // ...
+}
+
+```

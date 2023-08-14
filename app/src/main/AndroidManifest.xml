@@ -28,23 +28,7 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name="com.frontegg.android.AuthenticationActivity"
-            android:exported="true">
 
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data
-                    android:host="${frontegg_domain}"
-                    android:pathPrefix="/android/${package_name}/callback"
-                    android:scheme="https"
-                    tools:ignore="IntentFilterUniqueDataAttributes" />
-            </intent-filter>
-        </activity>
     </application>
 
 </manifest>

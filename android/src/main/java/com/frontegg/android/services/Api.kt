@@ -6,6 +6,7 @@ import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.reflect.TypeToken
 import okhttp3.Call
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
@@ -82,10 +83,27 @@ open class Api(
 
     @Throws(IllegalArgumentException::class, IOException::class)
     public fun me(): User? {
-        val call = buildGetRequest(ApiConstants.me)
-        val response = call.execute()
-        if (response.isSuccessful) {
-            return Gson().fromJson(response.body!!.string(), User::class.java)
+        val meCall = buildGetRequest(ApiConstants.me)
+        val meResponse = meCall.execute()
+        val tenantsCall = buildGetRequest(ApiConstants.tenants)
+        val tenantsResponse = tenantsCall.execute()
+
+        if (meResponse.isSuccessful && tenantsResponse.isSuccessful) {
+            // Parsing JSON strings into JsonObject
+            val gson = Gson()
+            val mapType = object : TypeToken<MutableMap<String, Any>>() {}.type
+
+            val meJsonStr = meResponse.body!!.string()
+            val tenantsJsonStr = tenantsResponse.body!!.string()
+
+            val meJson: MutableMap<String, Any> = gson.fromJson(meJsonStr, mapType)
+            val tenantsJson: MutableMap<String, Any> = gson.fromJson(tenantsJsonStr, mapType)
+
+            meJson["tenants"] = tenantsJson["tenants"] as Any
+            meJson["activeTenant"] = tenantsJson["activeTenant"] as Any
+
+            val merged = Gson().toJson(meJson)
+            return Gson().fromJson(merged, User::class.java)
         }
 
         return null

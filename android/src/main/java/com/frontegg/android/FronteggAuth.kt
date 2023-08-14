@@ -114,8 +114,6 @@ class FronteggAuth(
 
             refreshTaskRunner?.cancel()
 
-
-
             if (decoded.exp > 0) {
                 val now: Long = Instant.now().toEpochMilli()
                 val offset = (((decoded.exp * 1000) - now) * 0.80).toLong()
