@@ -188,8 +188,7 @@ generate a vendor token.
 
 ### Initialize FronteggApp
 
-Create a custom `App` class that extends `android.app.Application` to initialize `FronteggApp`
-In order to force FronteggApp to use Trusted Web Activity "TWA" for login, pass `true` to forth parameter.
+Create a custom `App` class that extends `android.app.Application` to initialize `FronteggApp`:
 
 ```kotlin
 package com.frontegg.demo
@@ -206,7 +205,6 @@ class App : Application() {
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
             this, // Application Context
-            false // use Trusted Web Activtiy "TWA" for login (optional)
         )
     }
 }
