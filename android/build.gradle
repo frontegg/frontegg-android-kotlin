@@ -6,7 +6,7 @@ plugins {
 }
 
 group 'com.frontegg.android'
-version '1.0.4'
+version '1.0.6'
 
 android {
     namespace 'com.frontegg.android'
