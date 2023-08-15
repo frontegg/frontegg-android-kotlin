@@ -68,6 +68,26 @@ open class Api(
         return this.httpClient.newCall(request)
     }
 
+    private fun buildPutRequest(
+        path: String,
+        body: JsonObject,
+        additionalHeaders: Map<String, String> = mapOf()
+    ): Call {
+        val url = "${this.baseUrl}/$path".toHttpUrl()
+        val requestBuilder = Request.Builder()
+        val bodyRequest =
+            body.toString()
+                .toRequestBody("application/json; charset=utf-8".toMediaType())
+        val headers = this.prepareHeaders(additionalHeaders);
+
+        requestBuilder.method("PUT", bodyRequest)
+        requestBuilder.headers(headers);
+        requestBuilder.url(url)
+
+        val request = requestBuilder.build()
+        return this.httpClient.newCall(request)
+    }
+
     private fun buildGetRequest(path: String): Call {
         val url = "$baseUrl/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
@@ -159,5 +179,12 @@ open class Api(
             )
             call.execute()
         }
+    }
+
+    fun switchTenant(tenantId: String) {
+        val data = JsonObject()
+        data.addProperty("tenantId", tenantId)
+        val call = buildPutRequest(ApiConstants.switchTenant, data)
+        call.execute()
     }
 }

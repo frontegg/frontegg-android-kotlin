@@ -157,6 +157,8 @@ following command:
 
 For Debug mode, run the following command and copy the `SHA-256` value
 
+NOTE: make sure to choose the Variant and Config equals to `debug` 
+
 ```bash
 ./gradlew signingReport
 
@@ -164,7 +166,7 @@ For Debug mode, run the following command and copy the `SHA-256` value
 #  Example Output:
 ###################
 
-#  Variant: debugAndroidTest
+#  Variant: debug
 #  Config: debug
 #  Store: /Users/davidfrontegg/.android/debug.keystore
 #  Alias: AndroidDebugKey

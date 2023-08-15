@@ -1,5 +1,7 @@
 package com.frontegg.android.utils
 
+import android.os.Handler
+import android.os.Looper
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 import io.reactivex.rxjava3.subjects.PublishSubject
@@ -25,6 +27,7 @@ class ObservableValue<T>(value: T) {
     }
 
     fun subscribe(onNext: Consumer<NullableObject<T>>): Disposable {
+        observable.subscribe()
         val disposable = observable.subscribe(onNext)
         onNext.accept(nullableObject)
         return disposable
