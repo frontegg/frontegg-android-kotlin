@@ -15,36 +15,18 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.MyApplication"
         tools:targetApi="31">
-
         <activity
-            android:name="com.frontegg.demo.MainActivity"
+            android:name=".NavigationActivity"
             android:exported="true"
-            android:label="@string/app_name"
-            android:theme="@style/Theme.MyApplication.NoActionBar">
+            android:label="@string/title_activity_navigation" >
 
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
+
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
 
-        <activity
-            android:name="com.frontegg.android.AuthenticationActivity"
-            android:exported="true">
-
-            <intent-filter android:autoVerify="true">
-                <action android:name="android.intent.action.VIEW" />
-
-                <category android:name="android.intent.category.DEFAULT" />
-                <category android:name="android.intent.category.BROWSABLE" />
-
-                <data
-                    android:host="${frontegg_domain}"
-                    android:pathPrefix="/android/${package_name}/callback"
-                    android:scheme="https"
-                    tools:ignore="IntentFilterUniqueDataAttributes" />
-            </intent-filter>
-        </activity>
     </application>
 
 </manifest>

@@ -12,6 +12,8 @@ class User {
     public lateinit var permissions: List<UserRolePermission>
     public lateinit var tenantId: String
     public lateinit var tenantIds: List<String>
+    public lateinit var tenants: List<Tenant>
+    public lateinit var activeTenant: Tenant
     public var activatedForTenant: Boolean = false
     public var metadata: String? = null
     public var verified: Boolean = false

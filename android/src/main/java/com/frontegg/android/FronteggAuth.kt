@@ -114,8 +114,6 @@ class FronteggAuth(
 
             refreshTaskRunner?.cancel()
 
-
-
             if (decoded.exp > 0) {
                 val now: Long = Instant.now().toEpochMilli()
                 val offset = (((decoded.exp * 1000) - now) * 0.80).toLong()
@@ -166,6 +164,7 @@ class FronteggAuth(
                 credentialManager.clear()
                 val handler = Handler(Looper.getMainLooper())
                 handler.post {
+                    isLoading.value = false
                     callback()
                 }
             }
@@ -175,5 +174,21 @@ class FronteggAuth(
 
     fun login(activity: Activity) {
         AuthenticationActivity.authenticateUsingBrowser(activity)
+    }
+
+
+    fun switchTenant(tenantId: String, callback: () -> Unit = {}) {
+        GlobalScope.launch(Dispatchers.IO) {
+
+            isLoading.value = true
+            api.switchTenant(tenantId)
+            refreshTokenIfNeeded()
+
+            val handler = Handler(Looper.getMainLooper())
+            handler.post {
+                isLoading.value = false
+                callback()
+            }
+        }
     }
 }
