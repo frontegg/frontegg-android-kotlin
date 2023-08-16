@@ -8,6 +8,7 @@ plugins {
 group 'com.frontegg.android'
 version '1.0.6'
 
+
 android {
     namespace 'com.frontegg.android'
     compileSdk 34
@@ -19,6 +20,11 @@ android {
         consumerProguardFiles "consumer-rules.pro"
         versionName "$version"
 
+        manifestPlaceholders = [
+                "frontegg_scheme" : "",
+                "frontegg_domain" : "",
+                "frontegg_client_id": ""
+        ]
     }
 
     buildTypes {

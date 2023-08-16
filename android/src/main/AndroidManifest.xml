@@ -45,7 +45,7 @@
 
                 <data
                     android:host="${frontegg_domain}"
-                    android:scheme="comfronteggdemo" />
+                    android:scheme="${frontegg_scheme}" />
             </intent-filter>
         </activity>
 
