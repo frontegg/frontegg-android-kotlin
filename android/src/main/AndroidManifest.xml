@@ -2,6 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
     <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application>
         <activity
@@ -45,7 +46,7 @@
 
                 <data
                     android:host="${frontegg_domain}"
-                    android:scheme="${frontegg_scheme}" />
+                    android:scheme="${package_name}" />
             </intent-filter>
         </activity>
 

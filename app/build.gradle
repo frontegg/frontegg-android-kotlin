@@ -20,7 +20,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders = [
-                "frontegg_scheme" : applicationId.replace('.', ''),
+                "package_name" : applicationId,
                 "frontegg_domain" : fronteggDomain,
                 "frontegg_client_id": fronteggClientId
         ]

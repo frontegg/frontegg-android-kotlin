@@ -23,8 +23,7 @@ class Constants {
             val host = baseUrl.substring("https://".length)
             val packageName = FronteggApp.getInstance().packageName
 
-            val protocol = packageName.replace(Regex("\\."), "")
-            return "${protocol}://${host}/android/oauth/callback"
+            return "${packageName}://${host}/android/oauth/callback"
         }
 
     }

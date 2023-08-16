@@ -97,14 +97,14 @@ This property will store frontegg hostname (without https) and client id from pr
 
 ```groovy
 
-def fronteggDomain = "FRONTEGG_DOMAIN_HOST.com" // without https://
+def fronteggDomain = "FRONTEGG_DOMAIN_HOST.com" // without protocol https://
 def fronteggClientId = "FRONTEGG_CLIENT_ID"
 
 android {
     defaultConfig {
 
         manifestPlaceholders = [
-                "frontegg_scheme" : applicationId.replace('.', ''),
+                "package_name" : applicationId,
                 "frontegg_domain" : fronteggDomain,
                 "frontegg_client_id": fronteggClientId
         ]
@@ -135,7 +135,6 @@ Add `INTERNET` permission to the app's manifest file.
 
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-
 ```
 
 ### Config Android AssetLinks

@@ -15,16 +15,11 @@ android {
 
     defaultConfig {
         minSdk 26
-        targetSdk 33
+        targetSdk 34
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
         versionName "$version"
 
-        manifestPlaceholders = [
-                "frontegg_scheme" : "",
-                "frontegg_domain" : "",
-                "frontegg_client_id": ""
-        ]
     }
 
     buildTypes {
