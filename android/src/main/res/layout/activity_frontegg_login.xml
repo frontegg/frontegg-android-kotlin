@@ -4,7 +4,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent">
 
-<!--    <com.frontegg.android.FronteggWebView-->
+<!--    <com.frontegg.android.embedded.FronteggWebView-->
 <!--        android:id="@+id/custom_webview"-->
 <!--        android:layout_width="match_parent"-->
 <!--        android:layout_height="match_parent" />-->

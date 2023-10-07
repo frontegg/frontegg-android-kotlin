@@ -8,6 +8,7 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
+import com.frontegg.android.embedded.EmbeddedAuthActivity
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 
 class AuthenticationActivity : Activity() {
@@ -49,7 +50,7 @@ class AuthenticationActivity : Activity() {
             }
         } else {
             val intentUrl = intent.data
-            if(intentUrl == null){
+            if (intentUrl == null) {
                 setResult(RESULT_CANCELED)
                 finish()
                 return
@@ -116,12 +117,16 @@ class AuthenticationActivity : Activity() {
         private val TAG = AuthenticationActivity::class.java.simpleName
 
         fun authenticateUsingBrowser(activity: Activity) {
-            val intent = Intent(activity, AuthenticationActivity::class.java)
-            val authorizeUri = AuthorizeUrlGenerator().generate()
-            intent.putExtra(AUTH_LAUNCHED, true)
-            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
-            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            if (FronteggApp.getInstance().isEmbeddedMode) {
+                EmbeddedAuthActivity.authenticate(activity)
+            } else {
+                val intent = Intent(activity, AuthenticationActivity::class.java)
+                val authorizeUri = AuthorizeUrlGenerator().generate()
+                intent.putExtra(AUTH_LAUNCHED, true)
+                intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+                activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            }
         }
     }
 }

@@ -1,12 +1,10 @@
 package com.frontegg.demo
 
-import android.app.Activity
 import android.os.Bundle
-import androidx.fragment.app.Fragment
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import androidx.appcompat.app.AppCompatActivity
+import androidx.fragment.app.Fragment
 import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentAuthBinding
 import io.reactivex.rxjava3.disposables.Disposable
@@ -37,7 +35,6 @@ class AuthFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.loginButton.setOnClickListener {
-
             FronteggAuth.instance.login(requireActivity())
         }
     }

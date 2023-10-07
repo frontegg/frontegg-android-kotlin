@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
+import com.frontegg.android.embedded.EmbeddedAuthActivity
 import com.frontegg.android.models.User
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
@@ -18,6 +19,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.lang.Exception
 import java.time.Instant
 import java.util.*
 import kotlin.concurrent.schedule
@@ -88,12 +90,18 @@ class FronteggAuth(
     private fun refreshTokenIfNeeded(): Boolean {
         val refreshToken = this.refreshToken.value ?: return false
         Log.d(TAG, "refreshTokenIfNeeded()")
-        val data = api.refreshToken(refreshToken)
-        return if (data != null) {
-            setCredentials(data.access_token, data.refresh_token)
-            true
-        } else {
-            false
+
+        return try {
+            val data = api.refreshToken(refreshToken)
+            if (data != null) {
+                setCredentials(data.access_token, data.refresh_token)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send refresh token request", e)
+            false;
         }
     }
 
