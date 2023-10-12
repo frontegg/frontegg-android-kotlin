@@ -64,6 +64,7 @@ class AuthorizeUrlGenerator {
         val url = authorizeUrlBuilder.build().toString()
         Log.d(TAG, "Generated url: $url")
 
+
         val authorizeUrl = Uri.Builder()
             .encodedPath(baseUrl)
             .appendEncodedPath("frontegg/oauth/logout")

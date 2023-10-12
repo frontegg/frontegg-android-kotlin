@@ -8,7 +8,6 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
-import com.frontegg.android.embedded.EmbeddedAuthActivity
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 
 class AuthenticationActivity : Activity() {
@@ -59,28 +58,12 @@ class AuthenticationActivity : Activity() {
             val code = intent.data?.getQueryParameter("code")
             if (code != null) {
                 Log.d(TAG, "Got intent with oauth callback")
+                FronteggAuth.instance.isLoading.value = true
                 FronteggAuth.instance.handleHostedLoginCallback(code)
                 setResult(RESULT_OK)
                 finish()
                 return
             }
-
-            /**
-             * due to lake to support from android chrome tab
-             * we are sharing magic link cookie with the chrome
-             * instance to give the ability to login via magic link
-             * in the native chrome browser, then the hosted login
-             * will redirect the user directly to the application
-             * with the exchange code to finalize the authorization process
-             */
-//            val path = intentUrl.path
-//            if(path != null && path.startsWith("/oauth/account/login/magic-link?token=")){
-//                Log.d(TAG, "Got intent with magic link")
-//                var url = intentUrl.toString()
-//                url = url.replace("magic-link?token=", "magic-link?chromeTab=true&token=")
-//                startAuth(url)
-//                return
-//            }
 
             Log.d(TAG, "Got intent with unknown data")
             setResult(RESULT_CANCELED)
@@ -116,17 +99,13 @@ class AuthenticationActivity : Activity() {
         private const val CUSTOM_TAB_LAUNCHED = "com.frontegg.android.CUSTOM_TAB_LAUNCHED"
         private val TAG = AuthenticationActivity::class.java.simpleName
 
-        fun authenticateUsingBrowser(activity: Activity) {
-            if (FronteggApp.getInstance().isEmbeddedMode) {
-                EmbeddedAuthActivity.authenticate(activity)
-            } else {
-                val intent = Intent(activity, AuthenticationActivity::class.java)
-                val authorizeUri = AuthorizeUrlGenerator().generate()
-                intent.putExtra(AUTH_LAUNCHED, true)
-                intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
-                intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-                activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
-            }
+        fun authenticate(activity: Activity) {
+            val intent = Intent(activity, AuthenticationActivity::class.java)
+            val authorizeUri = AuthorizeUrlGenerator().generate()
+            intent.putExtra(AUTH_LAUNCHED, true)
+            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
     }
 }

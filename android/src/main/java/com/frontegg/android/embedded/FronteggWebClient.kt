@@ -125,6 +125,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         return OverrideUrlType.Unknown
     }
 
+
     override fun shouldOverrideUrlLoading(
         view: WebView?,
         request: WebResourceRequest?
@@ -151,7 +152,14 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         } else {
             return super.shouldOverrideUrlLoading(view, request)
         }
+    }
 
+
+    override fun shouldInterceptRequest(
+        view: WebView?,
+        request: WebResourceRequest?
+    ): WebResourceResponse? {
+        return super.shouldInterceptRequest(view, request)
     }
 
 

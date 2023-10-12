@@ -7,13 +7,8 @@
     <application>
 
         <activity
-            android:name="com.frontegg.android.embedded.EmbeddedAuthActivity"
-            android:exported="true" />
-
-        <activity
-            android:name="com.google.androidbrowserhelper.trusted.LauncherActivity"
+            android:name="${auth_activity}"
             android:exported="true">
-
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
 
@@ -39,6 +34,7 @@
 
             </intent-filter>
         </activity>
+
         <activity
             android:name="com.frontegg.android.AuthenticationActivity"
             android:exported="true">

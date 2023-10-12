@@ -23,7 +23,6 @@ class NavigationActivity : AppCompatActivity() {
     }
 
     private lateinit var binding: ActivityNavigationBinding
-    private var fronteggAuth = FronteggAuth.instance
     private lateinit var navController: NavController
 
 
@@ -54,12 +53,12 @@ class NavigationActivity : AppCompatActivity() {
         navController.setGraph(R.navigation.not_auth_navigation)
 
     }
+
     private val disposables: ArrayList<Disposable> = arrayListOf()
     override fun onResume() {
         super.onResume()
         disposables.add(FronteggAuth.instance.showLoader.subscribe(this.onShowLoaderChange))
         disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.onIsAuthenticatedChange))
-
     }
 
     override fun onPause() {

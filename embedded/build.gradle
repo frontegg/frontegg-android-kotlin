@@ -22,12 +22,13 @@ android {
         manifestPlaceholders = [
                 "package_name" : applicationId,
                 "frontegg_domain" : fronteggDomain,
-                "frontegg_client_id": fronteggClientId
+                "frontegg_client_id": fronteggClientId,
+                "auth_activity": "com.frontegg.android.EmbeddedAuthActivity"
         ]
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
-        buildConfigField "Boolean", 'FRONTEGG_EMBEDDED_MODE', "true"
+
     }
 
     buildTypes {

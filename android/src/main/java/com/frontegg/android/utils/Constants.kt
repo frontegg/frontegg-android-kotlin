@@ -9,7 +9,7 @@ class ApiConstants {
         const val tenants: String = "identity/resources/users/v3/me/tenants"
         const val refreshToken: String = "oauth/token"
         const val exchangeToken: String = "oauth/token"
-        const val logout: String = "identity/resources/auth/v1/logout"
+        const val logout: String = "frontegg/identity/resources/auth/v1/logout"
         const val switchTenant: String = "identity/resources/users/v1/tenant"
 
 

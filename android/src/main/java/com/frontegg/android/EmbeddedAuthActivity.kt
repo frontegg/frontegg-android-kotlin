@@ -1,4 +1,4 @@
-package com.frontegg.android.embedded
+package com.frontegg.android
 
 import android.app.Activity
 import android.content.Intent
@@ -6,8 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
-import com.frontegg.android.FronteggAuth
-import com.frontegg.android.R
+import com.frontegg.android.embedded.FronteggWebView
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
@@ -26,10 +25,27 @@ class EmbeddedAuthActivity : Activity() {
         webView = findViewById(R.id.custom_webview)
         loaderLayout = findViewById(R.id.loaderView)
 
-        val authorizeUrl = AuthorizeUrlGenerator()
-        val url = authorizeUrl.generate()
+        val intentLaunched =
+            intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
 
-        webViewUrl = url.first
+        if (intentLaunched) {
+            val url = intent.extras!!.getString(AUTHORIZE_URI)
+            if (url == null) {
+                setResult(RESULT_CANCELED)
+                finish()
+                return
+            }
+            webViewUrl = url
+        } else {
+            val intentUrl = intent.data
+            if (intentUrl == null) {
+                setResult(RESULT_CANCELED)
+                finish()
+                return
+            }
+
+            webViewUrl = intentUrl.toString()
+        }
 
 
         if (!FronteggAuth.instance.initializing.value
@@ -63,6 +79,7 @@ class EmbeddedAuthActivity : Activity() {
         setResult(RESULT_OK)
         finish()
     }
+
     override fun onResume() {
         super.onResume()
         disposables.add(FronteggAuth.instance.showLoader.subscribe(this.showLoaderConsumer))
@@ -89,9 +106,9 @@ class EmbeddedAuthActivity : Activity() {
 
             val authorizeUri = AuthorizeUrlGenerator().generate()
             intent.putExtra(AUTH_LAUNCHED, true)
-//            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
-//            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
+
     }
 }

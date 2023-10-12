@@ -24,6 +24,7 @@ open class FronteggWebView : WebView {
         settings.useWideViewPort = true
         settings.loadWithOverviewMode = true
         settings.domStorageEnabled = true
+        settings.safeBrowsingEnabled = true
 
         webViewClient = FronteggWebClient(context)
     }

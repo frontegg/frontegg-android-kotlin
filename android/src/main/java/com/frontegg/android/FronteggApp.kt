@@ -11,7 +11,7 @@ class FronteggApp private constructor(
     val context: Context,
     val baseUrl: String,
     val clientId: String,
-    val isEmbeddedMode:Boolean
+    val isEmbeddedMode:Boolean = true
 ) {
 
     val credentialManager: CredentialManager = CredentialManager(context)

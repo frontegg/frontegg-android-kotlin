@@ -1,5 +1,7 @@
 package com.frontegg.android.services
 
+import android.util.Log
+import android.webkit.CookieManager
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.User
 import com.frontegg.android.utils.ApiConstants
@@ -16,6 +18,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.IOException
+import java.lang.Exception
 
 open class Api(
     private var baseUrl: String,
@@ -23,6 +26,10 @@ open class Api(
     private var credentialManager: CredentialManager
 ) {
     private var httpClient: OkHttpClient
+
+    companion object {
+        val TAG: String = Api::class.java.simpleName
+    }
 
     init {
         this.httpClient = OkHttpClient()
@@ -50,14 +57,12 @@ open class Api(
 
     private fun buildPostRequest(
         path: String,
-        body: JsonObject,
+        body: JsonObject?,
         additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
-        val bodyRequest =
-            body.toString()
-                .toRequestBody("application/json; charset=utf-8".toMediaType())
+        val bodyRequest = body?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
         val headers = this.prepareHeaders(additionalHeaders);
 
         requestBuilder.method("POST", bodyRequest)
@@ -168,16 +173,25 @@ open class Api(
         return null
     }
 
-    fun logout() {
-        val refreshToken = this.credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
+    fun logout(cookies: String, accessToken:String) {
+        try {
 
-        if (refreshToken != null) {
             val call = buildPostRequest(
                 ApiConstants.logout, JsonObject(), mapOf(
-                    Pair("fe_refresh_$clientId", refreshToken)
+                    Pair("authorization", "Bearer $accessToken"),
+                    Pair("cookie", cookies),
+                    Pair("accept", "*/*"),
+                    Pair("content-type", "application/json"),
+                    Pair("origin", baseUrl),
+                    Pair("referer","$baseUrl/oauth/account/logout")
                 )
             )
-            call.execute()
+            val res = call.execute()
+
+
+            Log.d(TAG, "logged out, ${res.body?.string()}")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to logout user", e)
         }
     }
 
