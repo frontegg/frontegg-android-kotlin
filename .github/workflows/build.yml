@@ -16,7 +16,7 @@ concurrency:
 jobs:
   build-and-test:
     name: Build And Test
-    runs-on: macos-latest
+    runs-on: macos-latest-xl
     steps:
       - name: Checkout
         uses: actions/checkout@v3

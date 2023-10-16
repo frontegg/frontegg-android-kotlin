@@ -10,7 +10,8 @@ import com.frontegg.android.services.*
 class FronteggApp private constructor(
     val context: Context,
     val baseUrl: String,
-    val clientId: String
+    val clientId: String,
+    val isEmbeddedMode:Boolean = true
 ) {
 
     val credentialManager: CredentialManager = CredentialManager(context)
@@ -33,6 +34,7 @@ class FronteggApp private constructor(
             fronteggDomain: String,
             clientId: String,
             context: Context,
+            isEmbeddedMode:Boolean = false,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 throw FronteggException(FRONTEGG_DOMAIN_MUST_NOT_START_WITH_HTTPS)
@@ -40,7 +42,7 @@ class FronteggApp private constructor(
                 "https://$fronteggDomain"
             }
 
-            instance = FronteggApp(context, baseUrl, clientId)
+            instance = FronteggApp(context, baseUrl, clientId, isEmbeddedMode)
         }
     }
 

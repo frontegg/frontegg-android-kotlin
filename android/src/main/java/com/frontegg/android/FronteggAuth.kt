@@ -85,15 +85,21 @@ class FronteggAuth(
         }
     }
 
-    private fun refreshTokenIfNeeded(): Boolean {
+    fun refreshTokenIfNeeded(): Boolean {
         val refreshToken = this.refreshToken.value ?: return false
         Log.d(TAG, "refreshTokenIfNeeded()")
-        val data = api.refreshToken(refreshToken)
-        return if (data != null) {
-            setCredentials(data.access_token, data.refresh_token)
-            true
-        } else {
-            false
+
+        return try {
+            val data = api.refreshToken(refreshToken)
+            if (data != null) {
+                setCredentials(data.access_token, data.refresh_token)
+                true
+            } else {
+                false
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to send refresh token request", e)
+            false;
         }
     }
 
@@ -150,30 +156,49 @@ class FronteggAuth(
         return true
     }
 
+    private fun getDomainCookie(siteName: String): String {
+        val cookieManager = CookieManager.getInstance()
+        return cookieManager.getCookie(siteName);
+    }
+
+
     fun logout(callback: () -> Unit = {}) {
-        CookieManager.getInstance().removeAllCookies {
-            CookieManager.getInstance().flush()
-            GlobalScope.launch(Dispatchers.IO) {
-                refreshTaskRunner?.cancel()
-                isLoading.value = true
-                isAuthenticated.value = false
-                accessToken.value = null
-                refreshToken.value = null
-                user.value = null
-                api.logout()
-                credentialManager.clear()
-                val handler = Handler(Looper.getMainLooper())
-                handler.post {
-                    isLoading.value = false
-                    callback()
-                }
+
+
+        isLoading.value = true
+        refreshTaskRunner?.cancel()
+        GlobalScope.launch(Dispatchers.IO) {
+
+            val logoutCookies = getDomainCookie(baseUrl)
+            val logoutAccessToken = accessToken.value
+
+            if (logoutAccessToken != null && FronteggApp.getInstance().isEmbeddedMode) {
+                api.logout(logoutCookies, logoutAccessToken)
             }
+
+            isLoading.value = true
+            isAuthenticated.value = false
+            accessToken.value = null
+            refreshToken.value = null
+            user.value = null
+            credentialManager.clear()
+
+            val handler = Handler(Looper.getMainLooper())
+            handler.post {
+                isLoading.value = false
+                callback()
+            }
+
         }
 
     }
 
     fun login(activity: Activity) {
-        AuthenticationActivity.authenticateUsingBrowser(activity)
+        if (FronteggApp.getInstance().isEmbeddedMode) {
+            EmbeddedAuthActivity.authenticate(activity)
+        } else {
+            AuthenticationActivity.authenticate(activity)
+        }
     }
 
 
