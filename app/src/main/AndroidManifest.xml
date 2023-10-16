@@ -27,6 +27,7 @@
             </intent-filter>
         </activity>
 
+        <activity android:name="com.frontegg.android.EmbeddedAuthActivity" tools:node="remove"/>
     </application>
 
 </manifest>

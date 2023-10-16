@@ -12,6 +12,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Add Frontegg package to the project](#add-frontegg-package-to-the-project)
     - [Set minimum sdk version](#set-minimum-sdk-version)
     - [Configure build config fields](#configure-build-config-fields)
+    - [Embedded Webview vs Custom Chrome Tab](#embedded-webview-vs-custom-chrome-tab)
     - [Config Android AssetLinks](#config-android-assetlinks)
 - [Usage](#usage)
     - [Initialize FronteggApp](#initialize-fronteggapp)
@@ -134,6 +135,30 @@ Add `INTERNET` permission to the app's manifest file.
 ```xml
 <uses-permission android:name="android.permission.INTERNET"/>
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+```
+
+### Embedded Webview vs Custom Chrome Tab
+
+Frontegg SDK supports two authentication methods:
+
+- Embedded Webview
+- Custom Chrome Tab
+
+By default Frontegg SDK will use Embedded Webview, to use Custom Chrome Tab you have to set remove embedded activity by adding below code to 
+the application manifest:
+
+```xml
+
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <!-- ... -->
+
+        <activity android:name="com.frontegg.android.EmbeddedAuthActivity" tools:node="remove" />
+
+        <!-- ... -->
+    </application>
+</manifest>
 ```
 
 ### Config Android AssetLinks

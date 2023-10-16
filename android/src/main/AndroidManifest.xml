@@ -7,7 +7,36 @@
     <application>
 
         <activity
-            android:name="${auth_activity}"
+            android:name="com.frontegg.android.EmbeddedAuthActivity"
+            android:exported="true">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="${frontegg_domain}"
+                    android:pathPrefix="/frontegg"
+                    android:scheme="https" />
+
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="${frontegg_domain}"
+                    android:pathPrefix="/oauth"
+                    android:scheme="https" />
+
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.frontegg.android.HostedAuthActivity"
             android:exported="true">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
