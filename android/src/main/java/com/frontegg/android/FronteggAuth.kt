@@ -156,7 +156,7 @@ class FronteggAuth(
         return true
     }
 
-    private fun getDomainCookie(siteName: String): String {
+    private fun getDomainCookie(siteName: String): String? {
         val cookieManager = CookieManager.getInstance()
         return cookieManager.getCookie(siteName);
     }
@@ -172,7 +172,10 @@ class FronteggAuth(
             val logoutCookies = getDomainCookie(baseUrl)
             val logoutAccessToken = accessToken.value
 
-            if (logoutAccessToken != null && FronteggApp.getInstance().isEmbeddedMode) {
+            if (logoutCookies != null &&
+                logoutAccessToken != null &&
+                FronteggApp.getInstance().isEmbeddedMode
+            ) {
                 api.logout(logoutCookies, logoutAccessToken)
             }
 
