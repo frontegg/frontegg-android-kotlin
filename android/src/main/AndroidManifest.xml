@@ -37,6 +37,7 @@
 
         <activity
             android:name="com.frontegg.android.HostedAuthActivity"
+            android:enabled="false"
             android:exported="true">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
