@@ -148,13 +148,13 @@ By default Frontegg SDK will use Embedded Webview, to use Custom Chrome Tab you 
 the application manifest:
 
 ```xml
-
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
     <application>
         <!-- ... -->
 
-        <activity android:name="com.frontegg.android.EmbeddedAuthActivity" tools:node="remove" />
+      <activity android:name="com.frontegg.android.EmbeddedAuthActivity" tools:replace="android:enabled" android:enabled="false"/>
+      <activity android:name="com.frontegg.android.HostedAuthActivity" tools:replace="android:enabled" android:enabled="true"/>
 
         <!-- ... -->
     </application>

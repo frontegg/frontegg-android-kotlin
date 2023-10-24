@@ -66,7 +66,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         super.onReceivedHttpError(view, request, errorResponse)
     }
 
-    private fun setUriParameter(uri: Uri, key: String, newValue: String): Uri? {
+    private fun setUriParameter(uri: Uri, key: String, newValue: String): Uri {
         val params: Set<String> = uri.queryParameterNames
         val newUri: Uri.Builder = uri.buildUpon().clearQuery()
         var paramExist = false
