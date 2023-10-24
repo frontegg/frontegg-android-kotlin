@@ -12,7 +12,6 @@ class ApiConstants {
         const val logout: String = "frontegg/identity/resources/auth/v1/logout"
         const val switchTenant: String = "identity/resources/users/v1/tenant"
 
-
     }
 }
 
@@ -20,13 +19,13 @@ class Constants {
 
     companion object {
         val oauthUrls = listOf(
-            "https://www.facebook.com/v10.0/dialog/oauth",
-            "https://accounts.google.com/o/oauth2/v2/auth",
+            "https://www.facebook.com",
+            "https://accounts.google.com",
             "https://github.com/login/oauth/authorize",
-            "https://login.microsoftonline.com/common/oauth2/v2.0/authorize",
+            "https://login.microsoftonline.com",
             "https://slack.com/openid/connect/authorize",
-            "https://appleid.apple.com/auth/authorize",
-            "https://www.linkedin.com/oauth/v2/authorization"
+            "https://appleid.apple.com",
+            "https://www.linkedin.com/oauth/"
         )
 
         val successLoginRoutes = listOf(

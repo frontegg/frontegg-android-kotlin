@@ -5,6 +5,8 @@ import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.UrlQuerySanitizer
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.webkit.*
 import com.frontegg.android.FronteggApp
@@ -15,6 +17,12 @@ import com.frontegg.android.utils.Constants.Companion.loginRoutes
 import com.frontegg.android.utils.Constants.Companion.oauthUrls
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.launch
+import okhttp3.OkHttpClient
+import okhttp3.Request
 
 
 class FronteggWebClient(val context: Context) : WebViewClient() {
@@ -118,7 +126,10 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         }
 
         if (oauthUrls.find { u -> url.toString().startsWith(u) } != null) {
-            return OverrideUrlType.SocialLoginRedirectToBrowser
+            if(url.query?.contains("external=true") == true) {
+                return OverrideUrlType.SocialLoginRedirectToBrowser
+            }
+            return OverrideUrlType.Unknown
         }
 
 
@@ -138,10 +149,16 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                     return handleHostedLoginCallback(view, request.url?.query)
                 }
 
+                OverrideUrlType.SocialOauthPreLogin -> {
+                    if (setSocialLoginRedirectUri(view!!, request.url)) {
+                        return true
+                    }
+                    return super.shouldOverrideUrlLoading(view, request)
+                }
                 OverrideUrlType.SocialLoginRedirectToBrowser -> {
-                    FronteggAuth.instance.isLoading.value = true
                     val browserIntent = Intent(Intent.ACTION_VIEW, url)
                     context.startActivity(browserIntent)
+                    view!!.loadUrl("${FronteggAuth.instance.baseUrl}/oauth/account/login")
                     return true
                 }
 
@@ -186,13 +203,13 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 }
                 super.onLoadResource(view, url)
             }
-
             else -> {
                 super.onLoadResource(view, url)
             }
         }
     }
 
+    @OptIn(DelicateCoroutinesApi::class)
     private fun setSocialLoginRedirectUri(webView: WebView, uri: Uri): Boolean {
         Log.d(TAG, "setSocialLoginRedirectUri setting redirect uri for social login")
 
@@ -203,7 +220,34 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         val baseUrl = FronteggApp.getInstance().baseUrl
         val oauthRedirectUri = socialLoginRedirectUrl(baseUrl)
         val newUri = setUriParameter(uri, "redirectUri", oauthRedirectUri)
-        webView.loadUrl(newUri.toString())
+
+        FronteggAuth.instance.isLoading.value = true
+        try {
+            GlobalScope.launch(Dispatchers.IO) {
+                val requestBuilder = Request.Builder()
+                requestBuilder.method("GET", null)
+                requestBuilder.url(newUri.toString())
+
+                val client = OkHttpClient().newBuilder()
+                    .followRedirects(false)
+                    .followSslRedirects(false)
+                    .build();
+                val response = client.newCall(requestBuilder.build()).execute()
+
+                val redirect = Uri.parse(response.headers["Location"])
+                val socialLoginUrl = setUriParameter(redirect, "external", "true")
+
+                val handler = Handler(Looper.getMainLooper())
+                handler.post {
+                    val browserIntent = Intent(Intent.ACTION_VIEW, socialLoginUrl)
+                    context.startActivity(browserIntent)
+                    FronteggAuth.instance.isLoading.value = false
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "setSocialLoginRedirectUri failed to generate social login url")
+//            webView.loadUrl(newUri.toString())
+        }
         return true
     }
 
@@ -228,7 +272,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             return false
         }
 
-        if(FronteggAuth.instance.handleHostedLoginCallback(code)){
+        if (FronteggAuth.instance.handleHostedLoginCallback(code)) {
             return true;
         }
 
