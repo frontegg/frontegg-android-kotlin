@@ -25,14 +25,10 @@ open class Api(
     private var clientId: String,
     private var credentialManager: CredentialManager
 ) {
-    private var httpClient: OkHttpClient
+    private var httpClient: OkHttpClient = OkHttpClient()
 
     companion object {
         val TAG: String = Api::class.java.simpleName
-    }
-
-    init {
-        this.httpClient = OkHttpClient()
     }
 
 
@@ -62,7 +58,8 @@ open class Api(
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
-        val bodyRequest = body?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
+        val bodyRequest =
+            body?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
         val headers = this.prepareHeaders(additionalHeaders);
 
         requestBuilder.method("POST", bodyRequest)
@@ -94,7 +91,12 @@ open class Api(
     }
 
     private fun buildGetRequest(path: String): Call {
-        val url = "$baseUrl/$path".toHttpUrl()
+
+        val url = if (path.startsWith("http")) {
+            path.toHttpUrl()
+        } else {
+            "$baseUrl/$path".toHttpUrl()
+        }
         val requestBuilder = Request.Builder()
         val headers = prepareHeaders();
 
@@ -173,7 +175,7 @@ open class Api(
         return null
     }
 
-    fun logout(cookies: String, accessToken:String) {
+    fun logout(cookies: String, accessToken: String) {
         try {
 
             val call = buildPostRequest(
@@ -183,7 +185,7 @@ open class Api(
                     Pair("accept", "*/*"),
                     Pair("content-type", "application/json"),
                     Pair("origin", baseUrl),
-                    Pair("referer","$baseUrl/oauth/account/logout")
+                    Pair("referer", "$baseUrl/oauth/account/logout")
                 )
             )
             val res = call.execute()

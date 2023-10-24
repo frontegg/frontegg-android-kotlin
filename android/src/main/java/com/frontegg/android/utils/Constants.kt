@@ -12,7 +12,6 @@ class ApiConstants {
         const val logout: String = "frontegg/identity/resources/auth/v1/logout"
         const val switchTenant: String = "identity/resources/users/v1/tenant"
 
-
     }
 }
 
