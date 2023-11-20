@@ -172,7 +172,7 @@ class FronteggAuth(
             val logoutCookies = getDomainCookie(baseUrl)
             val logoutAccessToken = accessToken.value
 
-            CookieManager.getInstance().removeAllCookies(null)
+//            CookieManager.getInstance().removeAllCookies(null)
             if (logoutCookies != null &&
                 logoutAccessToken != null &&
                 FronteggApp.getInstance().isEmbeddedMode

@@ -1,7 +1,6 @@
 package com.frontegg.android.services
 
 import android.util.Log
-import android.webkit.CookieManager
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.User
 import com.frontegg.android.utils.ApiConstants

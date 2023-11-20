@@ -27,6 +27,8 @@ open class FronteggWebView : WebView {
         settings.safeBrowsingEnabled = true
 
         webViewClient = FronteggWebClient(context)
+
+        this.addJavascriptInterface(FronteggNativeBridge(context), "FronteggNativeBridge")
     }
 
     fun loadOauthAuthorize() {

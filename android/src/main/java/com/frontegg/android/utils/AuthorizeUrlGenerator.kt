@@ -11,13 +11,8 @@ class AuthorizeUrlGenerator {
         private val TAG = AuthorizeUrlGenerator::class.java.simpleName
     }
 
-    private var clientId: String
-    private var baseUrl: String
-
-    init {
-        this.baseUrl = FronteggApp.getInstance().baseUrl
-        this.clientId = FronteggApp.getInstance().clientId
-    }
+    private var clientId: String = FronteggApp.getInstance().clientId
+    private var baseUrl: String = FronteggApp.getInstance().baseUrl
 
     private fun createRandomString(length: Int = 16): String {
         val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
@@ -40,7 +35,7 @@ class AuthorizeUrlGenerator {
     }
 
 
-    fun generate(): Pair<String, String> {
+    fun generate(loginHint:String? = null, loginAction:String? = null): Pair<String, String> {
         val nonce = createRandomString()
         val codeVerifier = createRandomString()
         val codeChallenge = generateCodeChallenge(codeVerifier)
@@ -60,6 +55,13 @@ class AuthorizeUrlGenerator {
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("nonce", nonce)
 
+        if(loginHint != null){
+            authorizeUrlBuilder.appendQueryParameter("login_hint", loginHint)
+        }
+
+        if(loginAction != null){
+            authorizeUrlBuilder.appendQueryParameter("login_direct_action", loginAction)
+        }
 
         val url = authorizeUrlBuilder.build().toString()
         Log.d(TAG, "Generated url: $url")

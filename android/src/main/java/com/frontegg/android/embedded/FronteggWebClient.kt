@@ -14,7 +14,6 @@ import com.frontegg.android.FronteggAuth
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
-import com.frontegg.android.utils.Constants.Companion.oauthUrls
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -94,11 +93,26 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 
     enum class OverrideUrlType {
         HostedLoginCallback,
-        SocialLoginRedirectToBrowser,
         SocialOauthPreLogin,
         loginRoutes,
         internalRoutes,
         Unknown
+    }
+
+    private fun isSocialLoginPath(string: String): Boolean {
+        val patterns = listOf(
+            "^/frontegg/identity/resources/auth/[^/]+/user/sso/default/[^/]+/prelogin$",
+            "^/identity/resources/auth/[^/]+/user/sso/default/[^/]+/prelogin$"
+        )
+
+        for (pattern in patterns) {
+            val regex = Regex(pattern)
+            if (regex.containsMatchIn(string)) {
+                return true
+            }
+        }
+
+        return false
     }
 
     private fun getOverrideUrlType(url: Uri): OverrideUrlType {
@@ -110,9 +124,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         }
         if (urlPath != null && url.toString().startsWith(FronteggApp.getInstance().baseUrl)) {
 
-            if (urlPath.startsWith("/frontegg/identity/resources/auth/v2/user/sso/default")
-                && urlPath.endsWith("/prelogin")
-            ) {
+            if (isSocialLoginPath(urlPath)) {
                 return OverrideUrlType.SocialOauthPreLogin
             }
 
@@ -124,14 +136,6 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 OverrideUrlType.internalRoutes
             }
         }
-
-        if (oauthUrls.find { u -> url.toString().startsWith(u) } != null) {
-            if(url.query?.contains("external=true") == true) {
-                return OverrideUrlType.SocialLoginRedirectToBrowser
-            }
-            return OverrideUrlType.Unknown
-        }
-
 
         return OverrideUrlType.Unknown
     }
@@ -155,10 +159,9 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                     }
                     return super.shouldOverrideUrlLoading(view, request)
                 }
-                OverrideUrlType.SocialLoginRedirectToBrowser -> {
-                    val browserIntent = Intent(Intent.ACTION_VIEW, url)
-                    context.startActivity(browserIntent)
-                    view!!.loadUrl("${FronteggAuth.instance.baseUrl}/oauth/account/login")
+
+                OverrideUrlType.Unknown -> {
+                    openExternalBrowser(request.url)
                     return true
                 }
 
@@ -203,6 +206,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 }
                 super.onLoadResource(view, url)
             }
+
             else -> {
                 super.onLoadResource(view, url)
             }
@@ -249,6 +253,11 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 //            webView.loadUrl(newUri.toString())
         }
         return true
+    }
+
+    private fun openExternalBrowser(externalLink: Uri) {
+        val browserIntent = Intent(Intent.ACTION_VIEW, externalLink)
+        context.startActivity(browserIntent)
     }
 
 
