@@ -7,30 +7,11 @@ import android.util.Base64
 import android.util.Log
 import android.webkit.JavascriptInterface
 import com.frontegg.android.utils.AuthorizeUrlGenerator
-import com.google.gson.Gson
-import com.google.gson.JsonSyntaxException
 import org.json.JSONException
 import org.json.JSONObject
-import java.net.URL
 
-
-class FronteggMessage {
-    lateinit var action: String
-    lateinit var payload: String
-}
 
 class FronteggNativeBridge(val context: Context) {
-
-
-    private fun parseMessage(jsonString: String): FronteggMessage? {
-        val jsonData = jsonString.toByteArray(Charsets.UTF_8)
-        return try {
-            Gson().fromJson(jsonString, FronteggMessage::class.java)
-        } catch (e: JsonSyntaxException) {
-            println("Error decoding JSON: ${e.message}")
-            null
-        }
-    }
 
     @JavascriptInterface
     fun loginWithSSO(email: String) {

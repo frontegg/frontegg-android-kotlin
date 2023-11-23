@@ -3,8 +3,10 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+
 def fronteggDomain = "auth.davidantoon.me"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+
 
 android {
     namespace 'com.frontegg.demo'
@@ -18,6 +20,10 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        vectorDrawables {
+            useSupportLibrary true
+        }
+
 
         manifestPlaceholders = [
                 "package_name" : applicationId,
@@ -27,7 +33,6 @@ android {
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
-
     }
 
     buildTypes {
@@ -44,15 +49,29 @@ android {
         jvmTarget = '1.8'
     }
     buildFeatures {
+        compose true
         viewBinding true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.4.3'
+    }
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
     }
     buildToolsVersion buildToolsVersion
 
 }
 
+//
+//tasks.register('hello') {
+//    doLast {
+//        modifyManifest("asdasd")
+//    }
+//}
 
 dependencies {
-
     implementation 'androidx.core:core-ktx:1.10.0'
     implementation 'androidx.appcompat:appcompat:1.6.1'
     implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'

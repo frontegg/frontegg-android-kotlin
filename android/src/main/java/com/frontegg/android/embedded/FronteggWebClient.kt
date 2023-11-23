@@ -214,7 +214,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private fun setSocialLoginRedirectUri(webView: WebView, uri: Uri): Boolean {
+    private fun setSocialLoginRedirectUri(@Suppress("UNUSED_PARAMETER") webView: WebView, uri: Uri): Boolean {
         Log.d(TAG, "setSocialLoginRedirectUri setting redirect uri for social login")
 
         if (uri.getQueryParameter("redirectUri") != null) {
