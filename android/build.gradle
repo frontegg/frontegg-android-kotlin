@@ -109,30 +109,3 @@ afterEvaluate {
     }
 }
 
-// Define the modifyManifest function
-ext.modifyManifest = { param1, param2 ->
-    // Task to modify the manifest
-    def manifestFile = android.sourceSets.main.manifest.srcFile
-    def parsedXml = new XmlParser().parse(manifestFile)
-
-
-    print("Params, ${param1} , ${param2}")
-}
-
-//ext {
-//    modifyManifest = { param1, param2 ->
-//        // Task to modify the manifest
-//        doLast {
-//            def manifestFile = android.sourceSets.main.manifest.srcFile
-//            def parsedXml = new XmlParser().parse(manifestFile)
-//
-//            // Example of modification based on parameters
-//            if (param1) {
-//                parsedXml.application[0].activity[0].@android:name = param2
-//            }
-//
-//            // Save the modified XML back to the manifest file
-//            new XmlNodePrinter(new PrintWriter(manifestFile)).print(parsedXml)
-//        }
-//    }
-//}
