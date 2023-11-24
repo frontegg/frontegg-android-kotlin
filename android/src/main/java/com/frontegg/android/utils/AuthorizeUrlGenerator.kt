@@ -41,7 +41,7 @@ class AuthorizeUrlGenerator {
         val codeChallenge = generateCodeChallenge(codeVerifier)
 
         val credentialManager = FronteggApp.getInstance().credentialManager
-        credentialManager.save(CredentialKeys.CODE_VERIFIER, codeVerifier)
+        credentialManager.saveCodeVerifier(codeVerifier)
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
 
         val authorizeUrlBuilder = Uri.Builder()

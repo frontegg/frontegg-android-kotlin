@@ -1,6 +1,5 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         google()
         mavenCentral()
     }
@@ -19,4 +18,3 @@ include ':android'
 include ':app'
 include ':embedded'
 include ':multi-region'
-

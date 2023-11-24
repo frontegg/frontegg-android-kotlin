@@ -7,6 +7,7 @@ import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
 import com.frontegg.android.models.User
+import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.utils.Constants
@@ -29,7 +30,9 @@ class FronteggAuth(
     val baseUrl: String,
     val clientId: String,
     val api: Api,
-    val credentialManager: CredentialManager
+    val credentialManager: CredentialManager,
+    val regions: List<RegionConfig>,
+    val selectedRegion: RegionConfig?
 ) {
 
     companion object {
@@ -55,6 +58,7 @@ class FronteggAuth(
 
     init {
 
+
         Observable.merge(
             isLoading.observable,
             isAuthenticated.observable,
@@ -65,8 +69,8 @@ class FronteggAuth(
 
         GlobalScope.launch(Dispatchers.IO) {
 
-            val accessTokenSaved = credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
-            val refreshTokenSaved = credentialManager.getOrNull(CredentialKeys.REFRESH_TOKEN)
+            val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
+            val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)
 
             if (accessTokenSaved != null && refreshTokenSaved != null) {
                 accessToken.value = accessTokenSaved
@@ -143,6 +147,10 @@ class FronteggAuth(
 
         val codeVerifier = credentialManager.get(CredentialKeys.CODE_VERIFIER)
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
+
+        if(codeVerifier == null){
+            return false
+        }
 
         GlobalScope.launch(Dispatchers.IO) {
             val data = api.exchangeToken(code, redirectUrl, codeVerifier)

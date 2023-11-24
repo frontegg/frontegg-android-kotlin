@@ -4,5 +4,6 @@ package com.frontegg.android.utils
 public enum class CredentialKeys(key: String) {
     ACCESS_TOKEN("access_token"),
     REFRESH_TOKEN("refresh_token"),
-    CODE_VERIFIER("code_verifier")
+    CODE_VERIFIER("code_verifier"),
+    SELECTED_REGION("selected_region")
 }
