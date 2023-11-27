@@ -5,6 +5,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentAuthBinding
 import io.reactivex.rxjava3.disposables.Disposable
@@ -34,10 +35,22 @@ class AuthFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        binding.loginButton.setOnClickListener {
 
+
+        binding.loginButton.setOnClickListener {
             FronteggAuth.instance.login(requireActivity())
         }
+
+        if(FronteggAuth.instance.initializing.value){
+            disposables.add(FronteggAuth.instance.initializing.observable.subscribe {
+                if(!FronteggAuth.instance.isAuthenticated.value) {
+                    FronteggAuth.instance.login(requireActivity())
+                }
+            })
+        } else {
+            FronteggAuth.instance.login(requireActivity())
+        }
+
     }
 
     override fun onDestroyView() {

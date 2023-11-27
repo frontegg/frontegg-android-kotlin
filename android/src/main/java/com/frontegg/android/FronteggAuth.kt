@@ -27,13 +27,14 @@ import kotlin.concurrent.schedule
 @SuppressLint("CheckResult")
 @OptIn(DelicateCoroutinesApi::class)
 class FronteggAuth(
-    val baseUrl: String,
-    val clientId: String,
-    val api: Api,
+    var baseUrl: String,
+    var clientId: String,
+
     val credentialManager: CredentialManager,
     val regions: List<RegionConfig>,
-    val selectedRegion: RegionConfig?
+    var selectedRegion: RegionConfig?
 ) {
+
 
     companion object {
         private val TAG = FronteggAuth::class.java.simpleName
@@ -55,10 +56,37 @@ class FronteggAuth(
     var pendingAppLink: String? = null
     var timer: Timer = Timer()
     var refreshTaskRunner: TimerTask? = null
+    val isMultiRegion: Boolean = regions.isNotEmpty()
+
+    private var _api: Api? = null
 
     init {
 
+        if (!isMultiRegion || selectedRegion !== null) {
+            this.initializeSubscriptions()
+        }
+    }
 
+    val api: Api
+        get() = (if (this._api == null) {
+            this._api = Api(this.baseUrl, this.clientId, credentialManager)
+            this._api
+        } else {
+            this._api
+        })!!
+
+
+    fun reinitWithRegion(region: RegionConfig) {
+        selectedRegion = region
+
+        this.baseUrl = region.baseUrl
+        this.clientId = region.clientId
+
+        this.initializeSubscriptions()
+    }
+
+
+    fun initializeSubscriptions() {
         Observable.merge(
             isLoading.observable,
             isAuthenticated.observable,
@@ -148,7 +176,7 @@ class FronteggAuth(
         val codeVerifier = credentialManager.get(CredentialKeys.CODE_VERIFIER)
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
 
-        if(codeVerifier == null){
+        if (codeVerifier == null) {
             return false
         }
 

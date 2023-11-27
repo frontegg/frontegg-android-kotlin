@@ -12,10 +12,11 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Add Frontegg package to the project](#add-frontegg-package-to-the-project)
     - [Set minimum sdk version](#set-minimum-sdk-version)
     - [Configure build config fields](#configure-build-config-fields)
+    - [Initialize FronteggApp](#initialize-fronteggapp)
     - [Embedded Webview vs Custom Chrome Tab](#embedded-webview-vs-custom-chrome-tab)
     - [Config Android AssetLinks](#config-android-assetlinks)
+    - [Multi-Region support](#multi-region-support)
 - [Usage](#usage)
-    - [Initialize FronteggApp](#initialize-fronteggapp)
     - [Login with Frontegg](#login-with-frontegg)
     - [Logout user](#logout)
     - [Switch Tenant](#switch-tenant)
@@ -137,6 +138,45 @@ Add `INTERNET` permission to the app's manifest file.
 <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 ```
 
+
+### Initialize FronteggApp
+
+Create a custom `App` class that extends `android.app.Application` to initialize `FronteggApp`:
+
+```kotlin
+package com.frontegg.demo
+
+import android.app.Application
+import com.frontegg.android.FronteggApp
+
+class App : Application() {
+
+    override fun onCreate() {
+        super.onCreate()
+        
+        FronteggApp.init(
+            BuildConfig.FRONTEGG_DOMAIN,
+            BuildConfig.FRONTEGG_CLIENT_ID,
+            this, // Application Context
+        )
+    }
+}
+```
+
+Register the custom `App` in the app's manifest file
+
+**AndroidManifest.xml:**
+
+```xml
+
+<application
+        android:name=".App">
+    <!--  ... -->
+</application>
+
+```
+
+
 ### Embedded Webview vs Custom Chrome Tab
 
 Frontegg SDK supports two authentication methods:
@@ -211,46 +251,164 @@ keytool -list -v -keystore /PATH/file.jks -alias YourAlias -storepass *** -keypa
 In order to use our API’s, follow [this guide](https://docs.frontegg.com/reference/getting-started-with-your-api) to
 generate a vendor token.
 
-## Usage
 
-### Initialize FronteggApp
 
-Create a custom `App` class that extends `android.app.Application` to initialize `FronteggApp`:
+## Multi-Region Support
 
-```kotlin
-package com.frontegg.demo
+This guide outlines the steps to configure your Android application to support multiple regions.
 
-import android.app.Application
-import com.frontegg.android.FronteggApp
+### Step 1: Modify the Build.gradle file
 
-class App : Application() {
+First, remove buildConfigFields from your `build.gradle` file:
 
-    override fun onCreate() {
-        super.onCreate()
-        
-        FronteggApp.init(
-            BuildConfig.FRONTEGG_DOMAIN,
-            BuildConfig.FRONTEGG_CLIENT_ID,
-            this, // Application Context
-        )
-    }
+```groovy
+
+android {
+  //  remove this lines:
+  //  buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
+  //  buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
 }
 ```
 
-Register the custom `App` in the app's manifest file
+### Step 2: Modify the App File
 
-**AndroidManifest.xml:**
+First, adjust your `App.kt/java` file to handle multiple regions:
+
+**Modifications**:
+- **Remove** the existing `FronteggApp.init` function.
+- **Add** Call `FronteggApp.initWithRegions` with array of `regions`. This array will hold dictionaries for each region.
+
+Example App.kt code:
+```kotlin
+
+class App : Application() {
+
+  companion object {
+    lateinit var instance: App
+  }
+
+  override fun onCreate() {
+    super.onCreate()
+    instance = this
+
+    FronteggApp.initWithRegions(
+      listOf(
+        RegionConfig(
+          "eu",
+          "auth.davidantoon.me",
+          "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+        ),
+        RegionConfig(
+          "us",
+          "davidprod.frontegg.com",
+          "d7d07347-2c57-4450-8418-0ec7ee6e096b"
+        )
+      ),
+      this
+    )
+  }
+}
+```
+
+### Step 2: Add AssetLinks for Each Region
+
+For each region, configuring your Android `AssetLinks`. This is vital for proper API routing and authentication.
+Follow [Config Android AssetLinks](#config-android-assetlinks) to add your Android domains to your Frontegg application.
+
+### Step 3: Add Intent-Filter in Manifest.xml
+
+The first domain will be placed automatically in the `AndroidManifest.xml` file. For each additional region, you will
+need to add an `intent-filter`.
+
+NOTE: if you are using `Custom Chrome Tab` you have to use `android:name` `com.frontegg.android.HostedAuthActivity` instead of `com.frontegg.android.EmbeddedAuthActivity`
 
 ```xml
 
-<application
-        android:name=".App">
-    <!--  ... -->
-</application>
+<application>
+    <activity android:exported="true" android:name="com.frontegg.android.EmbeddedAuthActivity"
+        tools:node="merge">
+        <intent-filter android:autoVerify="true">
+            <action android:name="android.intent.action.VIEW" />
 
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+
+            <data android:scheme="https" />
+            <!--  Modify second domain -->
+            <data android:host="{{FRONTEGG_DOMAIN_2}}" />
+            <data android:pathPrefix="/oauth/account/activate" />
+            <data android:pathPrefix="/oauth/account/invitation/accept" />
+            <data android:pathPrefix="/oauth/account/reset-password" />
+            <data android:pathPrefix="/oauth/account/social/success" />
+            <data android:pathPrefix="/oauth/account/login/magic-link" />
+        </intent-filter>
+    </activity>
+
+    <activity android:exported="true" android:name="com.frontegg.android.AuthenticationActivity"
+        tools:node="merge">
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+
+            <!--  Modify second domain -->
+            <data android:host="davidprod.frontegg.com" android:scheme="${package_name}" />
+        </intent-filter>
+    </activity>
+</application>
 ```
 
-android:name=".App"
+### Step 3: Implement Region Selection UI
+
+The final step is to implement a UI for the user to select their region. **This can be done in any way you see fit**.
+The example application uses a simple picker view to allow the user to select their region.
+
+**Important Considerations**
+- **Switching Regions**: To switch regions, update the selection in Shared Preferences. If issues arise, a **re-installation** of the application might be necessary.
+- **Data Isolation**: Ensure data handling and APIs are region-specific to prevent data leakage between regions.
+
+|                    Select EU Region                    |                    Select US Region                    |
+|:------------------------------------------------------:|:------------------------------------------------------:|
+| ![eu-region-example.gif](assets/eu-region-example.gif) | ![us-region-example.gif](assets/us-region-example.gif) |
+
+
+Example Region Selection UI: [example code](multi-region/src/main/java/com/frontegg/demo/RegionSelectionActivity.kt)
+```kotlin
+package com.frontegg.demo
+
+import androidx.appcompat.app.AppCompatActivity
+import android.os.Bundle
+import android.widget.LinearLayout
+import com.frontegg.android.FronteggApp
+
+class RegionSelectionActivity : AppCompatActivity() {
+  override fun onCreate(savedInstanceState: Bundle?) {
+    super.onCreate(savedInstanceState)
+    setContentView(R.layout.activity_region_selection)
+  }
+
+
+  override fun onResume() {
+    super.onResume()
+
+    val euButton = findViewById<LinearLayout>(R.id.euButton)
+    val usButton = findViewById<LinearLayout>(R.id.usButton)
+
+    euButton.setOnClickListener {
+      FronteggApp.getInstance().initWithRegion("eu")
+      finish()
+    }
+
+    usButton.setOnClickListener {
+      FronteggApp.getInstance().initWithRegion("us")
+      finish()
+    }
+  }
+}
+```
+
+## Usage
 
 ## Login with Frontegg
 

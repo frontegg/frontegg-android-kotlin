@@ -14,18 +14,20 @@
         android:theme="@style/Theme.MyApplication"
         tools:targetApi="31">
         <activity
+            android:name=".RegionSelectionActivity"
+            android:label="Select Region"
+            android:exported="false" />
+
+        <activity
             android:name=".NavigationActivity"
             android:exported="true"
             android:label="@string/title_activity_navigation">
-
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-
-
         <activity
             android:name="com.frontegg.android.EmbeddedAuthActivity"
             android:exported="true"
@@ -45,15 +47,16 @@
                 <data android:pathPrefix="/oauth/account/login/magic-link" />
             </intent-filter>
         </activity>
-
         <activity
             android:name="com.frontegg.android.AuthenticationActivity"
-            tools:node="merge"
-            android:exported="true">
+            android:exported="true"
+            tools:node="merge">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:host="davidprod.frontegg.com"
                     android:scheme="${package_name}" />

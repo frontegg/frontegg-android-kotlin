@@ -1,5 +1,6 @@
 package com.frontegg.demo
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -57,8 +58,16 @@ class NavigationActivity : AppCompatActivity() {
     private val disposables: ArrayList<Disposable> = arrayListOf()
     override fun onResume() {
         super.onResume()
-        disposables.add(FronteggAuth.instance.showLoader.subscribe(this.onShowLoaderChange))
-        disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.onIsAuthenticatedChange))
+
+        val fronteggAuth = FronteggAuth.instance
+
+        disposables.add(fronteggAuth.showLoader.subscribe(this.onShowLoaderChange))
+        disposables.add(fronteggAuth.isAuthenticated.subscribe(this.onIsAuthenticatedChange))
+
+
+        if(fronteggAuth.isMultiRegion && fronteggAuth.selectedRegion == null){
+            startActivity(Intent( this, RegionSelectionActivity::class.java))
+        }
     }
 
     override fun onPause() {

@@ -44,7 +44,12 @@ open class CredentialManager(context: Context) {
     @SuppressLint("ApplySharedPref")
     fun clear() {
         Log.d(TAG, "clear Frontegg shared preference ")
+
+        val selectedRegion: String? = getSelectedRegion()
         sp.edit().clear().commit()
+        if (selectedRegion != null) {
+            sp.edit().putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion).commit()
+        }
     }
 
     fun getCodeVerifier(): String? {

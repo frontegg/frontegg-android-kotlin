@@ -3,6 +3,7 @@ package com.frontegg.android.embedded
 import android.annotation.SuppressLint
 import android.content.Context
 import android.util.AttributeSet
+import android.webkit.CookieManager
 import android.webkit.WebView
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import java.util.*
@@ -26,8 +27,10 @@ open class FronteggWebView : WebView {
         settings.domStorageEnabled = true
         settings.safeBrowsingEnabled = true
 
+
         webViewClient = FronteggWebClient(context)
 
+        CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         this.addJavascriptInterface(FronteggNativeBridge(context), "FronteggNativeBridge")
     }
 
