@@ -1,7 +1,6 @@
 package com.frontegg.android.services
 
 import android.util.Log
-import android.webkit.CookieManager
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.User
 import com.frontegg.android.utils.ApiConstants
@@ -44,7 +43,7 @@ open class Api(
             headers[it.key] = it.value
         }
 
-        val accessToken = this.credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
+        val accessToken = this.credentialManager.get(CredentialKeys.ACCESS_TOKEN)
         if (accessToken != null) {
             headers["Authorization"] = "Bearer $accessToken"
         }

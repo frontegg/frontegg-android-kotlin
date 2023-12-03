@@ -2,6 +2,7 @@ package com.frontegg.demo
 
 import android.app.Application
 import com.frontegg.android.FronteggApp
+import com.frontegg.demo.BuildConfig
 
 class App : Application() {
 

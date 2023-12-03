@@ -1,6 +1,5 @@
 pluginManagement {
     repositories {
-        gradlePluginPortal()
         google()
         mavenCentral()
     }
@@ -12,7 +11,10 @@ dependencyResolutionManagement {
         mavenCentral()
     }
 }
+
+
 rootProject.name = "Frontegg Android Kotlin"
-include ':app'
 include ':android'
+include ':app'
 include ':embedded'
+include ':multi-region'

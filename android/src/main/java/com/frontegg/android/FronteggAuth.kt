@@ -7,6 +7,7 @@ import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
 import com.frontegg.android.models.User
+import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.utils.Constants
@@ -26,11 +27,14 @@ import kotlin.concurrent.schedule
 @SuppressLint("CheckResult")
 @OptIn(DelicateCoroutinesApi::class)
 class FronteggAuth(
-    val baseUrl: String,
-    val clientId: String,
-    val api: Api,
-    val credentialManager: CredentialManager
+    var baseUrl: String,
+    var clientId: String,
+
+    val credentialManager: CredentialManager,
+    val regions: List<RegionConfig>,
+    var selectedRegion: RegionConfig?
 ) {
+
 
     companion object {
         private val TAG = FronteggAuth::class.java.simpleName
@@ -52,9 +56,37 @@ class FronteggAuth(
     var pendingAppLink: String? = null
     var timer: Timer = Timer()
     var refreshTaskRunner: TimerTask? = null
+    val isMultiRegion: Boolean = regions.isNotEmpty()
+
+    private var _api: Api? = null
 
     init {
 
+        if (!isMultiRegion || selectedRegion !== null) {
+            this.initializeSubscriptions()
+        }
+    }
+
+    val api: Api
+        get() = (if (this._api == null) {
+            this._api = Api(this.baseUrl, this.clientId, credentialManager)
+            this._api
+        } else {
+            this._api
+        })!!
+
+
+    fun reinitWithRegion(region: RegionConfig) {
+        selectedRegion = region
+
+        this.baseUrl = region.baseUrl
+        this.clientId = region.clientId
+
+        this.initializeSubscriptions()
+    }
+
+
+    fun initializeSubscriptions() {
         Observable.merge(
             isLoading.observable,
             isAuthenticated.observable,
@@ -65,8 +97,8 @@ class FronteggAuth(
 
         GlobalScope.launch(Dispatchers.IO) {
 
-            val accessTokenSaved = credentialManager.getOrNull(CredentialKeys.ACCESS_TOKEN)
-            val refreshTokenSaved = credentialManager.getOrNull(CredentialKeys.REFRESH_TOKEN)
+            val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
+            val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)
 
             if (accessTokenSaved != null && refreshTokenSaved != null) {
                 accessToken.value = accessTokenSaved
@@ -144,6 +176,10 @@ class FronteggAuth(
         val codeVerifier = credentialManager.get(CredentialKeys.CODE_VERIFIER)
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
 
+        if (codeVerifier == null) {
+            return false
+        }
+
         GlobalScope.launch(Dispatchers.IO) {
             val data = api.exchangeToken(code, redirectUrl, codeVerifier)
             if (data != null) {
@@ -172,7 +208,7 @@ class FronteggAuth(
             val logoutCookies = getDomainCookie(baseUrl)
             val logoutAccessToken = accessToken.value
 
-            CookieManager.getInstance().removeAllCookies(null)
+//            CookieManager.getInstance().removeAllCookies(null)
             if (logoutCookies != null &&
                 logoutAccessToken != null &&
                 FronteggApp.getInstance().isEmbeddedMode

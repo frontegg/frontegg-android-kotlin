@@ -1,0 +1,107 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+
+}
+
+def fronteggDomain = "auth.davidantoon.me"
+def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+
+android {
+    namespace 'com.frontegg.demo'
+    compileSdk 34
+
+    defaultConfig {
+        applicationId "com.frontegg.demo"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        manifestPlaceholders = [
+                "package_name"      : applicationId,
+                "frontegg_domain"   : fronteggDomain,
+                "frontegg_client_id": fronteggClientId
+        ]
+        vectorDrawables {
+            useSupportLibrary true
+        }
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    buildFeatures {
+        viewBinding true
+        compose true
+    }
+    buildToolsVersion buildToolsVersion
+
+    composeOptions {
+        kotlinCompilerExtensionVersion = "1.5.3"
+    }
+    packagingOptions {
+        resources {
+            excludes += '/META-INF/{AL2.0,LGPL2.1}'
+        }
+    }
+
+
+}
+
+dependencies {
+
+    implementation 'androidx.core:core-ktx:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
+    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.5.3'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.5.3'
+    implementation 'androidx.tracing:tracing:1.1.0'
+    implementation project(path: ':android')
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
+    implementation 'de.hdodenhof:circleimageview:3.1.0'
+    implementation 'com.github.bumptech.glide:glide:4.12.0'
+    implementation 'androidx.lifecycle:lifecycle-runtime-ktx:2.6.2'
+    implementation 'androidx.activity:activity-compose:1.8.1'
+    implementation platform('androidx.compose:compose-bom:2023.03.00')
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.ui:ui-graphics'
+    implementation 'androidx.compose.ui:ui-tooling-preview'
+    implementation 'androidx.compose.material3:material3'
+
+    androidTestImplementation 'org.jetbrains.kotlin:kotlin-stdlib:' + rootProject.kotlinVersion
+    androidTestImplementation 'androidx.test:core:' + rootProject.coreVersion
+    androidTestImplementation 'androidx.test:core-ktx:' + rootProject.coreVersion
+    androidTestImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
+    androidTestImplementation 'androidx.test.ext:junit-ktx:' + rootProject.extJUnitVersion
+    androidTestImplementation 'androidx.test:rules:1.6.0-alpha01'
+    androidTestImplementation 'androidx.test:runner:1.6.0-alpha02'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test.espresso:espresso-intents:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test.espresso:espresso-web:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test:monitor:1.7.0-alpha01'
+
+    testImplementation 'androidx.test:core:' + rootProject.coreVersion;
+    testImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
+    testImplementation 'junit:junit:4.13.2'
+    androidTestImplementation platform('androidx.compose:compose-bom:2023.03.00')
+    androidTestImplementation 'androidx.compose.ui:ui-test-junit4'
+    debugImplementation 'androidx.compose.ui:ui-tooling'
+    debugImplementation 'androidx.compose.ui:ui-test-manifest'
+}

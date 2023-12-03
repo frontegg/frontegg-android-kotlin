@@ -28,20 +28,11 @@ open class CredentialManager(context: Context) {
         return sp.edit().putString(key.toString(), value).commit()
     }
 
-    /**
-     * Get value by key from the shared preference
-     */
-    @Throws(KeyNotFoundException::class)
-    fun get(key: CredentialKeys): String {
-        Log.d(TAG, "get Frontegg $key in shared preference ")
-        return sp.getString(key.toString(), null)
-            ?: throw KeyNotFoundException(Throwable("key not found $key"))
-    }
 
     /**
      * Get value by key from the shared preference
      */
-    fun getOrNull(key: CredentialKeys): String? {
+    fun get(key: CredentialKeys): String? {
         Log.d(TAG, "get Frontegg $key in shared preference ")
         return sp.getString(key.toString(), null)
     }
@@ -53,6 +44,28 @@ open class CredentialManager(context: Context) {
     @SuppressLint("ApplySharedPref")
     fun clear() {
         Log.d(TAG, "clear Frontegg shared preference ")
+
+        val selectedRegion: String? = getSelectedRegion()
         sp.edit().clear().commit()
+        if (selectedRegion != null) {
+            sp.edit().putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion).commit()
+        }
+    }
+
+    fun getCodeVerifier(): String? {
+        return this.get(CredentialKeys.CODE_VERIFIER)
+    }
+
+    fun saveCodeVerifier(codeVerifier: String): Boolean {
+        return this.save(CredentialKeys.CODE_VERIFIER, codeVerifier)
+    }
+
+
+    fun getSelectedRegion(): String? {
+        return this.get(CredentialKeys.SELECTED_REGION)
+    }
+
+    fun saveSelectedRegion(selectedRegion: String): Boolean {
+        return this.save(CredentialKeys.SELECTED_REGION, selectedRegion)
     }
 }

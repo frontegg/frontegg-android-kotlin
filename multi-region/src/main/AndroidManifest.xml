@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <application
+        android:name=".App"
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.MyApplication"
+        tools:targetApi="31">
+        <activity
+            android:name=".RegionSelectionActivity"
+            android:label="Select Region"
+            android:exported="false" />
+
+        <activity
+            android:name=".NavigationActivity"
+            android:exported="true"
+            android:label="@string/title_activity_navigation">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.frontegg.android.EmbeddedAuthActivity"
+            android:exported="true"
+            tools:node="merge">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="davidprod.frontegg.com" />
+                <data android:pathPrefix="/oauth/account/activate" />
+                <data android:pathPrefix="/oauth/account/invitation/accept" />
+                <data android:pathPrefix="/oauth/account/reset-password" />
+                <data android:pathPrefix="/oauth/account/social/success" />
+                <data android:pathPrefix="/oauth/account/login/magic-link" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name="com.frontegg.android.AuthenticationActivity"
+            android:exported="true"
+            tools:node="merge">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="davidprod.frontegg.com"
+                    android:scheme="${package_name}" />
+            </intent-filter>
+        </activity>
+    </application>
+
+</manifest>
