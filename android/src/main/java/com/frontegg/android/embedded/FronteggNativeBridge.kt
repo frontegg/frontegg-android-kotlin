@@ -35,9 +35,9 @@ class FronteggNativeBridge(val context: Context) {
         val generatedUrl = try {
             val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
             val jsonString = Base64.encodeToString(jsonData, Base64.DEFAULT)
-            AuthorizeUrlGenerator().generate(null, jsonString)
+            AuthorizeUrlGenerator().generate(null, jsonString, true)
         } catch (e: JSONException) {
-            AuthorizeUrlGenerator().generate()
+            AuthorizeUrlGenerator().generate(null, null, true)
         }
 
         val authorizationUrl = Uri.parse(generatedUrl.first)

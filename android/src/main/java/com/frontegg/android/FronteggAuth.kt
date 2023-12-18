@@ -6,10 +6,12 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
+import android.webkit.WebView
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
@@ -171,9 +173,9 @@ class FronteggAuth(
         this.initializing.value = false
     }
 
-    fun handleHostedLoginCallback(code: String): Boolean {
+    fun handleHostedLoginCallback(code: String, webView: WebView? = null): Boolean {
 
-        val codeVerifier = credentialManager.get(CredentialKeys.CODE_VERIFIER)
+        val codeVerifier = credentialManager.getCodeVerifier()
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
 
         if (codeVerifier == null) {
@@ -185,7 +187,15 @@ class FronteggAuth(
             if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
             } else {
-                // TODO: handle error
+                Log.e(TAG, "Failed to exchange token" )
+                if(webView != null){
+                    val authorizeUrl = AuthorizeUrlGenerator()
+                    val url = authorizeUrl.generate()
+                    Handler(Looper.getMainLooper()).post {
+                        webView.loadUrl(url.first)
+                    }
+                }
+
             }
         }
 

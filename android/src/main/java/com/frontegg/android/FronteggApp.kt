@@ -18,7 +18,9 @@ class FronteggApp private constructor(
     var clientId: String,
     val isEmbeddedMode: Boolean = true,
     val regions: List<RegionConfig> = listOf(),
-    val selectedRegion: RegionConfig? = null
+    val selectedRegion: RegionConfig? = null,
+    val handleLoginWithSocialLogin: Boolean = true,
+    val handleLoginWithSSO: Boolean = false
 ) {
 
     val credentialManager: CredentialManager = CredentialManager(context)

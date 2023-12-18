@@ -16,12 +16,15 @@ import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
+import com.google.gson.Gson
+import com.google.gson.JsonParser
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import org.json.JSONObject
 
 
 class FronteggWebClient(val context: Context) : WebViewClient() {
@@ -50,6 +53,16 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             else ->
                 FronteggAuth.instance.isLoading.value = true
         }
+
+
+
+        val fronteggApp = FronteggApp.getInstance()
+        val nativeModuleFunctions =  JSONObject()
+        nativeModuleFunctions.put("loginWithSocialLogin", fronteggApp.handleLoginWithSocialLogin)
+        nativeModuleFunctions.put("loginWithSSO", fronteggApp.handleLoginWithSSO)
+        val jsObject = nativeModuleFunctions.toString()
+        view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
+
     }
 
     override fun onReceivedError(
@@ -159,12 +172,10 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                     }
                     return super.shouldOverrideUrlLoading(view, request)
                 }
-
-                OverrideUrlType.Unknown -> {
-                    openExternalBrowser(request.url)
-                    return true
-                }
-
+//                OverrideUrlType.Unknown -> {
+//                    openExternalBrowser(request.url)
+//                    return true
+//                }
                 else -> {
                     return super.shouldOverrideUrlLoading(view, request)
                 }
@@ -172,14 +183,6 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         } else {
             return super.shouldOverrideUrlLoading(view, request)
         }
-    }
-
-
-    override fun shouldInterceptRequest(
-        view: WebView?,
-        request: WebResourceRequest?
-    ): WebResourceResponse? {
-        return super.shouldInterceptRequest(view, request)
     }
 
 
@@ -281,7 +284,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             return false
         }
 
-        if (FronteggAuth.instance.handleHostedLoginCallback(code)) {
+        if (FronteggAuth.instance.handleHostedLoginCallback(code, webView)) {
             return true;
         }
 
