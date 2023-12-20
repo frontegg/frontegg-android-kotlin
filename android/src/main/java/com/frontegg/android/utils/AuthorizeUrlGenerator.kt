@@ -35,13 +35,25 @@ class AuthorizeUrlGenerator {
     }
 
 
-    fun generate(loginHint:String? = null, loginAction:String? = null): Pair<String, String> {
+    fun generate(
+        loginHint: String? = null,
+        loginAction: String? = null,
+        preserveCodeVerifier: Boolean? = false
+    ): Pair<String, String> {
         val nonce = createRandomString()
-        val codeVerifier = createRandomString()
+        val credentialManager = FronteggApp.getInstance().credentialManager
+
+
+        val codeVerifier:String = if (preserveCodeVerifier == true) {
+            credentialManager.getCodeVerifier()!!
+        } else {
+            val code = createRandomString()
+            credentialManager.saveCodeVerifier(code)
+            code
+        }
+
         val codeChallenge = generateCodeChallenge(codeVerifier)
 
-        val credentialManager = FronteggApp.getInstance().credentialManager
-        credentialManager.saveCodeVerifier(codeVerifier)
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
 
         val authorizeUrlBuilder = Uri.Builder()
@@ -55,12 +67,14 @@ class AuthorizeUrlGenerator {
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("nonce", nonce)
 
-        if(loginHint != null){
+        if (loginHint != null) {
             authorizeUrlBuilder.appendQueryParameter("login_hint", loginHint)
         }
 
-        if(loginAction != null){
+        if (loginAction != null) {
             authorizeUrlBuilder.appendQueryParameter("login_direct_action", loginAction)
+
+            return Pair(authorizeUrlBuilder.build().toString(), codeVerifier)
         }
 
         val url = authorizeUrlBuilder.build().toString()

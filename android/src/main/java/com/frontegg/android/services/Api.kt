@@ -50,7 +50,7 @@ open class Api(
         return headers.toHeaders()
     }
 
-    private fun buildPostRequest(
+    fun buildPostRequest(
         path: String,
         body: JsonObject?,
         additionalHeaders: Map<String, String> = mapOf()
