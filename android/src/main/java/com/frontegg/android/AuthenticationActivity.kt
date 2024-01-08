@@ -59,7 +59,7 @@ class AuthenticationActivity : Activity() {
             if (code != null) {
                 Log.d(TAG, "Got intent with oauth callback")
                 FronteggAuth.instance.isLoading.value = true
-                FronteggAuth.instance.handleHostedLoginCallback(code)
+                FronteggAuth.instance.handleHostedLoginCallback(code, null, this)
                 setResult(RESULT_OK)
                 finish()
                 return
