@@ -17,8 +17,8 @@ class FronteggApp private constructor(
     val isEmbeddedMode: Boolean = true,
     val regions: List<RegionConfig> = listOf(),
     val selectedRegion: RegionConfig? = null,
-    val handleLoginWithSocialLogin: Boolean = true,
-    val handleLoginWithSSO: Boolean = false,
+    var handleLoginWithSocialLogin: Boolean = true,
+    var handleLoginWithSSO: Boolean = false,
     val useAssetsLinks: Boolean = false,
 ) {
 

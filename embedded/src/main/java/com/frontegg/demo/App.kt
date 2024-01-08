@@ -16,7 +16,7 @@ class App : Application() {
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
             this,
-            useAssetsLinks = true
+            useAssetsLinks = true,
         )
     }
 }
