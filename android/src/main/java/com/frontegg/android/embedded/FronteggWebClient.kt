@@ -7,8 +7,14 @@ import android.net.Uri
 import android.net.UrlQuerySanitizer
 import android.os.Handler
 import android.os.Looper
+import android.text.Html
+import android.util.Base64
 import android.util.Log
-import android.webkit.*
+import android.webkit.WebResourceError
+import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.utils.AuthorizeUrlGenerator
@@ -16,7 +22,7 @@ import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
-import com.google.gson.Gson
+import com.frontegg.android.utils.generateErrorPage
 import com.google.gson.JsonParser
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
@@ -54,10 +60,13 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 FronteggAuth.instance.isLoading.value = true
         }
 
-
+        if (url?.startsWith("data:text/html,") == true) {
+            FronteggAuth.instance.isLoading.value = false
+            return
+        }
 
         val fronteggApp = FronteggApp.getInstance()
-        val nativeModuleFunctions =  JSONObject()
+        val nativeModuleFunctions = JSONObject()
         nativeModuleFunctions.put("loginWithSocialLogin", fronteggApp.handleLoginWithSocialLogin)
         nativeModuleFunctions.put("loginWithSSO", fronteggApp.handleLoginWithSSO)
         val jsObject = nativeModuleFunctions.toString()
@@ -70,7 +79,58 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         request: WebResourceRequest?,
         error: WebResourceError?
     ) {
+
+        try {
+            val errorMessage = "Check your internet connection and try again."
+            val htmlError = Html.escapeHtml(errorMessage)
+            val errorPage = generateErrorPage(
+                htmlError,
+                error = error?.description?.toString(),
+                url = request?.url?.toString()
+            )
+            val encodedHtml = Base64.encodeToString(errorPage.toByteArray(), Base64.NO_PADDING)
+            Handler(Looper.getMainLooper()).post {
+                view?.loadData(encodedHtml, "text/html", "base64")
+            }
+        } catch (e: Exception) {
+            // ignore error
+        }
+        Log.e(TAG, "onReceivedError: ${error?.description}")
         super.onReceivedError(view, request, error)
+    }
+
+    private fun checkIfFronteggError(view: WebView?, url: String?, status: Int? = null) {
+        if (view == null || url == null) {
+            return
+        }
+        view.evaluateJavascript("document.body.innerText") { result ->
+            try {
+                var text = result
+                if (text == null) {
+                    return@evaluateJavascript
+                }
+                var json = JsonParser.parseString(text)
+                while (!json.isJsonObject) {
+                    text = json.asString
+                    json = JsonParser.parseString(text)
+                }
+                val error = json.asJsonObject.get("errors").asJsonArray.map {
+                    it.asString
+                }.joinToString("\n")
+
+                Log.e(TAG, "Frontegg ERROR: $error")
+
+                val htmlError = Html.escapeHtml(error)
+                val errorPage = generateErrorPage(htmlError, status = status)
+                val encodedHtml = Base64.encodeToString(errorPage.toByteArray(), Base64.NO_PADDING)
+                Handler(Looper.getMainLooper()).post {
+                    view.loadData(encodedHtml, "text/html", "base64")
+                }
+
+            } catch (e: Exception) {
+                // ignore error
+            }
+        }
     }
 
     override fun onReceivedHttpError(
@@ -83,6 +143,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         } else {
             Log.d(TAG, "onReceivedHttpError: HTTP api call, ${request?.url?.path}")
         }
+        checkIfFronteggError(view, request?.url.toString(), errorResponse?.statusCode)
         super.onReceivedHttpError(view, request, errorResponse)
     }
 
@@ -217,7 +278,10 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
     }
 
     @OptIn(DelicateCoroutinesApi::class)
-    private fun setSocialLoginRedirectUri(@Suppress("UNUSED_PARAMETER") webView: WebView, uri: Uri): Boolean {
+    private fun setSocialLoginRedirectUri(
+        @Suppress("UNUSED_PARAMETER") webView: WebView,
+        uri: Uri
+    ): Boolean {
         Log.d(TAG, "setSocialLoginRedirectUri setting redirect uri for social login")
 
         if (uri.getQueryParameter("redirectUri") != null) {

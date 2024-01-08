@@ -18,7 +18,6 @@ class ApiConstants {
 class Constants {
 
     companion object {
-
         val successLoginRoutes = listOf(
             "/oauth/account/social/success",
         )
@@ -29,9 +28,14 @@ class Constants {
         fun oauthCallbackUrl(baseUrl: String): String {
 
             val host = baseUrl.substring("https://".length)
-            val packageName = FronteggApp.getInstance().packageName
-
-            return "${packageName}://${host}/android/oauth/callback"
+            val app = FronteggApp.getInstance();
+            val packageName = app.packageName
+            val useAssetsLinks = app.useAssetsLinks
+            return if (useAssetsLinks) {
+                "https://${host}/${packageName}/android/oauth/callback"
+            } else {
+                "${packageName}://${host}/android/oauth/callback"
+            }
         }
 
         fun socialLoginRedirectUrl(baseUrl: String): String {

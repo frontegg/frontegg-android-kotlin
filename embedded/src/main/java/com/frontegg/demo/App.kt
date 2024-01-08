@@ -15,7 +15,8 @@ class App : Application() {
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
-            this
+            this,
+            useAssetsLinks = true,
         )
     }
 }

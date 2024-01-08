@@ -7,10 +7,8 @@ import android.content.pm.PackageManager.MATCH_ALL
 import android.util.Log
 import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
-import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_DOMAIN_MUST_NOT_START_WITH_HTTPS
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.*
-import java.lang.RuntimeException
 
 class FronteggApp private constructor(
     val context: Context,
@@ -19,8 +17,9 @@ class FronteggApp private constructor(
     val isEmbeddedMode: Boolean = true,
     val regions: List<RegionConfig> = listOf(),
     val selectedRegion: RegionConfig? = null,
-    val handleLoginWithSocialLogin: Boolean = true,
-    val handleLoginWithSSO: Boolean = false
+    var handleLoginWithSocialLogin: Boolean = true,
+    var handleLoginWithSSO: Boolean = false,
+    val useAssetsLinks: Boolean = false,
 ) {
 
     val credentialManager: CredentialManager = CredentialManager(context)
@@ -45,19 +44,30 @@ class FronteggApp private constructor(
         public fun init(
             fronteggDomain: String,
             clientId: String,
-            context: Context
+            context: Context,
+            useAssetsLinks: Boolean = false
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
-                throw FronteggException(FRONTEGG_DOMAIN_MUST_NOT_START_WITH_HTTPS)
+                fronteggDomain
             } else {
                 "https://$fronteggDomain"
             }
 
             val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
-            instance = FronteggApp(context, baseUrl, clientId, isEmbeddedMode)
+            instance = FronteggApp(
+                context,
+                baseUrl,
+                clientId,
+                isEmbeddedMode,
+                useAssetsLinks = useAssetsLinks
+            )
         }
 
-        public fun initWithRegions(regions: List<RegionConfig>, context: Context): FronteggApp {
+        public fun initWithRegions(
+            regions: List<RegionConfig>,
+            context: Context,
+            useAssetsLinks: Boolean = false
+        ): FronteggApp {
 
             val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
             val selectedRegion = CredentialManager(context).getSelectedRegion()
@@ -71,7 +81,8 @@ class FronteggApp private constructor(
                         regionConfig.clientId,
                         isEmbeddedMode,
                         regions,
-                        regionConfig
+                        regionConfig,
+                        useAssetsLinks = useAssetsLinks
                     )
                     instance = newInstance
                     return newInstance
