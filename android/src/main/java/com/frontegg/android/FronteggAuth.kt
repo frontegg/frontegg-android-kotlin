@@ -173,7 +173,7 @@ class FronteggAuth(
         this.initializing.value = false
     }
 
-    fun handleHostedLoginCallback(code: String, webView: WebView? = null): Boolean {
+    fun handleHostedLoginCallback(code: String, webView: WebView? = null, activity: Activity? = null): Boolean {
 
         val codeVerifier = credentialManager.getCodeVerifier()
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
@@ -194,6 +194,8 @@ class FronteggAuth(
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
                     }
+                }else if (activity != null){
+                    login(activity)
                 }
 
             }
