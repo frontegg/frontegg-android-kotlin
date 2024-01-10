@@ -6,6 +6,9 @@ on:
     types: [ closed ]
 env:
   CI: true
+  LANG: en_US.UTF-8
+  API_LEVEL: 29
+
 jobs:
   publish:
     if: "contains(join(github.event.pull_request.labels.*.name, ','), 'Release') && github.event.pull_request.merged == true"
