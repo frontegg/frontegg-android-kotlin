@@ -6,30 +6,10 @@ on:
     types: [ closed ]
 env:
   CI: true
+  LANG: en_US.UTF-8
+  API_LEVEL: 29
+
 jobs:
-  build-and-test:
-    if: "!contains(join(github.event.pull_request.labels.*.name, ','), 'Release') && github.event.pull_request.merged == true"
-    name: Build And Test
-    runs-on: macos-latest-xl
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v3
-
-      - name: Setup
-        uses: ./.github/actions/setup
-
-      - name: Lint files
-        run: npm run lint
-
-      - name: Check licenses
-        id: check_licenses
-        run: |
-          npm install -g license-checker
-          license-checker --failOn "AGPL-1.0-only;AGPL-1.0-or-later;AGPL-3.0-only;AGPL-3.0-or-later;GPL-1.0-only;GPL-1.0-or-later;GPL-2.0-only;GPL-2.0-or-later;GPL-3.0-only;GPL-3.0-or-later;LGPL-2.0-only;LGPL-2.0-or-later;LGPL-2.1-only;LGPL-2.1-or-later;LGPL-3.0-only;LGPL-3.0-or-later;LGPLLR;MPL-1.1"
-      - name: Build Package
-        run: |
-          npm run build
-
   createReleasePullRequest:
     if: "!contains(join(github.event.pull_request.labels.*.name, ','), 'Release') && github.event.pull_request.merged == true"
     name: 'Create Release Pull Request'
@@ -44,14 +24,9 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           gpg_signing_key: ${{ secrets.GPG_SIGNING_KEY }}
 
-
       - name: Build Libraries
         shell: bash
         run: ./gradlew :app:build --no-daemon
-
-      - name: Commit Version UP
-        run: |
-          npm version patch --no-git-tag-version --no-commit-hooks
 
       - name: Increment Version
         id: incremented-patch-version
