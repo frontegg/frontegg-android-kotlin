@@ -29,9 +29,6 @@
                     android:pathPrefix="/oauth/account/reset-password" />
                 <data
                     android:host="${frontegg_domain}"
-                    android:pathPrefix="/oauth/account/social/success" />
-                <data
-                    android:host="${frontegg_domain}"
                     android:pathPrefix="/oauth/account/login/magic-link" />
             </intent-filter>
         </activity>
@@ -42,7 +39,6 @@
             android:exported="true">
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
-
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
@@ -54,7 +50,6 @@
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
-
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
@@ -72,18 +67,23 @@
 
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
-
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
                 <data
                     android:host="${frontegg_domain}"
-                    android:scheme="${package_name}" />
+                    android:pathPrefix="/oauth/account/redirect/android/${package_name}"
+                    android:scheme="https" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
                 <data
                     android:host="${frontegg_domain}"
-                    android:pathPrefix="/${package_name}/android/oauth/callback"
-                    android:scheme="https" />
+                    android:scheme="${package_name}" />
             </intent-filter>
         </activity>
 
