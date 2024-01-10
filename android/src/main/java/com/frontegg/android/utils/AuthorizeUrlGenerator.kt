@@ -73,7 +73,7 @@ class AuthorizeUrlGenerator {
 
         if (loginAction != null) {
             authorizeUrlBuilder.appendQueryParameter("login_direct_action", loginAction)
-
+            authorizeUrlBuilder.appendQueryParameter("prompt", "login")
             return Pair(authorizeUrlBuilder.build().toString(), codeVerifier)
         }
 
