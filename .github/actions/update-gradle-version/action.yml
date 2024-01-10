@@ -45,12 +45,12 @@ runs:
             } else {
               patch = `${parseInt(patch) + 1}`; // Increment patch version
             }
-            let newVersion = `version '${major}.${minor}.${patch}'`;
+            const newVersion = `${major}.${minor}.${patch}`;
 
-            gradleFileContent = gradleFileContent.replace(versionRegex, newVersion);
+            gradleFileContent = gradleFileContent.replace(versionRegex, `version '${newVersion}'`);
             fs.writeFileSync(gradleFilePath, gradleFileContent, { encoding: "utf8" });
 
-            return `${major}.${minor}.${patch}`;
+            return newVersion;
           } else {
             core.setFailed(`Could not find version in ${gradleFilePath}`)
           }
