@@ -50,7 +50,7 @@ jobs:
           author: "${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
           title: 'v${{ steps.incremented-version.outputs.version }}'
           body: |
-            # v${{ steps.incremented-patch-version.outputs.version }}
+            # TBD
 
           labels: "Type: Release"
           branch: "release/next"
