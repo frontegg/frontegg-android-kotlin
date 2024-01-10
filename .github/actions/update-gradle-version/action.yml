@@ -50,7 +50,7 @@ runs:
             gradleFileContent = gradleFileContent.replace(versionRegex, newVersion);
             fs.writeFileSync(gradleFilePath, gradleFileContent, { encoding: "utf8" });
 
-            return newVersion;
+            return `${major}.${minor}.${patch}`;
           } else {
             core.setFailed(`Could not find version in ${gradleFilePath}`)
           }
