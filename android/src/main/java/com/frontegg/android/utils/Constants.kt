@@ -32,7 +32,7 @@ class Constants {
             val packageName = app.packageName
             val useAssetsLinks = app.useAssetsLinks
             return if (useAssetsLinks) {
-                "https://${host}/${packageName}/android/oauth/callback"
+                "https://${host}/oauth/account/redirect/android/${packageName}"
             } else {
                 "${packageName}://${host}/android/oauth/callback"
             }
