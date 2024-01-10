@@ -1,5 +1,13 @@
 name: Setup
 description: Setup Java and Gradle dependencies
+inputs:
+  github_token:
+    description: 'GITHUB_TOKEN '
+    required: true
+  gpg_signing_key:
+    description: 'GPG_SIGNING_KEY for sonatype deploymeny'
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -10,9 +18,18 @@ runs:
         git config --global user.email 'frontegg@users.noreply.github.com'
       shell: bash
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
 
     - name: Setup JDK 11
+      uses: actions/setup-java@v3
+      if: ${{ inputs.gpg_signing_key == '' }}
+      with:
+        java-version: 11
+        settings-path: ${{ github.workspace }} # location for the settings.xml file
+        distribution: temurin
+
+    - name: Setup JDK 11 with Credentials
+      if: ${{ inputs.gpg_signing_key != '' }}
       uses: actions/setup-java@v3
       with:
         java-version: 11
@@ -20,7 +37,7 @@ runs:
         server-id: ossrh
         server-username: NEXUS_USERNAME
         server-password: NEXUS_PASSWORD
-        gpg-private-key: ${{ secrets.GPG_SIGNING_KEY }}
+        gpg-private-key: ${{ inputs.GPG_SIGNING_KEY }}
         gpg-passphrase: GPG_PASSPHRASE
         cache: 'gradle'
         distribution: temurin
