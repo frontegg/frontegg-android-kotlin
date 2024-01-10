@@ -3,7 +3,8 @@ name: Frontegg Android SDK
 on:
   push:
     branches-ignore:
-      - master
+      - 'master'
+      - 'release/next'
 env:
   CI: true
   LANG: en_US.UTF-8

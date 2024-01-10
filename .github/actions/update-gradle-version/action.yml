@@ -1,0 +1,58 @@
+name: Setup
+description: Increment gradle build version
+inputs:
+  type:
+    description: 'Type of version to increment'
+    required: true
+    default: 'patch'
+outputs:
+  version:
+    description: "Generated version"
+    value: ${{ steps.version-output.outputs.version }}
+runs:
+  using: composite
+  steps:
+    - name: "Set incremented version"
+      uses: actions/github-script@v6
+      id: 'incremented-version'
+      env:
+        VERSION_TYPE: ${{ inputs.type }}
+      with:
+        result-encoding: string
+        script: |
+          const {default: fs} = await import('fs');
+          const gradleFilePath = './android/build.gradle';
+          let gradleFileContent = fs.readFileSync(gradleFilePath, 'utf8');
+          const versionType = process.env.VERSION_TYPE;
+
+          let versionRegex = /version '(\d+)\.(\d+)\.(\d+)'/;
+          let match = gradleFileContent.match(versionRegex);
+
+          if (match) {
+            let major = match[1];
+            let minor = match[2];
+            let patch = match[3];
+          
+            if(versionType === 'minor') {
+              minor = `${parseInt(minor) + 1}`; // Increment minor version
+              patch = '0'; // Reset patch version
+            } else if(versionType === 'major') {
+              major = `${parseInt(major) + 1}`; // Increment major version
+              minor = '0'; // Reset minor version
+              patch = '0'; // Reset patch version
+            } else if(versionType === 'alpha') {
+              patch = patch + '-alpha.${Date.now()}';
+            } else {
+              patch = `${parseInt(patch) + 1}`; // Increment patch version
+            }
+            let newVersion = `version '${major}.${minor}.${patch}'`;
+
+            gradleFileContent = gradleFileContent.replace(versionRegex, newVersion);
+            fs.writeFileSync(gradleFilePath, gradleFileContent, { encoding: "utf8" });
+
+            return newVersion;
+          } else {
+            core.setFailed(`Could not find version in ${gradleFilePath}`)
+          }
+    - id: version-output
+      run: echo "version=${{ steps.incremented-version.outputs.result }}" >> $GITHUB_OUTPUT

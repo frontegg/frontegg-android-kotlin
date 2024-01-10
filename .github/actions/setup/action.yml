@@ -1,0 +1,30 @@
+name: Setup
+description: Setup Java and Gradle dependencies
+
+runs:
+  using: composite
+  steps:
+    - name: Git Identity
+      run: |
+        git config --global user.name 'frontegg'
+        git config --global user.email 'frontegg@users.noreply.github.com'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+    - name: Setup JDK 11
+      uses: actions/setup-java@v3
+      with:
+        java-version: 11
+        settings-path: ${{ github.workspace }} # location for the settings.xml file
+        server-id: ossrh
+        server-username: NEXUS_USERNAME
+        server-password: NEXUS_PASSWORD
+        gpg-private-key: ${{ secrets.GPG_SIGNING_KEY }}
+        gpg-passphrase: GPG_PASSPHRASE
+        cache: 'gradle'
+        distribution: temurin
+
+    - name: Gradle cache
+      uses: gradle/gradle-build-action@v2
+
