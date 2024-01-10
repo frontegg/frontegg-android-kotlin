@@ -73,7 +73,7 @@ class AuthorizeUrlGenerator {
 
         if (loginAction != null) {
             authorizeUrlBuilder.appendQueryParameter("login_direct_action", loginAction)
-
+            authorizeUrlBuilder.appendQueryParameter("prompt", "login")
             return Pair(authorizeUrlBuilder.build().toString(), codeVerifier)
         }
 
@@ -83,7 +83,7 @@ class AuthorizeUrlGenerator {
 
         val authorizeUrl = Uri.Builder()
             .encodedPath(baseUrl)
-            .appendEncodedPath("frontegg/oauth/logout")
+            .appendEncodedPath("oauth/logout")
             .appendQueryParameter("post_logout_redirect_uri", url)
             .build().toString()
 

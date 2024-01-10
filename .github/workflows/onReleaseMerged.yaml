@@ -1,0 +1,102 @@
+name: Release Merge Workflow
+on:
+  pull_request:
+    branches:
+      - master
+    types: [ closed ]
+env:
+  CI: true
+jobs:
+  publish:
+    if: "contains(join(github.event.pull_request.labels.*.name, ','), 'Release') && github.event.pull_request.merged == true"
+    name: 'Build | Publish'
+    runs-on: macos-12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          gpg_signing_key: ${{ secrets.GPG_SIGNING_KEY }}
+
+      - name: Build Libraries
+        shell: bash
+        run: ./gradlew :app:build --no-daemon
+
+      - name: Set Current Version
+        uses: actions/github-script@v6
+        id: set_current_version
+        with:
+          result-encoding: string
+          script: |
+            const {default: fs} = await import('fs');
+            const gradleFilePath = './android/build.gradle';
+            let gradleFileContent = fs.readFileSync(gradleFilePath, 'utf8');
+            const versionType = process.env.VERSION_TYPE;
+            const versionRegex = /version '((\d+)\.(\d+)\.(\d+))'/;
+            const match = gradleFileContent.match(versionRegex);
+            return match[1];
+
+      - name: Tag Check
+        id: tag_check
+        shell: bash -ex {0}
+        run: |
+          GET_API_URL="https://api.github.com/repos/${GITHUB_REPOSITORY}/git/ref/tags/v${{ steps.set_current_version.outputs.result }}"
+          http_status_code=$(curl -LI $GET_API_URL -o /dev/null -w '%{http_code}\n' -s \
+            -H "Authorization: token ${GITHUB_TOKEN}")
+          if [ "$http_status_code" -ne "404" ] ; then
+            echo "::set-output name=exists_tag::true"
+          else
+            echo "::set-output name=exists_tag::false"
+          fi
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create Git Tag
+        if: steps.tag_check.outputs.exists_tag == 'false'
+        uses: azu/action-package-version-to-git-tag@v1
+        with:
+          version: ${{ steps.set_current_version.outputs.result }}
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          github_repo: ${{ github.repository }}
+          git_commit_sha: ${{ github.sha }}
+          git_tag_prefix: "v"
+
+      - name: prepare release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        run: ./gradlew publish
+
+
+      - name: Create Release
+        id: create_release
+        if: steps.tag_check.outputs.exists_tag == 'false'
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: v${{ steps.set_current_version.outputs.result }}
+          release_name: ${{ github.event.pull_request.title }}
+          body: |
+            ${{ github.event.pull_request.body }}
+          draft: false
+          prerelease: false
+
+
+
+      - uses: actions/github-script@0.8.0
+        with:
+          github-token: ${{secrets.GITHUB_TOKEN}}
+          script: |
+            github.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: 'https://github.com/${{ github.repository }}/releases/tag/v${{ steps.set_current_version.outputs.result }} is released 🎉'
+            })

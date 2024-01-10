@@ -1,0 +1,32 @@
+name: Push Workflow
+
+on:
+  push:
+    branches-ignore:
+      - 'master'
+      - 'release/next'
+env:
+  CI: true
+  LANG: en_US.UTF-8
+  API_LEVEL: 29
+
+concurrency:
+  group: ci-push-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-and-test:
+    name: Build And Test
+    runs-on: macos-latest-xl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Libraries
+        shell: bash
+        run: ./gradlew :app:build --no-daemon
