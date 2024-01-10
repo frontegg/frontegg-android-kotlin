@@ -37,7 +37,7 @@ runs:
         server-id: ossrh
         server-username: NEXUS_USERNAME
         server-password: NEXUS_PASSWORD
-        gpg-private-key: ${{ inputs.GPG_SIGNING_KEY }}
+        gpg-private-key: ${{ inputs.gpg_signing_key }}
         gpg-passphrase: GPG_PASSPHRASE
         cache: 'gradle'
         distribution: temurin
