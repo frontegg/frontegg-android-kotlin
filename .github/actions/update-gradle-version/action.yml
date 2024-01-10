@@ -41,7 +41,7 @@ runs:
               minor = '0'; // Reset minor version
               patch = '0'; // Reset patch version
             } else if(versionType === 'alpha') {
-              patch = patch + '-alpha.${Date.now()}';
+              patch = patch + `-alpha.${Date.now()}`;
             } else {
               patch = `${parseInt(patch) + 1}`; // Increment patch version
             }

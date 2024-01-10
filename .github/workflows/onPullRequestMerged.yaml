@@ -37,7 +37,7 @@ jobs:
       - name: Commit changes
         shell: bash -ex {0}
         run: |
-          git add . && git commit -m "chore(release): publish ${{ steps.incremented-version.outputs.result }}"
+          git add . && git commit -m "chore(release): publish ${{ steps.incremented-patch-version.outputs.version }}"
 
       - name: Create Release Pull Request
         id: cpr
@@ -45,12 +45,12 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           path: ${{ secrets.GITHUB_WORKSPACE }}
-          commit-message: "Update v${{ steps.incremented-version.outputs.result }}"
+          commit-message: "Update v${{ steps.incremented-patch-version.outputs.version }}"
           committer: GitHub <noreply@github.com>
           author: "${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
           title: 'v${{ steps.incremented-version.outputs.result }}'
           body: |
-            # v${{ steps.incremented-version.outputs.result }}
+            # v${{ steps.incremented-patch-version.outputs.version }}
 
           labels: "Type: Release"
           branch: "release/next"
