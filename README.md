@@ -60,8 +60,8 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
 
 - Navigate to [Login Method Settings](https://portal.frontegg.com/development/authentication/hosted)
 - Toggle Hosted login method
-- Add `{{ANDROID_PACKAGE_NAME}}://{{FRONTEGG_BASE_URL}}/android/oauth/callback` **(without assetlinks)**
-- Add `https://{{FRONTEGG_BASE_URL}}/{{ANDROID_PACKAGE_NAME}}/android/oauth/callback` **(required for assetlinks)**
+- Add `{{ANDROID_PACKAGE_NAME}}://{{FRONTEGG_BASE_URL}}/android/oauth/callback` **(for custom scheme)**
+- Add `https://{{FRONTEGG_BASE_URL}}/oauth/account/redirect/android/{{ANDROID_PACKAGE_NAME}}` **(for assetlinks)**
 - Replace `ANDROID_PACKAGE_NAME` with your application identifier
 - Replace `FRONTEGG_BASE_URL` with your Frontegg base url
 
@@ -324,7 +324,6 @@ Replace `${FRONTEGG_DOMAIN_2}` with the second domain from the previous step.
 
 NOTE: if you are using `Custom Chrome Tab` you have to use `android:name` `com.frontegg.android.HostedAuthActivity` instead of `com.frontegg.android.EmbeddedAuthActivity`
 
-
 ```xml
 
 <application>
@@ -351,17 +350,24 @@ NOTE: if you are using `Custom Chrome Tab` you have to use `android:name` `com.f
 
     <activity android:exported="true" android:name="com.frontegg.android.AuthenticationActivity"
         tools:node="merge">
+        <!-- DONT NOT COMBINE THE FOLLOWING FILTERS INTO ONE LINE-->
         <intent-filter>
             <action android:name="android.intent.action.VIEW" />
 
             <category android:name="android.intent.category.DEFAULT" />
             <category android:name="android.intent.category.BROWSABLE" />
 
-            <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
-            <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}" />
             <data android:host="${FRONTEGG_DOMAIN_2}"
                 android:pathPrefix="/${package_name}/android/oauth/callback"
                 android:scheme="https" />
+        </intent-filter>
+        <intent-filter>
+            <action android:name="android.intent.action.VIEW" />
+
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+
+          <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}" />
         </intent-filter>
     </activity>
 </application>
