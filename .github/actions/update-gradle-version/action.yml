@@ -55,4 +55,5 @@ runs:
             core.setFailed(`Could not find version in ${gradleFilePath}`)
           }
     - id: version-output
+      shell: bash
       run: echo "version=${{ steps.incremented-version.outputs.result }}" >> $GITHUB_OUTPUT
