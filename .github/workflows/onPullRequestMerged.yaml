@@ -48,9 +48,9 @@ jobs:
           commit-message: "Update v${{ steps.incremented-patch-version.outputs.version }}"
           committer: GitHub <noreply@github.com>
           author: "${{ github.actor }} <${{ github.actor }}@users.noreply.github.com>"
-          title: 'v${{ steps.incremented-version.outputs.result }}'
+          title: 'v${{ steps.incremented-version.outputs.version }}'
           body: |
-            # v${{ steps.incremented-patch-version.outputs.version }}
+            # TBD
 
           labels: "Type: Release"
           branch: "release/next"
