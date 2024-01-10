@@ -83,7 +83,7 @@ class AuthorizeUrlGenerator {
 
         val authorizeUrl = Uri.Builder()
             .encodedPath(baseUrl)
-            .appendEncodedPath("frontegg/oauth/logout")
+            .appendEncodedPath("oauth/logout")
             .appendQueryParameter("post_logout_redirect_uri", url)
             .build().toString()
 
