@@ -19,6 +19,7 @@ class FronteggApp private constructor(
     val selectedRegion: RegionConfig? = null,
     var handleLoginWithSocialLogin: Boolean = true,
     var handleLoginWithSSO: Boolean = false,
+    var shouldPromptSocialLoginConsent: Boolean = true,
     val useAssetsLinks: Boolean = false,
 ) {
 
