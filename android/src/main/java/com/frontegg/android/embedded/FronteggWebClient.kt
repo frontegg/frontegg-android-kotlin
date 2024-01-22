@@ -69,6 +69,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         val nativeModuleFunctions = JSONObject()
         nativeModuleFunctions.put("loginWithSocialLogin", fronteggApp.handleLoginWithSocialLogin)
         nativeModuleFunctions.put("loginWithSSO", fronteggApp.handleLoginWithSSO)
+        nativeModuleFunctions.put("shouldPromptSocialLoginConsent", fronteggApp.shouldPromptSocialLoginConsent)
         val jsObject = nativeModuleFunctions.toString()
         view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
 
