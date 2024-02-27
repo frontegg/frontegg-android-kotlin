@@ -1,6 +1,7 @@
 ![Frontegg_Android_SDK (Kotlin)](./logo.png)
 
-Frontegg is a web platform where SaaS companies can set up their fully managed, scalable and brand aware - SaaS features
+Frontegg is a web platform where SaaS companies can set up their fully managed, scalable and brand
+aware - SaaS features
 and integrate them into their SaaS portals in up to 5 lines of code.
 
 ## Table of Contents
@@ -13,6 +14,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Set minimum sdk version](#set-minimum-sdk-version)
     - [Configure build config fields](#configure-build-config-fields)
     - [Initialize FronteggApp](#initialize-fronteggapp)
+    - [Enabling Chrome Custom Tabs for Social Login](#enabling-chrome-custom-tabs-for-social-login)
     - [Embedded Webview vs Custom Chrome Tab](#embedded-webview-vs-custom-chrome-tab)
     - [Config Android AssetLinks](#config-android-assetlinks)
     - [Multi-Region support](#multi-region-support)
@@ -51,7 +53,8 @@ and integrate them into their SaaS portals in up to 5 lines of code.
 
 ### Prepare Frontegg workspace
 
-Navigate to [Frontegg Portal Settings](https://portal.frontegg.com/development/settings), If you don't have application
+Navigate to [Frontegg Portal Settings](https://portal.frontegg.com/development/settings), If you
+don't have application
 follow integration steps after signing up.
 Copy FronteggDomain to future steps
 from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/domains)
@@ -60,8 +63,10 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
 
 - Navigate to [Login Method Settings](https://portal.frontegg.com/development/authentication/hosted)
 - Toggle Hosted login method
-- Add `{{ANDROID_PACKAGE_NAME}}://{{FRONTEGG_BASE_URL}}/android/oauth/callback` **(for custom scheme)**
-- Add `https://{{FRONTEGG_BASE_URL}}/oauth/account/redirect/android/{{ANDROID_PACKAGE_NAME}}` **(for assetlinks)**
+- Add `{{ANDROID_PACKAGE_NAME}}://{{FRONTEGG_BASE_URL}}/android/oauth/callback` **(for custom
+  scheme)**
+- Add `https://{{FRONTEGG_BASE_URL}}/oauth/account/redirect/android/{{ANDROID_PACKAGE_NAME}}` **(for
+  assetlinks)**
 - Replace `ANDROID_PACKAGE_NAME` with your application identifier
 - Replace `FRONTEGG_BASE_URL` with your Frontegg base url
 
@@ -73,9 +78,9 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
 
 ```groovy
     dependencies {
-      // Add the Frontegg Android Kotlin SDK
-      implementation 'com.frontegg.sdk:android:1.+'
-    }
+    // Add the Frontegg Android Kotlin SDK
+    implementation 'com.frontegg.sdk:android:1.+'
+}
 ```
 
 ### Set minimum sdk version
@@ -94,7 +99,8 @@ buildscript {
 
 ### Configure build config fields
 
-To set up your Android application on to communicate with Frontegg, you have to add `buildConfigField` property the
+To set up your Android application on to communicate with Frontegg, you have to
+add `buildConfigField` property the
 gradle `android/app/build.gradle`.
 This property will store frontegg hostname (without https) and client id from previous step:
 
@@ -107,26 +113,27 @@ android {
     defaultConfig {
 
         manifestPlaceholders = [
-                "package_name" : applicationId,
-                "frontegg_domain" : fronteggDomain,
+                "package_name"      : applicationId,
+                "frontegg_domain"   : fronteggDomain,
                 "frontegg_client_id": fronteggClientId
         ]
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
     }
-    
-    
+
+
 }
 ```
 
-Add bundleConfig=true if not exists inside the android section inside the app gradle `android/app/build.gradle`
+Add bundleConfig=true if not exists inside the android section inside the app
+gradle `android/app/build.gradle`
 
 ```groovy
 android {
-  buildFeatures {
-    buildConfig = true
-  }
+    buildFeatures {
+        buildConfig = true
+    }
 }
 ```
 
@@ -135,10 +142,10 @@ android {
 Add `INTERNET` permission to the app's manifest file.
 
 ```xml
-<uses-permission android:name="android.permission.INTERNET"/>
-<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
-```
 
+<uses-permission android:name="android.permission.INTERNET"/><uses-permission
+android:name="android.permission.POST_NOTIFICATIONS"/>
+```
 
 ### Initialize FronteggApp
 
@@ -154,7 +161,7 @@ class App : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        
+
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
@@ -170,13 +177,26 @@ Register the custom `App` in the app's manifest file
 
 ```xml
 
-<application
-        android:name=".App">
+<application android:name=".App">
     <!--  ... -->
 </application>
 
 ```
 
+### Enabling Chrome Custom Tabs for Social Login
+
+To enable social login via Chrome Custom Tabs, set the `useChromeCustomTabs` flag to `true` during the
+initialization of `FronteggApp`. By default, the SDK uses the Chrome browser for social login.
+
+```kotlin
+  FronteggApp.init(
+      BuildConfig.FRONTEGG_DOMAIN,
+      BuildConfig.FRONTEGG_CLIENT_ID,
+      this, // Application Context
+      // ...
+      useChromeCustomTabs = true
+  )
+  ```
 
 ### Embedded Webview vs Custom Chrome Tab
 
@@ -185,17 +205,21 @@ Frontegg SDK supports two authentication methods:
 - Embedded Webview
 - Custom Chrome Tab
 
-By default Frontegg SDK will use Embedded Webview, to use Custom Chrome Tab you have to set remove embedded activity by adding below code to 
+By default Frontegg SDK will use Embedded Webview, to use Custom Chrome Tab you have to set remove
+embedded activity by adding below code to
 the application manifest:
 
 ```xml
+
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools">
+          xmlns:tools="http://schemas.android.com/tools">
     <application>
         <!-- ... -->
 
-      <activity android:name="com.frontegg.android.EmbeddedAuthActivity" tools:replace="android:enabled" android:enabled="false"/>
-      <activity android:name="com.frontegg.android.HostedAuthActivity" tools:replace="android:enabled" android:enabled="true"/>
+        <activity android:name="com.frontegg.android.EmbeddedAuthActivity"
+                  tools:replace="android:enabled" android:enabled="false"/>
+        <activity android:name="com.frontegg.android.HostedAuthActivity"
+                  tools:replace="android:enabled" android:enabled="true"/>
 
         <!-- ... -->
     </application>
@@ -204,12 +228,15 @@ the application manifest:
 
 ### Config Android AssetLinks
 
-Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password / Activate Account /
+Configuring your Android `AssetLinks` is required for Magic Link authentication / Reset Password /
+Activate Account /
 login with IdPs.
 
-To add your `AssetLinks` to your Frontegg application, you will need to update in each of your integrated Frontegg
+To add your `AssetLinks` to your Frontegg application, you will need to update in each of your
+integrated Frontegg
 Environments the `AssetLinks` that you would like to use with that Environment. Send a POST request
-to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` with the following payload:
+to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` with the following
+payload:
 
 ```
 {
@@ -218,12 +245,13 @@ to `https://api.frontegg.com/vendors/resources/associated-domains/v1/android` wi
 }
 ```
 
-Each Android app has multiple certificate fingerprint, to get your `DEBUG` sha256CertFingerprint you have to run the
+Each Android app has multiple certificate fingerprint, to get your `DEBUG` sha256CertFingerprint you
+have to run the
 following command:
 
 For Debug mode, run the following command and copy the `SHA-256` value
 
-NOTE: make sure to choose the Variant and Config equals to `debug` 
+NOTE: make sure to choose the Variant and Config equals to `debug`
 
 ```bash
 ./gradlew signingReport
@@ -249,10 +277,9 @@ For Release mode, Extract the SHA256 using keytool from your `Release` keystore 
 keytool -list -v -keystore /PATH/file.jks -alias YourAlias -storepass *** -keypass ***
 ```
 
-In order to use our API’s, follow [this guide](https://docs.frontegg.com/reference/getting-started-with-your-api) to
+In order to use our API’s,
+follow [this guide](https://docs.frontegg.com/reference/getting-started-with-your-api) to
 generate a vendor token.
-
-
 
 ## Multi-Region Support
 
@@ -265,9 +292,9 @@ First, remove buildConfigFields from your `build.gradle` file:
 ```groovy
 
 android {
-  //  remove this lines:
-  //  buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
-  //  buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
+    //  remove this lines:
+    //  buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
+    //  buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
 }
 ```
 
@@ -276,98 +303,106 @@ android {
 First, adjust your `App.kt/java` file to handle multiple regions:
 
 **Modifications**:
+
 - **Remove** the existing `FronteggApp.init` function.
-- **Add** Call `FronteggApp.initWithRegions` with array of `regions`. This array will hold dictionaries for each region.
+- **Add** Call `FronteggApp.initWithRegions` with array of `regions`. This array will hold
+  dictionaries for each region.
 
 Example App.kt code:
+
 ```kotlin
 
 class App : Application() {
 
-  companion object {
-    lateinit var instance: App
-  }
+    companion object {
+        lateinit var instance: App
+    }
 
-  override fun onCreate() {
-    super.onCreate()
-    instance = this
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
 
-    FronteggApp.initWithRegions(
-      listOf(
-        RegionConfig(
-          "eu",
-          "auth.davidantoon.me",
-          "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
-        ),
-        RegionConfig(
-          "us",
-          "davidprod.frontegg.com",
-          "d7d07347-2c57-4450-8418-0ec7ee6e096b"
+        FronteggApp.initWithRegions(
+            listOf(
+                RegionConfig(
+                    "eu",
+                    "auth.davidantoon.me",
+                    "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+                ),
+                RegionConfig(
+                    "us",
+                    "davidprod.frontegg.com",
+                    "d7d07347-2c57-4450-8418-0ec7ee6e096b"
+                )
+            ),
+            this
         )
-      ),
-      this
-    )
-  }
+    }
 }
 ```
 
 ### Step 2: Add AssetLinks for Each Region
 
-For each region, configuring your Android `AssetLinks`. This is vital for proper API routing and authentication.
-Follow [Config Android AssetLinks](#config-android-assetlinks) to add your Android domains to your Frontegg application.
+For each region, configuring your Android `AssetLinks`. This is vital for proper API routing and
+authentication.
+Follow [Config Android AssetLinks](#config-android-assetlinks) to add your Android domains to your
+Frontegg application.
 
 ### Step 3: Add Intent-Filter in Manifest.xml
 
-The first domain will be placed automatically in the `AndroidManifest.xml` file. For each additional region, you will
+The first domain will be placed automatically in the `AndroidManifest.xml` file. For each additional
+region, you will
 need to add an `intent-filter`.
 Replace `${FRONTEGG_DOMAIN_2}` with the second domain from the previous step.
 
-NOTE: if you are using `Custom Chrome Tab` you have to use `android:name` `com.frontegg.android.HostedAuthActivity` instead of `com.frontegg.android.EmbeddedAuthActivity`
+NOTE: if you are using `Custom Chrome Tab` you have to
+use `android:name` `com.frontegg.android.HostedAuthActivity` instead
+of `com.frontegg.android.EmbeddedAuthActivity`
 
 ```xml
 
 <application>
     <activity android:exported="true" android:name="com.frontegg.android.EmbeddedAuthActivity"
-        tools:node="merge">
+              tools:node="merge">
         <intent-filter android:autoVerify="true">
-            <action android:name="android.intent.action.VIEW" />
+            <action android:name="android.intent.action.VIEW"/>
 
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
+            <category android:name="android.intent.category.DEFAULT"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
 
-            <data android:scheme="https" />
+            <data android:scheme="https"/>
             <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                android:pathPrefix="/oauth/account/activate" />
+                  android:pathPrefix="/oauth/account/activate"/>
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                android:pathPrefix="/oauth/account/invitation/accept" />
+                  android:pathPrefix="/oauth/account/invitation/accept"/>
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                android:pathPrefix="/oauth/account/reset-password" />
+                  android:pathPrefix="/oauth/account/reset-password"/>
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                android:pathPrefix="/oauth/account/login/magic-link" />
+                  android:pathPrefix="/oauth/account/login/magic-link"/>
         </intent-filter>
     </activity>
 
     <activity android:exported="true" android:name="com.frontegg.android.AuthenticationActivity"
-        tools:node="merge">
+              tools:node="merge">
         <!-- DONT NOT COMBINE THE FOLLOWING FILTERS INTO ONE LINE-->
         <intent-filter>
-            <action android:name="android.intent.action.VIEW" />
+            <action android:name="android.intent.action.VIEW"/>
 
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
+            <category android:name="android.intent.category.DEFAULT"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
 
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                android:pathPrefix="/${package_name}/android/oauth/callback"
-                android:scheme="https" />
+                  android:pathPrefix="/${package_name}/android/oauth/callback"
+                  android:scheme="https"/>
         </intent-filter>
         <intent-filter>
-            <action android:name="android.intent.action.VIEW" />
+            <action android:name="android.intent.action.VIEW"/>
 
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
+            <category android:name="android.intent.category.DEFAULT"/>
+            <category android:name="android.intent.category.BROWSABLE"/>
 
-          <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}" />
+            <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}"/>
         </intent-filter>
     </activity>
 </application>
@@ -375,19 +410,24 @@ NOTE: if you are using `Custom Chrome Tab` you have to use `android:name` `com.f
 
 ### Step 3: Implement Region Selection UI
 
-The final step is to implement a UI for the user to select their region. **This can be done in any way you see fit**.
+The final step is to implement a UI for the user to select their region. **This can be done in any
+way you see fit**.
 The example application uses a simple picker view to allow the user to select their region.
 
 **Important Considerations**
-- **Switching Regions**: To switch regions, update the selection in Shared Preferences. If issues arise, a **re-installation** of the application might be necessary.
-- **Data Isolation**: Ensure data handling and APIs are region-specific to prevent data leakage between regions.
+
+- **Switching Regions**: To switch regions, update the selection in Shared Preferences. If issues
+  arise, a **re-installation** of the application might be necessary.
+- **Data Isolation**: Ensure data handling and APIs are region-specific to prevent data leakage
+  between regions.
 
 |                    Select EU Region                    |                    Select US Region                    |
 |:------------------------------------------------------:|:------------------------------------------------------:|
 | ![eu-region-example.gif](assets/eu-region-example.gif) | ![us-region-example.gif](assets/us-region-example.gif) |
 
+Example Region Selection
+UI: [example code](multi-region/src/main/java/com/frontegg/demo/RegionSelectionActivity.kt)
 
-Example Region Selection UI: [example code](multi-region/src/main/java/com/frontegg/demo/RegionSelectionActivity.kt)
 ```kotlin
 package com.frontegg.demo
 
@@ -397,28 +437,28 @@ import android.widget.LinearLayout
 import com.frontegg.android.FronteggApp
 
 class RegionSelectionActivity : AppCompatActivity() {
-  override fun onCreate(savedInstanceState: Bundle?) {
-    super.onCreate(savedInstanceState)
-    setContentView(R.layout.activity_region_selection)
-  }
-
-
-  override fun onResume() {
-    super.onResume()
-
-    val euButton = findViewById<LinearLayout>(R.id.euButton)
-    val usButton = findViewById<LinearLayout>(R.id.usButton)
-
-    euButton.setOnClickListener {
-      FronteggApp.getInstance().initWithRegion("eu")
-      finish()
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_region_selection)
     }
 
-    usButton.setOnClickListener {
-      FronteggApp.getInstance().initWithRegion("us")
-      finish()
+
+    override fun onResume() {
+        super.onResume()
+
+        val euButton = findViewById<LinearLayout>(R.id.euButton)
+        val usButton = findViewById<LinearLayout>(R.id.usButton)
+
+        euButton.setOnClickListener {
+            FronteggApp.getInstance().initWithRegion("eu")
+            finish()
+        }
+
+        usButton.setOnClickListener {
+            FronteggApp.getInstance().initWithRegion("us")
+            finish()
+        }
     }
-  }
 }
 ```
 
@@ -426,7 +466,8 @@ class RegionSelectionActivity : AppCompatActivity() {
 
 ## Login with Frontegg
 
-In order to login with Frontegg, you have to call `FronteggAuth.instance.login` method with `activtity` context.
+In order to login with Frontegg, you have to call `FronteggAuth.instance.login` method
+with `activtity` context.
 Login method will open Frontegg hosted login page, and will return user data after successful login.
 
 ```kotlin
@@ -434,15 +475,15 @@ Login method will open Frontegg hosted login page, and will return user data aft
 import com.frontegg.android.FronteggAuth
 
 class FirstFragment : Fragment() {
-  // ...
-  
-  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {  
-    
-    binding.loginButton.setOnClickListener {
-        FronteggAuth.instance.login(requireActivity())
+    // ...
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+
+        binding.loginButton.setOnClickListener {
+            FronteggAuth.instance.login(requireActivity())
+        }
     }
-  }
-  // ...
+    // ...
 }
 
 ```
@@ -457,44 +498,45 @@ Logout method will clear all user data from the device.
 import com.frontegg.android.FronteggAuth
 
 class FirstFragment : Fragment() {
-  // ...
-  
-  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {  
-    
-    binding.logoutButton.setOnClickListener {
-        FronteggAuth.instance.logout()
+    // ...
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+
+        binding.logoutButton.setOnClickListener {
+            FronteggAuth.instance.logout()
+        }
     }
-  }
-  // ...
+    // ...
 }
 
 ```
 
 ## Switch Tenant
 
-In order to switch tenant, you have to call `FronteggAuth.instance.switchTenant` method with `activtity` context.
+In order to switch tenant, you have to call `FronteggAuth.instance.switchTenant` method
+with `activtity` context.
 
 ```kotlin
 
 import com.frontegg.android.FronteggAuth
 
 class FirstFragment : Fragment() {
-  // ...
-  
-  override fun onViewCreated(view: View, savedInstanceState: Bundle?) {  
-    
-    val tenantIds = FronteggAuth.instance.user.value?.tenantIds ?: listOf()
-    
-    /**
-      *  pick one from `tenantIds` list:
-      */
-    val tenantToSwitchTo = tenantIds[0] 
-    
-    binding.switchTenant.setOnClickListener {
-        FronteggAuth.instance.switchTenant(tenantToSwitchTo)
+    // ...
+
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+
+        val tenantIds = FronteggAuth.instance.user.value?.tenantIds ?: listOf()
+
+        /**
+         *  pick one from `tenantIds` list:
+         */
+        val tenantToSwitchTo = tenantIds[0]
+
+        binding.switchTenant.setOnClickListener {
+            FronteggAuth.instance.switchTenant(tenantToSwitchTo)
+        }
     }
-  }
-  // ...
+    // ...
 }
 
 ```
