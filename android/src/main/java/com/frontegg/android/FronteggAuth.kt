@@ -194,7 +194,7 @@ class FronteggAuth(
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
                     }
-                }else if (activity != null){
+                } else if (activity != null){
                     login(activity)
                 }
 
@@ -211,8 +211,6 @@ class FronteggAuth(
 
 
     fun logout(callback: () -> Unit = {}) {
-
-
         isLoading.value = true
         refreshTaskRunner?.cancel()
         GlobalScope.launch(Dispatchers.IO) {
@@ -220,7 +218,6 @@ class FronteggAuth(
             val logoutCookies = getDomainCookie(baseUrl)
             val logoutAccessToken = accessToken.value
 
-//            CookieManager.getInstance().removeAllCookies(null)
             if (logoutCookies != null &&
                 logoutAccessToken != null &&
                 FronteggApp.getInstance().isEmbeddedMode

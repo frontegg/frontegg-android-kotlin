@@ -63,7 +63,7 @@ class EmbeddedAuthActivity : Activity() {
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
-            loaderLayout?.visibility = if (it.value) View.VISIBLE else View.GONE
+            loaderLayout?.visibility = if (it.value || FronteggAuth.instance.isAuthenticated.value) View.VISIBLE else View.GONE
         }
     }
     private val isAuthenticatedConsumer: Consumer<NullableObject<Boolean>> = Consumer {
@@ -108,6 +108,13 @@ class EmbeddedAuthActivity : Activity() {
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+        }
+
+        fun afterAuthentication(activity: Activity) {
+            val intent = Intent(activity, EmbeddedAuthActivity::class.java)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            activity.startActivity(intent)
         }
 
     }

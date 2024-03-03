@@ -18,9 +18,11 @@ class FronteggApp private constructor(
     val regions: List<RegionConfig> = listOf(),
     val selectedRegion: RegionConfig? = null,
     var handleLoginWithSocialLogin: Boolean = true,
+    var customUserAgent: String? = null,
     var handleLoginWithSSO: Boolean = false,
     var shouldPromptSocialLoginConsent: Boolean = true,
     val useAssetsLinks: Boolean = false,
+    var useChromeCustomTabs: Boolean = false,
 ) {
 
     val credentialManager: CredentialManager = CredentialManager(context)
@@ -46,7 +48,8 @@ class FronteggApp private constructor(
             fronteggDomain: String,
             clientId: String,
             context: Context,
-            useAssetsLinks: Boolean = false
+            useAssetsLinks: Boolean = false,
+            useChromeCustomTabs: Boolean = false
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
@@ -60,14 +63,16 @@ class FronteggApp private constructor(
                 baseUrl,
                 clientId,
                 isEmbeddedMode,
-                useAssetsLinks = useAssetsLinks
+                useAssetsLinks = useAssetsLinks,
+                useChromeCustomTabs = useChromeCustomTabs
             )
         }
 
         public fun initWithRegions(
             regions: List<RegionConfig>,
             context: Context,
-            useAssetsLinks: Boolean = false
+            useAssetsLinks: Boolean = false,
+            useChromeCustomTabs: Boolean = false
         ): FronteggApp {
 
             val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
@@ -83,7 +88,8 @@ class FronteggApp private constructor(
                         isEmbeddedMode,
                         regions,
                         regionConfig,
-                        useAssetsLinks = useAssetsLinks
+                        useAssetsLinks = useAssetsLinks,
+                        useChromeCustomTabs = useChromeCustomTabs
                     )
                     instance = newInstance
                     return newInstance
