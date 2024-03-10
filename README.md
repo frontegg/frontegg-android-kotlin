@@ -80,6 +80,8 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
     dependencies {
     // Add the Frontegg Android Kotlin SDK
     implementation 'com.frontegg.sdk:android:1.+'
+    // Add Frontegg observables dependency
+    implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
 }
 ```
 

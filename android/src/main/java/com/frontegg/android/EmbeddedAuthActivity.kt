@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
+import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
@@ -28,6 +29,9 @@ class EmbeddedAuthActivity : Activity() {
         val intentLaunched =
             intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
 
+        val directLoginLaunched =
+            intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, false) ?: false
+
         if (intentLaunched) {
             val url = intent.extras!!.getString(AUTHORIZE_URI)
             if (url == null) {
@@ -36,6 +40,26 @@ class EmbeddedAuthActivity : Activity() {
                 return
             }
             webViewUrl = url
+        } else if (directLoginLaunched) {
+            val type = intent.extras!!.getString(DIRECT_LOGIN_ACTION_TYPE)
+            val data = intent.extras!!.getString(DIRECT_LOGIN_ACTION_DATA)
+            if (type == null || data == null) {
+                setResult(RESULT_CANCELED)
+                finish()
+                return
+            }
+
+            val authorizeUri = AuthorizeUrlGenerator().generate()
+            FronteggNativeBridge.directLoginWithContext(
+                this, mapOf(
+                    "type" to type,
+                    "data" to data,
+                    "additionalQueryParams" to mapOf(
+                        "prompt" to "consent"
+                    )
+                ), true
+            )
+            webViewUrl = authorizeUri.first
         } else {
             val intentUrl = intent.data
             if (intentUrl == null) {
@@ -46,6 +70,8 @@ class EmbeddedAuthActivity : Activity() {
 
             webViewUrl = intentUrl.toString()
         }
+
+
 
 
         if (!FronteggAuth.instance.initializing.value
@@ -63,7 +89,8 @@ class EmbeddedAuthActivity : Activity() {
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
-            loaderLayout?.visibility = if (it.value || FronteggAuth.instance.isAuthenticated.value) View.VISIBLE else View.GONE
+            loaderLayout?.visibility =
+                if (it.value || FronteggAuth.instance.isAuthenticated.value) View.VISIBLE else View.GONE
         }
     }
     private val isAuthenticatedConsumer: Consumer<NullableObject<Boolean>> = Consumer {
@@ -98,6 +125,9 @@ class EmbeddedAuthActivity : Activity() {
     companion object {
         const val OAUTH_LOGIN_REQUEST = 100001
         const val AUTHORIZE_URI = "com.frontegg.android.AUTHORIZE_URI"
+        const val DIRECT_LOGIN_ACTION_LAUNCHED = "com.frontegg.android.DIRECT_LOGIN_ACTION_LAUNCHED"
+        const val DIRECT_LOGIN_ACTION_TYPE = "com.frontegg.android.DIRECT_LOGIN_ACTION_TYPE"
+        const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
 
@@ -108,6 +138,31 @@ class EmbeddedAuthActivity : Activity() {
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+        }
+
+        fun directLoginAction(activity: Activity, type: String, data: String) {
+            val intent = Intent(activity, EmbeddedAuthActivity::class.java)
+
+            intent.putExtra(DIRECT_LOGIN_ACTION_LAUNCHED, true)
+            intent.putExtra(DIRECT_LOGIN_ACTION_TYPE, type)
+            intent.putExtra(DIRECT_LOGIN_ACTION_DATA, data)
+            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+
+
+            /**
+             * to be replaced with the following code after the hosted login-box is supported
+             *
+             * val directAction = mapOf(
+             *  "type" to type,
+             *  "data" to data
+             * )
+             * val directActionString = JSONObject(directAction).toString()
+             * val directActionBase64 = android.util.Base64.encodeToString(directActionString.toByteArray(), android.util.Base64.DEFAULT)
+             * val authorizeUri = AuthorizeUrlGenerator().generate(null, directActionBase64)
+             * intent.putExtra(AUTH_LAUNCHED, true)
+             * intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+             * activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+             */
         }
 
         fun afterAuthentication(activity: Activity) {

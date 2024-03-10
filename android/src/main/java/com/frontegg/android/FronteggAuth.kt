@@ -250,6 +250,14 @@ class FronteggAuth(
         }
     }
 
+    fun directLoginAction(activity: Activity, type: String, data: String){
+        if (FronteggApp.getInstance().isEmbeddedMode) {
+            EmbeddedAuthActivity.directLoginAction(activity, type, data)
+        } else {
+            Log.w(TAG, "Direct login action is not supported in non-embedded mode")
+        }
+    }
+
 
     fun switchTenant(tenantId: String, callback: () -> Unit = {}) {
         GlobalScope.launch(Dispatchers.IO) {
