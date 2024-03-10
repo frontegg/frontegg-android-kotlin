@@ -59,10 +59,10 @@ class FronteggApp private constructor(
 
             val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
             instance = FronteggApp(
-                context,
-                baseUrl,
-                clientId,
-                isEmbeddedMode,
+                context = context,
+                baseUrl = baseUrl,
+                clientId = clientId,
+                isEmbeddedMode = isEmbeddedMode,
                 useAssetsLinks = useAssetsLinks,
                 useChromeCustomTabs = useChromeCustomTabs
             )
@@ -82,12 +82,12 @@ class FronteggApp private constructor(
 
                 if (regionConfig != null) {
                     val newInstance = FronteggApp(
-                        context,
-                        regionConfig.baseUrl,
-                        regionConfig.clientId,
-                        isEmbeddedMode,
-                        regions,
-                        regionConfig,
+                        context = context,
+                        baseUrl = regionConfig.baseUrl,
+                        clientId = regionConfig.clientId,
+                        isEmbeddedMode = isEmbeddedMode,
+                        regions = regions,
+                        selectedRegion = regionConfig,
                         useAssetsLinks = useAssetsLinks,
                         useChromeCustomTabs = useChromeCustomTabs
                     )
@@ -95,7 +95,15 @@ class FronteggApp private constructor(
                     return newInstance
                 }
             }
-            val newInstance = FronteggApp(context, "", "", isEmbeddedMode, regions)
+            val newInstance = FronteggApp(
+                context = context,
+                baseUrl = "",
+                clientId = "",
+                isEmbeddedMode = isEmbeddedMode,
+                regions = regions,
+                useAssetsLinks = useAssetsLinks,
+                useChromeCustomTabs = useChromeCustomTabs
+            )
             instance = newInstance
             return newInstance
         }
