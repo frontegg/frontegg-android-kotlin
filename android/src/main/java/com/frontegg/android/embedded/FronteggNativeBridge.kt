@@ -28,6 +28,37 @@ class FronteggNativeBridge(val context: Context) {
         context.startActivity(browserIntent)
     }
 
+
+    companion object {
+        fun directLoginWithContext(context: Context, directLogin: Map<String, Any>, preserveCodeVerifier:Boolean) {
+
+            val generatedUrl = try {
+                val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
+                val jsonString = Base64.encodeToString(jsonData, Base64.DEFAULT)
+                AuthorizeUrlGenerator().generate(null, jsonString, preserveCodeVerifier)
+            } catch (e: JSONException) {
+                AuthorizeUrlGenerator().generate(null, null, preserveCodeVerifier)
+            }
+
+            val authorizationUrl = Uri.parse(generatedUrl.first)
+
+            Log.d("FronteggNativeBridge", "directLoginWithContext(${authorizationUrl})")
+            if (FronteggApp.getInstance().useChromeCustomTabs) {
+                val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(false).build()
+                customTabsIntent.intent.setPackage("com.android.chrome");
+                customTabsIntent.intent.setData(authorizationUrl)
+                (context as Activity).startActivityForResult(
+                    customTabsIntent.intent,
+                    EmbeddedAuthActivity.OAUTH_LOGIN_REQUEST
+                )
+            } else {
+                val browserIntent = Intent(Intent.ACTION_VIEW, authorizationUrl)
+                browserIntent.addCategory(Intent.CATEGORY_BROWSABLE)
+                context.startActivity(browserIntent)
+            }
+        }
+    }
+
     @JavascriptInterface
     fun loginWithSocialLogin(socialLoginUrl: String) {
         Log.d("FronteggNativeBridge", "loginWithSocialLogin(${socialLoginUrl})")
@@ -37,29 +68,7 @@ class FronteggNativeBridge(val context: Context) {
             "data" to socialLoginUrl
         )
 
-        val generatedUrl = try {
-            val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
-            val jsonString = Base64.encodeToString(jsonData, Base64.DEFAULT)
-            AuthorizeUrlGenerator().generate(null, jsonString, true)
-        } catch (e: JSONException) {
-            AuthorizeUrlGenerator().generate(null, null, true)
-        }
-
-        val authorizationUrl = Uri.parse(generatedUrl.first)
-
-        if(FronteggApp.getInstance().useChromeCustomTabs) {
-            val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(false).build()
-            customTabsIntent.intent.setPackage("com.android.chrome");
-            customTabsIntent.intent.setData(authorizationUrl)
-            (context as Activity).startActivityForResult(
-                customTabsIntent.intent,
-                EmbeddedAuthActivity.OAUTH_LOGIN_REQUEST
-            )
-        } else {
-            val browserIntent = Intent(Intent.ACTION_VIEW, authorizationUrl)
-            browserIntent.addCategory(Intent.CATEGORY_BROWSABLE)
-            context.startActivity(browserIntent)
-        }
+        directLoginWithContext(context, directLogin, true)
     }
 
     @JavascriptInterface

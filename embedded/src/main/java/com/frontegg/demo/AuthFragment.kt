@@ -38,6 +38,11 @@ class AuthFragment : Fragment() {
 
             FronteggAuth.instance.login(requireActivity())
         }
+
+        binding.googleLoginButton.setOnClickListener {
+
+            FronteggAuth.instance.directLoginAction(requireActivity(), "social-login", "google")
+        }
     }
 
     override fun onDestroyView() {
