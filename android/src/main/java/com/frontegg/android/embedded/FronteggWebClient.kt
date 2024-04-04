@@ -69,7 +69,10 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         val nativeModuleFunctions = JSONObject()
         nativeModuleFunctions.put("loginWithSocialLogin", fronteggApp.handleLoginWithSocialLogin)
         nativeModuleFunctions.put("loginWithSSO", fronteggApp.handleLoginWithSSO)
-        nativeModuleFunctions.put("shouldPromptSocialLoginConsent", fronteggApp.shouldPromptSocialLoginConsent)
+        nativeModuleFunctions.put(
+            "shouldPromptSocialLoginConsent",
+            fronteggApp.shouldPromptSocialLoginConsent
+        )
         val jsObject = nativeModuleFunctions.toString()
         view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
 
@@ -81,22 +84,33 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         error: WebResourceError?
     ) {
 
-        try {
-            val errorMessage = "Check your internet connection and try again."
-            val htmlError = Html.escapeHtml(errorMessage)
-            val errorPage = generateErrorPage(
-                htmlError,
-                error = error?.description?.toString(),
-                url = request?.url?.toString()
-            )
-            val encodedHtml = Base64.encodeToString(errorPage.toByteArray(), Base64.NO_PADDING)
-            Handler(Looper.getMainLooper()).post {
-                view?.loadData(encodedHtml, "text/html", "base64")
-            }
-        } catch (e: Exception) {
-            // ignore error
-        }
         Log.e(TAG, "onReceivedError: ${error?.description}")
+        if (error == null) {
+            super.onReceivedError(view, request, error)
+            return
+        }
+
+        // Check if the error code matches the no network error code.
+        if (error.errorCode == ERROR_HOST_LOOKUP || error.errorCode == ERROR_CONNECT || error.errorCode == ERROR_TIMEOUT) {
+            // Handle the no network connection error
+            Log.d(TAG, "No network connection: ${error.description}")
+            try {
+                val errorMessage = "Check your internet connection and try again."
+                val htmlError = Html.escapeHtml(errorMessage)
+                val errorPage = generateErrorPage(
+                    htmlError,
+                    error = error?.description?.toString(),
+                    url = request?.url?.toString()
+                )
+                val encodedHtml = Base64.encodeToString(errorPage.toByteArray(), Base64.NO_PADDING)
+                Handler(Looper.getMainLooper()).post {
+                    view?.loadData(encodedHtml, "text/html", "base64")
+                }
+                return
+            } catch (e: Exception) {
+                // ignore error
+            }
+        }
         super.onReceivedError(view, request, error)
     }
 
