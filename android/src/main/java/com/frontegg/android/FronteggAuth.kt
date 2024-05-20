@@ -259,17 +259,28 @@ class FronteggAuth(
     }
 
 
-    fun switchTenant(tenantId: String, callback: () -> Unit = {}) {
+    fun switchTenant(tenantId: String, callback: (Boolean) -> Unit = {}) {
+        Log.d(TAG, "switchTenant()")
         GlobalScope.launch(Dispatchers.IO) {
+            val handler = Handler(Looper.getMainLooper())
 
             isLoading.value = true
-            api.switchTenant(tenantId)
-            refreshTokenIfNeeded()
+            try {
+                api.switchTenant(tenantId)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send switch tenant request", e)
+                handler.post {
+                    isLoading.value = false
+                    callback(false)
+                }
+                return@launch
+            }
 
-            val handler = Handler(Looper.getMainLooper())
+            val success = refreshTokenIfNeeded()
+
             handler.post {
                 isLoading.value = false
-                callback()
+                callback(success)
             }
         }
     }
