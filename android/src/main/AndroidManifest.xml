@@ -7,9 +7,13 @@
 
     <application>
 
+
         <activity
             android:name="com.frontegg.android.EmbeddedAuthActivity"
+            android:launchMode="singleTop"
             android:exported="true">
+            <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
+
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
 
@@ -17,19 +21,39 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="https" />
-                <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
-                <data
-                    android:host="${frontegg_domain}"
-                    android:pathPrefix="/oauth/account/activate" />
-                <data
-                    android:host="${frontegg_domain}"
-                    android:pathPrefix="/oauth/account/invitation/accept" />
-                <data
-                    android:host="${frontegg_domain}"
-                    android:pathPrefix="/oauth/account/reset-password" />
-                <data
-                    android:host="${frontegg_domain}"
-                    android:pathPrefix="/oauth/account/login/magic-link" />
+                <data android:host="${frontegg_domain}" />
+                <data android:pathPrefix="/oauth/account/activate" />
+
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="${frontegg_domain}" />
+                <data android:pathPrefix="/oauth/account/invitation/accept" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="${frontegg_domain}" />
+                <data android:pathPrefix="/oauth/account/reset-password" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="${frontegg_domain}" />
+                <data android:pathPrefix="/oauth/account/login/magic-link" />
             </intent-filter>
         </activity>
 
