@@ -26,6 +26,11 @@ class EmbeddedAuthActivity : Activity() {
         webView = findViewById(R.id.custom_webview)
         loaderLayout = findViewById(R.id.loaderView)
 
+        consumeIntent(intent)
+    }
+
+    private fun consumeIntent(intent: Intent) {
+
         val intentLaunched =
             intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
 
@@ -80,7 +85,6 @@ class EmbeddedAuthActivity : Activity() {
             webView.loadUrl(webViewUrl!!)
             webViewUrl = null
         }
-
     }
 
     private val disposables: ArrayList<Disposable> = arrayListOf()
@@ -114,6 +118,12 @@ class EmbeddedAuthActivity : Activity() {
 
     }
 
+    override fun onNewIntent(intent: Intent?) {
+        super.onNewIntent(intent)
+        if(intent == null) return
+        consumeIntent(intent)
+
+    }
     override fun onPause() {
         super.onPause()
         disposables.forEach {
