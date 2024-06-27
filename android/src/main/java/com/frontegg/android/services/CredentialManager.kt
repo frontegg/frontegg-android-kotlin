@@ -4,7 +4,8 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
-import com.frontegg.android.exceptions.KeyNotFoundException
+import androidx.security.crypto.EncryptedSharedPreferences
+import androidx.security.crypto.MasterKeys
 import com.frontegg.android.utils.CredentialKeys
 
 open class CredentialManager(context: Context) {
@@ -16,8 +17,16 @@ open class CredentialManager(context: Context) {
 
     private val sp: SharedPreferences;
 
+
     init {
-        sp = context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE)
+        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+        sp = EncryptedSharedPreferences.create(
+            SHARED_PREFERENCES_NAME,
+            masterKeyAlias,
+            context,
+            EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
+            EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
+        )
     }
 
     /**
@@ -25,7 +34,10 @@ open class CredentialManager(context: Context) {
      */
     fun save(key: CredentialKeys, value: String): Boolean {
         Log.d(TAG, "Saving Frontegg $key in shared preference")
-        return sp.edit().putString(key.toString(), value).commit()
+        with(sp.edit()) {
+            putString(key.toString(), value)
+            return commit()
+        }
     }
 
 
@@ -34,7 +46,9 @@ open class CredentialManager(context: Context) {
      */
     fun get(key: CredentialKeys): String? {
         Log.d(TAG, "get Frontegg $key in shared preference ")
-        return sp.getString(key.toString(), null)
+        with(sp) {
+            return getString(key.toString(), null)
+        }
     }
 
 
@@ -46,9 +60,14 @@ open class CredentialManager(context: Context) {
         Log.d(TAG, "clear Frontegg shared preference ")
 
         val selectedRegion: String? = getSelectedRegion()
-        sp.edit().clear().commit()
-        if (selectedRegion != null) {
-            sp.edit().putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion).commit()
+
+        with(sp.edit()) {
+            clear()
+            commit()
+            if (selectedRegion != null) {
+                putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
+                commit()
+            }
         }
     }
 
