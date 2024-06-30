@@ -16,7 +16,9 @@ import io.reactivex.rxjava3.functions.Consumer
 class EmbeddedAuthActivity : Activity() {
 
     lateinit var webView: FronteggWebView
-    var webViewUrl: String? = null
+    private var webViewUrl: String? = null
+    private var directLoginLaunchedDone: Boolean = false
+    private var directLoginLaunched: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -26,7 +28,14 @@ class EmbeddedAuthActivity : Activity() {
         webView = findViewById(R.id.custom_webview)
         loaderLayout = findViewById(R.id.loaderView)
 
+
         consumeIntent(intent)
+    }
+
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, this.directLoginLaunched);
+        outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, this.directLoginLaunchedDone);
     }
 
     private fun consumeIntent(intent: Intent) {
@@ -34,9 +43,13 @@ class EmbeddedAuthActivity : Activity() {
         val intentLaunched =
             intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
 
-        val directLoginLaunched =
-            intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, false) ?: false
+        this.directLoginLaunched = intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, false) ?: false
+        this.directLoginLaunchedDone = intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, false) ?: false
 
+
+        if (directLoginLaunchedDone || intent.extras == null) {
+            return
+        }
         if (intentLaunched) {
             val url = intent.extras!!.getString(AUTHORIZE_URI)
             if (url == null) {
@@ -77,8 +90,6 @@ class EmbeddedAuthActivity : Activity() {
         }
 
 
-
-
         if (!FronteggAuth.instance.initializing.value
             && !FronteggAuth.instance.isAuthenticated.value
         ) {
@@ -116,19 +127,32 @@ class EmbeddedAuthActivity : Activity() {
         disposables.add(FronteggAuth.instance.showLoader.subscribe(this.showLoaderConsumer))
         disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.isAuthenticatedConsumer))
 
+
+        if (directLoginLaunchedDone) {
+            setResult(RESULT_OK)
+            finish()
+            return
+        }
+
+        if (directLoginLaunched) {
+            directLoginLaunchedDone = true
+        }
+
     }
 
     override fun onNewIntent(intent: Intent?) {
         super.onNewIntent(intent)
-        if(intent == null) return
+        if (intent == null) return
         consumeIntent(intent)
 
     }
+
     override fun onPause() {
         super.onPause()
         disposables.forEach {
             it.dispose()
         }
+
     }
 
 
@@ -136,6 +160,8 @@ class EmbeddedAuthActivity : Activity() {
         const val OAUTH_LOGIN_REQUEST = 100001
         const val AUTHORIZE_URI = "com.frontegg.android.AUTHORIZE_URI"
         const val DIRECT_LOGIN_ACTION_LAUNCHED = "com.frontegg.android.DIRECT_LOGIN_ACTION_LAUNCHED"
+        const val DIRECT_LOGIN_ACTION_LAUNCHED_DONE =
+            "com.frontegg.android.DIRECT_LOGIN_ACTION_LAUNCHED_DONE"
         const val DIRECT_LOGIN_ACTION_TYPE = "com.frontegg.android.DIRECT_LOGIN_ACTION_TYPE"
         const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"

@@ -62,12 +62,13 @@ open class CredentialManager(context: Context) {
         val selectedRegion: String? = getSelectedRegion()
 
         with(sp.edit()) {
-            clear()
-            commit()
+            remove(CredentialKeys.CODE_VERIFIER.toString())
+            remove(CredentialKeys.ACCESS_TOKEN.toString())
+            remove(CredentialKeys.REFRESH_TOKEN.toString())
             if (selectedRegion != null) {
                 putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
-                commit()
             }
+            commit()
         }
     }
 

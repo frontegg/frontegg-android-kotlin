@@ -90,7 +90,8 @@
         <activity
             android:name="com.frontegg.android.AuthenticationActivity"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            >
 
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
