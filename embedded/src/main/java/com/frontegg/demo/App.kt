@@ -17,7 +17,9 @@ class App : Application() {
             BuildConfig.FRONTEGG_CLIENT_ID,
             this,
             useAssetsLinks = true,
-            useChromeCustomTabs = true
+            useChromeCustomTabs = true,
+            mainActivityClass = NavigationActivity::class.java
+
         )
     }
 }
