@@ -23,6 +23,7 @@ class FronteggApp private constructor(
     var shouldPromptSocialLoginConsent: Boolean = true,
     val useAssetsLinks: Boolean = false,
     var useChromeCustomTabs: Boolean = false,
+    var mainActivityClass: Class<*>? = null
 ) {
 
     val credentialManager: CredentialManager = CredentialManager(context)
@@ -49,7 +50,8 @@ class FronteggApp private constructor(
             clientId: String,
             context: Context,
             useAssetsLinks: Boolean = false,
-            useChromeCustomTabs: Boolean = false
+            useChromeCustomTabs: Boolean = false,
+            mainActivityClass: Class<*>? = null
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
@@ -64,7 +66,8 @@ class FronteggApp private constructor(
                 clientId = clientId,
                 isEmbeddedMode = isEmbeddedMode,
                 useAssetsLinks = useAssetsLinks,
-                useChromeCustomTabs = useChromeCustomTabs
+                useChromeCustomTabs = useChromeCustomTabs,
+                mainActivityClass = mainActivityClass
             )
         }
 
@@ -72,7 +75,8 @@ class FronteggApp private constructor(
             regions: List<RegionConfig>,
             context: Context,
             useAssetsLinks: Boolean = false,
-            useChromeCustomTabs: Boolean = false
+            useChromeCustomTabs: Boolean = false,
+            mainActivityClass: Class<*>? = null
         ): FronteggApp {
 
             val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
@@ -89,7 +93,8 @@ class FronteggApp private constructor(
                         regions = regions,
                         selectedRegion = regionConfig,
                         useAssetsLinks = useAssetsLinks,
-                        useChromeCustomTabs = useChromeCustomTabs
+                        useChromeCustomTabs = useChromeCustomTabs,
+                        mainActivityClass = mainActivityClass
                     )
                     instance = newInstance
                     return newInstance
@@ -102,7 +107,8 @@ class FronteggApp private constructor(
                 isEmbeddedMode = isEmbeddedMode,
                 regions = regions,
                 useAssetsLinks = useAssetsLinks,
-                useChromeCustomTabs = useChromeCustomTabs
+                useChromeCustomTabs = useChromeCustomTabs,
+                mainActivityClass = mainActivityClass
             )
             instance = newInstance
             return newInstance

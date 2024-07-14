@@ -43,8 +43,10 @@ class EmbeddedAuthActivity : Activity() {
         val intentLaunched =
             intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
 
-        this.directLoginLaunched = intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, false) ?: false
-        this.directLoginLaunchedDone = intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, false) ?: false
+        this.directLoginLaunched =
+            intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, false) ?: false
+        this.directLoginLaunchedDone =
+            intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, false) ?: false
 
 
         if (directLoginLaunchedDone || intent.extras == null) {
@@ -118,8 +120,15 @@ class EmbeddedAuthActivity : Activity() {
     }
 
     private fun navigateToAuthenticated() {
-        setResult(RESULT_OK)
-        finish()
+        val mainActivityClass = FronteggApp.getInstance().mainActivityClass
+        if (mainActivityClass != null) {
+            val intent = Intent(this, mainActivityClass)
+            startActivity(intent)
+            finish()
+        } else {
+            setResult(RESULT_OK)
+            finish()
+        }
     }
 
     override fun onResume() {

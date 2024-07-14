@@ -16,6 +16,7 @@
         <activity
             android:name=".NavigationActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:label="@string/title_activity_navigation">
 
             <intent-filter>
