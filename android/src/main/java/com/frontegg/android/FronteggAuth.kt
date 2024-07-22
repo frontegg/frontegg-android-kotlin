@@ -31,7 +31,7 @@ import kotlin.concurrent.schedule
 class FronteggAuth(
     var baseUrl: String,
     var clientId: String,
-
+    var applicationId: String?,
     val credentialManager: CredentialManager,
     val regions: List<RegionConfig>,
     var selectedRegion: RegionConfig?
@@ -71,7 +71,7 @@ class FronteggAuth(
 
     val api: Api
         get() = (if (this._api == null) {
-            this._api = Api(this.baseUrl, this.clientId, credentialManager)
+            this._api = Api(this.baseUrl, this.applicationId, credentialManager)
             this._api
         } else {
             this._api
@@ -83,6 +83,7 @@ class FronteggAuth(
 
         this.baseUrl = region.baseUrl
         this.clientId = region.clientId
+        this.applicationId = region.applicationId
 
         this.initializeSubscriptions()
     }

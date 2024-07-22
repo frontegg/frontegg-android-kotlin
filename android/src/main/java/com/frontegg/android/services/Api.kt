@@ -21,7 +21,7 @@ import java.lang.Exception
 
 open class Api(
     private var baseUrl: String,
-    private var clientId: String,
+    private var applicationId: String?,
     private var credentialManager: CredentialManager
 ) {
     private var httpClient: OkHttpClient = OkHttpClient()
@@ -38,6 +38,11 @@ open class Api(
             Pair("Accept", "application/json"),
             Pair("Origin", this.baseUrl)
         )
+
+        val applicationId = this.applicationId
+        if (applicationId != null) {
+            headers["frontegg-requested-application-id"] = applicationId
+        }
 
         additionalHeaders.forEach {
             headers[it.key] = it.value
