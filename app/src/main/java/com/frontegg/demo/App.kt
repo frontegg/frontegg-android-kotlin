@@ -16,8 +16,8 @@ class App : Application() {
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
-            BuildConfig.FRONTEGG_APPLOCATION_ID,
             this,
+            BuildConfig.FRONTEGG_APPLOCATION_ID,
         )
     }
 }

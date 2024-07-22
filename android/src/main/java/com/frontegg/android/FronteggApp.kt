@@ -48,8 +48,8 @@ class FronteggApp private constructor(
         public fun init(
             fronteggDomain: String,
             clientId: String,
-            applicationId: String? = null,
             context: Context,
+            applicationId: String? = null,
             useAssetsLinks: Boolean = false,
             useChromeCustomTabs: Boolean = false
         ) {
