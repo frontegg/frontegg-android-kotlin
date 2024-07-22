@@ -17,6 +17,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Enabling Chrome Custom Tabs for Social Login](#enabling-chrome-custom-tabs-for-social-login)
     - [Embedded Webview vs Custom Chrome Tab](#embedded-webview-vs-custom-chrome-tab)
     - [Config Android AssetLinks](#config-android-assetlinks)
+    - [Multi-apps Support](#multi-apps-support)
     - [Multi-Region support](#multi-region-support)
 - [Usage](#usage)
     - [Login with Frontegg](#login-with-frontegg)
@@ -282,6 +283,49 @@ keytool -list -v -keystore /PATH/file.jks -alias YourAlias -storepass *** -keypa
 In order to use our API’s,
 follow [this guide](https://docs.frontegg.com/reference/getting-started-with-your-api) to
 generate a vendor token.
+
+## Multi-apps Support
+
+This guide outlines the steps to configure your Android application to support multiple applications.
+
+### Step 1: Modify the Build.gradle file
+
+Add `FRONTEGG_APPLOCATION_ID` buildConfigField into the `build.gradle` file:
+
+```groovy
+def fronteggApplicationId = "your-application-id-uuid"
+...
+android {
+    ...
+    buildConfigField "String", 'FRONTEGG_APPLOCATION_ID', "\"$fronteggApplicationId\""
+}
+```
+
+### Step 2: Modify the App File
+
+Add `BuildConfig`.`FRONTEGG_APPLOCATION_ID` to `FronteggApp`.`init`.
+
+Example App.kt code:
+
+```kotlin
+class App : Application() {
+
+    companion object {
+        lateinit var instance: App
+    }
+
+    override fun onCreate() {
+        super.onCreate()
+        instance = this
+        FronteggApp.init(
+            BuildConfig.FRONTEGG_DOMAIN,
+            BuildConfig.FRONTEGG_CLIENT_ID,
+            this,
+            BuildConfig.FRONTEGG_APPLOCATION_ID, // here
+        )
+    }
+}
+```
 
 ## Multi-Region Support
 
