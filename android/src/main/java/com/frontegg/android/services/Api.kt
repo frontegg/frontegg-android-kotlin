@@ -21,6 +21,7 @@ import java.lang.Exception
 
 open class Api(
     private var baseUrl: String,
+    private var clientId: String,
     private var applicationId: String?,
     private var credentialManager: CredentialManager
 ) {

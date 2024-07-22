@@ -71,7 +71,7 @@ class FronteggAuth(
 
     val api: Api
         get() = (if (this._api == null) {
-            this._api = Api(this.baseUrl, this.applicationId, credentialManager)
+            this._api = Api(this.baseUrl, this.clientId, this.applicationId, credentialManager)
             this._api
         } else {
             this._api
