@@ -40,15 +40,5 @@ jobs:
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-        run: ./gradlew :android:signMavenJavaPublication
+        run: ./gradlew publish
 
-      - name: Upload build artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: build-artifacts
-          path: android/build/publications/mavenJava
-      - name: Upload build outputs artifacts
-        uses: actions/upload-artifact@v3
-        with:
-          name: output-artifacts
-          path: android/build/outputs/aar
