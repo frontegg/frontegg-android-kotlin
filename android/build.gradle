@@ -73,13 +73,22 @@ afterEvaluate {
                         def gpgPrivateKey = System.getenv('GPG_PRIVATE_KEY')
                         def gpgPassphrase = System.getenv("GPG_PASSPHRASE")
 
-                        useInMemoryPgpKeys(gpgPrivateKey, gpgPassphrase)
+                        useInMemoryPgpKeys("0D80D868", gpgPrivateKey, gpgPassphrase)
                         sign publishing.publications.mavenJava
                     }
 
                     name = 'android'
                     description = 'Frontegg Android Kotlin'
                     url = 'https://github.com/frontegg/frontegg-android-kotlin'
+
+                    organization {
+                        name = 'Frontegg LTD'
+                        url = 'https://frontegg.com'
+                    }
+                    issueManagement {
+                        system = 'GitHub'
+                        url = 'https://github.com/frontegg/frontegg-android-kotlin/issues'
+                    }
                     licenses {
                         license {
                             name = 'The MIT License (MIT)'
@@ -106,7 +115,7 @@ afterEvaluate {
         repositories {
             maven {
                 name = "OSSRH"
-                url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2/'
+                url = 'https://oss.sonatype.org/service/local/staging/deploy/maven2'
                 credentials {
                     username = System.getenv('NEXUS_USERNAME')
                     password = System.getenv('NEXUS_PASSWORD')
