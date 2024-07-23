@@ -74,7 +74,7 @@ jobs:
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-        run: ./gradlew publish
+        run: ./gradlew publish --no-daemon --no-parallel
 
 
       - name: Create Release

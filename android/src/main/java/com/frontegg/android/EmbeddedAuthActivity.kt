@@ -23,6 +23,7 @@ class EmbeddedAuthActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_embedded_auth)
+        @Suppress("DEPRECATION")
         overridePendingTransition(R.anim.fadein, R.anim.fadeout)
 
         webView = findViewById(R.id.custom_webview)

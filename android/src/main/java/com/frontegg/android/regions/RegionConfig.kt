@@ -4,7 +4,7 @@ class RegionConfig(
     val key: String,
     baseUrl: String,
     val clientId: String,
-    val applicationId: String?
+    val applicationId: String? = null
 ) {
     val baseUrl: String
 
