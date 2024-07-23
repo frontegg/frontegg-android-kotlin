@@ -99,7 +99,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 val htmlError = Html.escapeHtml(errorMessage)
                 val errorPage = generateErrorPage(
                     htmlError,
-                    error = error?.description?.toString(),
+                    error = error.description?.toString(),
                     url = request?.url?.toString()
                 )
                 val encodedHtml = Base64.encodeToString(errorPage.toByteArray(), Base64.NO_PADDING)
