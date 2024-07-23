@@ -4,7 +4,7 @@ import android.net.Uri
 import android.util.Log
 import com.frontegg.android.FronteggApp
 import java.security.MessageDigest
-import java.util.*
+import java.util.Base64
 
 class AuthorizeUrlGenerator {
     companion object {
@@ -12,6 +12,7 @@ class AuthorizeUrlGenerator {
     }
 
     private var clientId: String = FronteggApp.getInstance().clientId
+    private var applicationId: String? = FronteggApp.getInstance().applicationId
     private var baseUrl: String = FronteggApp.getInstance().baseUrl
 
     private fun createRandomString(length: Int = 16): String {
@@ -44,7 +45,7 @@ class AuthorizeUrlGenerator {
         val credentialManager = FronteggApp.getInstance().credentialManager
 
 
-        val codeVerifier:String = if (preserveCodeVerifier == true) {
+        val codeVerifier: String = if (preserveCodeVerifier == true) {
             credentialManager.getCodeVerifier()!!
         } else {
             val code = createRandomString()
@@ -60,7 +61,7 @@ class AuthorizeUrlGenerator {
             .encodedPath(baseUrl)
             .appendEncodedPath("oauth/authorize")
             .appendQueryParameter("response_type", "code")
-            .appendQueryParameter("client_id", clientId)
+            .appendQueryParameter("client_id", applicationId ?: clientId)
             .appendQueryParameter("scope", "openid email profile")
             .appendQueryParameter("redirect_uri", redirectUrl)
             .appendQueryParameter("code_challenge", codeChallenge)

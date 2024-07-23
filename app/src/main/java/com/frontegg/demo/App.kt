@@ -17,6 +17,7 @@ class App : Application() {
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
             this,
+            BuildConfig.FRONTEGG_APPLOCATION_ID,
         )
     }
 }

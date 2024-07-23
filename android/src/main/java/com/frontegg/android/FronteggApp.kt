@@ -14,6 +14,7 @@ class FronteggApp private constructor(
     val context: Context,
     var baseUrl: String,
     var clientId: String,
+    var applicationId: String?,
     val isEmbeddedMode: Boolean = true,
     val regions: List<RegionConfig> = listOf(),
     val selectedRegion: RegionConfig? = null,
@@ -28,7 +29,7 @@ class FronteggApp private constructor(
 
     val credentialManager: CredentialManager = CredentialManager(context)
     val auth: FronteggAuth =
-        FronteggAuth(baseUrl, clientId, credentialManager, regions, selectedRegion)
+        FronteggAuth(baseUrl, clientId, applicationId, credentialManager, regions, selectedRegion)
     val packageName: String = context.packageName
 
     companion object {
@@ -49,6 +50,7 @@ class FronteggApp private constructor(
             fronteggDomain: String,
             clientId: String,
             context: Context,
+            applicationId: String? = null,
             useAssetsLinks: Boolean = false,
             useChromeCustomTabs: Boolean = false,
             mainActivityClass: Class<*>? = null
@@ -64,6 +66,7 @@ class FronteggApp private constructor(
                 context = context,
                 baseUrl = baseUrl,
                 clientId = clientId,
+                applicationId = applicationId,
                 isEmbeddedMode = isEmbeddedMode,
                 useAssetsLinks = useAssetsLinks,
                 useChromeCustomTabs = useChromeCustomTabs,
@@ -89,6 +92,7 @@ class FronteggApp private constructor(
                         context = context,
                         baseUrl = regionConfig.baseUrl,
                         clientId = regionConfig.clientId,
+                        applicationId = regionConfig.applicationId,
                         isEmbeddedMode = isEmbeddedMode,
                         regions = regions,
                         selectedRegion = regionConfig,
@@ -104,6 +108,7 @@ class FronteggApp private constructor(
                 context = context,
                 baseUrl = "",
                 clientId = "",
+                applicationId = null,
                 isEmbeddedMode = isEmbeddedMode,
                 regions = regions,
                 useAssetsLinks = useAssetsLinks,

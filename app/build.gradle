@@ -5,6 +5,7 @@ plugins {
 
 def fronteggDomain = "auth.davidantoon.me"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+def fronteggApplicationId = "16407b9a-5b6c-43de-9f58-6a1d1e0077f8"
 
 android {
     namespace 'com.frontegg.demo'
@@ -28,6 +29,7 @@ android {
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
+        buildConfigField "String", 'FRONTEGG_APPLOCATION_ID', "\"$fronteggApplicationId\""
     }
 
     buildTypes {
