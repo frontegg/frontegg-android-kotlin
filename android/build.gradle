@@ -68,10 +68,6 @@ afterEvaluate {
                 from components.release
 
                 pom {
-                    signing {
-                        useInMemoryPgpKeys(System.getenv('GPG_PRIVATE_KEY'), System.getenv("GPG_PASSPHRASE"))
-                        sign publishing.publications.mavenJava
-                    }
                     name = 'android'
                     description = 'Frontegg Android Kotlin'
                     url = 'https://github.com/frontegg/frontegg-android-kotlin'
@@ -94,6 +90,20 @@ afterEvaluate {
                         url = 'https://github.com/frontegg/frontegg-android-kotlin'
                     }
                 }
+
+                // Signing configuration
+                signing {
+                    def gpgPrivateKey = System.getenv('GPG_PRIVATE_KEY')
+                    def gpgPassphrase = System.getenv("GPG_PASSPHRASE")
+                    if (gpgPrivateKey == null || gpgPassphrase == null) {
+                        throw new GradleException("GPG_PRIVATE_KEY and GPG_PASSPHRASE environment variables must be set")
+                    }
+
+                    println "GPG_PRIVATE_KEY and GPG_PASSPHRASE are set"
+
+                    useInMemoryPgpKeys(gpgPrivateKey, gpgPassphrase)
+                    sign publishing.publications.mavenJava
+                }
             }
         }
         repositories {
@@ -108,4 +118,3 @@ afterEvaluate {
         }
     }
 }
-

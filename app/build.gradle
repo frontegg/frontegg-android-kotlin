@@ -24,7 +24,6 @@ android {
                 "package_name" : applicationId,
                 "frontegg_domain" : fronteggDomain,
                 "frontegg_client_id": fronteggClientId,
-                "auth_activity": "com.frontegg.android.HostedAuthActivity"
         ]
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
