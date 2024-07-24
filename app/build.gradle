@@ -28,7 +28,7 @@ android {
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
-        buildConfigField "String", 'FRONTEGG_APPLOCATION_ID', "\"$fronteggApplicationId\""
+        buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
     }
 
     buildTypes {

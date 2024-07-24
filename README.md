@@ -290,20 +290,20 @@ This guide outlines the steps to configure your Android application to support m
 
 ### Step 1: Modify the Build.gradle file
 
-Add `FRONTEGG_APPLOCATION_ID` buildConfigField into the `build.gradle` file:
+Add `FRONTEGG_APPLICATION_ID` buildConfigField into the `build.gradle` file:
 
 ```groovy
 def fronteggApplicationId = "your-application-id-uuid"
 ...
 android {
     ...
-    buildConfigField "String", 'FRONTEGG_APPLOCATION_ID', "\"$fronteggApplicationId\""
+    buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
 }
 ```
 
 ### Step 2: Modify the App File
 
-Add `BuildConfig`.`FRONTEGG_APPLOCATION_ID` to `FronteggApp`.`init`.
+Add `BuildConfig`.`FRONTEGG_APPLICATION_ID` to `FronteggApp`.`init`.
 
 Example App.kt code:
 
@@ -321,7 +321,7 @@ class App : Application() {
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
             this,
-            BuildConfig.FRONTEGG_APPLOCATION_ID, // here
+            BuildConfig.FRONTEGG_APPLICATION_ID, // here
         )
     }
 }
