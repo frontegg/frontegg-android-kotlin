@@ -84,6 +84,7 @@ class FronteggAuth(
         this.baseUrl = region.baseUrl
         this.clientId = region.clientId
         this.applicationId = region.applicationId
+        this._api = null
 
         this.initializeSubscriptions()
     }
