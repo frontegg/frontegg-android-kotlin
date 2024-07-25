@@ -146,6 +146,7 @@ class FronteggApp private constructor(
 
         this.baseUrl = config.baseUrl
         this.clientId = config.clientId
+        this.applicationId = config.applicationId
         this.auth.reinitWithRegion(config)
 
 
