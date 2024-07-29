@@ -16,4 +16,10 @@
         android:name="com.frontegg.demo.ui.tenants.TenantsFragment"
         android:label="@string/title_tenants"
         tools:layout="@layout/fragment_tenants" />
+
+    <fragment
+        android:id="@+id/navigation_access_token"
+        android:name="com.frontegg.demo.ui.home.AccessTokenFragment"
+        android:label="@string/title_access_token"
+        tools:layout="@layout/fragment_access_token" />
 </navigation>
