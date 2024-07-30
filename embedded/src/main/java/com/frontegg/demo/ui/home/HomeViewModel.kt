@@ -18,8 +18,17 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    private val _accesstoken = MutableLiveData<String?>().apply {
+        FronteggAuth.instance.accessToken.subscribe {
+            Handler(Looper.getMainLooper()).post {
+                value = it.value
+            }
+        }
+    }
+
 
     val user: LiveData<User?> = _user
+    val accesstoken: LiveData<String?> = _accesstoken
 
 
 }

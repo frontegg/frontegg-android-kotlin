@@ -33,6 +33,7 @@ class EmbeddedAuthActivity : Activity() {
         consumeIntent(intent)
     }
 
+
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, this.directLoginLaunched);

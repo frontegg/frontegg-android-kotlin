@@ -1,19 +1,18 @@
 package com.frontegg.demo.ui.home
 
-import android.graphics.Color
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.bumptech.glide.Glide
 import com.frontegg.android.FronteggAuth
-import com.frontegg.demo.databinding.FragmentHomeBinding
+import com.frontegg.demo.databinding.FragmentAccessTokenBinding
 
-class HomeFragment : Fragment() {
+class AccessTokenFragment : Fragment() {
 
-    private var _binding: FragmentHomeBinding? = null
+    private var _binding: FragmentAccessTokenBinding? = null
 
     // This property is only valid between onCreateView and
     // onDestroyView.
@@ -26,27 +25,36 @@ class HomeFragment : Fragment() {
     ): View {
         val homeViewModel = ViewModelProvider(this)[HomeViewModel::class.java]
 
-        _binding = FragmentHomeBinding.inflate(inflater, container, false)
+        _binding = FragmentAccessTokenBinding.inflate(inflater, container, false)
 
         val root: View = binding.root
 
-        binding.logoutButton.setBackgroundColor(Color.RED)
         homeViewModel.user.observe(viewLifecycleOwner) {
-
             if (it != null) {
-                Glide.with(requireContext()).load(it.profilePictureUrl)
-                    .into(binding.image)
+
                 binding.name.text = it.name
                 binding.email.text = it.email
-                binding.tenant.text = it.activeTenant.name
             }
         }
 
-        binding.logoutButton.setOnClickListener {
-            FronteggAuth.instance.logout()
+        homeViewModel.accesstoken.observe(viewLifecycleOwner) {
+
+            // this one will be disable in background
+            // will resume on foreground
+            Log.w("AccessTokenFragment", "Access token (viewModel): $it")
+            binding.accessToken.text = it
         }
 
         return root
+    }
+
+    override fun onResume() {
+        super.onResume()
+
+        FronteggAuth.instance.accessToken.subscribe {
+            Log.w("AccessTokenFragment", "Access token(subscribe): ${it.value}")
+            Log.w("AccessTokenFragment", "Access token(direct): ${FronteggAuth.instance.accessToken.value}")
+        };
     }
 
     override fun onDestroyView() {

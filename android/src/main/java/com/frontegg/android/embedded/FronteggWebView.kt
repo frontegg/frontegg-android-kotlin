@@ -66,10 +66,19 @@ open class FronteggWebView : WebView {
         this.addJavascriptInterface(FronteggNativeBridge(context), "FronteggNativeBridge")
     }
 
-    fun loadOauthAuthorize() {
-        val authorizeUrl = AuthorizeUrlGenerator()
-        val url = authorizeUrl.generate()
-        this.loadUrl(url.first)
+
+
+    override fun onDetachedFromWindow() {
+        super.onDetachedFromWindow()
+        clearWebView()
+    }
+
+    private fun clearWebView() {
+        clearHistory()
+        loadUrl("about:blank")
+        onPause()
+        removeAllViews()
+        destroy()
     }
 }
 

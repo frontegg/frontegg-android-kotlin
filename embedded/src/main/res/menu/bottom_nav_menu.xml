@@ -11,4 +11,9 @@
         android:icon="@drawable/ic_notifications_black_24dp"
         android:title="@string/title_tenants" />
 
+    <item
+        android:id="@+id/navigation_access_token"
+        android:icon="@drawable/ic_dashboard_black_24dp"
+        android:title="@string/title_access_token" />
+
 </menu>

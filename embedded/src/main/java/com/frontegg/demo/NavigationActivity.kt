@@ -28,7 +28,9 @@ class NavigationActivity : AppCompatActivity() {
 
     private val authenticatedTabs = AppBarConfiguration(
         setOf(
-            R.id.navigation_home, R.id.navigation_tenants
+            R.id.navigation_home,
+            R.id.navigation_tenants,
+            R.id.navigation_access_token
         )
     )
     private val nonAuthTabs = AppBarConfiguration(
