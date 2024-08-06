@@ -4,6 +4,7 @@ Frontegg is a web platform where SaaS companies can set up their fully managed, 
 aware - SaaS features
 and integrate them into their SaaS portals in up to 5 lines of code.
 
+
 ## Table of Contents
 
 - [Get Started](#get-started)
