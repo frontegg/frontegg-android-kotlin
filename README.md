@@ -68,6 +68,7 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
   scheme)**
 - Add `https://{{FRONTEGG_BASE_URL}}/oauth/account/redirect/android/{{ANDROID_PACKAGE_NAME}}` **(for
   assetlinks)**
+- Add `{{FRONTEGG_BASE_URL}}/oauth/authorize`
 - Replace `ANDROID_PACKAGE_NAME` with your application identifier
 - Replace `FRONTEGG_BASE_URL` with your Frontegg base url
 
