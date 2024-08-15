@@ -34,8 +34,10 @@ open class CredentialManager(context: Context) {
      */
     fun save(key: CredentialKeys, value: String): Boolean {
         Log.d(TAG, "Saving Frontegg $key in shared preference")
+
         with(sp.edit()) {
             putString(key.toString(), value)
+            apply()
             return commit()
         }
     }
@@ -68,6 +70,7 @@ open class CredentialManager(context: Context) {
             if (selectedRegion != null) {
                 putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
             }
+            apply()
             commit()
         }
     }

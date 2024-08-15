@@ -154,6 +154,9 @@ open class Api(
         if (response.isSuccessful) {
             return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
         }
+        response.headers.forEach {
+            Log.d(TAG, "header: ${it.first} = ${it.second}")
+        }
         return null
     }
 

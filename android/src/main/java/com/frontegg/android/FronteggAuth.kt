@@ -2,15 +2,21 @@ package com.frontegg.android
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.app.job.JobInfo
+import android.app.job.JobScheduler
+import android.content.ComponentName
+import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
+import androidx.core.content.ContextCompat.getSystemService
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.services.RefreshTokenService
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
@@ -21,6 +27,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
+import java.net.SocketTimeoutException
 import java.time.Instant
 import java.util.*
 import kotlin.concurrent.schedule
@@ -40,6 +47,7 @@ class FronteggAuth(
 
     companion object {
         private val TAG = FronteggAuth::class.java.simpleName
+        const val JOB_ID = 1234 // Unique ID for the JobService
 
         val instance: FronteggAuth
             get() {
@@ -56,10 +64,8 @@ class FronteggAuth(
     val initializing: ObservableValue<Boolean> = ObservableValue(true)
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     var pendingAppLink: String? = null
-    var timer: Timer = Timer()
-    var refreshTaskRunner: TimerTask? = null
     val isMultiRegion: Boolean = regions.isNotEmpty()
-
+    var refreshTokenJob: JobInfo?=null;
     private var _api: Api? = null
 
     init {
@@ -114,6 +120,7 @@ class FronteggAuth(
                     isLoading.value = false
                     initializing.value = false
                 }
+
             } else {
                 isLoading.value = false
                 initializing.value = false
@@ -121,21 +128,27 @@ class FronteggAuth(
         }
     }
 
-    fun refreshTokenIfNeeded(): Boolean {
+    fun sendRefreshToken(): Boolean {
         val refreshToken = this.refreshToken.value ?: return false
+        val data = api.refreshToken(refreshToken)
+        return if (data != null) {
+            setCredentials(data.access_token, data.refresh_token)
+            true
+        } else {
+            Log.e(TAG, "Failed to refresh token, data = null")
+            false
+        }
+    }
+
+    fun refreshTokenIfNeeded(): Boolean {
+
         Log.d(TAG, "refreshTokenIfNeeded()")
 
         return try {
-            val data = api.refreshToken(refreshToken)
-            if (data != null) {
-                setCredentials(data.access_token, data.refresh_token)
-                true
-            } else {
-                false
-            }
+            this.sendRefreshToken()
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send refresh token request", e)
-            false;
+            false
         }
     }
 
@@ -154,15 +167,16 @@ class FronteggAuth(
             this.isAuthenticated.value = true
             this.pendingAppLink = null
 
-            refreshTaskRunner?.cancel()
+            // Cancel previous job if it exists
+            this.cancelLastTimer()
+
 
             if (decoded.exp > 0) {
                 val now: Long = Instant.now().toEpochMilli()
                 val offset = (((decoded.exp * 1000) - now) * 0.80).toLong()
                 Log.d(TAG, "setCredentials, schedule for $offset")
-                refreshTaskRunner = timer.schedule(offset) {
-                    refreshTokenIfNeeded()
-                }
+
+                this.scheduleTimer(offset)
             }
         } else {
             this.refreshToken.value = null
@@ -175,7 +189,31 @@ class FronteggAuth(
         this.initializing.value = false
     }
 
-    fun handleHostedLoginCallback(code: String, webView: WebView? = null, activity: Activity? = null): Boolean {
+    private fun cancelLastTimer() {
+        val context = FronteggApp.getInstance().context
+        val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+        jobScheduler.cancel(JOB_ID)
+        this.refreshTokenJob = null
+    }
+
+    private fun scheduleTimer(offset: Long) {
+        val context = FronteggApp.getInstance().context
+        val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+        // Schedule the job
+        val jobInfo = JobInfo.Builder(
+            JOB_ID, ComponentName(context, RefreshTokenService::class.java)
+        ).setMinimumLatency(offset) // Schedule the job to run after the offset
+            .setOverrideDeadline(offset + 10000) // Add a buffer to the deadline
+            .build()
+        this.refreshTokenJob = jobInfo
+        jobScheduler.schedule(jobInfo)
+    }
+
+    fun handleHostedLoginCallback(
+        code: String,
+        webView: WebView? = null,
+        activity: Activity? = null
+    ): Boolean {
 
         val codeVerifier = credentialManager.getCodeVerifier()
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
@@ -189,14 +227,14 @@ class FronteggAuth(
             if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
             } else {
-                Log.e(TAG, "Failed to exchange token" )
-                if(webView != null){
+                Log.e(TAG, "Failed to exchange token")
+                if (webView != null) {
                     val authorizeUrl = AuthorizeUrlGenerator()
                     val url = authorizeUrl.generate()
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
                     }
-                } else if (activity != null){
+                } else if (activity != null) {
                     login(activity)
                 }
 
@@ -214,7 +252,8 @@ class FronteggAuth(
 
     fun logout(callback: () -> Unit = {}) {
         isLoading.value = true
-        refreshTaskRunner?.cancel()
+        this.cancelLastTimer()
+
         GlobalScope.launch(Dispatchers.IO) {
 
             val logoutCookies = getDomainCookie(baseUrl)
@@ -252,7 +291,7 @@ class FronteggAuth(
         }
     }
 
-    fun directLoginAction(activity: Activity, type: String, data: String){
+    fun directLoginAction(activity: Activity, type: String, data: String) {
         if (FronteggApp.getInstance().isEmbeddedMode) {
             EmbeddedAuthActivity.directLoginAction(activity, type, data)
         } else {
