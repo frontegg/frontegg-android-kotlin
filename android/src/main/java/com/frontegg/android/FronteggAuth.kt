@@ -11,7 +11,6 @@ import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
-import androidx.core.content.ContextCompat.getSystemService
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
@@ -27,10 +26,7 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
-import java.net.SocketTimeoutException
 import java.time.Instant
-import java.util.*
-import kotlin.concurrent.schedule
 
 
 @SuppressLint("CheckResult")
@@ -65,7 +61,7 @@ class FronteggAuth(
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     var pendingAppLink: String? = null
     val isMultiRegion: Boolean = regions.isNotEmpty()
-    var refreshTokenJob: JobInfo?=null;
+    var refreshTokenJob: JobInfo? = null;
     private var _api: Api? = null
 
     init {
@@ -140,6 +136,28 @@ class FronteggAuth(
         }
     }
 
+    fun refreshTokenWhenNeeded() {
+        val accessToken = this.accessToken.value ?: return
+
+        if (refreshTokenJob != null) {
+            cancelLastTimer()
+        }
+
+        val decoded = JWTHelper.decode(accessToken)
+        if (decoded.exp > 0) {
+            val offset = calculateTimerOffset(decoded.exp)
+            if (offset <= 0) {
+                Log.d(TAG, "Refreshing Token...")
+                GlobalScope.launch(Dispatchers.IO) {
+                    sendRefreshToken()
+                }
+            } else {
+                Log.d(TAG, "Schedule Refreshing Token for $offset")
+                this.scheduleTimer(offset)
+            }
+        }
+    }
+
     fun refreshTokenIfNeeded(): Boolean {
 
         Log.d(TAG, "refreshTokenIfNeeded()")
@@ -172,8 +190,7 @@ class FronteggAuth(
 
 
             if (decoded.exp > 0) {
-                val now: Long = Instant.now().toEpochMilli()
-                val offset = (((decoded.exp * 1000) - now) * 0.80).toLong()
+                val offset = calculateTimerOffset(decoded.exp)
                 Log.d(TAG, "setCredentials, schedule for $offset")
 
                 this.scheduleTimer(offset)
@@ -190,6 +207,7 @@ class FronteggAuth(
     }
 
     private fun cancelLastTimer() {
+        Log.d(TAG, "Cancel Last Timer")
         val context = FronteggApp.getInstance().context
         val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
         jobScheduler.cancel(JOB_ID)
@@ -197,6 +215,7 @@ class FronteggAuth(
     }
 
     private fun scheduleTimer(offset: Long) {
+        Log.d(TAG, "Schedule Timer")
         val context = FronteggApp.getInstance().context
         val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
         // Schedule the job
@@ -324,5 +343,10 @@ class FronteggAuth(
                 callback(success)
             }
         }
+    }
+
+    private fun calculateTimerOffset(exp: Long): Long {
+        val now: Long = Instant.now().toEpochMilli()
+        return (((exp * 1000) - now) * 0.80).toLong()
     }
 }
