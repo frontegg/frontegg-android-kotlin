@@ -9,8 +9,12 @@ import java.net.SocketTimeoutException
 
 class RefreshTokenService : JobService() {
 
+    companion object {
+        private val TAG = RefreshTokenService::class.java.simpleName
+    }
+
     override fun onStartJob(params: JobParameters?): Boolean {
-        Log.d("MyJobService", "Job started")
+        Log.d(TAG, "Job started")
 
         // Perform your background task here
         performBackgroundTask(params)
@@ -21,7 +25,7 @@ class RefreshTokenService : JobService() {
     }
 
     override fun onStopJob(params: JobParameters?): Boolean {
-        Log.d("MyJobService", "Job stopped before completion")
+        Log.d(TAG, "Job stopped before completion")
 
         // Cleanup if necessary. Return true to reschedule the job if needed
         return false
@@ -31,22 +35,23 @@ class RefreshTokenService : JobService() {
     private fun performBackgroundTask(params: JobParameters?) {
         // Simulate a background task with a new thread or coroutine if needed
         Thread {
+            var isError = false
             try {
                 FronteggAuth.instance.sendRefreshToken()
-                Log.d("MyJobService", "Job finished")
+                Log.d(TAG, "Job finished")
             } catch (e: InterruptedException) {
-                Log.e("MyJobService", "Job interrupted", e)
+                Log.e(TAG, "Job interrupted", e)
                 FronteggAuth.instance.accessToken.value = null
                 FronteggAuth.instance.isLoading.value = true
-                jobFinished(params, true)
+                isError = true
             } catch (e: SocketTimeoutException) {
-                Log.e("MyJobService", "Job interrupted", e)
+                Log.e(TAG, "Job interrupted", e)
                 FronteggAuth.instance.accessToken.value = null
                 FronteggAuth.instance.isLoading.value = true
-                jobFinished(params, true)
+                isError = true
             } finally {
                 // Notify the job manager that the job has been completed
-                jobFinished(params, false)
+                jobFinished(params, isError)
             }
         }.start()
     }
