@@ -137,10 +137,22 @@ class FronteggAuth(
     }
 
     fun refreshTokenWhenNeeded() {
-        val accessToken = this.accessToken.value ?: return
+        val accessToken = this.accessToken.value
+
+        if(this.refreshToken.value == null){
+            return
+        }
+
 
         if (refreshTokenJob != null) {
             cancelLastTimer()
+        }
+        if(accessToken == null){
+             // when we have valid refreshToken without accessToken => failed to refresh in background
+            GlobalScope.launch(Dispatchers.IO) {
+                sendRefreshToken()
+            }
+            return;
         }
 
         val decoded = JWTHelper.decode(accessToken)
