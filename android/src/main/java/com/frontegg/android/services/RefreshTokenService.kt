@@ -39,13 +39,9 @@ class RefreshTokenService : JobService() {
             try {
                 FronteggAuth.instance.sendRefreshToken()
                 Log.d(TAG, "Job finished")
-            } catch (e: InterruptedException) {
-                Log.e(TAG, "Job interrupted", e)
-                FronteggAuth.instance.accessToken.value = null
-                FronteggAuth.instance.isLoading.value = true
-                isError = true
-            } catch (e: SocketTimeoutException) {
-                Log.e(TAG, "Job interrupted", e)
+            }  catch (e: Exception) {
+                Log.e(TAG, "Job unknown error occurred", e)
+                // Catch unhandled exception
                 FronteggAuth.instance.accessToken.value = null
                 FronteggAuth.instance.isLoading.value = true
                 isError = true
