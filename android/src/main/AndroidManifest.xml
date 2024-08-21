@@ -117,7 +117,16 @@
             </intent-filter>
         </activity>
 
+        <service
+            android:name="com.frontegg.android.services.RefreshTokenService"
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE">
+            <intent-filter>
+                <action android:name="android.app.job.JobService" />
+            </intent-filter>
+        </service>
     </application>
+
     <queries>
         <intent>
             <action android:name="android.support.customtabs.action.CustomTabsService" />

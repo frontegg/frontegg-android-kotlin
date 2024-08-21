@@ -5,6 +5,9 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager.MATCH_ALL
 import android.util.Log
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
 import com.frontegg.android.regions.RegionConfig
@@ -62,6 +65,9 @@ class FronteggApp private constructor(
             }
 
             val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
+
+            ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
+
             instance = FronteggApp(
                 context = context,
                 baseUrl = baseUrl,
@@ -119,6 +125,18 @@ class FronteggApp private constructor(
             return newInstance
         }
 
+        private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    Log.d(TAG, "ON_STOP")
+                }
+                Lifecycle.Event.ON_START -> {
+                    Log.d(TAG, "ON_START")
+                    getInstance().auth.refreshTokenWhenNeeded()
+                }
+                else -> {}
+            }
+        }
 
         private fun isActivityEnabled(context: Context, activityClassName: String): Boolean {
             return try {
