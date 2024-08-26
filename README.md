@@ -19,6 +19,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Config Android AssetLinks](#config-android-assetlinks)
     - [Multi-apps Support](#multi-apps-support)
     - [Multi-Region support](#multi-region-support)
+    - [Setup for `Gradle8+`](#setup-for--gradle8)
 - [Usage](#usage)
     - [Login with Frontegg](#login-with-frontegg)
     - [Logout user](#logout)
@@ -68,6 +69,7 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
   scheme)**
 - Add `https://{{FRONTEGG_BASE_URL}}/oauth/account/redirect/android/{{ANDROID_PACKAGE_NAME}}` **(for
   assetlinks)**
+- Add `{{FRONTEGG_BASE_URL}}/oauth/authorize`
 - Replace `ANDROID_PACKAGE_NAME` with your application identifier
 - Replace `FRONTEGG_BASE_URL` with your Frontegg base url
 
@@ -506,6 +508,61 @@ class RegionSelectionActivity : AppCompatActivity() {
         }
     }
 }
+```
+
+### Setup for  `Gradle8+`
+
+## Enable `buildconfig` feature:
+
+1. Add the below line to your `gradle.properties`:
+```properties
+android.defaults.buildfeatures.buildconfig=true
+```
+
+2. Add the below lines to your app/`build.gradle`:
+```gradle
+android {
+    ...
+    buildFeatures {
+        buildConfig = true
+    }
+    ...
+}
+```
+
+##  `Proguard` setup (Optional)
+
+If `minifyEnabled` and `shrinkResources` is true follow the instruction below:
+
+### Keep `google.gson.reflect` classes
+
+Add the below instruction to your `proguard-rules.pro` according to https://stackoverflow.com/a/76224937:
+
+```
+# Gson uses generic type information stored in a class file when working with
+# fields. Proguard removes such information by default, keep it.
+-keepattributes Signature
+
+# This is also needed for R8 in compat mode since multiple 
+# optimizations will remove the generic signature such as class 
+# merging and argument removal. See: 
+# https://r8.googlesource.com/r8/+/refs/heads/main/compatibility-faq.md#troubleshooting-gson-gson
+-keep class com.google.gson.reflect.TypeToken { *; }
+-keep class * extends com.google.gson.reflect.TypeToken
+
+# Optional. For using GSON @Expose annotation
+-keepattributes AnnotationDefault,RuntimeVisibleAnnotations
+-keep class com.google.gson.reflect.TypeToken { <fields>; } 
+-keepclassmembers class **$TypeAdapterFactory { <fields>; }
+```
+
+### Keep Frontegg models
+
+Add the below instruction to your `proguard-rules.pro`:
+
+```
+-keep class com.frontegg.android.utils.JWT { *; }
+-keep class com.frontegg.android.models.** { *; }
 ```
 
 ## Usage
