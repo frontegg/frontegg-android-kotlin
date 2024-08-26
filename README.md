@@ -19,7 +19,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Config Android AssetLinks](#config-android-assetlinks)
     - [Multi-apps Support](#multi-apps-support)
     - [Multi-Region support](#multi-region-support)
-    - [Setup for `Gradle8+`](#setup-for-gradle8)
+    - [Setup for `Gradle8+`](#setup-for--gradle8)
 - [Usage](#usage)
     - [Login with Frontegg](#login-with-frontegg)
     - [Logout user](#logout)
