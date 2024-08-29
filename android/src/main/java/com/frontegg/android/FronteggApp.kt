@@ -12,6 +12,7 @@ import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.*
+import java.time.Instant
 
 class FronteggApp private constructor(
     val context: Context,
@@ -34,7 +35,9 @@ class FronteggApp private constructor(
     val auth: FronteggAuth =
         FronteggAuth(baseUrl, clientId, applicationId, credentialManager, regions, selectedRegion)
     val packageName: String = context.packageName
+    var appInForeground = true
 
+    var lastJobStart:Long = Instant.now().toEpochMilli();
     companion object {
 
         @SuppressLint("StaticFieldLeak")
@@ -129,9 +132,12 @@ class FronteggApp private constructor(
             when (event) {
                 Lifecycle.Event.ON_STOP -> {
                     Log.d(TAG, "ON_STOP")
+                    getInstance().appInForeground = false
+                    getInstance().auth.refreshTokenWhenNeeded()
                 }
                 Lifecycle.Event.ON_START -> {
                     Log.d(TAG, "ON_START")
+                    getInstance().appInForeground = true
                     getInstance().auth.refreshTokenWhenNeeded()
                 }
                 else -> {}

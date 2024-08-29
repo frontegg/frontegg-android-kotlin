@@ -27,6 +27,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.time.Instant
+import java.util.Timer
+import java.util.TimerTask
+import kotlin.concurrent.schedule
 
 
 @SuppressLint("CheckResult")
@@ -59,9 +62,11 @@ class FronteggAuth(
     val isLoading: ObservableValue<Boolean> = ObservableValue(true)
     val initializing: ObservableValue<Boolean> = ObservableValue(true)
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
+    val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
     var pendingAppLink: String? = null
     val isMultiRegion: Boolean = regions.isNotEmpty()
     var refreshTokenJob: JobInfo? = null;
+    var timerTask: TimerTask? = null;
     private var _api: Api? = null
 
     init {
@@ -113,42 +118,47 @@ class FronteggAuth(
                 if (!refreshTokenIfNeeded()) {
                     accessToken.value = null
                     refreshToken.value = null
-                    isLoading.value = false
                     initializing.value = false
+                    isLoading.value = false
                 }
 
             } else {
-                isLoading.value = false
                 initializing.value = false
+                isLoading.value = false
             }
         }
     }
 
     fun sendRefreshToken(): Boolean {
         val refreshToken = this.refreshToken.value ?: return false
-        val data = api.refreshToken(refreshToken)
-        return if (data != null) {
-            setCredentials(data.access_token, data.refresh_token)
-            true
-        } else {
-            Log.e(TAG, "Failed to refresh token, data = null")
-            false
+        this.refreshingToken.value = true
+        try {
+
+            val data = api.refreshToken(refreshToken)
+            return if (data != null) {
+                setCredentials(data.access_token, data.refresh_token)
+                true
+            } else {
+                Log.e(TAG, "Failed to refresh token, data = null")
+                false
+            }
+        } finally {
+            this.refreshingToken.value = false
         }
     }
 
     fun refreshTokenWhenNeeded() {
         val accessToken = this.accessToken.value
 
-        if(this.refreshToken.value == null){
+        if (this.refreshToken.value == null) {
             return
         }
 
 
-        if (refreshTokenJob != null) {
-            cancelLastTimer()
-        }
-        if(accessToken == null){
-             // when we have valid refreshToken without accessToken => failed to refresh in background
+        cancelLastTimer()
+
+        if (accessToken == null) {
+            // when we have valid refreshToken without accessToken => failed to refresh in background
             GlobalScope.launch(Dispatchers.IO) {
                 sendRefreshToken()
             }
@@ -220,24 +230,46 @@ class FronteggAuth(
 
     private fun cancelLastTimer() {
         Log.d(TAG, "Cancel Last Timer")
-        val context = FronteggApp.getInstance().context
-        val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-        jobScheduler.cancel(JOB_ID)
-        this.refreshTokenJob = null
+        if(timerTask!= null){
+            timerTask?.cancel()
+            timerTask = null
+        }
+        if(refreshTokenJob!= null) {
+            val context = FronteggApp.getInstance().context
+            val jobScheduler =
+                context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            jobScheduler.cancel(JOB_ID)
+            this.refreshTokenJob = null
+        }
     }
 
-    private fun scheduleTimer(offset: Long) {
-        Log.d(TAG, "Schedule Timer")
-        val context = FronteggApp.getInstance().context
-        val jobScheduler = context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-        // Schedule the job
-        val jobInfo = JobInfo.Builder(
-            JOB_ID, ComponentName(context, RefreshTokenService::class.java)
-        ).setMinimumLatency(offset) // Schedule the job to run after the offset
-            .setOverrideDeadline(offset + 10000) // Add a buffer to the deadline
-            .build()
-        this.refreshTokenJob = jobInfo
-        jobScheduler.schedule(jobInfo)
+    fun scheduleTimer(offset: Long) {
+        FronteggApp.getInstance().lastJobStart = Instant.now().toEpochMilli()
+        if(FronteggApp.getInstance().appInForeground){
+            Log.d(TAG, "[foreground] Start Timer task (${offset} ms)")
+
+            this.timerTask = Timer().schedule(offset) {
+                Log.d(TAG, "[foreground] Job started, (${Instant.now().toEpochMilli()-FronteggApp.getInstance().lastJobStart} ms)")
+                refreshTokenIfNeeded()
+            }
+
+        }else {
+            Log.d(TAG, "[background] Start Job Scheduler task (${offset} ms)")
+            val context = FronteggApp.getInstance().context
+            val jobScheduler =
+                context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
+            // Schedule the job
+            val jobInfo = JobInfo.Builder(
+                JOB_ID, ComponentName(context, RefreshTokenService::class.java)
+            )
+                .setMinimumLatency(offset / 2) // Schedule the job to run after the offset
+                .setOverrideDeadline(offset) // Add a buffer to the deadline
+                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY) // Require network
+                .setBackoffCriteria(10000, JobInfo.BACKOFF_POLICY_LINEAR)
+                .build()
+            this.refreshTokenJob = jobInfo
+            jobScheduler.schedule(jobInfo)
+        }
     }
 
     fun handleHostedLoginCallback(
@@ -357,8 +389,17 @@ class FronteggAuth(
         }
     }
 
-    private fun calculateTimerOffset(exp: Long): Long {
+    private fun calculateTimerOffset(expirationTime: Long): Long {
         val now: Long = Instant.now().toEpochMilli()
-        return (((exp * 1000) - now) * 0.80).toLong()
+        val remainingTime = (expirationTime * 1000) - now
+
+        val minRefreshWindow = 20000 // minimum 20 seconds before exp
+        val adaptiveRefreshTime = remainingTime * 0.8 // 80% of remaining time
+
+        return if (remainingTime > minRefreshWindow) {
+            adaptiveRefreshTime.toLong()
+        } else {
+            (remainingTime - minRefreshWindow).coerceAtLeast(0)
+        }
     }
 }
