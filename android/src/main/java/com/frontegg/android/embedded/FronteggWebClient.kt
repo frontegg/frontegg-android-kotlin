@@ -38,11 +38,13 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         private val TAG = FronteggWebClient::class.java.simpleName
     }
 
+    var webViewStatusCode: Int = 200
+    var lastErrorResponse: WebResourceResponse? = null
+
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         Log.d(TAG, "onPageStarted $url")
         FronteggAuth.instance.isLoading.value = true
-
     }
 
     override fun onPageFinished(view: WebView?, url: String?) {
@@ -65,16 +67,26 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             return
         }
 
-        val fronteggApp = FronteggApp.getInstance()
-        val nativeModuleFunctions = JSONObject()
-        nativeModuleFunctions.put("loginWithSocialLogin", fronteggApp.handleLoginWithSocialLogin)
-        nativeModuleFunctions.put("loginWithSSO", fronteggApp.handleLoginWithSSO)
-        nativeModuleFunctions.put(
-            "shouldPromptSocialLoginConsent",
-            fronteggApp.shouldPromptSocialLoginConsent
-        )
-        val jsObject = nativeModuleFunctions.toString()
-        view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
+
+        if (webViewStatusCode >= 400) {
+            checkIfFronteggError(view, url, lastErrorResponse)
+            webViewStatusCode = 200
+            lastErrorResponse = null
+        } else {
+            val fronteggApp = FronteggApp.getInstance()
+            val nativeModuleFunctions = JSONObject()
+            nativeModuleFunctions.put(
+                "loginWithSocialLogin",
+                fronteggApp.handleLoginWithSocialLogin
+            )
+            nativeModuleFunctions.put("loginWithSSO", fronteggApp.handleLoginWithSSO)
+            nativeModuleFunctions.put(
+                "shouldPromptSocialLoginConsent",
+                fronteggApp.shouldPromptSocialLoginConsent
+            )
+            val jsObject = nativeModuleFunctions.toString()
+            view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
+        }
 
     }
 
@@ -114,24 +126,48 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         super.onReceivedError(view, request, error)
     }
 
-    private fun checkIfFronteggError(view: WebView?, url: String?, status: Int? = null) {
+    private fun checkIfFronteggError(
+        view: WebView?,
+        url: String?,
+        errorResponse: WebResourceResponse?
+    ) {
         if (view == null || url == null) {
             return
         }
+        val status = errorResponse?.statusCode
+
+        if (url.startsWith("${FronteggAuth.instance.baseUrl}/oauth/authorize")) {
+            val reloadScript =
+                "setTimeout(()=>window.location.href=\"${url.replace("\"", "\\\"")}\", 4000)"
+            val jsCode = "(function(){\n" +
+                    "                var script = document.createElement('script');\n" +
+                    "                script.innerHTML=`$reloadScript`;" +
+                    "                document.body.appendChild(script)\n" +
+                    "            })()"
+            view.evaluateJavascript(jsCode, null)
+            FronteggAuth.instance.isLoading.value = false
+            return
+        }
+
+
         view.evaluateJavascript("document.body.innerText") { result ->
             try {
                 var text = result
                 if (text == null) {
                     return@evaluateJavascript
                 }
+
+                var error = ""
+
                 var json = JsonParser.parseString(text)
                 while (!json.isJsonObject) {
                     text = json.asString
                     json = JsonParser.parseString(text)
                 }
-                val error = json.asJsonObject.get("errors").asJsonArray.map {
+                error = json.asJsonObject.get("errors").asJsonArray.map {
                     it.asString
                 }.joinToString("\n")
+
 
                 Log.e(TAG, "Frontegg ERROR: $error")
 
@@ -153,12 +189,22 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         request: WebResourceRequest?,
         errorResponse: WebResourceResponse?
     ) {
-        if (view!!.url == request?.url.toString()) {
-            Log.d(TAG, "onReceivedHttpError: Direct load url, ${request?.url?.path}")
+
+        if (view == null || request == null) {
+            return
+        }
+        val requestUrl = request.url
+        val authorizeUrlPrefix = "${FronteggAuth.instance.baseUrl}/oauth/authorize"
+        if (view.url == requestUrl.toString()
+            || requestUrl.toString().startsWith(authorizeUrlPrefix)
+        ) {
+            Log.d(TAG, "onReceivedHttpError: Direct load url, ${requestUrl.path}")
+            webViewStatusCode = errorResponse?.statusCode ?: 200
+            lastErrorResponse = errorResponse
         } else {
             Log.d(TAG, "onReceivedHttpError: HTTP api call, ${request?.url?.path}")
         }
-        checkIfFronteggError(view, request?.url.toString(), errorResponse?.statusCode)
+
         super.onReceivedHttpError(view, request, errorResponse)
     }
 
