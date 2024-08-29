@@ -4,8 +4,10 @@ package com.frontegg.android.services
 import android.app.job.JobParameters
 import android.app.job.JobService
 import android.util.Log
+import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import java.net.SocketTimeoutException
+import java.time.Instant
 
 class RefreshTokenService : JobService() {
 
@@ -14,20 +16,13 @@ class RefreshTokenService : JobService() {
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        Log.d(TAG, "Job started")
-
-        // Perform your background task here
+        Log.d(TAG, "Job started, (${Instant.now().toEpochMilli() - FronteggApp.getInstance().lastJobStart} ms)")
         performBackgroundTask(params)
-
-        // Return true if the job is still running, false if it is completed
-        // This example returns false, indicating the job is finished
         return true
     }
 
     override fun onStopJob(params: JobParameters?): Boolean {
         Log.d(TAG, "Job stopped before completion")
-
-        // Cleanup if necessary. Return true to reschedule the job if needed
         return false
     }
 
@@ -45,7 +40,11 @@ class RefreshTokenService : JobService() {
                 FronteggAuth.instance.accessToken.value = null
                 FronteggAuth.instance.isLoading.value = true
                 isError = true
+                if(e is SocketTimeoutException) {
+                    FronteggAuth.instance.scheduleTimer(20000)
+                }
             } finally {
+                FronteggApp.getInstance().lastJobStart = Instant.now().toEpochMilli()
                 // Notify the job manager that the job has been completed
                 jobFinished(params, isError)
             }
