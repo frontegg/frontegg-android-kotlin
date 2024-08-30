@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.pm.PackageManager.MATCH_ALL
+import android.os.Handler
 import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -37,7 +38,8 @@ class FronteggApp private constructor(
     val packageName: String = context.packageName
     var appInForeground = true
 
-    var lastJobStart:Long = Instant.now().toEpochMilli();
+    var lastJobStart: Long = Instant.now().toEpochMilli();
+
     companion object {
 
         @SuppressLint("StaticFieldLeak")
@@ -69,7 +71,7 @@ class FronteggApp private constructor(
 
             val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
 
-            ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
+
 
             instance = FronteggApp(
                 context = context,
@@ -81,6 +83,10 @@ class FronteggApp private constructor(
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass
             )
+
+            Handler(context.mainLooper).post {
+                ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
+            }
         }
 
         public fun initWithRegions(
@@ -135,11 +141,13 @@ class FronteggApp private constructor(
                     getInstance().appInForeground = false
                     getInstance().auth.refreshTokenWhenNeeded()
                 }
+
                 Lifecycle.Event.ON_START -> {
                     Log.d(TAG, "ON_START")
                     getInstance().appInForeground = true
                     getInstance().auth.refreshTokenWhenNeeded()
                 }
+
                 else -> {}
             }
         }
