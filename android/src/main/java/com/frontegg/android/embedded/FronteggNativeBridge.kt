@@ -42,7 +42,6 @@ class FronteggNativeBridge(val context: Context) {
 
             val authorizationUrl = Uri.parse(generatedUrl.first)
 
-            Log.d("FronteggNativeBridge", "directLoginWithContext(${authorizationUrl})")
             if (FronteggApp.getInstance().useChromeCustomTabs) {
                 val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(false).build()
                 customTabsIntent.intent.setPackage("com.android.chrome");

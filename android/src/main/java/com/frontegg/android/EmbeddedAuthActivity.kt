@@ -116,6 +116,7 @@ class EmbeddedAuthActivity : Activity() {
         Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
         if (it.value) {
             runOnUiThread {
+                onAuthFinishedCallback?.invoke()
                 navigateToAuthenticated()
             }
         }
@@ -140,6 +141,9 @@ class EmbeddedAuthActivity : Activity() {
 
 
         if (directLoginLaunchedDone) {
+            onAuthFinishedCallback?.invoke()
+            FronteggAuth.instance.isLoading.value = false
+            FronteggAuth.instance.showLoader.value = false
             setResult(RESULT_OK)
             finish()
             return
@@ -177,6 +181,8 @@ class EmbeddedAuthActivity : Activity() {
         const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
+        var onAuthFinishedCallback: (() -> Unit)? = null // Store callback
+
 
         fun authenticate(activity: Activity) {
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
@@ -187,12 +193,13 @@ class EmbeddedAuthActivity : Activity() {
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
 
-        fun directLoginAction(activity: Activity, type: String, data: String) {
+        fun directLoginAction(activity: Activity, type: String, data: String, callback: (() -> Unit)? = null) {
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
             intent.putExtra(DIRECT_LOGIN_ACTION_LAUNCHED, true)
             intent.putExtra(DIRECT_LOGIN_ACTION_TYPE, type)
             intent.putExtra(DIRECT_LOGIN_ACTION_DATA, data)
+            onAuthFinishedCallback = callback
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
 
 
