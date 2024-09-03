@@ -74,7 +74,7 @@ class NavigationActivity : AppCompatActivity() {
     private var lastVisibilityState = View.VISIBLE
     private val onShowLoaderChange: Consumer<NullableObject<Boolean>> = Consumer {
 
-        Log.d(TAG, "showLoader: ${it.value}")
+        Log.d(TAG, "showLoader: ${it.value}, initializing: ${FronteggAuth.instance.initializing.value}")
         runOnUiThread {
             if (it.value) {
                 supportActionBar?.hide()

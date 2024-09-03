@@ -1,6 +1,7 @@
 package com.frontegg.demo
 
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -41,7 +42,10 @@ class AuthFragment : Fragment() {
 
         binding.googleLoginButton.setOnClickListener {
 
-            FronteggAuth.instance.directLoginAction(requireActivity(), "social-login", "google")
+            FronteggAuth.instance.directLoginAction(requireActivity(), "social-login", "google", callback = {
+
+                Log.d("AuthFragment", "Direct login action callback")
+            })
         }
     }
 
