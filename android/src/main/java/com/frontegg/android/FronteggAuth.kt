@@ -354,9 +354,9 @@ class FronteggAuth(
         }
     }
 
-    fun directLoginAction(activity: Activity, type: String, data: String) {
+    fun directLoginAction(activity: Activity, type: String, data: String, callback: (() -> Unit)? = null) {
         if (FronteggApp.getInstance().isEmbeddedMode) {
-            EmbeddedAuthActivity.directLoginAction(activity, type, data)
+            EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)
         } else {
             Log.w(TAG, "Direct login action is not supported in non-embedded mode")
         }
