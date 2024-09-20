@@ -34,13 +34,13 @@ class RefreshTokenService : JobService() {
             try {
                 FronteggAuth.instance.sendRefreshToken()
                 Log.d(TAG, "Job finished")
-            }  catch (e: Exception) {
+            } catch (e: Exception) {
                 Log.e(TAG, "Job unknown error occurred", e)
                 // Catch unhandled exception
                 FronteggAuth.instance.accessToken.value = null
                 FronteggAuth.instance.isLoading.value = true
                 isError = true
-                if(e is SocketTimeoutException) {
+                if (e is SocketTimeoutException) {
                     FronteggAuth.instance.scheduleTimer(20000)
                 }
             } finally {
@@ -51,3 +51,5 @@ class RefreshTokenService : JobService() {
         }.start()
     }
 }
+
+

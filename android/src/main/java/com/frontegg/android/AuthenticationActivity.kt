@@ -24,6 +24,9 @@ class AuthenticationActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        setContentView(R.layout.default_frontegg_loader)
+        @Suppress("DEPRECATION")
+        overridePendingTransition(R.anim.fadein, R.anim.fadeout)
         customTabLaunched = savedInstanceState?.getBoolean(CUSTOM_TAB_LAUNCHED, false) ?: false
     }
 
@@ -59,13 +62,15 @@ class AuthenticationActivity : Activity() {
             if (code != null) {
                 Log.d(TAG, "Got intent with oauth callback")
                 FronteggAuth.instance.isLoading.value = true
-                FronteggAuth.instance.handleHostedLoginCallback(code, null, this)
 
-                if(FronteggApp.getInstance().useChromeCustomTabs && FronteggApp.getInstance().isEmbeddedMode) {
-                    EmbeddedAuthActivity.afterAuthentication(this)
-                }else {
-                    setResult(RESULT_OK)
-                    finish()
+
+                FronteggAuth.instance.handleHostedLoginCallback(code, null, this) {
+                    if (FronteggApp.getInstance().useChromeCustomTabs && FronteggApp.getInstance().isEmbeddedMode) {
+                        EmbeddedAuthActivity.afterAuthentication(this)
+                    } else {
+                        setResult(RESULT_OK)
+                        finish()
+                    }
                 }
                 return
             }

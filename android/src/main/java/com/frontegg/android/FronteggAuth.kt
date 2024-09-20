@@ -275,7 +275,8 @@ class FronteggAuth(
     fun handleHostedLoginCallback(
         code: String,
         webView: WebView? = null,
-        activity: Activity? = null
+        activity: Activity? = null,
+        callback: (() -> Unit)? = null
     ): Boolean {
 
         val codeVerifier = credentialManager.getCodeVerifier()
@@ -289,6 +290,7 @@ class FronteggAuth(
             val data = api.exchangeToken(code, redirectUrl, codeVerifier)
             if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
+                callback?.invoke()
             } else {
                 Log.e(TAG, "Failed to exchange token")
                 if (webView != null) {
@@ -297,7 +299,7 @@ class FronteggAuth(
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
                     }
-                } else if (activity != null) {
+                } else if (activity != null && callback == null) {
                     login(activity)
                 }
 
