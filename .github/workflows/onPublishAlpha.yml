@@ -1,0 +1,48 @@
+name: "(▶) Publish Alpha Version"
+on:
+  workflow_dispatch:
+
+env:
+  CI: true
+  LANG: en_US.UTF-8
+  API_LEVEL: 29
+
+concurrency:
+  group: ci-publish-alpha-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  createAlphaVersion:
+    name: 'Create Alpha Version'
+    runs-on: macos-latest-xl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build Libraries
+        shell: bash
+        run: ./gradlew :app:build --no-daemon
+
+
+
+      - name: Set Alpha Version
+        id: incremented-alpha-version
+        uses: ./.github/actions/update-gradle-version
+        with:
+          type: alpha
+
+      - name: prepare release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        run: ./gradlew publish --no-daemon --no-parallel
