@@ -31,3 +31,18 @@ jobs:
         shell: bash
         run: ./gradlew :app:build --no-daemon
 
+      - name: Set Alpha Version
+        id: incremented-alpha-version
+        uses: ./.github/actions/update-gradle-version
+        with:
+          type: alpha
+
+      - name: prepare release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
+          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
+          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
+        run: ./gradlew publish --no-daemon --no-parallel
+
