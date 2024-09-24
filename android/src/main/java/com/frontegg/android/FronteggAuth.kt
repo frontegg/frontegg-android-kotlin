@@ -331,7 +331,6 @@ class FronteggAuth(
                 api.logout(logoutCookies, logoutAccessToken)
             }
 
-            isLoading.value = true
             isAuthenticated.value = false
             accessToken.value = null
             refreshToken.value = null
