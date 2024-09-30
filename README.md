@@ -441,7 +441,7 @@ of `com.frontegg.android.EmbeddedAuthActivity`
             <category android:name="android.intent.category.BROWSABLE"/>
 
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                  android:pathPrefix="/${package_name}/android/oauth/callback"
+                  android:pathPrefix="/oauth/account/redirect/android/${package_name}"
                   android:scheme="https"/>
         </intent-filter>
         <intent-filter>
