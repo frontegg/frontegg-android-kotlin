@@ -117,6 +117,7 @@ class EmbeddedAuthActivity : Activity() {
         if (it.value) {
             runOnUiThread {
                 onAuthFinishedCallback?.invoke()
+                onAuthFinishedCallback = null
                 navigateToAuthenticated()
             }
         }
@@ -142,6 +143,7 @@ class EmbeddedAuthActivity : Activity() {
 
         if (directLoginLaunchedDone) {
             onAuthFinishedCallback?.invoke()
+            onAuthFinishedCallback = null
             FronteggAuth.instance.isLoading.value = false
             FronteggAuth.instance.showLoader.value = false
             setResult(RESULT_OK)
@@ -193,7 +195,12 @@ class EmbeddedAuthActivity : Activity() {
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
 
-        fun directLoginAction(activity: Activity, type: String, data: String, callback: (() -> Unit)? = null) {
+        fun directLoginAction(
+            activity: Activity,
+            type: String,
+            data: String,
+            callback: (() -> Unit)? = null
+        ) {
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
             intent.putExtra(DIRECT_LOGIN_ACTION_LAUNCHED, true)

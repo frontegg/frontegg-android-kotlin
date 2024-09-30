@@ -1,26 +1,25 @@
-name: Push Workflow
-
+name: "(▶) Publish Alpha Version"
 on:
-  push:
-    branches-ignore:
-      - 'master'
-      - 'release/next'
+  workflow_dispatch:
+
 env:
   CI: true
   LANG: en_US.UTF-8
   API_LEVEL: 29
 
 concurrency:
-  group: ci-push-${{ github.ref }}
+  group: ci-publish-alpha-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
-  build-and-test:
-    name: Build And Test
+  createAlphaVersion:
+    name: 'Create Alpha Version'
     runs-on: macos-latest-xl
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+        with:
+          fetch-depth: "0"
 
       - name: Setup
         uses: ./.github/actions/setup
@@ -30,6 +29,8 @@ jobs:
       - name: Build Libraries
         shell: bash
         run: ./gradlew :app:build --no-daemon
+
+
 
       - name: Set Alpha Version
         id: incremented-alpha-version
@@ -45,4 +46,3 @@ jobs:
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
         run: ./gradlew publish --no-daemon --no-parallel
-

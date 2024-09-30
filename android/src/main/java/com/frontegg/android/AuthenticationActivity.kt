@@ -59,11 +59,11 @@ class AuthenticationActivity : Activity() {
             if (code != null) {
                 Log.d(TAG, "Got intent with oauth callback")
                 FronteggAuth.instance.isLoading.value = true
-                FronteggAuth.instance.handleHostedLoginCallback(code, null, this)
 
-                if(FronteggApp.getInstance().useChromeCustomTabs && FronteggApp.getInstance().isEmbeddedMode) {
+                FronteggAuth.instance.handleHostedLoginCallback(code, null, this)
+                if (FronteggApp.getInstance().useChromeCustomTabs && FronteggApp.getInstance().isEmbeddedMode) {
                     EmbeddedAuthActivity.afterAuthentication(this)
-                }else {
+                } else {
                     setResult(RESULT_OK)
                     finish()
                 }
