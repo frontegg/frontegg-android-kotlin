@@ -157,14 +157,14 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                     return@evaluateJavascript
                 }
 
-                var error = ""
+
 
                 var json = JsonParser.parseString(text)
                 while (!json.isJsonObject) {
                     text = json.asString
                     json = JsonParser.parseString(text)
                 }
-                error = json.asJsonObject.get("errors").asJsonArray.map {
+                val error = json.asJsonObject.get("errors").asJsonArray.map {
                     it.asString
                 }.joinToString("\n")
 
@@ -202,7 +202,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             webViewStatusCode = errorResponse?.statusCode ?: 200
             lastErrorResponse = errorResponse
         } else {
-            Log.d(TAG, "onReceivedHttpError: HTTP api call, ${request?.url?.path}")
+            Log.d(TAG, "onReceivedHttpError: HTTP api call, ${request.url?.path}")
         }
 
         super.onReceivedHttpError(view, request, errorResponse)

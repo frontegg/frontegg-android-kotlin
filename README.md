@@ -534,36 +534,34 @@ android {
 
 If `minifyEnabled` and `shrinkResources` is true follow the instruction below:
 
-### Keep `google.gson.reflect` classes
-
-Add the below instruction to your `proguard-rules.pro` according to https://stackoverflow.com/a/76224937:
+### Modify `proguard-rules.pro`:
 
 ```
-# Gson uses generic type information stored in a class file when working with
-# fields. Proguard removes such information by default, keep it.
+# Gson relies on generic type information stored in class files when working with fields. 
+# ProGuard removes this information by default, so we need to retain it.
 -keepattributes Signature
 
-# This is also needed for R8 in compat mode since multiple 
-# optimizations will remove the generic signature such as class 
-# merging and argument removal. See: 
+# according to https://stackoverflow.com/a/76224937
+# This is also required for R8 in compatibility mode, as several optimizations 
+# (such as class merging and argument removal) may remove the generic signature.
+# For more information, see:
 # https://r8.googlesource.com/r8/+/refs/heads/main/compatibility-faq.md#troubleshooting-gson-gson
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
 
-# Optional. For using GSON @Expose annotation
+# Retain GSON @Expose annotation attributes
 -keepattributes AnnotationDefault,RuntimeVisibleAnnotations
--keep class com.google.gson.reflect.TypeToken { <fields>; } 
+-keep class com.google.gson.reflect.TypeToken { <fields>; }
 -keepclassmembers class **$TypeAdapterFactory { <fields>; }
-```
 
-### Keep Frontegg models
-
-Add the below instruction to your `proguard-rules.pro`:
-
-```
+# Keep Frontegg classes
 -keep class com.frontegg.android.utils.JWT { *; }
 -keep class com.frontegg.android.models.** { *; }
+
+# Retain Tink classes used for shared preferences encryption
+-keep class com.google.crypto.tink.** { *; }
 ```
+
 
 ## Usage
 
