@@ -33,8 +33,14 @@ jobs:
       - name: Build release test apk
         run: ./gradlew :embedded:assembleRelease -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/release.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androidreleasekey" -Pandroid.injected.signing.key.password="android"
 
-      - name: Upload a Build Artifact
+      - name: Upload a Assemble Debug Artifact
         uses: actions/upload-artifact@v3.1.3
         with:
-          name: dsTemplate.apk
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: test-debug.apk
+          path: embedded/build/outputs/apk/debug/embedded-debug.apk
+
+      - name: Upload a Assemble Release Artifact
+        uses: actions/upload-artifact@v3.1.3
+        with:
+          name: test-release.apk
+          path: embedded/build/outputs/apk/release/embedded-release.apk
