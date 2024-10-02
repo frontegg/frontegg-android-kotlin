@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
-import androidx.security.crypto.MasterKeys
+import androidx.security.crypto.MasterKey
 import com.frontegg.android.utils.CredentialKeys
 
 open class CredentialManager(context: Context) {
@@ -19,11 +19,13 @@ open class CredentialManager(context: Context) {
 
 
     init {
-        val masterKeyAlias = MasterKeys.getOrCreate(MasterKeys.AES256_GCM_SPEC)
+        val masterKey = MasterKey.Builder(context)
+            .setKeyScheme(MasterKey.KeyScheme.AES256_GCM)
+            .build()
         sp = EncryptedSharedPreferences.create(
-            SHARED_PREFERENCES_NAME,
-            masterKeyAlias,
             context,
+            SHARED_PREFERENCES_NAME,
+            masterKey,
             EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV,
             EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
         )

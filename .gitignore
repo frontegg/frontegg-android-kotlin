@@ -17,3 +17,4 @@ embedded/build
 
 toolchains.xml
 settings.xml
+embedded/release

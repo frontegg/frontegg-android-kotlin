@@ -3,8 +3,8 @@ package com.frontegg.android.utils
 
 fun generateErrorPage(
     message: String,
-    status: Int? = null,
-    error: String? = null,
+    @Suppress("UNUSED_PARAMETER") status: Int? = null,
+    @Suppress("UNUSED_PARAMETER") error: String? = null,
     url: String? = null
 ): String {
     return """
