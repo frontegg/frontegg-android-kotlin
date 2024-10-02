@@ -9,12 +9,12 @@ def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
 
 android {
     namespace 'com.frontegg.demo'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         applicationId "com.frontegg.demo"
         minSdk 26
-        targetSdk 34
+        targetSdk 35
         versionCode 1
         versionName "1.0"
 
