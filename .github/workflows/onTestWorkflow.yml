@@ -1,0 +1,40 @@
+name: "(▶) E2E Test"
+on:
+  push:
+
+env:
+  CI: true
+  LANG: en_US.UTF-8
+  API_LEVEL: 29
+
+concurrency:
+  group: ci-publish-alpha-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  uploadApk:
+    name: 'Upload apk'
+    runs-on: macos-latest-xl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Build debug test apk
+        run: ./gradlew :embedded:assembleDebug -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/debug.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androiddebugkey" -Pandroid.injected.signing.key.password="android"
+
+      - name: Build release test apk
+        run: ./gradlew :embedded:assembleRelease -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/release.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androidreleasekey" -Pandroid.injected.signing.key.password="android"
+
+      - name: Upload a Build Artifact
+        uses: actions/upload-artifact@v3.1.3
+        with:
+          name: dsTemplate.apk
+          path: app/build/outputs/apk/debug/app-debug.apk

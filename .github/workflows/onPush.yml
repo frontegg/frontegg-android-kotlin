@@ -30,4 +30,3 @@ jobs:
       - name: Build Libraries
         shell: bash
         run: ./gradlew :app:build --no-daemon
-
