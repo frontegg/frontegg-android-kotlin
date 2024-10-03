@@ -8,7 +8,7 @@ env:
   API_LEVEL: 29
 
 concurrency:
-  group: ci-publish-alpha-${{ github.ref }}
+  group: ci-e2e-test-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
