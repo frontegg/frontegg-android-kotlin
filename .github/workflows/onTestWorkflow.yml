@@ -27,11 +27,25 @@ jobs:
           github_token: ${{ secrets.GITHUB_TOKEN }}
 
 
+      - name: Config root certificate for testing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const securityConfig = `<network-security-config>\n    <base-config>\n        <trust-anchors>\n            <!-- Trust preinstalled CAs -->\n            <certificates src="system" />\n            <!-- Additionally trust user added CAs -->\n            <certificates src="user" />\n        </trust-anchors>\n    </base-config>\n</network-security-config>`
+            fs.mkdirSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/res/xml'),  { recursive: true });
+            fs.writeFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/res/xml/network_security_config.xml'), securityConfig, 'utf8');
+            
+            let manifest = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/AndroidManifest.xml'), 'utf8');
+            manifest = manifest.replace(/<application/g, '<application android:networkSecurityConfig="@xml/network_security_config"');
+            fs.writeFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/AndroidManifest.xml'), manifest, 'utf8');
+
       - name: Build debug test apk
-        run: ./gradlew :embedded:assembleDebug -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/debug.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androiddebugkey" -Pandroid.injected.signing.key.password="android"
+        run: ./gradlew clean :embedded:assembleDebug -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/debug.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androiddebugkey" -Pandroid.injected.signing.key.password="android"
 
       - name: Build release test apk
-        run: ./gradlew :embedded:assembleRelease -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/release.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androidreleasekey" -Pandroid.injected.signing.key.password="android"
+        run: ./gradlew clean :embedded:assembleRelease -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/release.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androidreleasekey" -Pandroid.injected.signing.key.password="android"
 
       - name: Upload a Assemble Debug Artifact
         uses: actions/upload-artifact@v4.4.0
