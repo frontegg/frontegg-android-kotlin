@@ -221,10 +221,15 @@ the application manifest:
     <application>
         <!-- ... -->
 
-        <activity android:name="com.frontegg.android.EmbeddedAuthActivity"
-                  tools:replace="android:enabled" android:enabled="false"/>
-        <activity android:name="com.frontegg.android.HostedAuthActivity"
-                  tools:replace="android:enabled" android:enabled="true"/>
+        <activity
+            android:name="com.frontegg.android.EmbeddedAuthActivity"
+            android:enabled="false"
+            tools:replace="android:enabled" />
+        
+        <activity
+            android:name="com.frontegg.android.HostedAuthActivity"
+            android:enabled="true"
+            tools:replace="android:enabled" />
 
         <!-- ... -->
     </application>
