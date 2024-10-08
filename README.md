@@ -148,8 +148,8 @@ Add `INTERNET` permission to the app's manifest file.
 
 ```xml
 
-<uses-permission android:name="android.permission.INTERNET"/><uses-permission
-android:name="android.permission.POST_NOTIFICATIONS"/>
+<uses-permission android:name="android.permission.INTERNET"/>
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS"/>
 ```
 
 ### Initialize FronteggApp
