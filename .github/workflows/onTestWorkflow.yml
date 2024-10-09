@@ -44,10 +44,10 @@ jobs:
       - name: Clean build
         run: ./gradlew clean
       - name: Build debug test apk
-        run: ./gradlew :embedded:assembleDebug -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/debug.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androiddebugkey" -Pandroid.injected.signing.key.password="android"
+        run: ./gradlew :embedded:assembleDebug
 
       - name: Build release test apk
-        run: ./gradlew :embedded:assembleRelease -Pandroid.injected.signing.store.file="${{ github.workspace }}/.github/test-jks/release.keystore" -Pandroid.injected.signing.store.password="android" -Pandroid.injected.signing.key.alias="androidreleasekey" -Pandroid.injected.signing.key.password="android"
+        run: ./gradlew :embedded:assembleRelease
 
       - name: Upload a Assemble Debug Artifact
         uses: actions/upload-artifact@v4.4.0
@@ -60,3 +60,16 @@ jobs:
         with:
           name: test-release.apk
           path: embedded/build/outputs/apk/release/embedded-release.apk
+
+      - name: Trigger Private Repo Workflow
+        run: |
+          # Retrieve artifact URLs
+          artifacts=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                             -H "Accept: application/vnd.github.v3+json" \
+                             https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
+                             | jq -r '.artifacts[] | select(.name | startswith("android-apk")) | .archive_download_url')
+
+          # Convert the artifact URLs to a JSON list
+          apk_urls=$(echo "$artifacts" | jq -Rsc 'split("\n") | map(select(length > 0))')
+
+          echo "artifact urls: $apk_urls"

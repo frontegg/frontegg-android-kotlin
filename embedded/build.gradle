@@ -30,11 +30,29 @@ android {
 
     }
 
+    signingConfigs {
+        release {
+            storeFile file(project.property("RELEASE_STORE_FILE"))
+            storePassword project.property("RELEASE_STORE_PASSWORD")
+            keyAlias project.property("RELEASE_KEY_ALIAS")
+            keyPassword project.property("RELEASE_KEY_PASSWORD")
+        }
+        debug {
+            storeFile file(project.property("DEBUG_STORE_FILE"))
+            storePassword project.property("DEBUG_STORE_PASSWORD")
+            keyAlias project.property("DEBUG_KEY_ALIAS")
+            keyPassword project.property("DEBUG_KEY_PASSWORD")
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {
