@@ -1,0 +1,75 @@
+name: "(▶) E2E Test"
+on:
+  push:
+
+env:
+  CI: true
+  LANG: en_US.UTF-8
+  API_LEVEL: 34
+
+concurrency:
+  group: ci-e2e-test-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  uploadApk:
+    name: 'Upload apk'
+    runs-on: macos-latest-xl
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.0
+        with:
+          fetch-depth: "0"
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+
+      - name: Config root certificate for testing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+            const securityConfig = `<network-security-config>\n    <base-config>\n        <trust-anchors>\n            <!-- Trust preinstalled CAs -->\n            <certificates src="system" />\n            <!-- Additionally trust user added CAs -->\n            <certificates src="user" />\n        </trust-anchors>\n    </base-config>\n</network-security-config>`
+            fs.mkdirSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/res/xml'),  { recursive: true });
+            fs.writeFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/res/xml/network_security_config.xml'), securityConfig, 'utf8');
+            
+            let manifest = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/AndroidManifest.xml'), 'utf8');
+            manifest = manifest.replace(/<application/g, '<application android:networkSecurityConfig="@xml/network_security_config"');
+            fs.writeFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/AndroidManifest.xml'), manifest, 'utf8');
+
+      - name: Clean build
+        run: ./gradlew clean
+      - name: Build debug test apk
+        run: ./gradlew :embedded:assembleDebug
+
+      - name: Build release test apk
+        run: ./gradlew :embedded:assembleRelease
+
+      - name: Upload a Assemble Debug Artifact
+        uses: actions/upload-artifact@v4.4.0
+        with:
+          name: test-debug.apk
+          path: embedded/build/outputs/apk/debug/embedded-debug.apk
+
+      - name: Upload a Assemble Release Artifact
+        uses: actions/upload-artifact@v4.4.0
+        with:
+          name: test-release.apk
+          path: embedded/build/outputs/apk/release/embedded-release.apk
+
+      - name: Trigger Private Repo Workflow
+        run: |
+          # Retrieve artifact URLs
+          artifacts=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+                             -H "Accept: application/vnd.github.v3+json" \
+                             https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
+                             | jq -r '.artifacts[] | select(.name | startswith("android-apk")) | .archive_download_url')
+
+          # Convert the artifact URLs to a JSON list
+          apk_urls=$(echo "$artifacts" | jq -Rsc 'split("\n") | map(select(length > 0))')
+
+          echo "artifact urls: $apk_urls"
