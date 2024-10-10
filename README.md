@@ -450,7 +450,7 @@ Groovy:
 ```groovy
 
 android {
-    //  remove this lines:
+    //  remove these lines:
     //  buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
     //  buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
 }
@@ -461,7 +461,7 @@ Kotlin:
 ```kotlin
 
 android {
-    //  remove this lines:
+    //  remove these lines:
     //  buildConfigField("String", "FRONTEGG_DOMAIN", "\"$fronteggDomain\"")
     //  buildConfigField("String", "FRONTEGG_CLIENT_ID", "\"$fronteggClientId\"")
 }
