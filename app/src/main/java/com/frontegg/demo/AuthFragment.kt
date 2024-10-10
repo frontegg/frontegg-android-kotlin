@@ -7,7 +7,6 @@ import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentAuthBinding
-import io.reactivex.rxjava3.disposables.Disposable
 
 /**
  * A simple [Fragment] subclass as the default destination in the navigation.
@@ -19,7 +18,6 @@ class AuthFragment : Fragment() {
     // This property is only valid between onCreateView and
     // onDestroyView.
     private val binding get() = _binding!!
-    private val disposables: ArrayList<Disposable> = arrayListOf()
 
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
@@ -42,9 +40,5 @@ class AuthFragment : Fragment() {
     override fun onDestroyView() {
         super.onDestroyView()
         _binding = null
-        disposables.forEach {
-            it.dispose()
-        }
-        disposables.clear()
     }
 }
