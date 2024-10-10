@@ -31,6 +31,9 @@ and integrate them into their SaaS portals in up to 5 lines of code.
 
 - Android SDK 26+
   Set defaultConfig's minSDK to 26+ in build.gradle:
+  
+Groovy:
+  
   ```groovy
   android {
       defaultConfig {
@@ -38,6 +41,9 @@ and integrate them into their SaaS portals in up to 5 lines of code.
       }
   }
   ```
+  
+Kotlin:
+  
   ```kotlin
   android {
       defaultConfig {
@@ -47,6 +53,9 @@ and integrate them into their SaaS portals in up to 5 lines of code.
   ```
 - Java 8+
   Set target java 8 byte code for Android and Kotlin plugins respectively build.gradle:
+  
+Groovy:
+  
   ```groovy
   android {
       compileOptions {
@@ -59,6 +68,8 @@ and integrate them into their SaaS portals in up to 5 lines of code.
       }
   }
   ```
+Kotlin:
+  
   ```kotlin
     android {
       compileOptions {
@@ -97,6 +108,8 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
 - Find your app's build.gradle file
 - Add the following to your dependencies section:
 
+Groovy:
+
 ```groovy
     dependencies {
     // Add the Frontegg Android Kotlin SDK
@@ -105,6 +118,9 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
     implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
 }
 ```
+
+Kotlin:
+  
 ```kotlin
     dependencies {
     // Add the Frontegg Android Kotlin SDK
@@ -119,6 +135,8 @@ from [Frontegg Portal Domain](https://portal.frontegg.com/development/settings/d
 To set up your Android minimum sdk version, open the root gradle file at`android/build.gradle`,
 and add/edit the `minSdkVersion` under `buildscript.ext`:
 
+Groovy:
+
 ```groovy
 buildscript {
     ext {
@@ -127,6 +145,9 @@ buildscript {
     }
 }
 ```
+
+Kotlin:
+
 ```kotlin
 android {
     defaultConfig {
@@ -142,6 +163,8 @@ To set up your Android application on to communicate with Frontegg, you have to
 add `buildConfigField` property the
 gradle `android/app/build.gradle`.
 This property will store frontegg hostname (without https) and client id from previous step:
+
+Groovy:
 
 ```groovy
 
@@ -165,6 +188,8 @@ android {
 }
 ```
 
+Kotlin:
+
 ```kotlin
 
 val fronteggDomain = "FRONTEGG_DOMAIN_HOST.com" // without protocol https://
@@ -187,6 +212,8 @@ android {
 Add bundleConfig=true if not exists inside the android section inside the app
 gradle `android/app/build.gradle`
 
+Groovy:
+
 ```groovy
 android {
     buildFeatures {
@@ -194,6 +221,9 @@ android {
     }
 }
 ```
+
+Kotlin:
+
 ```kotlin
 android {
     buildFeatures {
@@ -354,6 +384,8 @@ This guide outlines the steps to configure your Android application to support m
 
 Add `FRONTEGG_APPLICATION_ID` buildConfigField into the `build.gradle` file:
 
+Groovy:
+
 ```groovy
 def fronteggApplicationId = "your-application-id-uuid"
 ...
@@ -362,6 +394,9 @@ android {
     buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
 }
 ```
+
+Kotlin:
+
 ```kotlin
 val fronteggApplicationId = "your-application-id-uuid"
 ...
@@ -405,6 +440,8 @@ This guide outlines the steps to configure your Android application to support m
 
 First, remove buildConfigFields from your `build.gradle` file:
 
+Groovy:
+
 ```groovy
 
 android {
@@ -413,6 +450,9 @@ android {
     //  buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
 }
 ```
+
+Kotlin:
+
 ```kotlin
 
 android {
@@ -597,7 +637,22 @@ android.defaults.buildfeatures.buildconfig=true
 ```
 
 2. Add the below lines to your app/`build.gradle`:
+
+Groovy:
+
 ```gradle
+android {
+    ...
+    buildFeatures {
+        buildConfig = true
+    }
+    ...
+}
+```
+
+Kotlin:
+
+```kotlin
 android {
     ...
     buildFeatures {
