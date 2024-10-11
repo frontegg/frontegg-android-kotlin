@@ -21,3 +21,11 @@
 
 # Retain Tink classes used for shared preferences encryption
 -keep class com.google.crypto.tink.** { *; }
+
+-if class androidx.credentials.CredentialManager
+-keep class androidx.credentials.playservices.** {
+  *;
+}
+
+-keep public class android.net.http.SslError
+-keep public class android.webkit.WebViewClient

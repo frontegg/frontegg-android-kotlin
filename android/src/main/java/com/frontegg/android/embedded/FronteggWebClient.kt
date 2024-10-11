@@ -33,7 +33,7 @@ import okhttp3.Request
 import org.json.JSONObject
 
 
-class FronteggWebClient(val context: Context) : WebViewClient() {
+class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWebListener) : WebViewClient() {
     companion object {
         private val TAG = FronteggWebClient::class.java.simpleName
     }
@@ -45,6 +45,9 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         super.onPageStarted(view, url, favicon)
         Log.d(TAG, "onPageStarted $url")
         FronteggAuth.instance.isLoading.value = true
+
+        passkeyWebListener.onPageStarted();
+        view?.evaluateJavascript(PasskeyWebListener.INJECTED_VAL, null)
     }
 
     override fun onPageFinished(view: WebView?, url: String?) {

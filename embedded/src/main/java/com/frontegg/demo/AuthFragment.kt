@@ -36,7 +36,9 @@ class AuthFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.loginButton.setOnClickListener {
-            FronteggAuth.instance.login(requireActivity())
+            FronteggAuth.instance.login(requireActivity()) {
+                Log.d("AuthFragment", "Login callback")
+            }
         }
 
         binding.googleLoginButton.setOnClickListener {
