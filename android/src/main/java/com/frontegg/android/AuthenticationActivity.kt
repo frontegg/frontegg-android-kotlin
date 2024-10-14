@@ -104,7 +104,7 @@ class AuthenticationActivity : Activity() {
         private const val CUSTOM_TAB_LAUNCHED = "com.frontegg.android.CUSTOM_TAB_LAUNCHED"
         private val TAG = AuthenticationActivity::class.java.simpleName
 
-        fun authenticate(activity: Activity, loginHint: String?) {
+        fun authenticate(activity: Activity, loginHint: String? = null) {
             val intent = Intent(activity, AuthenticationActivity::class.java)
             val authorizeUri = AuthorizeUrlGenerator().generate(loginHint = loginHint)
             intent.putExtra(AUTH_LAUNCHED, true)

@@ -186,7 +186,7 @@ class EmbeddedAuthActivity : Activity() {
         var onAuthFinishedCallback: (() -> Unit)? = null // Store callback
 
 
-        fun authenticate(activity: Activity, loginHint: String?) {
+        fun authenticate(activity: Activity, loginHint: String? = null) {
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
             val authorizeUri = AuthorizeUrlGenerator().generate(loginHint=loginHint)
