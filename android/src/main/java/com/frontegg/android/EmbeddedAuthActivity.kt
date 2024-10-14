@@ -186,10 +186,10 @@ class EmbeddedAuthActivity : Activity() {
         var onAuthFinishedCallback: (() -> Unit)? = null // Store callback
 
 
-        fun authenticate(activity: Activity) {
+        fun authenticate(activity: Activity, loginHint: String?) {
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
-            val authorizeUri = AuthorizeUrlGenerator().generate()
+            val authorizeUri = AuthorizeUrlGenerator().generate(loginHint=loginHint)
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
