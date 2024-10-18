@@ -22,6 +22,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Setup for `Gradle8+`](#setup-for--gradle8)
 - [Usage](#usage)
     - [Login with Frontegg](#login-with-frontegg)
+    - [Using the SDK](#using-the-sdk)
     - [Logout user](#logout)
     - [Switch Tenant](#switch-tenant)
 
@@ -725,6 +726,29 @@ class FirstFragment : Fragment() {
 }
 
 ```
+
+## Using the SDK
+
+Once the log in process is complete, the SDK will bring your user back to wherever you started the log in process.
+
+At this point, you'll keep using `FronteggAuth.instance` to actually interact with the SDK and get to information you might care about. The instance gives you access to different Rx `ObservableValue` values for use in your project. For example:
+
+- Get the `User` object to get info such as name, email, ID, phone number, or profile picture URL.
+
+```kotlin
+FronteggAuth.instance.user
+
+FronteggAuth.instance.user.value?.email
+
+FronteggAuth.instance.user.value?.name
+```
+
+- Check whether the user is authenticated and "signed in".
+
+```kotlin
+FronteggAuth.instance.isAuthenticated.value
+```
+
 
 ## Logout user
 
