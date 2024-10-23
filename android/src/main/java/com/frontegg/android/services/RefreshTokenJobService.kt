@@ -4,19 +4,23 @@ package com.frontegg.android.services
 import android.app.job.JobParameters
 import android.app.job.JobService
 import android.util.Log
-import com.frontegg.android.FronteggApp
-import com.frontegg.android.FronteggAuth
 import java.net.SocketTimeoutException
 import java.time.Instant
 
-class RefreshTokenService : JobService() {
+class RefreshTokenJobService : JobService() {
+
 
     companion object {
-        private val TAG = RefreshTokenService::class.java.simpleName
+        private val TAG = RefreshTokenJobService::class.java.simpleName
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        Log.d(TAG, "Job started, (${Instant.now().toEpochMilli() - FronteggApp.getInstance().lastJobStart} ms)")
+        Log.d(
+            TAG,
+            "Job started, (${
+                Instant.now().toEpochMilli() - FronteggRefreshTokenTimer.lastJobStart
+            } ms)"
+        )
         performBackgroundTask(params)
         return true
     }
@@ -32,19 +36,19 @@ class RefreshTokenService : JobService() {
         Thread {
             var isError = false
             try {
-                FronteggAuth.instance.sendRefreshToken()
+                FronteggAuthService.instance.sendRefreshToken()
                 Log.d(TAG, "Job finished")
             } catch (e: Exception) {
                 Log.e(TAG, "Job unknown error occurred", e)
                 // Catch unhandled exception
-                FronteggAuth.instance.accessToken.value = null
-                FronteggAuth.instance.isLoading.value = true
+                FronteggAuthService.instance.accessToken.value = null
+                FronteggAuthService.instance.isLoading.value = true
                 isError = true
                 if (e is SocketTimeoutException) {
-                    FronteggAuth.instance.scheduleTimer(20000)
+                    FronteggAuthService.instance.refreshTokenManager.scheduleTimer(20000)
                 }
             } finally {
-                FronteggApp.getInstance().lastJobStart = Instant.now().toEpochMilli()
+                FronteggRefreshTokenTimer.lastJobStart = Instant.now().toEpochMilli()
                 // Notify the job manager that the job has been completed
                 jobFinished(params, isError)
             }

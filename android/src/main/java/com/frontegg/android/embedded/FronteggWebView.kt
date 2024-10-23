@@ -6,13 +6,11 @@ import android.content.pm.PackageManager
 import android.util.AttributeSet
 import android.webkit.CookieManager
 import android.webkit.WebView
-import com.frontegg.android.FronteggApp
-import com.frontegg.android.utils.AuthorizeUrlGenerator
-import okhttp3.internal.userAgent
-import java.util.*
+import com.frontegg.android.services.FronteggInnerStorage
 
 
 open class FronteggWebView : WebView {
+    private val storage = FronteggInnerStorage()
 
     constructor(context: Context) : super(context) {
         initView(context)
@@ -47,7 +45,7 @@ open class FronteggWebView : WebView {
         settings.domStorageEnabled = true
         settings.safeBrowsingEnabled = true
 
-        if (!FronteggApp.getInstance().handleLoginWithSocialLogin) {
+        if (!storage.handleLoginWithSocialLogin) {
             // Note: Using a custom User-Agent to facilitate Google authentication within an
             //       in-app WebView is not generally recommended.
             // This approach can lead to a segregated session that does not share
@@ -56,7 +54,7 @@ open class FronteggWebView : WebView {
             // requirements or to maintain separate session states,
             // but be aware of potential authentication and session management issues.
 
-            val userAgent = FronteggApp.getInstance().customUserAgent ?: getChromeUserAgent()
+            val userAgent = storage.customUserAgent ?: getChromeUserAgent()
             settings.userAgentString = userAgent
         }
 

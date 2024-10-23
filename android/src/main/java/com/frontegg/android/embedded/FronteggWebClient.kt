@@ -15,8 +15,8 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import com.frontegg.android.FronteggApp
-import com.frontegg.android.FronteggAuth
+import com.frontegg.android.services.FronteggAuthService
+import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
@@ -38,13 +38,14 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         private val TAG = FronteggWebClient::class.java.simpleName
     }
 
-    var webViewStatusCode: Int = 200
-    var lastErrorResponse: WebResourceResponse? = null
+    private var webViewStatusCode: Int = 200
+    private var lastErrorResponse: WebResourceResponse? = null
+    private val storage = FronteggInnerStorage()
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         Log.d(TAG, "onPageStarted $url")
-        FronteggAuth.instance.isLoading.value = true
+        FronteggAuthService.instance.isLoading.value = true
     }
 
     override fun onPageFinished(view: WebView?, url: String?) {
@@ -52,18 +53,18 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         Log.d(TAG, "onPageFinished $url")
         when (getOverrideUrlType(Uri.parse(url))) {
             OverrideUrlType.HostedLoginCallback ->
-                FronteggAuth.instance.isLoading.value = true
+                FronteggAuthService.instance.isLoading.value = true
 
             OverrideUrlType.Unknown,
             OverrideUrlType.loginRoutes ->
-                FronteggAuth.instance.isLoading.value = false
+                FronteggAuthService.instance.isLoading.value = false
 
             else ->
-                FronteggAuth.instance.isLoading.value = true
+                FronteggAuthService.instance.isLoading.value = true
         }
 
         if (url?.startsWith("data:text/html,") == true) {
-            FronteggAuth.instance.isLoading.value = false
+            FronteggAuthService.instance.isLoading.value = false
             return
         }
 
@@ -73,16 +74,16 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             webViewStatusCode = 200
             lastErrorResponse = null
         } else {
-            val fronteggApp = FronteggApp.getInstance()
+
             val nativeModuleFunctions = JSONObject()
             nativeModuleFunctions.put(
                 "loginWithSocialLogin",
-                fronteggApp.handleLoginWithSocialLogin
+                storage.handleLoginWithSocialLogin
             )
-            nativeModuleFunctions.put("loginWithSSO", fronteggApp.handleLoginWithSSO)
+            nativeModuleFunctions.put("loginWithSSO", storage.handleLoginWithSSO)
             nativeModuleFunctions.put(
                 "shouldPromptSocialLoginConsent",
-                fronteggApp.shouldPromptSocialLoginConsent
+                storage.shouldPromptSocialLoginConsent
             )
             val jsObject = nativeModuleFunctions.toString()
             view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
@@ -136,7 +137,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
         }
         val status = errorResponse?.statusCode
 
-        if (url.startsWith("${FronteggAuth.instance.baseUrl}/oauth/authorize")) {
+        if (url.startsWith("${storage.baseUrl}/oauth/authorize")) {
             val reloadScript =
                 "setTimeout(()=>window.location.href=\"${url.replace("\"", "\\\"")}\", 4000)"
             val jsCode = "(function(){\n" +
@@ -145,7 +146,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                     "                document.body.appendChild(script)\n" +
                     "            })()"
             view.evaluateJavascript(jsCode, null)
-            FronteggAuth.instance.isLoading.value = false
+            FronteggAuthService.instance.isLoading.value = false
             return
         }
 
@@ -194,7 +195,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             return
         }
         val requestUrl = request.url
-        val authorizeUrlPrefix = "${FronteggAuth.instance.baseUrl}/oauth/authorize"
+        val authorizeUrlPrefix = "${storage.baseUrl}/oauth/authorize"
         if (view.url == requestUrl.toString()
             || requestUrl.toString().startsWith(authorizeUrlPrefix)
         ) {
@@ -252,12 +253,12 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
 
     private fun getOverrideUrlType(url: Uri): OverrideUrlType {
         val urlPath = url.path
-        val hostedLoginCallback = Constants.oauthCallbackUrl(FronteggApp.getInstance().baseUrl);
+        val hostedLoginCallback = Constants.oauthCallbackUrl(storage.baseUrl);
 
         if (url.toString().startsWith(hostedLoginCallback)) {
             return OverrideUrlType.HostedLoginCallback
         }
-        if (urlPath != null && url.toString().startsWith(FronteggApp.getInstance().baseUrl)) {
+        if (urlPath != null && url.toString().startsWith(storage.baseUrl)) {
 
             if (isSocialLoginPath(urlPath)) {
                 return OverrideUrlType.SocialOauthPreLogin
@@ -349,11 +350,11 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             Log.d(TAG, "redirectUri exist, forward navigation to webView")
             return false
         }
-        val baseUrl = FronteggApp.getInstance().baseUrl
+        val baseUrl = storage.baseUrl
         val oauthRedirectUri = socialLoginRedirectUrl(baseUrl)
         val newUri = setUriParameter(uri, "redirectUri", oauthRedirectUri)
 
-        FronteggAuth.instance.isLoading.value = true
+        FronteggAuthService.instance.isLoading.value = true
         try {
             GlobalScope.launch(Dispatchers.IO) {
                 val requestBuilder = Request.Builder()
@@ -373,7 +374,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
                 handler.post {
                     val browserIntent = Intent(Intent.ACTION_VIEW, socialLoginUrl)
                     context.startActivity(browserIntent)
-                    FronteggAuth.instance.isLoading.value = false
+                    FronteggAuthService.instance.isLoading.value = false
                 }
             }
         } catch (e: Exception) {
@@ -409,7 +410,7 @@ class FronteggWebClient(val context: Context) : WebViewClient() {
             return false
         }
 
-        if (FronteggAuth.instance.handleHostedLoginCallback(code, webView)) {
+        if (FronteggAuthService.instance.handleHostedLoginCallback(code, webView)) {
             return true;
         }
 

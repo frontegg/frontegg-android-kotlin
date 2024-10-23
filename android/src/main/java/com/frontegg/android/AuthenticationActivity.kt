@@ -8,11 +8,13 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
+import com.frontegg.android.services.FronteggAuthService
+import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 
 class AuthenticationActivity : Activity() {
-
-    var customTabLaunched = false
+    private val storage = FronteggInnerStorage()
+    private var customTabLaunched = false
     private fun startAuth(url: String) {
         val builder = CustomTabsIntent.Builder()
         builder.setShowTitle(true)
@@ -58,10 +60,10 @@ class AuthenticationActivity : Activity() {
             val code = intent.data?.getQueryParameter("code")
             if (code != null) {
                 Log.d(TAG, "Got intent with oauth callback")
-                FronteggAuth.instance.isLoading.value = true
+                FronteggAuthService.instance.isLoading.value = true
 
-                FronteggAuth.instance.handleHostedLoginCallback(code, null, this)
-                if (FronteggApp.getInstance().useChromeCustomTabs && FronteggApp.getInstance().isEmbeddedMode) {
+                FronteggAuthService.instance.handleHostedLoginCallback(code, null, this)
+                if (storage.useChromeCustomTabs && storage.isEmbeddedMode) {
                     EmbeddedAuthActivity.afterAuthentication(this)
                 } else {
                     setResult(RESULT_OK)

@@ -1,30 +1,20 @@
 package com.frontegg.android.utils
 
-import android.os.Handler
-import android.os.Looper
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 import io.reactivex.rxjava3.subjects.PublishSubject
 
 class NullableObject<K>(var value: K)
 
-class ObservableValue<T>(value: T) {
+abstract class ReadOnlyObservableValue<T>(value: T) {
 
     val observable: PublishSubject<NullableObject<T>> = PublishSubject.create()
 
-    private var nullableObject: NullableObject<T>
-    var value: T
-        set(newValue) {
-            nullableObject.value = newValue
-            observable.onNext(nullableObject)
-        }
+    protected var nullableObject: NullableObject<T> = NullableObject(value)
+    open val value: T
         get() {
             return nullableObject.value
         }
-
-    init {
-        this.nullableObject = NullableObject(value)
-    }
 
     fun subscribe(onNext: Consumer<NullableObject<T>>): Disposable {
         observable.subscribe()
@@ -32,4 +22,16 @@ class ObservableValue<T>(value: T) {
         onNext.accept(nullableObject)
         return disposable
     }
+}
+
+class ObservableValue<T>(value: T) : ReadOnlyObservableValue<T>(value) {
+
+    override var value: T
+        get() {
+            return nullableObject.value
+        }
+        set(newValue) {
+            nullableObject.value = newValue
+            observable.onNext(nullableObject)
+        }
 }

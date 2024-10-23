@@ -9,9 +9,8 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import androidx.browser.customtabs.CustomTabsIntent
 import com.frontegg.android.EmbeddedAuthActivity
-import com.frontegg.android.FronteggApp
+import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
-import com.google.androidbrowserhelper.trusted.LauncherActivity
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -42,7 +41,7 @@ class FronteggNativeBridge(val context: Context) {
 
             val authorizationUrl = Uri.parse(generatedUrl.first)
 
-            if (FronteggApp.getInstance().useChromeCustomTabs) {
+            if (FronteggInnerStorage().useChromeCustomTabs) {
                 val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(false).build()
                 customTabsIntent.intent.setPackage("com.android.chrome");
                 customTabsIntent.intent.setData(authorizationUrl)
