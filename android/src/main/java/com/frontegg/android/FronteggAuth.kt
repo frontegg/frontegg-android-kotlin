@@ -16,8 +16,13 @@ interface FronteggAuth {
     val showLoader: ReadOnlyObservableValue<Boolean>
     val refreshingToken: ReadOnlyObservableValue<Boolean>
 
+    val baseUrl: String
+    val clientId: String
+    val applicationId: String?
     val isMultiRegion: Boolean
+    val regions: List<RegionConfig>
     val selectedRegion: RegionConfig?
+    val isEmbeddedMode: Boolean
 
     fun login(activity: Activity, loginHint: String? = null)
 

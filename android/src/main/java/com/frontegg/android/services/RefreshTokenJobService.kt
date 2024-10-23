@@ -8,8 +8,6 @@ import java.net.SocketTimeoutException
 import java.time.Instant
 
 class RefreshTokenJobService : JobService() {
-
-
     companion object {
         private val TAG = RefreshTokenJobService::class.java.simpleName
     }

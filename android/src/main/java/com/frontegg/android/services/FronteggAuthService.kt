@@ -53,20 +53,20 @@ class FronteggAuthService(
 
     private val api = Api(credentialManager)
     private val storage = FronteggInnerStorage()
-    private var pendingAppLink: String? = null
-    override val isMultiRegion: Boolean = regions.isNotEmpty()
 
-    private val baseUrl: String
+    override val isMultiRegion: Boolean
+        get() = regions.isNotEmpty()
+    override val baseUrl: String
         get() = storage.baseUrl
-    private val clientId: String
+    override val clientId: String
         get() = storage.clientId
-    private val applicationId: String?
+    override val applicationId: String?
         get() = storage.applicationId
-    private val regions: List<RegionConfig>
+    override val regions: List<RegionConfig>
         get() = storage.regions
     override val selectedRegion: RegionConfig?
         get() = storage.selectedRegion
-    private val isEmbeddedMode: Boolean
+    override val isEmbeddedMode: Boolean
         get() = storage.isEmbeddedMode
 
 
@@ -202,7 +202,6 @@ class FronteggAuthService(
             this.accessToken.value = accessToken
             this.user.value = user
             this.isAuthenticated.value = true
-            this.pendingAppLink = null
 
             // Cancel previous job if it exists
             refreshTokenManager.cancelLastTimer()
