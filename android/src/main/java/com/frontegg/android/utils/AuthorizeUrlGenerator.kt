@@ -2,7 +2,8 @@ package com.frontegg.android.utils
 
 import android.net.Uri
 import android.util.Log
-import com.frontegg.android.FronteggApp
+import com.frontegg.android.services.FronteggAuthService
+import com.frontegg.android.services.FronteggInnerStorage
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -11,9 +12,13 @@ class AuthorizeUrlGenerator {
         private val TAG = AuthorizeUrlGenerator::class.java.simpleName
     }
 
-    private var clientId: String = FronteggApp.getInstance().clientId
-    private var applicationId: String? = FronteggApp.getInstance().applicationId
-    private var baseUrl: String = FronteggApp.getInstance().baseUrl
+    private var storage = FronteggInnerStorage()
+    private val clientId: String
+        get() = storage.clientId
+    private val applicationId: String?
+        get() = storage.applicationId
+    private val baseUrl: String
+        get() = storage.baseUrl
 
     private fun createRandomString(length: Int = 16): String {
         val allowedChars = ('A'..'Z') + ('a'..'z') + ('0'..'9')
@@ -42,7 +47,7 @@ class AuthorizeUrlGenerator {
         preserveCodeVerifier: Boolean? = false
     ): Pair<String, String> {
         val nonce = createRandomString()
-        val credentialManager = FronteggApp.getInstance().credentialManager
+        val credentialManager = FronteggAuthService.instance.credentialManager
 
 
         val codeVerifier: String = if (preserveCodeVerifier == true) {
@@ -89,8 +94,6 @@ class AuthorizeUrlGenerator {
             .build().toString()
 
         return Pair(authorizeUrl, codeVerifier)
-
-
     }
 }
 

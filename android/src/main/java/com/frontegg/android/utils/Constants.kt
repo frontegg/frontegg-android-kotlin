@@ -1,6 +1,6 @@
 package com.frontegg.android.utils
 
-import com.frontegg.android.FronteggApp
+import com.frontegg.android.services.FronteggInnerStorage
 
 
 class ApiConstants {
@@ -28,9 +28,9 @@ class Constants {
         fun oauthCallbackUrl(baseUrl: String): String {
 
             val host = baseUrl.substring("https://".length)
-            val app = FronteggApp.getInstance();
-            val packageName = app.packageName
-            val useAssetsLinks = app.useAssetsLinks
+            val storage = FronteggInnerStorage();
+            val packageName = storage.packageName
+            val useAssetsLinks = storage.useAssetsLinks
             return if (useAssetsLinks) {
                 "https://${host}/oauth/account/redirect/android/${packageName}"
             } else {
