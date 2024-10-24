@@ -1,5 +1,8 @@
 package com.frontegg.android.utils
 
+import android.content.ComponentName
+import android.content.Context
+import android.content.pm.PackageManager
 import java.time.Instant
 
 fun Long.calculateTimerOffset(): Long {
@@ -14,5 +17,14 @@ fun Long.calculateTimerOffset(): Long {
         adaptiveRefreshTime.toLong()
     } else {
         (remainingTime - minRefreshWindow).coerceAtLeast(0)
+    }
+}
+
+fun Context.isActivityEnabled(activityClassName: String): Boolean {
+    return try {
+        val componentName = ComponentName(this, activityClassName)
+        packageManager.getActivityInfo(componentName, PackageManager.MATCH_ALL).isEnabled
+    } catch (e: Exception) {
+        false
     }
 }

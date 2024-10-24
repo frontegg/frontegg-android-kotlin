@@ -6,6 +6,13 @@ import io.reactivex.rxjava3.subjects.PublishSubject
 
 class NullableObject<K>(var value: K)
 
+/**
+ * Read only Observable Value.
+ * The value which you can subscribe and listen value changes using the method [subscribe].
+ * @param T is the type of [ReadOnlyObservableValue];
+ * @property observable is the Subject of NullableObject;
+ * @property value is the read only value of [ReadOnlyObservableValue];
+ */
 abstract class ReadOnlyObservableValue<T>(value: T) {
 
     val observable: PublishSubject<NullableObject<T>> = PublishSubject.create()
@@ -16,6 +23,11 @@ abstract class ReadOnlyObservableValue<T>(value: T) {
             return nullableObject.value
         }
 
+    /**
+     * Subscription method of [ReadOnlyObservableValue].
+     * @param onNext is the consumer of [observable].
+     * @return Disposable object for dispose the consumer.
+     */
     fun subscribe(onNext: Consumer<NullableObject<T>>): Disposable {
         observable.subscribe()
         val disposable = observable.subscribe(onNext)

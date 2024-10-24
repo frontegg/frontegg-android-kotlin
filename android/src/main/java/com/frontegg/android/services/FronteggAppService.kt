@@ -80,6 +80,10 @@ class FronteggAppService(
 
         FronteggAuthService.instance.reinitWithRegion()
 
-        Log.i(FronteggApp.TAG, "Frontegg Initialized successfully (region: ${regionKey})")
+        Log.i(TAG, "Frontegg Initialized successfully (region: ${regionKey})")
+    }
+
+    companion object {
+        val TAG: String = FronteggAppService::class.java.simpleName
     }
 }

@@ -6,7 +6,6 @@ import android.util.Log
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
-import com.frontegg.android.FronteggApp
 import com.frontegg.android.utils.FronteggCallback
 
 class FronteggAppLifecycle(
@@ -25,18 +24,22 @@ class FronteggAppLifecycle(
     private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
         when (event) {
             Lifecycle.Event.ON_STOP -> {
-                Log.d(FronteggApp.TAG, "ON_STOP")
+                Log.d(TAG, "ON_STOP")
                 appInForeground = false
                 stopApp.trigger()
             }
 
             Lifecycle.Event.ON_START -> {
-                Log.d(FronteggApp.TAG, "ON_START")
+                Log.d(TAG, "ON_START")
                 appInForeground = true
                 startApp.trigger()
             }
 
             else -> {}
         }
+    }
+
+    companion object {
+        val TAG: String = FronteggAppLifecycle::class.java.simpleName
     }
 }
