@@ -11,7 +11,6 @@ import androidx.browser.customtabs.CustomTabsIntent
 import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.utils.AuthorizeUrlGenerator
-import com.google.androidbrowserhelper.trusted.LauncherActivity
 import org.json.JSONException
 import org.json.JSONObject
 
@@ -30,11 +29,15 @@ class FronteggNativeBridge(val context: Context) {
 
 
     companion object {
-        fun directLoginWithContext(context: Context, directLogin: Map<String, Any>, preserveCodeVerifier:Boolean) {
+        fun directLoginWithContext(
+            context: Context,
+            directLogin: Map<String, Any>,
+            preserveCodeVerifier: Boolean
+        ) {
 
             val generatedUrl = try {
                 val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
-                val jsonString = Base64.encodeToString(jsonData, Base64.NO_WRAP )
+                val jsonString = Base64.encodeToString(jsonData, Base64.NO_WRAP)
                 AuthorizeUrlGenerator().generate(null, jsonString, preserveCodeVerifier)
             } catch (e: JSONException) {
                 AuthorizeUrlGenerator().generate(null, null, preserveCodeVerifier)

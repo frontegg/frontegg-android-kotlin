@@ -9,6 +9,7 @@ import androidx.annotation.UiThread
 import androidx.credentials.PublicKeyCredential
 import androidx.credentials.exceptions.CreateCredentialException
 import androidx.credentials.exceptions.GetCredentialException
+import androidx.credentials.exceptions.NoCredentialException
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
@@ -82,17 +83,18 @@ class PasskeyWebListener(
             val message = jsonObj.getString(REQUEST_KEY)
 
             if (havePendingRequest) {
-                postErrorMessage(reply, "request already in progress", type)
+                postErrorMessage(reply, "Request already in progress", type)
                 return
             }
             replyChannel = reply
             if (!isMainFrame) {
-                reportFailure("requests from subframes are not supported", type)
+                reportFailure("Requests from SubFrames are not supported", type)
                 return
             }
 
             val originScheme = sourceOrigin.scheme
             if (originScheme == null || originScheme.lowercase() != "https") {
+                val exception = Exception("requests from subframes are not supported")
                 reportFailure("WebAuthn not permitted for current URL", type)
                 return
             }
@@ -146,9 +148,9 @@ class PasskeyWebListener(
             reply.send(JSONArray(successArray).toString())
             replyChannel = null // setting initial replyChannel for next request given temp 'reply'
         } catch (e: GetCredentialException) {
-            reportFailure("Error: ${e.errorMessage} w type: ${e.type} w obj: $e", GET_UNIQUE_KEY)
+            reportFailure("Error: ${e.errorMessage} w type: ${e.type} w obj: $e", GET_UNIQUE_KEY, e)
         } catch (t: Throwable) {
-            reportFailure("Error: ${t.message}", GET_UNIQUE_KEY)
+            reportFailure("Error: ${t.message}", GET_UNIQUE_KEY, Exception(t))
         }
     }
 
@@ -169,10 +171,9 @@ class PasskeyWebListener(
             reply.send(JSONArray(successArray).toString())
             replyChannel = null // setting initial replyChannel for next request given temp 'reply'
         } catch (e: CreateCredentialException) {
-            reportFailure("Error: ${e.errorMessage} w type: ${e.type} w obj: $e",
-                CREATE_UNIQUE_KEY)
+            reportFailure("Error: ${e.errorMessage} w type: ${e.type} w obj: $e", CREATE_UNIQUE_KEY, e)
         } catch (t: Throwable) {
-            reportFailure("Error: ${t.message}", CREATE_UNIQUE_KEY)
+            reportFailure("Error: ${t.message}", CREATE_UNIQUE_KEY, t as Exception)
         }
     }
 
@@ -184,23 +185,30 @@ class PasskeyWebListener(
     }
 
     /** Sends an error result to the page.  */
-    private fun reportFailure(message: String, type: String) {
+    private fun reportFailure(message: String, type: String, e: Exception? = null) {
         havePendingRequest = false
         pendingRequestIsDoomed = false
         val reply: ReplyChannel = replyChannel!! // verifies non null by throwing NPE
         replyChannel = null
-        postErrorMessage(reply, message, type)
+        postErrorMessage(reply, message, type, e)
     }
 
-    private fun postErrorMessage(reply: ReplyChannel, errorMessage: String, type: String) {
+    private fun postErrorMessage(reply: ReplyChannel, errorMessage: String, type: String, e:Exception? = null) {
         Log.i(TAG, "Sending error message back to the page via replyChannel $errorMessage");
         val array: MutableList<Any?> = ArrayList()
         array.add("error")
         array.add(errorMessage)
         array.add(type)
         reply.send(JSONArray(array).toString())
-        var toastMsg = errorMessage
-        Toast.makeText(this.activity.applicationContext,  toastMsg, Toast.LENGTH_SHORT).show()
+
+        if(e is NoCredentialException){
+            Toast.makeText(this.activity.applicationContext,  "No passkeys found. Try another sign-in option.", Toast.LENGTH_LONG).show()
+        }else if (e == null){
+            Toast.makeText(this.activity.applicationContext,  errorMessage, Toast.LENGTH_SHORT).show()
+        }else {
+            Toast.makeText(this.activity.applicationContext,  "Unknown Error Occurred", Toast.LENGTH_SHORT).show()
+
+        }
     }
 
     private class JavaScriptReplyChannel(private val reply: JavaScriptReplyProxy) :
