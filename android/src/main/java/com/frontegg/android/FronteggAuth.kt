@@ -347,11 +347,11 @@ class FronteggAuth(
 
     }
 
-    fun login(activity: Activity, callback: (() -> Unit)? = null) {
+    fun login(activity: Activity, loginHint: String? = null, callback: (() -> Unit)? = null) {
         if (FronteggApp.getInstance().isEmbeddedMode) {
-            EmbeddedAuthActivity.authenticate(activity, callback)
+            EmbeddedAuthActivity.authenticate(activity, loginHint, callback)
         } else {
-            AuthenticationActivity.authenticate(activity)
+            AuthenticationActivity.authenticate(activity, loginHint)
         }
     }
 
