@@ -41,16 +41,16 @@
                 <data android:scheme="https" />
                 <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
                 <data
-                    android:host="davidprod.frontegg.com"
+                    android:host="${frontegg_domain_2}"
                     android:pathPrefix="/oauth/account/activate" />
                 <data
-                    android:host="davidprod.frontegg.com"
+                    android:host="${frontegg_domain_2}"
                     android:pathPrefix="/oauth/account/invitation/accept" />
                 <data
-                    android:host="davidprod.frontegg.com"
+                    android:host="${frontegg_domain_2}"
                     android:pathPrefix="/oauth/account/reset-password" />
                 <data
-                    android:host="davidprod.frontegg.com"
+                    android:host="${frontegg_domain_2}"
                     android:pathPrefix="/oauth/account/login/magic-link" />
             </intent-filter>
         </activity>
@@ -66,11 +66,19 @@
 
                 <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
                 <data
-                    android:host="davidprod.frontegg.com"
+                    android:host="${frontegg_domain_2}"
                     android:scheme="${package_name}" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
                 <data
-                    android:host="${frontegg_domain}"
-                    android:pathPrefix="/${package_name}/android/oauth/callback"
+                    android:host="${frontegg_domain_2}"
+                    android:pathPrefix="/oauth/account/redirect/android/${package_name}"
                     android:scheme="https" />
             </intent-filter>
         </activity>

@@ -26,7 +26,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="https://auth.davidantoon.me"
+            android:text="https://autheu.davidantoon.me"
             android:textSize="16sp" />
     </LinearLayout>
 
@@ -51,7 +51,7 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="https://davidprod.frontegg.com"
+            android:text="https://authus.davidantoon.me"
             android:textSize="16sp" />
     </LinearLayout>
 

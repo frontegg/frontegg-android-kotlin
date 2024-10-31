@@ -5,7 +5,7 @@ on:
 env:
   CI: true
   LANG: en_US.UTF-8
-  API_LEVEL: 29
+  API_LEVEL: 34
 
 concurrency:
   group: ci-publish-alpha-${{ github.ref }}
@@ -17,7 +17,7 @@ jobs:
     runs-on: macos-latest-xl
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4.2.0
         with:
           fetch-depth: "0"
 

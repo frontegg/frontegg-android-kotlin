@@ -20,19 +20,19 @@ runs:
       env:
         GITHUB_TOKEN: ${{ inputs.github_token }}
 
-    - name: Setup JDK 11
+    - name: Setup JDK 17
       uses: actions/setup-java@v3
       if: ${{ inputs.gpg_signing_key == '' }}
       with:
-        java-version: 11
+        java-version: 17
         settings-path: ${{ github.workspace }} # location for the settings.xml file
         distribution: temurin
 
-    - name: Setup JDK 11 with Credentials
+    - name: Setup JDK 17 with Credentials
       if: ${{ inputs.gpg_signing_key != '' }}
       uses: actions/setup-java@v3
       with:
-        java-version: 11
+        java-version: 17
         settings-path: ${{ github.workspace }} # location for the settings.xml file
         server-id: ossrh
         server-username: NEXUS_USERNAME
