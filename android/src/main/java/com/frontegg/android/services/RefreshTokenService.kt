@@ -16,7 +16,12 @@ class RefreshTokenService : JobService() {
     }
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        Log.d(TAG, "Job started, (${Instant.now().toEpochMilli() - FronteggApp.getInstance().lastJobStart} ms)")
+        Log.d(
+            TAG,
+            "Job started, (${
+                Instant.now().toEpochMilli() - FronteggApp.getInstance().lastJobStart
+            } ms)"
+        )
         performBackgroundTask(params)
         return true
     }

@@ -33,7 +33,8 @@ import okhttp3.Request
 import org.json.JSONObject
 
 
-class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWebListener) : WebViewClient() {
+class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWebListener) :
+    WebViewClient() {
     companion object {
         private val TAG = FronteggWebClient::class.java.simpleName
     }
@@ -159,7 +160,6 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
                 if (text == null) {
                     return@evaluateJavascript
                 }
-
 
 
                 var json = JsonParser.parseString(text)

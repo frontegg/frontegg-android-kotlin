@@ -78,7 +78,6 @@ open class FronteggWebView : WebView {
     }
 
 
-
     override fun onDetachedFromWindow() {
         super.onDetachedFromWindow()
         clearWebView()

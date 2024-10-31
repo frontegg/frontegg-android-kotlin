@@ -230,11 +230,11 @@ class FronteggAuth(
 
     private fun cancelLastTimer() {
         Log.d(TAG, "Cancel Last Timer")
-        if(timerTask!= null){
+        if (timerTask != null) {
             timerTask?.cancel()
             timerTask = null
         }
-        if(refreshTokenJob!= null) {
+        if (refreshTokenJob != null) {
             val context = FronteggApp.getInstance().context
             val jobScheduler =
                 context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
@@ -245,15 +245,20 @@ class FronteggAuth(
 
     fun scheduleTimer(offset: Long) {
         FronteggApp.getInstance().lastJobStart = Instant.now().toEpochMilli()
-        if(FronteggApp.getInstance().appInForeground){
+        if (FronteggApp.getInstance().appInForeground) {
             Log.d(TAG, "[foreground] Start Timer task (${offset} ms)")
 
             this.timerTask = Timer().schedule(offset) {
-                Log.d(TAG, "[foreground] Job started, (${Instant.now().toEpochMilli()-FronteggApp.getInstance().lastJobStart} ms)")
+                Log.d(
+                    TAG,
+                    "[foreground] Job started, (${
+                        Instant.now().toEpochMilli() - FronteggApp.getInstance().lastJobStart
+                    } ms)"
+                )
                 refreshTokenIfNeeded()
             }
 
-        }else {
+        } else {
             Log.d(TAG, "[background] Start Job Scheduler task (${offset} ms)")
             val context = FronteggApp.getInstance().context
             val jobScheduler =
@@ -355,7 +360,12 @@ class FronteggAuth(
         }
     }
 
-    fun directLoginAction(activity: Activity, type: String, data: String, callback: (() -> Unit)? = null) {
+    fun directLoginAction(
+        activity: Activity,
+        type: String,
+        data: String,
+        callback: (() -> Unit)? = null
+    ) {
         if (FronteggApp.getInstance().isEmbeddedMode) {
             EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)
         } else {

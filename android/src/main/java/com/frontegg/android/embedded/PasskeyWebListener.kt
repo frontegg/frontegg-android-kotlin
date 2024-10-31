@@ -13,6 +13,7 @@ import androidx.credentials.exceptions.NoCredentialException
 import androidx.webkit.JavaScriptReplyProxy
 import androidx.webkit.WebMessageCompat
 import androidx.webkit.WebViewCompat
+import com.frontegg.android.FronteggAuth
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import org.json.JSONArray
@@ -94,17 +95,16 @@ class PasskeyWebListener(
 
             val originScheme = sourceOrigin.scheme
             if (originScheme == null || originScheme.lowercase() != "https") {
-                val exception = Exception("requests from subframes are not supported")
                 reportFailure("WebAuthn not permitted for current URL", type)
                 return
             }
 
             // Verify that origin belongs to your website,
             // it's because the unknown origin may gain credential info.
-            // TODO: Implement this check
-//            if (isUnknownOrigin(originScheme)) {
-//                return
-//            }
+            if (isUnknownOrigin(sourceOrigin)) {
+                reportFailure("WebAuthn not permitted for current URL", type)
+                return
+            }
 
             havePendingRequest = true
             pendingRequestIsDoomed = false
@@ -122,12 +122,19 @@ class PasskeyWebListener(
                     this.coroutineScope.launch {
                         handleCreateFlow(credentialManagerHandler, message, replyCurrent)
                     }
+
                 GET_UNIQUE_KEY -> this.coroutineScope.launch {
                     handleGetFlow(credentialManagerHandler, message, replyCurrent)
                 }
+
                 else -> Log.i(TAG, "Incorrect request json")
             }
         }
+    }
+
+    private fun isUnknownOrigin(sourceOrigin: Uri): Boolean {
+        val baseUrlHost = Uri.parse(FronteggAuth.instance.baseUrl).host
+        return sourceOrigin.host != baseUrlHost
     }
 
     // Handles the get flow in a less error-prone way
@@ -142,8 +149,11 @@ class PasskeyWebListener(
             val r = credentialManagerHandler.getPasskey(message)
             val successArray = ArrayList<Any>();
             successArray.add("success");
-            successArray.add(JSONObject(
-                (r.credential as PublicKeyCredential).authenticationResponseJson))
+            successArray.add(
+                JSONObject(
+                    (r.credential as PublicKeyCredential).authenticationResponseJson
+                )
+            )
             successArray.add(GET_UNIQUE_KEY);
             reply.send(JSONArray(successArray).toString())
             replyChannel = null // setting initial replyChannel for next request given temp 'reply'
@@ -171,7 +181,11 @@ class PasskeyWebListener(
             reply.send(JSONArray(successArray).toString())
             replyChannel = null // setting initial replyChannel for next request given temp 'reply'
         } catch (e: CreateCredentialException) {
-            reportFailure("Error: ${e.errorMessage} w type: ${e.type} w obj: $e", CREATE_UNIQUE_KEY, e)
+            reportFailure(
+                "Error: ${e.errorMessage} w type: ${e.type} w obj: $e",
+                CREATE_UNIQUE_KEY,
+                e
+            )
         } catch (t: Throwable) {
             reportFailure("Error: ${t.message}", CREATE_UNIQUE_KEY, t as Exception)
         }
@@ -193,7 +207,12 @@ class PasskeyWebListener(
         postErrorMessage(reply, message, type, e)
     }
 
-    private fun postErrorMessage(reply: ReplyChannel, errorMessage: String, type: String, e:Exception? = null) {
+    private fun postErrorMessage(
+        reply: ReplyChannel,
+        errorMessage: String,
+        type: String,
+        e: Exception? = null
+    ) {
         Log.i(TAG, "Sending error message back to the page via replyChannel $errorMessage");
         val array: MutableList<Any?> = ArrayList()
         array.add("error")
@@ -201,12 +220,21 @@ class PasskeyWebListener(
         array.add(type)
         reply.send(JSONArray(array).toString())
 
-        if(e is NoCredentialException){
-            Toast.makeText(this.activity.applicationContext,  "No passkeys found. Try another sign-in option.", Toast.LENGTH_LONG).show()
-        }else if (e == null){
-            Toast.makeText(this.activity.applicationContext,  errorMessage, Toast.LENGTH_SHORT).show()
-        }else {
-            Toast.makeText(this.activity.applicationContext,  "Unknown Error Occurred", Toast.LENGTH_SHORT).show()
+        if (e is NoCredentialException) {
+            Toast.makeText(
+                this.activity.applicationContext,
+                "No passkeys found. Try another sign-in option.",
+                Toast.LENGTH_LONG
+            ).show()
+        } else if (e == null) {
+            Toast.makeText(this.activity.applicationContext, errorMessage, Toast.LENGTH_SHORT)
+                .show()
+        } else {
+            Toast.makeText(
+                this.activity.applicationContext,
+                "Unknown Error Occurred",
+                Toast.LENGTH_SHORT
+            ).show()
 
         }
     }
@@ -216,7 +244,7 @@ class PasskeyWebListener(
         override fun send(message: String?) {
             try {
                 reply.postMessage(message!!)
-            }catch (t: Throwable) {
+            } catch (t: Throwable) {
                 Log.i(TAG, "Reply failure due to: " + t.message);
             }
         }
