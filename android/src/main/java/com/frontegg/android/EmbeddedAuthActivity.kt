@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.webkit.WebView
 import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
