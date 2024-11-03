@@ -85,8 +85,8 @@ class AuthenticationActivity : Activity() {
      * AuthFinishedCallback in AuthenticationActivity used only
      * when using external browser login
      */
-    private fun invokeAuthFinishedCallback(){
-        if(FronteggApp.getInstance().isEmbeddedMode){
+    private fun invokeAuthFinishedCallback() {
+        if (FronteggApp.getInstance().isEmbeddedMode) {
             return
         }
         onAuthFinishedCallback?.invoke()
