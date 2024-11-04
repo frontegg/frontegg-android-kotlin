@@ -132,7 +132,7 @@ class AuthenticationActivity : Activity() {
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
-            EmbeddedAuthActivity.onAuthFinishedCallback = callback
+            onAuthFinishedCallback = callback
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
     }
