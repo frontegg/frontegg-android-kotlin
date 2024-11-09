@@ -67,9 +67,6 @@ open class FronteggWebView : WebView {
 
         webViewClient = FronteggWebClient(context, passkeyWebListener)
 
-        setWebContentsDebuggingEnabled(true);
-
-
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         this.addJavascriptInterface(FronteggNativeBridge(context), "FronteggNativeBridge")
         val rules = setOf("*")
