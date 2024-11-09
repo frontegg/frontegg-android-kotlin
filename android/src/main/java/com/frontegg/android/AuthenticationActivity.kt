@@ -135,5 +135,19 @@ class AuthenticationActivity : Activity() {
             onAuthFinishedCallback = callback
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
+
+        fun authenticateWithMultiFactor(
+            activity: Activity,
+            mfaLoginAction: String? = null,
+            callback: (() -> Unit)? = null
+        ) {
+            val intent = Intent(activity, AuthenticationActivity::class.java)
+            val authorizeUri = AuthorizeUrlGenerator().generate(loginAction = mfaLoginAction)
+            intent.putExtra(AUTH_LAUNCHED, true)
+            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            onAuthFinishedCallback = callback
+            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+        }
     }
 }

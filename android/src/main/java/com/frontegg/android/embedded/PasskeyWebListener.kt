@@ -118,10 +118,9 @@ class PasskeyWebListener(
             }
 
             when (type) {
-                CREATE_UNIQUE_KEY ->
-                    this.coroutineScope.launch {
-                        handleCreateFlow(credentialManagerHandler, message, replyCurrent)
-                    }
+                CREATE_UNIQUE_KEY -> this.coroutineScope.launch {
+                    handleCreateFlow(credentialManagerHandler, message, replyCurrent)
+                }
 
                 GET_UNIQUE_KEY -> this.coroutineScope.launch {
                     handleGetFlow(credentialManagerHandler, message, replyCurrent)

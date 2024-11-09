@@ -34,6 +34,12 @@ class CredentialManagerHandler(private val activity: Activity) {
         json.put("authenticatorSelection", authenticatorSelection)
         val request = json.toString()
 
+        try {
+            mCredMan.clearCredentialState(ClearCredentialStateRequest())
+        }catch (e:Exception){
+            Log.e(TAG, e.message, e)
+        }
+
         val createRequest = CreatePublicKeyCredentialRequest(request, null, true)
         try {
             return mCredMan.createCredential(
@@ -66,4 +72,5 @@ class CredentialManagerHandler(private val activity: Activity) {
             throw e
         }
     }
+
 }
