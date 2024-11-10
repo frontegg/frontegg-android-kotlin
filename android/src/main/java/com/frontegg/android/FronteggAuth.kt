@@ -8,9 +8,17 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Handler
 import android.os.Looper
+import android.util.Base64
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
+import androidx.credentials.PublicKeyCredential
+import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCredentialException
+import com.frontegg.android.embedded.CredentialManagerHandler
+import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.MfaRequiredException
+import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
+import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
@@ -25,7 +33,11 @@ import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.time.Instant
 import java.util.Timer
 import java.util.TimerTask
@@ -95,7 +107,6 @@ class FronteggAuth(
 
         this.initializeSubscriptions()
     }
-
 
     fun initializeSubscriptions() {
         Observable.merge(
@@ -412,5 +423,118 @@ class FronteggAuth(
         } else {
             (remainingTime - minRefreshWindow).coerceAtLeast(0)
         }
+    }
+
+
+    fun loginWithPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
+
+        val passkeyManager = CredentialManagerHandler(activity)
+        val scope = MainScope()
+        scope.launch {
+            try {
+
+                val webAuthnPreloginRequest = withContext(Dispatchers.IO) { api.webAuthnPrelogin() }
+
+                val result = passkeyManager.getPasskey(webAuthnPreloginRequest.jsonChallenge)
+
+                val challengeResponse = (result.credential as PublicKeyCredential).authenticationResponseJson
+
+                isLoading.value = true
+                val webAuthnPostLoginResponse = withContext(Dispatchers.IO) {
+                    api.webAuthnPostlogin(webAuthnPreloginRequest.cookie, challengeResponse)
+                }
+
+                Log.i(TAG, "Login with Passkeys succeeded, exchanging oauth token")
+                withContext(Dispatchers.IO) {
+                    setCredentials(
+                        webAuthnPostLoginResponse.access_token,
+                        webAuthnPostLoginResponse.refresh_token
+                    )
+                }
+
+                callback?.invoke(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "failed to login with passkeys", e)
+                if (e is MfaRequiredException) {
+                    startMultiFactorAuthenticator(activity, callback, e.mfaRequestData)
+                } else {
+                    callback?.invoke(e)
+                }
+            }
+        }
+    }
+
+    fun registerPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
+
+        val passkeyManager = CredentialManagerHandler(activity)
+        val scope = MainScope()
+        scope.launch {
+            try {
+
+                val webAuthnRegsiterRequest = withContext(Dispatchers.IO) {
+                    api.getWebAuthnRegisterChallenge()
+                }
+
+                val result = passkeyManager.createPasskey(webAuthnRegsiterRequest.jsonChallenge)
+
+                val challengeResponse = result.registrationResponseJson
+
+                withContext(Dispatchers.IO) {
+                    api.verifyWebAuthnDevice(webAuthnRegsiterRequest.cookie, challengeResponse)
+                }
+
+                callback?.invoke(null)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to login with passkeys", e)
+                if (isWebAuthnRegisteredBeforeException(e)) {
+                    callback?.invoke(WebAuthnAlreadyRegisteredInLocalDeviceException())
+                } else {
+                    callback?.invoke(e)
+                }
+            }
+        }
+    }
+
+    private fun startMultiFactorAuthenticator(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)?,
+        mfaRequestData: String
+    ) {
+
+        val authCallback: () -> Unit = {
+            if (this.isAuthenticated.value) {
+                callback?.invoke(null)
+            } else {
+                val error = FailedToAuthenticateException(error = "Failed to authenticate with MFA")
+                callback?.invoke(error)
+            }
+        }
+
+        val multiFactorStateBase64 =
+            Base64.encodeToString(mfaRequestData.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        val directLogin = mapOf(
+            "type" to "direct",
+            "data" to "$baseUrl/oauth/account/mfa-mobile-authenticator?state=$multiFactorStateBase64",
+            "additionalQueryParams" to mapOf(
+                "prompt" to "consent"
+            )
+        )
+        val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
+        val loginDirectAction = Base64.encodeToString(jsonData, Base64.NO_WRAP)
+
+        if (FronteggApp.getInstance().isEmbeddedMode) {
+            EmbeddedAuthActivity.authenticateWithMultiFactor(
+                activity,
+                loginDirectAction,
+                authCallback
+            )
+        } else {
+            AuthenticationActivity.authenticateWithMultiFactor(
+                activity,
+                loginDirectAction,
+                authCallback
+            )
+        }
+
     }
 }
