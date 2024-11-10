@@ -64,12 +64,12 @@ open class Api(
     }
 
     fun buildPostRequest(
-        path: String, body: JsonObject?, additionalHeaders: Map<String, String> = mapOf()
+        path: String, data: JsonObject?, additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
-            body?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
+            data?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
         val headers = this.prepareHeaders(additionalHeaders);
 
         requestBuilder.method("POST", bodyRequest)
@@ -81,12 +81,12 @@ open class Api(
     }
 
     private fun buildPutRequest(
-        path: String, body: JsonObject, additionalHeaders: Map<String, String> = mapOf()
+        path: String, data: JsonObject, additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
-            body.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
+            data.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
         val headers = this.prepareHeaders(additionalHeaders);
 
         requestBuilder.method("PUT", bodyRequest)
@@ -227,7 +227,7 @@ open class Api(
         val body = response.body;
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body.toString())
+            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
         }
 
         val gson = Gson()
@@ -285,7 +285,7 @@ open class Api(
         val body = response.body;
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body.toString())
+            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
         }
 
 
@@ -321,7 +321,7 @@ open class Api(
         val body = response.body;
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToRegisterWebAuthnDevice(response.headers, body.toString())
+            throw FailedToRegisterWebAuthnDevice(response.headers, body?.string() ?: "Unknown error occurred")
         }
     }
 
@@ -339,7 +339,7 @@ open class Api(
 
         val body = response.body
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body.toString())
+            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
         }
         return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
     }
