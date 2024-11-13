@@ -55,7 +55,11 @@ interface FronteggAuth {
      * @param activity is the activity of application;
      * @param loginHint is a value that auto filled to login field at Frontegg LoginBox.
      */
-    fun login(activity: Activity, loginHint: String? = null)
+    fun login(
+        activity: Activity,
+        loginHint: String? = null,
+        callback: (() -> Unit)? = null
+    )
 
     /**
      * Logout user. Clear data about the user. Could make a network request.
@@ -63,7 +67,9 @@ interface FronteggAuth {
      * should be false after calling the [logout] method and [callback] was triggered.
      * @param callback call after the logout process is finished.
      */
-    fun logout(callback: () -> Unit = {})
+    fun logout(
+        callback: () -> Unit = {},
+    )
 
     /**
      * Direct Login Action process. Support only on Embedded Mode([EmbeddedAuthActivity] is enabled).
@@ -86,13 +92,39 @@ interface FronteggAuth {
      * @param tenantId is available user tenants. Can extract them from [User].tenants.tenantId;
      * @param callback call after the tenant switching process is finished.
      */
-    fun switchTenant(tenantId: String, callback: (Boolean) -> Unit = {})
+    fun switchTenant(
+        tenantId: String,
+        callback: (Boolean) -> Unit = {},
+    )
 
     /**
      * Refresh token if needed.
      * @return true if taken was successfully refreshed. False otherwise.
      */
     fun refreshTokenIfNeeded(): Boolean
+
+    /**
+     * Login with passkeys
+     * @param activity is the activity of application;
+     * @param callback call after the registration is finished or was intercepted by Exception.
+     * [error] not null if some Exception happened during logging.
+     */
+    fun loginWithPasskeys(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)? = null,
+    )
+
+    /**
+     * Register passkeys.
+     * @param activity is the activity of application;
+     * @param callback call after the registration is finished or was intercepted by Exception.
+     * [error] not null if some Exception happened during registration.
+     */
+    fun registerPasskeys(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)? = null,
+    )
+
 
     companion object {
 

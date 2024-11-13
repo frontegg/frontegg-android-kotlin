@@ -11,6 +11,7 @@ import androidx.browser.customtabs.CustomTabsIntent
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.EmbeddedAuthActivity.Companion
+import com.frontegg.android.services.FronteggAppService
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 
 class AuthenticationActivity : Activity() {
@@ -88,7 +89,7 @@ class AuthenticationActivity : Activity() {
      * when using external browser login
      */
     private fun invokeAuthFinishedCallback() {
-        if (FronteggApp.getInstance().isEmbeddedMode) {
+        if (FronteggAuth.instance.isEmbeddedMode) {
             return
         }
         onAuthFinishedCallback?.invoke()
