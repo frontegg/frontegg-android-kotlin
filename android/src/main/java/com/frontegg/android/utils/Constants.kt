@@ -11,6 +11,15 @@ class ApiConstants {
         const val exchangeToken: String = "oauth/token"
         const val logout: String = "frontegg/identity/resources/auth/v1/logout"
         const val switchTenant: String = "identity/resources/users/v1/tenant"
+        const val webauthnPrelogin: String = "identity/resources/auth/v1/webauthn/prelogin"
+        const val webauthnPostlogin: String = "identity/resources/auth/v1/webauthn/postlogin"
+        const val registerWebauthnDevice: String = "identity/resources/users/webauthn/v1/devices"
+        const val verifyWebauthnDevice: String = "identity/resources/users/webauthn/v1/devices/verify"
+
+        /**
+         * used to get oauth accessToken/refreshToken without webview
+         */
+        const val silentRefreshToken: String = "oauth/authorize/silent"
 
     }
 }

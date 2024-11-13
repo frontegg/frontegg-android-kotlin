@@ -3,8 +3,10 @@ package com.frontegg.android
 import android.app.Activity
 import android.content.Intent
 import android.os.Bundle
+import android.util.Base64
 import android.util.Log
 import android.view.View
+import android.webkit.WebView
 import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
@@ -14,6 +16,7 @@ import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import org.json.JSONObject
 
 class EmbeddedAuthActivity : Activity() {
     private val storage = FronteggInnerStorage()
@@ -188,12 +191,17 @@ class EmbeddedAuthActivity : Activity() {
         var onAuthFinishedCallback: (() -> Unit)? = null // Store callback
 
 
-        fun authenticate(activity: Activity, loginHint: String? = null) {
+        fun authenticate(
+            activity: Activity,
+            loginHint: String? = null,
+            callback: (() -> Unit)? = null
+        ) {
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
-            val authorizeUri = AuthorizeUrlGenerator().generate(loginHint=loginHint)
+            val authorizeUri = AuthorizeUrlGenerator().generate(loginHint = loginHint)
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+            onAuthFinishedCallback = callback
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
 
@@ -226,6 +234,20 @@ class EmbeddedAuthActivity : Activity() {
              * intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
              * activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
              */
+        }
+
+        fun authenticateWithMultiFactor(
+            activity: Activity,
+            mfaLoginAction: String? = null,
+            callback: (() -> Unit)? = null
+        ) {
+            val intent = Intent(activity, EmbeddedAuthActivity::class.java)
+
+            val authorizeUri = AuthorizeUrlGenerator().generate(loginAction = mfaLoginAction)
+            intent.putExtra(AUTH_LAUNCHED, true)
+            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+            onAuthFinishedCallback = callback
+            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
 
         fun afterAuthentication(activity: Activity) {

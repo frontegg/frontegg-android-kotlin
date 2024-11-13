@@ -1,8 +1,15 @@
 package com.frontegg.android.services
 
 import android.util.Log
+import com.frontegg.android.exceptions.CookieNotFoundException
+import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
+import com.frontegg.android.exceptions.MfaRequiredException
+import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.User
+import com.frontegg.android.models.WebAuthnAssertionRequest
+import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
 import com.google.gson.Gson
@@ -16,6 +23,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import java.io.IOException
 
 open class Api(
@@ -60,14 +68,12 @@ open class Api(
     }
 
     fun buildPostRequest(
-        path: String,
-        body: JsonObject?,
-        additionalHeaders: Map<String, String> = mapOf()
+        path: String, data: JsonObject?, additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
-            body?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
+            data?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
         val headers = this.prepareHeaders(additionalHeaders);
 
         requestBuilder.method("POST", bodyRequest)
@@ -79,15 +85,12 @@ open class Api(
     }
 
     private fun buildPutRequest(
-        path: String,
-        body: JsonObject,
-        additionalHeaders: Map<String, String> = mapOf()
+        path: String, data: JsonObject, additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
-            body.toString()
-                .toRequestBody("application/json; charset=utf-8".toMediaType())
+            data.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
         val headers = this.prepareHeaders(additionalHeaders);
 
         requestBuilder.method("PUT", bodyRequest)
@@ -163,9 +166,7 @@ open class Api(
 
     @Throws(IllegalArgumentException::class, IOException::class)
     public fun exchangeToken(
-        code: String,
-        redirectUrl: String,
-        codeVerifier: String
+        code: String, redirectUrl: String, codeVerifier: String
     ): AuthResponse? {
 
         val body = JsonObject()
@@ -210,5 +211,140 @@ open class Api(
         data.addProperty("tenantId", tenantId)
         val call = buildPutRequest(ApiConstants.switchTenant, data)
         call.execute()
+    }
+
+
+    private fun getSetCookieValue(prefix: String, response: Response): String {
+
+        val cookies = response.headers("set-cookie")
+        val prefixedCookie = cookies.find { cookie ->
+            cookie.startsWith(prefix)
+        } ?: throw CookieNotFoundException(prefix)
+
+        return prefixedCookie.split(';')[0]
+    }
+
+    fun webAuthnPrelogin(): WebAuthnAssertionRequest {
+
+        val call = buildPostRequest(ApiConstants.webauthnPrelogin, JsonObject())
+        val response = call.execute()
+        val body = response.body;
+
+        if (!response.isSuccessful || body == null) {
+            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+        }
+
+        val gson = Gson()
+        val mapType = object : TypeToken<MutableMap<String, Any>>() {}.type
+        val jsonRequest: MutableMap<String, Any> = gson.fromJson(response.body!!.string(), mapType)
+        val requestOptions = jsonRequest["options"]
+
+        val webAuthnCookie = getSetCookieValue("fe_webauthn_", response)
+
+        return WebAuthnAssertionRequest(
+            webAuthnCookie, gson.toJson(requestOptions)
+        )
+    }
+
+    fun webAuthnPostlogin(sessionCookie: String, challengeResponse: String): AuthResponse {
+
+        val gson = Gson()
+        val mapType = object : TypeToken<MutableMap<String, Any>>() {}.type
+        val jsonRequest: MutableMap<String, Any> = gson.fromJson(challengeResponse, mapType)
+        val jsonObject = gson.toJsonTree(jsonRequest).asJsonObject
+
+        val call = buildPostRequest(
+            ApiConstants.webauthnPostlogin, jsonObject, mapOf(
+                "cookie" to sessionCookie,
+            )
+        )
+        val response = call.execute()
+        val body = response.body;
+        if (!response.isSuccessful || body == null) {
+            throw Exception("failed to authenticate with passkeys")
+        }
+
+        val authResponseStr = body.string()
+        val authResponse = gson.fromJson<MutableMap<String, Any>>(authResponseStr, mapType)
+        val isMfaRequired = authResponse.getOrDefault("mfaRequired", false) as Boolean
+        if (isMfaRequired) {
+            throw MfaRequiredException(authResponseStr)
+        }
+
+        val refreshToken = getSetCookieValue("fe_refresh_", response)
+        val deviceId = getSetCookieValue("fe_device_", response)
+
+        return silentHostedLoginRefreshToken(refreshToken, deviceId)
+    }
+
+
+    fun getWebAuthnRegisterChallenge(): WebAuthnRegistrationRequest {
+        val accessToken = this.credentialManager.get(CredentialKeys.ACCESS_TOKEN)
+        if (accessToken == null) {
+            throw NotAuthenticatedException()
+        }
+
+        val call = buildPostRequest(ApiConstants.registerWebauthnDevice, JsonObject())
+        val response = call.execute()
+        val body = response.body;
+
+        if (!response.isSuccessful || body == null) {
+            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+        }
+
+
+        val gson = Gson()
+        val mapType = object : TypeToken<MutableMap<String, Any>>() {}.type
+        val jsonRequest: MutableMap<String, Any> = gson.fromJson(response.body!!.string(), mapType)
+        val requestOptions = jsonRequest["options"]
+
+        val webAuthnCookie = getSetCookieValue("fe_webauthn_", response)
+
+        return WebAuthnRegistrationRequest(
+            webAuthnCookie, gson.toJson(requestOptions)
+        )
+    }
+
+    fun verifyWebAuthnDevice(
+        sessionCookie: String, challengeResponse: String
+    ) {
+        this.credentialManager.get(CredentialKeys.ACCESS_TOKEN) ?: throw NotAuthenticatedException()
+
+        val gson = Gson()
+        val mapType = object : TypeToken<MutableMap<String, Any>>() {}.type
+        val jsonRequest: MutableMap<String, Any> = gson.fromJson(challengeResponse, mapType)
+        val jsonObject = gson.toJsonTree(jsonRequest).asJsonObject
+
+
+        val call = buildPostRequest(
+            ApiConstants.verifyWebauthnDevice, jsonObject, mapOf(
+                "cookie" to sessionCookie
+            )
+        )
+        val response = call.execute()
+        val body = response.body;
+
+        if (!response.isSuccessful || body == null) {
+            throw FailedToRegisterWebAuthnDevice(response.headers, body?.string() ?: "Unknown error occurred")
+        }
+    }
+
+
+    private fun silentHostedLoginRefreshToken(
+        refreshTokenCookie: String, deviceIdCookie: String
+    ): AuthResponse {
+
+        val call = buildPostRequest(
+            ApiConstants.silentRefreshToken, JsonObject(), mapOf(
+                "cookie" to "${refreshTokenCookie};${deviceIdCookie}"
+            )
+        )
+        val response = call.execute()
+
+        val body = response.body
+        if (!response.isSuccessful || body == null) {
+            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+        }
+        return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
     }
 }

@@ -18,13 +18,13 @@ class App : Application() {
             listOf(
                 RegionConfig(
                     "eu",
-                    "auth.davidantoon.me",
+                    "autheu.davidantoon.me",
                     "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
                 ),
                 RegionConfig(
                     "us",
-                    "davidprod.frontegg.com",
-                    "d7d07347-2c57-4450-8418-0ec7ee6e096b"
+                    "authus.davidantoon.me",
+                    "6903cab0-9809-4a2e-97dd-b8c0f966c813"
                 )
             ),
             this

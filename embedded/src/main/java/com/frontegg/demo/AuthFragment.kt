@@ -36,12 +36,19 @@ class AuthFragment : Fragment() {
         super.onViewCreated(view, savedInstanceState)
 
         binding.loginButton.setOnClickListener {
-            FronteggAuth.instance.login(requireActivity())
+            FronteggAuth.instance.login(requireActivity()) {
+                Log.d("AuthFragment", "Login callback")
+            }
         }
 
         binding.googleLoginButton.setOnClickListener {
-
             FronteggAuth.instance.directLoginAction(requireActivity(), "social-login", "google", callback = {
+                Log.d("AuthFragment", "Direct login action callback")
+            })
+        }
+
+        binding.passkeysButton.setOnClickListener {
+            FronteggAuth.instance.loginWithPasskeys(requireActivity(), callback = {
                 Log.d("AuthFragment", "Direct login action callback")
             })
         }

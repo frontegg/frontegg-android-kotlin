@@ -1,12 +1,17 @@
 package com.frontegg.android.embedded
 
 import android.annotation.SuppressLint
+import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.util.AttributeSet
 import android.webkit.CookieManager
 import android.webkit.WebView
 import com.frontegg.android.services.FronteggInnerStorage
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
+import com.frontegg.android.FronteggApp
+import kotlinx.coroutines.MainScope
 
 
 open class FronteggWebView : WebView {
@@ -58,12 +63,21 @@ open class FronteggWebView : WebView {
             settings.userAgentString = userAgent
         }
 
-        webViewClient = FronteggWebClient(context)
+        val scope = MainScope()
+        val credentialManagerHandler = CredentialManagerHandler(context as Activity)
+        val passkeyWebListener = PasskeyWebListener(context, scope, credentialManagerHandler)
+
+        webViewClient = FronteggWebClient(context, passkeyWebListener)
 
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         this.addJavascriptInterface(FronteggNativeBridge(context), "FronteggNativeBridge")
+        val rules = setOf("*")
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
+            WebViewCompat.addWebMessageListener(
+                this, PasskeyWebListener.INTERFACE_NAME, rules, passkeyWebListener
+            )
+        }
     }
-
 
 
     override fun onDetachedFromWindow() {

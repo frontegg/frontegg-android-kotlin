@@ -4,8 +4,10 @@ plugins {
 
 }
 
-def fronteggDomain = "auth.davidantoon.me"
+def fronteggDomain = "autheu.davidantoon.me"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+
+def fronteggDomain2 = "authus.davidantoon.me"
 
 android {
     namespace 'com.frontegg.demo'
@@ -23,7 +25,8 @@ android {
         manifestPlaceholders = [
                 "package_name"      : applicationId,
                 "frontegg_domain"   : fronteggDomain,
-                "frontegg_client_id": fronteggClientId
+                "frontegg_client_id": fronteggClientId,
+                "frontegg_domain_2"   : fronteggDomain2,
         ]
         vectorDrawables {
             useSupportLibrary true

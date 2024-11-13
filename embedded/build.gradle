@@ -3,8 +3,13 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-def fronteggDomain = "auth.davidantoon.me"
+
+def fronteggDomain = "autheu.davidantoon.me"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+
+//def fronteggDomain = "auth.davidantoon.me"
+//def fronteggClientId = "04ae2174-d8d9-4a90-8bab-2548e210a508"
+
 
 android {
     namespace 'com.frontegg.demo'
@@ -30,11 +35,29 @@ android {
 
     }
 
+    signingConfigs {
+        release {
+            storeFile file(project.property("RELEASE_STORE_FILE"))
+            storePassword project.property("RELEASE_STORE_PASSWORD")
+            keyAlias project.property("RELEASE_KEY_ALIAS")
+            keyPassword project.property("RELEASE_KEY_PASSWORD")
+        }
+        debug {
+            storeFile file(project.property("DEBUG_STORE_FILE"))
+            storePassword project.property("DEBUG_STORE_PASSWORD")
+            keyAlias project.property("DEBUG_KEY_ALIAS")
+            keyPassword project.property("DEBUG_KEY_PASSWORD")
+        }
+    }
     buildTypes {
         release {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {
@@ -46,6 +69,7 @@ android {
     }
     buildFeatures {
         viewBinding true
+        buildConfig true
     }
     buildToolsVersion buildToolsVersion
 

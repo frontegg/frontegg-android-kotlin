@@ -29,11 +29,15 @@ class FronteggNativeBridge(val context: Context) {
 
 
     companion object {
-        fun directLoginWithContext(context: Context, directLogin: Map<String, Any>, preserveCodeVerifier:Boolean) {
+        fun directLoginWithContext(
+            context: Context,
+            directLogin: Map<String, Any>,
+            preserveCodeVerifier: Boolean
+        ) {
 
             val generatedUrl = try {
                 val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
-                val jsonString = Base64.encodeToString(jsonData, Base64.NO_WRAP )
+                val jsonString = Base64.encodeToString(jsonData, Base64.NO_WRAP)
                 AuthorizeUrlGenerator().generate(null, jsonString, preserveCodeVerifier)
             } catch (e: JSONException) {
                 AuthorizeUrlGenerator().generate(null, null, preserveCodeVerifier)
