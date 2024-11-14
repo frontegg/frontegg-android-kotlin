@@ -24,6 +24,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Login with Frontegg](#login-with-frontegg)
     - [Logout user](#logout)
     - [Switch Tenant](#switch-tenant)
+    - [Passkey Authentication](#passkey-authentication)
 
 ## Get Started
 
@@ -768,3 +769,81 @@ class FirstFragment : Fragment() {
 }
 
 ```
+
+## Passkey Authentication
+
+The Frontegg Android SDK now supports passkey-based login and registration, allowing users to authenticate seamlessly using the Android Credential Manager. This feature adheres to modern authentication standards, enhancing security and usability.
+
+### Setting Up Passkeys
+
+#### Login with Passkeys
+
+To log in using passkeys, use the `loginWithPasskeys` method. This method internally utilizes the Android Credential Manager to retrieve the passkey and authenticate the user.
+
+```kotlin
+FronteggAuth.instance.loginWithPasskeys(activity) { error ->
+    if (error == null) {
+        Log.i("Authentication", "Passkey login successful")
+    } else {
+        Log.e("Authentication", "Passkey login failed: ${error.message}")
+    }
+}
+```
+
+#### Register Passkeys
+
+Users can register a passkey for their account using the registerPasskeys method. This securely creates and stores a passkey using the Android Credential Manager.
+
+```kotlin
+FronteggAuth.instance.registerPasskeys(activity) { error ->
+    if (error == null) {
+        Toast.makeText(activity, "Passkey registered successfully", Toast.LENGTH_SHORT).show()
+    } else {
+        Toast.makeText(activity, "Error registering passkey: ${error.message}", Toast.LENGTH_LONG).show()
+    }
+}
+```
+
+#### CredentialManagerHandler
+The CredentialManagerHandler class simplifies the integration of the Android Credential Manager. Here's how the class works:
+
+#### Creating a Passkey
+To create a passkey, the createPasskey method generates a new public key credential using the Android Credential Manager:
+
+```kotlin
+val credentialManagerHandler = CredentialManagerHandler(activity)
+
+val response = credentialManagerHandler.createPasskey(requestJson)
+Log.i("CredentialManager", "Passkey created: ${response.registrationResponseJson}")
+```
+
+#### Retrieving a Passkey
+To retrieve an existing passkey for authentication, use the getPasskey method:
+
+```kotlin
+val credentialManagerHandler = CredentialManagerHandler(activity)
+
+val response = credentialManagerHandler.getPasskey(requestJson)
+Log.i("CredentialManager", "Passkey retrieved: ${response.credential.authenticationResponseJson}")
+```
+
+#### Exception Handling
+
+The following exceptions may be thrown during passkey operations:
+
+- **CreateCredentialException**: Error creating a new credential (e.g., unsupported configurations).
+- **GetCredentialException**: Error retrieving an existing credential (e.g., passkey not found).
+- **MfaRequiredException**: Multi-factor authentication is required to complete the operation.
+- **WebAuthnAlreadyRegisteredInLocalDeviceException**: The passkey is already registered on the device.
+- **FailedToAuthenticateException**: Authentication with the passkey failed.
+- **FailedToRegisterWebAuthnDevice**: Registration of the passkey failed.
+
+---
+
+#### Integration Requirements
+
+To ensure compatibility with passkey functionality:
+
+- **Android SDK 26+**
+- **Java 8+**: Ensure `sourceCompatibility` and `targetCompatibility` are set to Java 8 in your Gradle configuration.
+
