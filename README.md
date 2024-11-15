@@ -776,33 +776,31 @@ The Frontegg Android SDK now supports passkey-based login and registration, allo
 
 ### Setting Up Passkeys
 
-#### Login with Passkeys
+#### Integration Requirements
 
-To log in using passkeys, use the `loginWithPasskeys` method. This method internally utilizes the Android Credential Manager to retrieve the passkey and authenticate the user.
+To ensure compatibility with passkey functionality:
 
-```kotlin
-FronteggAuth.instance.loginWithPasskeys(activity) { error ->
-    if (error == null) {
-        Log.i("Authentication", "Passkey login successful")
-    } else {
-        Log.e("Authentication", "Passkey login failed: ${error.message}")
+1. **Update Gradle Dependencies**:
+   Add the following dependencies in your `android/build.gradle`:
+   ```groovy
+   dependencies {
+       implementation 'androidx.browser:browser:1.8.0'
+       implementation 'com.frontegg.sdk:android:1.2.30'
+   }
+   ```
+
+2. **Java Compatibility**: 
+    Ensure sourceCompatibility and targetCompatibility are set to Java 8 in android/app/build.gradle**:
+```groovy
+   android {
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
     }
 }
 ```
 
-#### Register Passkeys
-
-Users can register a passkey for their account using the registerPasskeys method. This securely creates and stores a passkey using the Android Credential Manager.
-
-```kotlin
-FronteggAuth.instance.registerPasskeys(activity) { error ->
-    if (error == null) {
-        Toast.makeText(activity, "Passkey registered successfully", Toast.LENGTH_SHORT).show()
-    } else {
-        Toast.makeText(activity, "Error registering passkey: ${error.message}", Toast.LENGTH_LONG).show()
-    }
-}
-```
+---
 
 #### CredentialManagerHandler
 The CredentialManagerHandler class simplifies the integration of the Android Credential Manager. Here's how the class works:
@@ -826,24 +824,3 @@ val credentialManagerHandler = CredentialManagerHandler(activity)
 val response = credentialManagerHandler.getPasskey(requestJson)
 Log.i("CredentialManager", "Passkey retrieved: ${response.credential.authenticationResponseJson}")
 ```
-
-#### Exception Handling
-
-The following exceptions may be thrown during passkey operations:
-
-- **CreateCredentialException**: Error creating a new credential (e.g., unsupported configurations).
-- **GetCredentialException**: Error retrieving an existing credential (e.g., passkey not found).
-- **MfaRequiredException**: Multi-factor authentication is required to complete the operation.
-- **WebAuthnAlreadyRegisteredInLocalDeviceException**: The passkey is already registered on the device.
-- **FailedToAuthenticateException**: Authentication with the passkey failed.
-- **FailedToRegisterWebAuthnDevice**: Registration of the passkey failed.
-
----
-
-#### Integration Requirements
-
-To ensure compatibility with passkey functionality:
-
-- **Android SDK 26+**
-- **Java 8+**: Ensure `sourceCompatibility` and `targetCompatibility` are set to Java 8 in your Gradle configuration.
-
