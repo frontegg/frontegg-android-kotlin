@@ -772,7 +772,7 @@ class FirstFragment : Fragment() {
 
 ## Passkey Authentication
 
-The Frontegg Android SDK now supports passkey-based login and registration, allowing users to authenticate seamlessly using the Android Credential Manager. This feature adheres to modern authentication standards, enhancing security and usability.
+The Frontegg SDK simplifies integrating passkeys for both registration and login processes
 
 ### Setting Up Passkeys
 
@@ -802,25 +802,32 @@ To ensure compatibility with passkey functionality:
 
 ---
 
-#### CredentialManagerHandler
-The CredentialManagerHandler class simplifies the integration of the Android Credential Manager. Here's how the class works:
-
-#### Creating a Passkey
-To create a passkey, the createPasskey method generates a new public key credential using the Android Credential Manager:
+#### Registering a Passkey
+To register a passkey, simply call the registerPasskeys method. This handles the passkey creation process automatically:
 
 ```kotlin
-val credentialManagerHandler = CredentialManagerHandler(activity)
-
-val response = credentialManagerHandler.createPasskey(requestJson)
-Log.i("CredentialManager", "Passkey created: ${response.registrationResponseJson}")
+FronteggAuth.instance.registerPasskeys(activity!!) {
+    if (it != null) {
+        // Handle error
+        Log.e("FronteggAuth", "Failed to register passkey: $it")
+    } else {
+        // Success
+        Log.i("FronteggAuth", "Passkey registered successfully")
+    }
+}
 ```
 
-#### Retrieving a Passkey
-To retrieve an existing passkey for authentication, use the getPasskey method:
+#### Logging in with a Passkey
+To log in using an existing passkey, use the loginWithPasskeys method:
 
 ```kotlin
-val credentialManagerHandler = CredentialManagerHandler(activity)
-
-val response = credentialManagerHandler.getPasskey(requestJson)
-Log.i("CredentialManager", "Passkey retrieved: ${response.credential.authenticationResponseJson}")
+FronteggAuth.instance.loginWithPasskeys(activity!!) {
+    if (it != null) {
+        // Handle error
+        Log.e("FronteggAuth", "Failed to log in with passkey: $it")
+    } else {
+        // Success
+        Log.i("FronteggAuth", "Logged in successfully with passkey")
+    }
+}
 ```
