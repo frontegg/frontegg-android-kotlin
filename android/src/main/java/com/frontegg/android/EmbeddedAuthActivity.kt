@@ -10,6 +10,8 @@ import android.webkit.WebView
 import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
+import com.frontegg.android.services.FronteggAuthService
+import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
@@ -17,8 +19,8 @@ import io.reactivex.rxjava3.functions.Consumer
 import org.json.JSONObject
 
 class EmbeddedAuthActivity : Activity() {
-
-    lateinit var webView: FronteggWebView
+    private val storage = FronteggInnerStorage()
+    private lateinit var webView: FronteggWebView
     private var webViewUrl: String? = null
     private var directLoginLaunchedDone: Boolean = false
     private var directLoginLaunched: Boolean = false
@@ -39,8 +41,8 @@ class EmbeddedAuthActivity : Activity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, this.directLoginLaunched);
-        outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, this.directLoginLaunchedDone);
+        outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, this.directLoginLaunched)
+        outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, this.directLoginLaunchedDone)
     }
 
     private fun consumeIntent(intent: Intent) {
@@ -127,7 +129,7 @@ class EmbeddedAuthActivity : Activity() {
     }
 
     private fun navigateToAuthenticated() {
-        val mainActivityClass = FronteggApp.getInstance().mainActivityClass
+        val mainActivityClass = storage.mainActivityClass
         if (mainActivityClass != null) {
             val intent = Intent(this, mainActivityClass)
             startActivity(intent)
@@ -147,8 +149,8 @@ class EmbeddedAuthActivity : Activity() {
         if (directLoginLaunchedDone) {
             onAuthFinishedCallback?.invoke()
             onAuthFinishedCallback = null
-            FronteggAuth.instance.isLoading.value = false
-            FronteggAuth.instance.showLoader.value = false
+            FronteggAuthService.instance.isLoading.value = false
+            FronteggAuthService.instance.showLoader.value = false
             setResult(RESULT_OK)
             finish()
             return

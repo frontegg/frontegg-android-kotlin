@@ -27,17 +27,21 @@ import okhttp3.Response
 import java.io.IOException
 
 open class Api(
-    private var baseUrl: String,
-    private var clientId: String,
-    private var applicationId: String?,
+
     private var credentialManager: CredentialManager
 ) {
     private var httpClient: OkHttpClient = OkHttpClient()
+    private val storage = FronteggInnerStorage()
+    private val baseUrl: String
+        get() = storage.baseUrl
+    private val clientId: String
+        get() = storage.clientId
+    private val applicationId: String?
+        get() = storage.applicationId
 
     companion object {
         val TAG: String = Api::class.java.simpleName
     }
-
 
     private fun prepareHeaders(additionalHeaders: Map<String, String> = mapOf()): Headers {
 
