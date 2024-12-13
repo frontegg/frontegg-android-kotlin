@@ -13,6 +13,7 @@ import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.*
+import org.jetbrains.annotations.VisibleForTesting
 import java.time.Instant
 
 class FronteggApp private constructor(
@@ -43,6 +44,7 @@ class FronteggApp private constructor(
     companion object {
 
         @SuppressLint("StaticFieldLeak")
+        @VisibleForTesting
         private var instance: FronteggApp? = null
 
         public val TAG: String = FronteggApp::class.java.simpleName
@@ -52,6 +54,12 @@ class FronteggApp private constructor(
                 throw FronteggException(FRONTEGG_APP_MUST_BE_INITIALIZED)
             }
             return instance!!
+        }
+
+        @JvmStatic
+        @VisibleForTesting
+        internal fun setTestInstance(value: FronteggApp) {
+            instance = value
         }
 
         public fun init(

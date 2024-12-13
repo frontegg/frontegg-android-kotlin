@@ -37,6 +37,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.annotations.VisibleForTesting
 import org.json.JSONObject
 import java.time.Instant
 import java.util.Timer
@@ -95,6 +96,11 @@ class FronteggAuth(
         } else {
             this._api
         })!!
+
+    @VisibleForTesting
+    internal fun setApi(api:Api) {
+        this._api = api
+    }
 
 
     fun reinitWithRegion(region: RegionConfig) {
