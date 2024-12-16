@@ -22,7 +22,9 @@ import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.services.CredentialManagerHandlerProvider
 import com.frontegg.android.services.RefreshTokenService
+import com.frontegg.android.services.ScopeProvider
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
@@ -433,9 +435,8 @@ class FronteggAuth(
 
 
     fun loginWithPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
-
-        val passkeyManager = CredentialManagerHandler(activity)
-        val scope = MainScope()
+        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
+        val scope = ScopeProvider.mainScope
         scope.launch {
             try {
 
