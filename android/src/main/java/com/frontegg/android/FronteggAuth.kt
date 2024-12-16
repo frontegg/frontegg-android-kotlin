@@ -13,7 +13,6 @@ import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.credentials.PublicKeyCredential
-import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCredentialException
 import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
@@ -34,7 +33,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.VisibleForTesting
@@ -82,6 +80,9 @@ class FronteggAuth(
     var timerTask: TimerTask? = null;
     private var _api: Api? = null
 
+    @VisibleForTesting
+    internal var authorizeUrlGenerator = AuthorizeUrlGenerator()
+
     init {
 
         if (!isMultiRegion || selectedRegion !== null) {
@@ -98,7 +99,7 @@ class FronteggAuth(
         })!!
 
     @VisibleForTesting
-    internal fun setApi(api:Api) {
+    internal fun setApi(api: Api) {
         this._api = api
     }
 
@@ -316,8 +317,7 @@ class FronteggAuth(
             } else {
                 Log.e(TAG, "Failed to exchange token")
                 if (webView != null) {
-                    val authorizeUrl = AuthorizeUrlGenerator()
-                    val url = authorizeUrl.generate()
+                    val url = authorizeUrlGenerator.generate()
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
                     }
@@ -443,7 +443,8 @@ class FronteggAuth(
 
                 val result = passkeyManager.getPasskey(webAuthnPreloginRequest.jsonChallenge)
 
-                val challengeResponse = (result.credential as PublicKeyCredential).authenticationResponseJson
+                val challengeResponse =
+                    (result.credential as PublicKeyCredential).authenticationResponseJson
 
                 isLoading.value = true
                 val webAuthnPostLoginResponse = withContext(Dispatchers.IO) {
