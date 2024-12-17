@@ -4,12 +4,14 @@ import android.app.Activity
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
+import androidx.credentials.CreatePublicKeyCredentialResponse
 import androidx.credentials.GetCredentialResponse
 import androidx.credentials.PublicKeyCredential
 import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
+import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
 import com.frontegg.android.services.CredentialManager
@@ -30,13 +32,8 @@ import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import org.junit.Before
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.Robolectric
-import org.robolectric.RobolectricTestRunner
 
-@RunWith(RobolectricTestRunner::class)
 class FronteggAuthTest {
-
     private val mockActivity = mockk<Activity>()
     private lateinit var auth: FronteggAuth
     private val mockFronteggApp = mockkClass(FronteggApp::class)
@@ -393,7 +390,6 @@ class FronteggAuthTest {
 
     @Test
     fun `loginWithPasskeys should call Api_webAuthnPrelogin`() {
-        val activity = Robolectric.buildActivity(Activity::class.java)
         val mockApi = mockkClass(Api::class)
 
         val request = WebAuthnAssertionRequest(
@@ -412,13 +408,12 @@ class FronteggAuthTest {
             mockCredentialManagerHandler
         )
 
-        auth.loginWithPasskeys(activity.get())
+        auth.loginWithPasskeys(mockActivity)
         verify(timeout = 1_000) { mockApi.webAuthnPrelogin() }
     }
 
     @Test
     fun `loginWithPasskeys should call CredentialManagerHandler_getPasskey`() {
-        val activity = Robolectric.buildActivity(Activity::class.java)
         val mockApi = mockkClass(Api::class)
 
         val request = WebAuthnAssertionRequest(
@@ -445,13 +440,12 @@ class FronteggAuthTest {
 
         coEvery { mockCredentialManagerHandler.getPasskey(any()) }.returns(response)
 
-        auth.loginWithPasskeys(activity.get())
+        auth.loginWithPasskeys(mockActivity)
         coVerify { mockCredentialManagerHandler.getPasskey(any()) }
     }
 
     @Test
     fun `loginWithPasskeys should call Api_webAuthnPostlogin`() {
-        val activity = Robolectric.buildActivity(Activity::class.java)
         val mockApi = mockkClass(Api::class)
 
         val request = WebAuthnAssertionRequest(
@@ -480,13 +474,12 @@ class FronteggAuthTest {
 
         coEvery { mockCredentialManagerHandler.getPasskey(any()) }.returns(response)
 
-        auth.loginWithPasskeys(activity.get())
+        auth.loginWithPasskeys(mockActivity)
         verify(timeout = 1_000) { mockApi.webAuthnPostlogin(any(), any()) }
     }
 
     @Test
     fun `loginWithPasskeys should call setCredentials`() {
-        val activity = Robolectric.buildActivity(Activity::class.java)
         val mockApi = mockkClass(Api::class)
 
         val request = WebAuthnAssertionRequest(
@@ -516,7 +509,7 @@ class FronteggAuthTest {
 
         every { mockCredentialManager.save(any(), any()) }.returns(true)
 
-        auth.loginWithPasskeys(activity.get())
+        auth.loginWithPasskeys(mockActivity)
 
         verify(timeout = 1_000) {
             mockCredentialManager.save(
@@ -534,7 +527,6 @@ class FronteggAuthTest {
 
     @Test
     fun `loginWithPasskeys should call callback with null Exception`() {
-        val activity = Robolectric.buildActivity(Activity::class.java)
         val mockApi = mockkClass(Api::class)
 
         val request = WebAuthnAssertionRequest(
@@ -566,7 +558,7 @@ class FronteggAuthTest {
 
         var called = false
         var exception: Exception? = null
-        auth.loginWithPasskeys(activity.get(), callback = {
+        auth.loginWithPasskeys(mockActivity, callback = {
             called = true
             exception = it
         })
@@ -578,7 +570,6 @@ class FronteggAuthTest {
 
     @Test
     fun `loginWithPasskeys should call callback with Exception if some error occurred`() {
-        val activity = Robolectric.buildActivity(Activity::class.java)
         val mockApi = mockkClass(Api::class)
 
         every { mockApi.webAuthnPostlogin(any(), any()) }.throws(Exception())
@@ -596,7 +587,151 @@ class FronteggAuthTest {
 
         var called = false
         var exception: Exception? = null
-        auth.loginWithPasskeys(activity.get(), callback = {
+        auth.loginWithPasskeys(mockActivity, callback = {
+            called = true
+            exception = it
+        })
+
+        Thread.sleep(1_000)
+        assert(called)
+        assert(exception != null)
+    }
+
+    @Test
+    fun `registerPasskeys should call Api_getWebAuthnRegisterChallenge`() {
+        val mockApi = mockkClass(Api::class)
+        val request = WebAuthnRegistrationRequest(
+            cookie = "TestCookie",
+            jsonChallenge = "TestJsonChallenge"
+        )
+        every { mockApi.getWebAuthnRegisterChallenge() }.returns(request)
+        auth.setApi(mockApi)
+
+        mockkObject(ScopeProvider)
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+
+        mockkObject(CredentialManagerHandlerProvider)
+        val mockCredentialManagerHandler = mockkClass(CredentialManagerHandler::class)
+        every { CredentialManagerHandlerProvider.getCredentialManagerHandler(any()) }.returns(
+            mockCredentialManagerHandler
+        )
+
+        auth.registerPasskeys(mockActivity)
+        verify { mockApi.getWebAuthnRegisterChallenge() }
+    }
+
+    @Test
+    fun `registerPasskeys should call CredentialManagerHandler_createPasskey`() {
+        val mockApi = mockkClass(Api::class)
+        val request = WebAuthnRegistrationRequest(
+            cookie = "TestCookie",
+            jsonChallenge = "TestJsonChallenge"
+        )
+        every { mockApi.getWebAuthnRegisterChallenge() }.returns(request)
+        auth.setApi(mockApi)
+
+        mockkObject(ScopeProvider)
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+
+        mockkObject(CredentialManagerHandlerProvider)
+        val mockCredentialManagerHandler = mockkClass(CredentialManagerHandler::class)
+        every { CredentialManagerHandlerProvider.getCredentialManagerHandler(any()) }.returns(
+            mockCredentialManagerHandler
+        )
+
+        val response = CreatePublicKeyCredentialResponse(
+            registrationResponseJson = "{}"
+        )
+        coEvery { mockCredentialManagerHandler.createPasskey(any()) }.returns(response)
+
+        auth.registerPasskeys(mockActivity)
+        coVerify { mockCredentialManagerHandler.createPasskey(any()) }
+    }
+
+    @Test
+    fun `registerPasskeys should call Api_verifyWebAuthnDevice`() {
+        val mockApi = mockkClass(Api::class)
+        val request = WebAuthnRegistrationRequest(
+            cookie = "TestCookie",
+            jsonChallenge = "TestJsonChallenge"
+        )
+        every { mockApi.getWebAuthnRegisterChallenge() }.returns(request)
+        every { mockApi.verifyWebAuthnDevice(any(), any()) }.returns(Unit)
+        auth.setApi(mockApi)
+
+        mockkObject(ScopeProvider)
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+
+        mockkObject(CredentialManagerHandlerProvider)
+        val mockCredentialManagerHandler = mockkClass(CredentialManagerHandler::class)
+        every { CredentialManagerHandlerProvider.getCredentialManagerHandler(any()) }.returns(
+            mockCredentialManagerHandler
+        )
+
+        val response = CreatePublicKeyCredentialResponse(
+            registrationResponseJson = "{}"
+        )
+        coEvery { mockCredentialManagerHandler.createPasskey(any()) }.returns(response)
+
+        auth.registerPasskeys(mockActivity)
+        verify { mockApi.verifyWebAuthnDevice(any(), any()) }
+    }
+
+    @Test
+    fun `registerPasskeys should call call callback with null Exception`() {
+        val mockApi = mockkClass(Api::class)
+        val request = WebAuthnRegistrationRequest(
+            cookie = "TestCookie",
+            jsonChallenge = "TestJsonChallenge"
+        )
+        every { mockApi.getWebAuthnRegisterChallenge() }.returns(request)
+        every { mockApi.verifyWebAuthnDevice(any(), any()) }.returns(Unit)
+        auth.setApi(mockApi)
+
+        mockkObject(ScopeProvider)
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+
+        mockkObject(CredentialManagerHandlerProvider)
+        val mockCredentialManagerHandler = mockkClass(CredentialManagerHandler::class)
+        every { CredentialManagerHandlerProvider.getCredentialManagerHandler(any()) }.returns(
+            mockCredentialManagerHandler
+        )
+
+        val response = CreatePublicKeyCredentialResponse(
+            registrationResponseJson = "{}"
+        )
+        coEvery { mockCredentialManagerHandler.createPasskey(any()) }.returns(response)
+
+        var called = false
+        var exception: Exception? = null
+        auth.registerPasskeys(mockActivity, callback = {
+            called = true
+            exception = it
+        })
+
+        Thread.sleep(1_000)
+        assert(called)
+        assert(exception == null)
+    }
+
+    @Test
+    fun `registerPasskeys should call call callback with Exception if some error occurred`() {
+        val mockApi = mockkClass(Api::class)
+        every { mockApi.getWebAuthnRegisterChallenge() }.throws(Exception())
+        auth.setApi(mockApi)
+
+        mockkObject(ScopeProvider)
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+
+        mockkObject(CredentialManagerHandlerProvider)
+        val mockCredentialManagerHandler = mockkClass(CredentialManagerHandler::class)
+        every { CredentialManagerHandlerProvider.getCredentialManagerHandler(any()) }.returns(
+            mockCredentialManagerHandler
+        )
+
+        var called = false
+        var exception: Exception? = null
+        auth.registerPasskeys(mockActivity, callback = {
             called = true
             exception = it
         })

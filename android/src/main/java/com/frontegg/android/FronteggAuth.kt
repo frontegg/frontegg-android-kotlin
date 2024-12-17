@@ -13,7 +13,6 @@ import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.credentials.PublicKeyCredential
-import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
@@ -34,7 +33,6 @@ import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.VisibleForTesting
@@ -78,8 +76,8 @@ class FronteggAuth(
     val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
     var pendingAppLink: String? = null
     val isMultiRegion: Boolean = regions.isNotEmpty()
-    var refreshTokenJob: JobInfo? = null;
-    var timerTask: TimerTask? = null;
+    var refreshTokenJob: JobInfo? = null
+    var timerTask: TimerTask? = null
     private var _api: Api? = null
 
     @VisibleForTesting
@@ -182,7 +180,7 @@ class FronteggAuth(
             GlobalScope.launch(Dispatchers.IO) {
                 sendRefreshToken()
             }
-            return;
+            return
         }
 
         val decoded = JWTHelper.decode(accessToken)
@@ -335,7 +333,7 @@ class FronteggAuth(
 
     private fun getDomainCookie(siteName: String): String? {
         val cookieManager = CookieManager.getInstance()
-        return cookieManager.getCookie(siteName);
+        return cookieManager.getCookie(siteName)
     }
 
 
@@ -474,8 +472,8 @@ class FronteggAuth(
 
     fun registerPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
 
-        val passkeyManager = CredentialManagerHandler(activity)
-        val scope = MainScope()
+        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
+        val scope = ScopeProvider.mainScope
         scope.launch {
             try {
 
