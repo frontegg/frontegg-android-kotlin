@@ -14,9 +14,11 @@ import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
+import com.frontegg.android.services.AuthorizeUrlGeneratorProvider
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.CredentialManagerHandlerProvider
 import com.frontegg.android.services.ScopeProvider
+import com.frontegg.android.testUtils.BlockCoroutineDispatcher
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWT
@@ -323,7 +325,9 @@ class FronteggAuthTest {
 
         val mockAuthorizeUrl = mockkClass(AuthorizeUrlGenerator::class)
         every { mockAuthorizeUrl.generate(any(), any(), any()) }.returns(Pair("First", "Second"))
-        auth.authorizeUrlGenerator = mockAuthorizeUrl
+
+        mockkObject(AuthorizeUrlGeneratorProvider)
+        every { AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator() }.returns(mockAuthorizeUrl)
 
         val result = auth.handleHostedLoginCallback("TestCode", webView = mockWebView)
         verify(timeout = 1_000) { mockAuthorizeUrl.generate(any(), any(), any()) }
@@ -344,7 +348,9 @@ class FronteggAuthTest {
 
         val mockAuthorizeUrl = mockkClass(AuthorizeUrlGenerator::class)
         every { mockAuthorizeUrl.generate(any(), any(), any()) }.returns(Pair("First", "Second"))
-        auth.authorizeUrlGenerator = mockAuthorizeUrl
+
+        mockkObject(AuthorizeUrlGeneratorProvider)
+        every { AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator() }.returns(mockAuthorizeUrl)
 
         every { mockFronteggApp.isEmbeddedMode }.returns(true)
         mockkObject(EmbeddedAuthActivity.Companion)

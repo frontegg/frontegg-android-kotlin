@@ -39,17 +39,16 @@ class FronteggApp private constructor(
     val packageName: String = context.packageName
     var appInForeground = true
 
-    var lastJobStart: Long = Instant.now().toEpochMilli();
+    var lastJobStart: Long = Instant.now().toEpochMilli()
 
     companion object {
 
         @SuppressLint("StaticFieldLeak")
-        @VisibleForTesting
         private var instance: FronteggApp? = null
 
-        public val TAG: String = FronteggApp::class.java.simpleName
+        val TAG: String = FronteggApp::class.java.simpleName
 
-        public fun getInstance(): FronteggApp {
+        fun getInstance(): FronteggApp {
             if (instance == null) {
                 throw FronteggException(FRONTEGG_APP_MUST_BE_INITIALIZED)
             }
@@ -62,7 +61,7 @@ class FronteggApp private constructor(
             instance = value
         }
 
-        public fun init(
+        fun init(
             fronteggDomain: String,
             clientId: String,
             context: Context,
@@ -97,7 +96,7 @@ class FronteggApp private constructor(
             }
         }
 
-        public fun initWithRegions(
+        fun initWithRegions(
             regions: List<RegionConfig>,
             context: Context,
             useAssetsLinks: Boolean = false,

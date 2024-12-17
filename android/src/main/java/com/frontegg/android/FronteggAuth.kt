@@ -20,11 +20,11 @@ import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
+import com.frontegg.android.services.AuthorizeUrlGeneratorProvider
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.CredentialManagerHandlerProvider
 import com.frontegg.android.services.RefreshTokenService
 import com.frontegg.android.services.ScopeProvider
-import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
@@ -79,9 +79,6 @@ class FronteggAuth(
     var refreshTokenJob: JobInfo? = null
     var timerTask: TimerTask? = null
     private var _api: Api? = null
-
-    @VisibleForTesting
-    internal var authorizeUrlGenerator = AuthorizeUrlGenerator()
 
     init {
 
@@ -317,7 +314,7 @@ class FronteggAuth(
             } else {
                 Log.e(TAG, "Failed to exchange token")
                 if (webView != null) {
-                    val url = authorizeUrlGenerator.generate()
+                    val url = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator().generate()
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
                     }

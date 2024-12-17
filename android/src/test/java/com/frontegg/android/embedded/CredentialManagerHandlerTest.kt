@@ -7,7 +7,7 @@ import androidx.credentials.CredentialManager
 import androidx.credentials.GetCredentialRequest
 import androidx.credentials.GetCredentialResponse
 import androidx.credentials.PublicKeyCredential
-import com.frontegg.android.BlockCoroutineDispatcher
+import com.frontegg.android.testUtils.BlockCoroutineDispatcher
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
