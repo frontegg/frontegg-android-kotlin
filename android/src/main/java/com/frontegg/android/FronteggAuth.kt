@@ -13,8 +13,6 @@ import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.credentials.PublicKeyCredential
-import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCredentialException
-import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
@@ -22,9 +20,11 @@ import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
+import com.frontegg.android.services.AuthorizeUrlGeneratorProvider
 import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.services.CredentialManagerHandlerProvider
 import com.frontegg.android.services.RefreshTokenService
-import com.frontegg.android.utils.AuthorizeUrlGenerator
+import com.frontegg.android.services.ScopeProvider
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
@@ -33,10 +33,9 @@ import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.annotations.VisibleForTesting
 import org.json.JSONObject
 import java.time.Instant
 import java.util.Timer
@@ -77,8 +76,8 @@ class FronteggAuth(
     val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
     var pendingAppLink: String? = null
     val isMultiRegion: Boolean = regions.isNotEmpty()
-    var refreshTokenJob: JobInfo? = null;
-    var timerTask: TimerTask? = null;
+    var refreshTokenJob: JobInfo? = null
+    var timerTask: TimerTask? = null
     private var _api: Api? = null
 
     init {
@@ -95,6 +94,11 @@ class FronteggAuth(
         } else {
             this._api
         })!!
+
+    @VisibleForTesting
+    internal fun setApi(api: Api) {
+        this._api = api
+    }
 
 
     fun reinitWithRegion(region: RegionConfig) {
@@ -173,7 +177,7 @@ class FronteggAuth(
             GlobalScope.launch(Dispatchers.IO) {
                 sendRefreshToken()
             }
-            return;
+            return
         }
 
         val decoded = JWTHelper.decode(accessToken)
@@ -310,8 +314,7 @@ class FronteggAuth(
             } else {
                 Log.e(TAG, "Failed to exchange token")
                 if (webView != null) {
-                    val authorizeUrl = AuthorizeUrlGenerator()
-                    val url = authorizeUrl.generate()
+                    val url = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator().generate()
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
                     }
@@ -327,7 +330,7 @@ class FronteggAuth(
 
     private fun getDomainCookie(siteName: String): String? {
         val cookieManager = CookieManager.getInstance()
-        return cookieManager.getCookie(siteName);
+        return cookieManager.getCookie(siteName)
     }
 
 
@@ -427,9 +430,8 @@ class FronteggAuth(
 
 
     fun loginWithPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
-
-        val passkeyManager = CredentialManagerHandler(activity)
-        val scope = MainScope()
+        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
+        val scope = ScopeProvider.mainScope
         scope.launch {
             try {
 
@@ -437,7 +439,8 @@ class FronteggAuth(
 
                 val result = passkeyManager.getPasskey(webAuthnPreloginRequest.jsonChallenge)
 
-                val challengeResponse = (result.credential as PublicKeyCredential).authenticationResponseJson
+                val challengeResponse =
+                    (result.credential as PublicKeyCredential).authenticationResponseJson
 
                 isLoading.value = true
                 val webAuthnPostLoginResponse = withContext(Dispatchers.IO) {
@@ -466,8 +469,8 @@ class FronteggAuth(
 
     fun registerPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
 
-        val passkeyManager = CredentialManagerHandler(activity)
-        val scope = MainScope()
+        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
+        val scope = ScopeProvider.mainScope
         scope.launch {
             try {
 

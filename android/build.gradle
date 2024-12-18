@@ -12,11 +12,11 @@ version '1.2.30'
 
 android {
     namespace 'com.frontegg.android'
-    compileSdk 34
+    compileSdk 35
 
     defaultConfig {
         minSdk 26
-        targetSdk 34
+        targetSdk 35
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
         versionName "$version"
@@ -42,6 +42,13 @@ android {
             // if you don't want sources/javadoc, remove these lines
             withSourcesJar()
             withJavadocJar()
+        }
+    }
+
+    testOptions {
+        unitTests {
+            includeAndroidResources = true
+            returnDefaultValues = true
         }
     }
 }
@@ -71,12 +78,23 @@ dependencies {
 
     // needed for encrypted shared preferences
     implementation('androidx.security:security-crypto:1.1.0-alpha06') {
-        exclude group: 'com.google.crypto.tink', module: 'tink-android'}
+        exclude group: 'com.google.crypto.tink', module: 'tink-android'
+    }
     implementation 'com.google.crypto.tink:tink-android:1.9.0'
 
     // optional - needed for credentials support from play services, for devices running Android 13 and below.
     implementation "androidx.credentials:credentials-play-services-auth:$androidCredentialsVersion"
     implementation "androidx.credentials:credentials:$androidCredentialsVersion"
+    implementation 'androidx.test:core-ktx:1.6.1'
+
+
+    // Testing
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.robolectric:robolectric:4.14.1'
+    testImplementation "io.mockk:mockk:1.13.13"
+    testImplementation "org.junit.jupiter:junit-jupiter:5.11.3"
+    testImplementation 'org.json:json:20180813'
+    testImplementation("com.squareup.okhttp3:mockwebserver:4.12.0")
 }
 
 afterEvaluate {

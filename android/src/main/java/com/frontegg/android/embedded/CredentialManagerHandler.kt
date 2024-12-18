@@ -36,7 +36,7 @@ class CredentialManagerHandler(private val activity: Activity) {
 
         try {
             mCredMan.clearCredentialState(ClearCredentialStateRequest())
-        }catch (e:Exception){
+        } catch (e: Exception) {
             Log.e(TAG, e.message, e)
         }
 

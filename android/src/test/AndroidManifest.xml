@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.CREDENTIAL_MANAGER_SET_ORIGIN" />
+
+    <application tools:node="replace">
+
+
+        <activity
+            android:name="com.frontegg.android.EmbeddedAuthActivity"
+            android:launchMode="singleTop"
+            android:exported="true">
+            <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="autheu.davidantoon.me" />
+                <data android:pathPrefix="/oauth/account/activate" />
+
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="autheu.davidantoon.me" />
+                <data android:pathPrefix="/oauth/account/invitation/accept" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="autheu.davidantoon.me" />
+                <data android:pathPrefix="/oauth/account/reset-password" />
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:host="autheu.davidantoon.me" />
+                <data android:pathPrefix="/oauth/account/login/magic-link" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.frontegg.android.HostedAuthActivity"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="autheu.davidantoon.me"
+                    android:pathPrefix="/frontegg"
+                    android:scheme="https" />
+
+            </intent-filter>
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="autheu.davidantoon.me"
+                    android:pathPrefix="/oauth"
+                    android:scheme="https" />
+
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name="com.frontegg.android.AuthenticationActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            >
+
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
+                <data
+                    android:host="autheu.davidantoon.me"
+                    android:pathPrefix="/oauth/account/redirect/android/com.frontegg.demo"
+                    android:scheme="https" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data
+                    android:host="autheu.davidantoon.me"
+                    android:scheme="com.frontegg.demo" />
+            </intent-filter>
+        </activity>
+
+        <service
+            android:name="com.frontegg.android.services.RefreshTokenService"
+            android:exported="true"
+            android:permission="android.permission.BIND_JOB_SERVICE">
+            <intent-filter>
+                <action android:name="android.app.job.JobService" />
+            </intent-filter>
+        </service>
+    </application>
+
+    <queries>
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+    </queries>
+
+
+</manifest>

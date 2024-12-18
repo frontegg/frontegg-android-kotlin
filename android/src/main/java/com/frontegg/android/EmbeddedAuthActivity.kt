@@ -188,7 +188,7 @@ class EmbeddedAuthActivity : Activity() {
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
         var onAuthFinishedCallback: (() -> Unit)? = null // Store callback
 
-
+        @JvmStatic
         fun authenticate(
             activity: Activity,
             loginHint: String? = null,
