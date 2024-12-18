@@ -48,7 +48,8 @@ class FronteggAuthTest {
         every { mockFronteggApp.applicationId }.returns("TestApplicationId")
         every { mockFronteggApp.baseUrl }.returns("https://base.url.com")
         every { mockFronteggApp.credentialManager }.returns(mockCredentialManager)
-        FronteggApp.setTestInstance(mockFronteggApp)
+        mockkObject(FronteggApp.Companion)
+        every { FronteggApp.getInstance() }.returns(mockFronteggApp)
         every { mockCredentialManager.get(any()) }.returns(null)
         auth = FronteggAuth(
             baseUrl = "https://base.url.com",
