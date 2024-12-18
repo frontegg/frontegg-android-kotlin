@@ -37,7 +37,7 @@ class Constants {
         fun oauthCallbackUrl(baseUrl: String): String {
 
             val host = baseUrl.substring("https://".length)
-            val app = FronteggApp.getInstance();
+            val app = FronteggApp.getInstance()
             val packageName = app.packageName
             val useAssetsLinks = app.useAssetsLinks
             return if (useAssetsLinks) {
