@@ -3,6 +3,8 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+Properties localProperties = new Properties()
+localProperties.load(project.rootProject.file('local.properties').newDataInputStream())
 
 def fronteggDomain = "autheu.davidantoon.me"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
@@ -33,6 +35,15 @@ android {
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
 
+        testInstrumentationRunnerArguments["LOGIN_EMAIL"] = localProperties.getProperty("LOGIN_EMAIL")
+        testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = localProperties.getProperty("LOGIN_PASSWORD")
+        testInstrumentationRunnerArguments["LOGIN_WRONG_EMAIL"] = localProperties.getProperty("LOGIN_WRONG_EMAIL")
+        testInstrumentationRunnerArguments["LOGIN_WRONG_PASSWORD"] = localProperties.getProperty("LOGIN_WRONG_PASSWORD")
+
+    }
+
+    testOptions {
+        execution "ANDROIDX_TEST_ORCHESTRATOR"
     }
 
     signingConfigs {
@@ -58,6 +69,9 @@ android {
         }
         debug {
             signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+            debuggable true
         }
     }
     compileOptions {
@@ -103,7 +117,9 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-web:' + rootProject.espressoVersion
     androidTestImplementation 'androidx.test:monitor:1.7.0-alpha01'
 
-    testImplementation 'androidx.test:core:' + rootProject.coreVersion;
-    testImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
-    testImplementation 'junit:junit:4.13.2'
+    implementation "junit:junit:4.13.2"
+
+    implementation "androidx.test.uiautomator:uiautomator:2.2.0"
+    androidTestUtil "androidx.test:orchestrator:1.5.1"
+
 }
