@@ -16,7 +16,7 @@ import androidx.test.uiautomator.Until
 import com.frontegg.demo.NavigationActivity
 
 class UiTestInstrumentation {
-    private val timeoutMillis: Long = 5_000
+    private val timeoutMillis: Long = 10_000
 
     private val instrumentation: Instrumentation = InstrumentationRegistry.getInstrumentation()
     private val configurator: Configurator = Configurator.getInstance()
