@@ -37,8 +37,13 @@ android {
 
         testInstrumentationRunnerArguments["LOGIN_EMAIL"] = localProperties.getProperty("LOGIN_EMAIL")
         testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = localProperties.getProperty("LOGIN_PASSWORD")
+
         testInstrumentationRunnerArguments["LOGIN_WRONG_EMAIL"] = localProperties.getProperty("LOGIN_WRONG_EMAIL")
         testInstrumentationRunnerArguments["LOGIN_WRONG_PASSWORD"] = localProperties.getProperty("LOGIN_WRONG_PASSWORD")
+
+        testInstrumentationRunnerArguments["SIGN_UP_TEMPLATE"] = localProperties.getProperty("SIGN_UP_TEMPLATE")
+        testInstrumentationRunnerArguments["SIGN_UP_NAME"] = localProperties.getProperty("SIGN_UP_NAME")
+        testInstrumentationRunnerArguments["SIGN_UP_ORGANIZATION"] = localProperties.getProperty("SIGN_UP_ORGANIZATION")
 
     }
 
