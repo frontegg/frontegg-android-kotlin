@@ -30,6 +30,9 @@ object Env {
     val tenantName2: String
         get() = getStringByName("TENANT_NAME_2")
 
+    val googleEmail: String
+        get() = getStringByName("GOOGLE_EMAIL")
+
 
     private fun getStringByName(name: String) =
         InstrumentationRegistry.getArguments().getString(name) ?: ""

@@ -27,8 +27,8 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders = [
-                "package_name" : applicationId,
-                "frontegg_domain" : fronteggDomain,
+                "package_name"      : applicationId,
+                "frontegg_domain"   : fronteggDomain,
                 "frontegg_client_id": fronteggClientId
         ]
 
@@ -47,6 +47,8 @@ android {
 
         testInstrumentationRunnerArguments["TENANT_NAME_1"] = localProperties.getProperty("TENANT_NAME_1")
         testInstrumentationRunnerArguments["TENANT_NAME_2"] = localProperties.getProperty("TENANT_NAME_2")
+
+        testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = localProperties.getProperty("GOOGLE_EMAIL")
 
     }
 
