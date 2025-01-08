@@ -50,6 +50,9 @@ android {
 
         testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = localProperties.getProperty("GOOGLE_EMAIL")
 
+        testInstrumentationRunnerArguments["APPLE_EMAIL"] = localProperties.getProperty("APPLE_EMAIL")
+        testInstrumentationRunnerArguments["APPLE_PASSWORD"] = localProperties.getProperty("APPLE_PASSWORD")
+
     }
 
     testOptions {

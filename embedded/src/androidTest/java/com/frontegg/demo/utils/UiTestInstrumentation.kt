@@ -49,6 +49,12 @@ class UiTestInstrumentation {
         return obj != null
     }
 
+    fun clickByResourceId(resourceId: String): Boolean {
+        val obj = waitForView(By.res(resourceId))
+        obj?.click()
+        return obj != null
+    }
+
     fun waitForView(
         bySelector: BySelector,
         index: Int = 0,
@@ -72,6 +78,20 @@ class UiTestInstrumentation {
         text: String,
     ): Boolean {
         val obj = waitForView(By.clazz(EditText::class.java), index)
+
+        if (obj != null) {
+            obj.text = text
+            return true
+        }
+
+        return false
+    }
+
+    fun inputTextByResourceId(
+        resourceId: String,
+        text: String
+    ): Boolean {
+        val obj = waitForView(By.res(resourceId))
 
         if (obj != null) {
             obj.text = text

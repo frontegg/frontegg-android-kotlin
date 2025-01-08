@@ -33,6 +33,11 @@ object Env {
     val googleEmail: String
         get() = getStringByName("GOOGLE_EMAIL")
 
+    val appleEmail: String
+        get() = getStringByName("APPLE_EMAIL")
+
+    val applePassword: String
+        get() = getStringByName("APPLE_PASSWORD")
 
     private fun getStringByName(name: String) =
         InstrumentationRegistry.getArguments().getString(name) ?: ""
