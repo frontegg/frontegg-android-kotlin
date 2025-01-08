@@ -15,6 +15,22 @@ object Env {
     val loginWrongPassword: String
         get() = getStringByName("LOGIN_WRONG_PASSWORD")
 
+    val signUpTemplate: String
+        get() = getStringByName("SIGN_UP_TEMPLATE")
+
+    val signUpName: String
+        get() = getStringByName("SIGN_UP_NAME")
+
+    val signUpOrganization: String
+        get() = getStringByName("SIGN_UP_ORGANIZATION")
+
+    val tenantName1: String
+        get() = getStringByName("TENANT_NAME_1")
+
+    val tenantName2: String
+        get() = getStringByName("TENANT_NAME_2")
+
+
     private fun getStringByName(name: String) =
         InstrumentationRegistry.getArguments().getString(name) ?: ""
 }

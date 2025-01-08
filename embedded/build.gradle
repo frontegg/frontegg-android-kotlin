@@ -45,6 +45,9 @@ android {
         testInstrumentationRunnerArguments["SIGN_UP_NAME"] = localProperties.getProperty("SIGN_UP_NAME")
         testInstrumentationRunnerArguments["SIGN_UP_ORGANIZATION"] = localProperties.getProperty("SIGN_UP_ORGANIZATION")
 
+        testInstrumentationRunnerArguments["TENANT_NAME_1"] = localProperties.getProperty("TENANT_NAME_1")
+        testInstrumentationRunnerArguments["TENANT_NAME_2"] = localProperties.getProperty("TENANT_NAME_2")
+
     }
 
     testOptions {
