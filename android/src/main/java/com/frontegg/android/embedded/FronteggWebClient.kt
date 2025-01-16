@@ -83,6 +83,14 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
                 "loginWithSocialLogin",
                 fronteggApp.handleLoginWithSocialLogin
             )
+            nativeModuleFunctions.put(
+                "loginWithSocialProvider",
+                fronteggApp.handleLoginWithSocialProvider
+            )
+            nativeModuleFunctions.put(
+                "loginWithCustomSocialLoginProvider",
+                fronteggApp.handleLoginWithCustomSocialLoginProvider
+            )
             nativeModuleFunctions.put("loginWithSSO", fronteggApp.handleLoginWithSSO)
             nativeModuleFunctions.put(
                 "shouldPromptSocialLoginConsent",

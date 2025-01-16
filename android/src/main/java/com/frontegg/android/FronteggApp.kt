@@ -24,6 +24,8 @@ class FronteggApp private constructor(
     val regions: List<RegionConfig> = listOf(),
     val selectedRegion: RegionConfig? = null,
     var handleLoginWithSocialLogin: Boolean = true,
+    var handleLoginWithSocialProvider: Boolean = true,
+    var handleLoginWithCustomSocialLoginProvider: Boolean = true,
     var customUserAgent: String? = null,
     var handleLoginWithSSO: Boolean = false,
     var shouldPromptSocialLoginConsent: Boolean = true,
