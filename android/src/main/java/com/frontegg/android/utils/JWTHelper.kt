@@ -1,8 +1,7 @@
 package com.frontegg.android.utils
 
 import com.google.gson.Gson
-import java.util.*
-
+import java.util.Base64
 
 class JWT {
     lateinit var sub: String

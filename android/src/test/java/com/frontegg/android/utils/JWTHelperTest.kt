@@ -33,11 +33,4 @@ class JWTHelperTest {
 
         assert(jwtModel == jwt)
     }
-
-    @Test
-    fun `decode should return valid model`() {
-        val jwtModel = JWTHelper.decode(jwtToken)
-
-        assert(jwtModel == jwt)
-    }
 }
