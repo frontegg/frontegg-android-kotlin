@@ -7,6 +7,7 @@ import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.frontegg.android.testUtils.FakeAndroidKeyStoreProvider
 import com.frontegg.android.utils.CredentialKeys
+import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.mockkClass
 import io.mockk.mockkStatic
@@ -25,6 +26,7 @@ class CredentialManagerTest {
 
     @Before
     fun setUp() {
+        clearAllMocks()
         FakeAndroidKeyStoreProvider.setup()
         credentialManager = CredentialManager(ApplicationProvider.getApplicationContext())
 
@@ -196,7 +198,6 @@ class CredentialManagerTest {
     }
 
 
-
     @Test
     fun `getSelectedRegion should return null if not saved`() {
         every {
@@ -264,14 +265,14 @@ class CredentialManagerTest {
     }
 
     @Test
-    fun `getCodeVerifier should return null if saveCodeVerifier was not called before` () {
+    fun `getCodeVerifier should return null if saveCodeVerifier was not called before`() {
         val result = credentialManager.getCodeVerifier()
 
         assert(result == null)
     }
 
     @Test
-    fun `getCodeVerifier should return string if saveCodeVerifier was called before` () {
+    fun `getCodeVerifier should return string if saveCodeVerifier was called before`() {
         credentialManager.saveCodeVerifier("Test Code Verifier")
 
         val result = credentialManager.getCodeVerifier()
@@ -281,7 +282,7 @@ class CredentialManagerTest {
     }
 
     @Test
-    fun `getCodeVerifier should return null if clear was called before` () {
+    fun `getCodeVerifier should return null if clear was called before`() {
         credentialManager.saveCodeVerifier("Test Code Verifier")
         credentialManager.clear()
 
@@ -291,14 +292,14 @@ class CredentialManagerTest {
     }
 
     @Test
-    fun `getSelectedRegion should return null if saveCodeVerifier was not called before` () {
+    fun `getSelectedRegion should return null if saveCodeVerifier was not called before`() {
         val result = credentialManager.getSelectedRegion()
 
         assert(result == null)
     }
 
     @Test
-    fun `getSelectedRegion should return string if saveCodeVerifier was called before` () {
+    fun `getSelectedRegion should return string if saveCodeVerifier was called before`() {
         credentialManager.saveSelectedRegion("Test Selected Region")
 
         val result = credentialManager.getSelectedRegion()
@@ -308,7 +309,7 @@ class CredentialManagerTest {
     }
 
     @Test
-    fun `getSelectedRegion should return string if clear was called before` () {
+    fun `getSelectedRegion should return string if clear was called before`() {
         credentialManager.saveSelectedRegion("Test Code Verifier")
         credentialManager.clear()
 
@@ -318,16 +319,15 @@ class CredentialManagerTest {
     }
 
 
-
     @Test
-    fun `get should return null if saveCodeVerifier was not called before` () {
+    fun `get should return null if saveCodeVerifier was not called before`() {
         val result = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
 
         assert(result == null)
     }
 
     @Test
-    fun `get should return string if saveCodeVerifier was called before` () {
+    fun `get should return string if saveCodeVerifier was called before`() {
         credentialManager.save(CredentialKeys.ACCESS_TOKEN, "Test Access Token")
 
         val result = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
@@ -337,7 +337,7 @@ class CredentialManagerTest {
     }
 
     @Test
-    fun `get_CredentialKeys_ACCESS_TOKEN should return null if clear was called before` () {
+    fun `get_CredentialKeys_ACCESS_TOKEN should return null if clear was called before`() {
         credentialManager.save(CredentialKeys.ACCESS_TOKEN, "Test Access Token")
         credentialManager.clear()
 
@@ -347,7 +347,7 @@ class CredentialManagerTest {
     }
 
     @Test
-    fun `get_CredentialKeys_CODE_VERIFIER should return null if clear was called before` () {
+    fun `get_CredentialKeys_CODE_VERIFIER should return null if clear was called before`() {
         credentialManager.save(CredentialKeys.CODE_VERIFIER, "Test CODE_VERIFIER")
         credentialManager.clear()
 
@@ -357,7 +357,7 @@ class CredentialManagerTest {
     }
 
     @Test
-    fun `get_CredentialKeys_REFRESH_TOKEN should return null if clear was called before` () {
+    fun `get_CredentialKeys_REFRESH_TOKEN should return null if clear was called before`() {
         credentialManager.save(CredentialKeys.REFRESH_TOKEN, "Test REFRESH_TOKEN")
         credentialManager.clear()
 
