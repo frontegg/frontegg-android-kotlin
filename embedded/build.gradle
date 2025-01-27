@@ -16,6 +16,7 @@ android {
     compileSdk 34
 
     defaultConfig {
+
         applicationId "com.frontegg.demo"
         minSdk 26
         targetSdk 34
