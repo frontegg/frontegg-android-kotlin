@@ -35,9 +35,23 @@ class AuthFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        // binding.loginButton.setOnClickListener {
+        //     FronteggAuth.instance.login(requireActivity()) {
+        //         Log.d("AuthFragment", "Login callback")
+        //     }
+        // }
+
         binding.loginButton.setOnClickListener {
-            FronteggAuth.instance.login(requireActivity()) {
-                Log.d("AuthFragment", "Login callback")
+            Log.d("AuthFragment", "Login button clicked")
+            FronteggAuth.instance.requestAuthorize(
+                refreshToken = "bca924ae-678a-4d84-9362-36d1bb8b33b0",
+                deviceTokenCookie = "45dee82f-154e-4430-9fbf-951700f77e14"
+            ) { result ->
+                result.onSuccess { user ->
+                    Log.d("FronteggAuth", "User authorized: ${user.name}")
+                }.onFailure { error ->
+                    Log.e("FronteggAuth", "Authorization failed: ${error.message}")
+                }
             }
         }
 

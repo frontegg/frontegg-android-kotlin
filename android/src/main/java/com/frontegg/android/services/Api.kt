@@ -33,9 +33,13 @@ open class Api(
     private var credentialManager: CredentialManager
 ) {
     private var httpClient: OkHttpClient = OkHttpClient()
+    private val cookieName: String
 
     companion object {
         val TAG: String = Api::class.java.simpleName
+    }
+    init {
+        cookieName = "fe_refresh_$clientId".replace("-", "")
     }
 
 
@@ -178,6 +182,21 @@ open class Api(
             return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
         }
         return null
+    }
+
+    @Throws(IOException::class)
+    fun authorizeWithTokens(refreshToken: String, deviceTokenCookie: String?): AuthResponse {
+        // Format refresh token cookie
+        val refreshTokenCookie = "$cookieName=$refreshToken"
+    
+        try {
+            // Call silentHostedLoginRefreshToken
+            return silentHostedLoginRefreshToken(refreshTokenCookie, deviceTokenCookie ?: "")
+        } catch (e: FailedToAuthenticateException) {
+            // Log and rethrow for handling at a higher level
+            Log.e(TAG, "Failed to authorize with tokens: ${e.message}")
+            throw e
+        }
     }
 
     fun logout(cookies: String, accessToken: String) {
@@ -328,19 +347,19 @@ open class Api(
 
     private fun silentHostedLoginRefreshToken(
         refreshTokenCookie: String, deviceIdCookie: String
-    ): AuthResponse {
+): AuthResponse {
 
-        val call = buildPostRequest(
+    val call = buildPostRequest(
             ApiConstants.silentRefreshToken, JsonObject(), mapOf(
                 "cookie" to "${refreshTokenCookie};${deviceIdCookie}"
-            )
+    )
         )
-        val response = call.execute()
+    val response = call.execute()
 
         val body = response.body
         if (!response.isSuccessful || body == null) {
             throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
-        }
+    }
         return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
     }
 }
