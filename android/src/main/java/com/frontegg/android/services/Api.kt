@@ -39,7 +39,7 @@ open class Api(
         val TAG: String = Api::class.java.simpleName
     }
     init {
-        cookieName = "fe_refresh_$clientId".replace("-", "")
+        cookieName = "fe_refresh_$clientId".replaceFirst("-", "")
     }
 
 
