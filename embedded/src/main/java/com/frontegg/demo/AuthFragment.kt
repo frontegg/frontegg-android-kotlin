@@ -35,16 +35,26 @@ class AuthFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        // binding.loginButton.setOnClickListener {
-        //     FronteggAuth.instance.login(requireActivity()) {
-        //         Log.d("AuthFragment", "Login callback")
-        //     }
-        // }
-
         binding.loginButton.setOnClickListener {
+            FronteggAuth.instance.login(requireActivity()) {
+                Log.d("AuthFragment", "Login callback")
+            }
+        }
+
+        binding.googleLoginButton.setOnClickListener {
+            FronteggAuth.instance.directLoginAction(
+                requireActivity(),
+                "social-login",
+                "google",
+                callback = {
+                    Log.d("AuthFragment", "Direct login action callback")
+                })
+        }
+
+        binding.requestAuthorizedWithTokensButton.setOnClickListener {
             Log.d("AuthFragment", "Login button clicked")
             FronteggAuth.instance.requestAuthorize(
-                refreshToken = "bca924ae-678a-4d84-9362-36d1bb8b33b0",
+                refreshToken = "f3291a85-7cfd-4319-9e24-fab68d3eba1f",
                 deviceTokenCookie = "45dee82f-154e-4430-9fbf-951700f77e14"
             ) { result ->
                 result.onSuccess { user ->
@@ -53,12 +63,6 @@ class AuthFragment : Fragment() {
                     Log.e("FronteggAuth", "Authorization failed: ${error.message}")
                 }
             }
-        }
-
-        binding.googleLoginButton.setOnClickListener {
-            FronteggAuth.instance.directLoginAction(requireActivity(), "social-login", "google", callback = {
-                Log.d("AuthFragment", "Direct login action callback")
-            })
         }
 
         binding.passkeysButton.setOnClickListener {
