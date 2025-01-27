@@ -13,7 +13,6 @@ import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.credentials.PublicKeyCredential
-import androidx.credentials.exceptions.publickeycredential.CreatePublicKeyCredentialException
 import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
@@ -34,7 +33,6 @@ import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -363,22 +361,25 @@ class FronteggAuth(
 
     }
 
-    suspend fun requestAuthorizeAsync(refreshToken: String, deviceTokenCookie: String? = null): User {
+    suspend fun requestAuthorizeAsync(
+        refreshToken: String,
+        deviceTokenCookie: String? = null
+    ): User {
         isLoading.value = true
         try {
             Log.d(TAG, "Requesting silent authorization with refresh and device tokens")
-    
+
             // Call API to authorize with tokens
             val authResponse = withContext(Dispatchers.IO) {
                 api.authorizeWithTokens(refreshToken, deviceTokenCookie)
             }
-    
+
             // Set credentials and return the user
             setCredentials(authResponse.access_token, authResponse.refresh_token)
             user.value?.let {
                 return it
             }
-    
+
             throw FailedToAuthenticateException(error = "Failed to authenticate")
         } catch (e: Exception) {
             Log.e(TAG, "Authorization request failed: ${e.message}", e)
@@ -386,7 +387,7 @@ class FronteggAuth(
             throw e
         }
     }
-    
+
 
     fun requestAuthorize(
         refreshToken: String,
@@ -483,7 +484,8 @@ class FronteggAuth(
 
                 val result = passkeyManager.getPasskey(webAuthnPreloginRequest.jsonChallenge)
 
-                val challengeResponse = (result.credential as PublicKeyCredential).authenticationResponseJson
+                val challengeResponse =
+                    (result.credential as PublicKeyCredential).authenticationResponseJson
 
                 isLoading.value = true
                 val webAuthnPostLoginResponse = withContext(Dispatchers.IO) {
