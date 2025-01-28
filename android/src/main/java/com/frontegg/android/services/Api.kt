@@ -33,9 +33,14 @@ open class Api(
     private var credentialManager: CredentialManager
 ) {
     private var httpClient: OkHttpClient = OkHttpClient()
+    private val cookieName: String
 
     companion object {
         val TAG: String = Api::class.java.simpleName
+    }
+
+    init {
+        cookieName = "fe_refresh_$clientId".replaceFirst("-", "")
     }
 
 
@@ -182,6 +187,23 @@ open class Api(
         return null
     }
 
+    fun authorizeWithTokens(
+        refreshToken: String,
+        deviceTokenCookie: String?,
+    ): AuthResponse {
+        // Format refresh token cookie
+        val refreshTokenCookie = "$cookieName=$refreshToken"
+
+        try {
+            // Call silentHostedLoginRefreshToken
+            return silentHostedLoginRefreshToken(refreshTokenCookie, deviceTokenCookie ?: "")
+        } catch (e: FailedToAuthenticateException) {
+            // Log and rethrow for handling at a higher level
+            Log.e(TAG, "Failed to authorize with tokens: ${e.message}")
+            throw e
+        }
+    }
+
     fun logout(cookies: String, accessToken: String) {
         try {
 
@@ -229,7 +251,10 @@ open class Api(
         val body = response.body
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
         }
 
         val gson = Gson()
@@ -287,7 +312,10 @@ open class Api(
         val body = response.body
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
         }
 
 
@@ -304,7 +332,8 @@ open class Api(
     }
 
     fun verifyWebAuthnDevice(
-        sessionCookie: String, challengeResponse: String
+        sessionCookie: String,
+        challengeResponse: String
     ) {
         this.credentialManager.get(CredentialKeys.ACCESS_TOKEN) ?: throw NotAuthenticatedException()
 
@@ -323,13 +352,17 @@ open class Api(
         val body = response.body
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToRegisterWebAuthnDevice(response.headers, body?.string() ?: "Unknown error occurred")
+            throw FailedToRegisterWebAuthnDevice(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
         }
     }
 
 
     private fun silentHostedLoginRefreshToken(
-        refreshTokenCookie: String, deviceIdCookie: String
+        refreshTokenCookie: String,
+        deviceIdCookie: String
     ): AuthResponse {
 
         val call = buildPostRequest(
@@ -341,7 +374,10 @@ open class Api(
 
         val body = response.body
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
         }
         return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
     }

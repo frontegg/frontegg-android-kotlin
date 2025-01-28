@@ -13,6 +13,7 @@ import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
 import androidx.credentials.PublicKeyCredential
+import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
@@ -33,6 +34,7 @@ import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.jetbrains.annotations.VisibleForTesting
@@ -365,6 +367,55 @@ class FronteggAuth(
         }
 
     }
+
+    suspend fun requestAuthorizeAsync(
+        refreshToken: String,
+        deviceTokenCookie: String? = null
+    ): User {
+        isLoading.value = true
+        try {
+            Log.d(TAG, "Requesting silent authorization with refresh and device tokens")
+
+            // Call API to authorize with tokens
+            val authResponse = withContext(Dispatchers.IO) {
+                api.authorizeWithTokens(refreshToken, deviceTokenCookie)
+            }
+
+            // Set credentials and return the user
+            setCredentials(authResponse.access_token, authResponse.refresh_token)
+            user.value?.let {
+                return it
+            }
+
+            throw FailedToAuthenticateException(error = "Failed to authenticate")
+        } catch (e: Exception) {
+            Log.e(TAG, "Authorization request failed: ${e.message}", e)
+            isLoading.value = false
+            throw e
+        }
+    }
+
+
+    fun requestAuthorize(
+        refreshToken: String,
+        deviceTokenCookie: String? = null,
+        callback: (Result<User>) -> Unit
+    ) {
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val user = requestAuthorizeAsync(refreshToken, deviceTokenCookie)
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(user))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to authenticate: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    callback(Result.failure(e))
+                }
+            }
+        }
+    }
+
 
     fun login(activity: Activity, loginHint: String? = null, callback: (() -> Unit)? = null) {
         if (FronteggApp.getInstance().isEmbeddedMode) {
