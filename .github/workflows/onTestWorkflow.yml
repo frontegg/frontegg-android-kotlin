@@ -63,11 +63,15 @@ jobs:
 
       - name: Fetch artifact details
         run: |
-          echo "Fetching artifact download URLs..."
-          # Fetch artifacts for the current run
+          # Fetch the artifacts for the current workflow run
           response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
             -H "Accept: application/vnd.github.v3+json" \
             https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
-          
-          # Extract artifact names and download URLs using jq
-          echo "$response" | jq -r '.artifacts[] | "\(.name): \(.archive_download_url)"'
+
+          # Parse the response to extract artifact names and IDs
+          echo "Artifact details:"
+          echo "$response" | jq -r '.artifacts[] | "Artifact Name: \(.name), Artifact ID: \(.id)"'
+
+          # Construct the GitHub download URL for each artifact
+          echo "Constructing download URLs..."
+          echo "$response" | jq -r '.artifacts[] | "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/\(.id)"'
