@@ -14,7 +14,7 @@ concurrency:
 jobs:
   createAlphaVersion:
     name: 'Create Alpha Version'
-    runs-on: macos-latest-xl
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.0
