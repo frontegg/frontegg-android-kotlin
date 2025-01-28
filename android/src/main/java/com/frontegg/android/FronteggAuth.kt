@@ -21,9 +21,11 @@ import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.Api
+import com.frontegg.android.services.AuthorizeUrlGeneratorProvider
 import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.services.CredentialManagerHandlerProvider
 import com.frontegg.android.services.RefreshTokenService
-import com.frontegg.android.utils.AuthorizeUrlGenerator
+import com.frontegg.android.services.ScopeProvider
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
@@ -35,6 +37,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.jetbrains.annotations.VisibleForTesting
 import org.json.JSONObject
 import java.time.Instant
 import java.util.Timer
@@ -75,8 +78,8 @@ class FronteggAuth(
     val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
     var pendingAppLink: String? = null
     val isMultiRegion: Boolean = regions.isNotEmpty()
-    var refreshTokenJob: JobInfo? = null;
-    var timerTask: TimerTask? = null;
+    var refreshTokenJob: JobInfo? = null
+    var timerTask: TimerTask? = null
     private var _api: Api? = null
 
     init {
@@ -93,6 +96,11 @@ class FronteggAuth(
         } else {
             this._api
         })!!
+
+    @VisibleForTesting
+    internal fun setApi(api: Api) {
+        this._api = api
+    }
 
 
     fun reinitWithRegion(region: RegionConfig) {
@@ -171,7 +179,7 @@ class FronteggAuth(
             GlobalScope.launch(Dispatchers.IO) {
                 sendRefreshToken()
             }
-            return;
+            return
         }
 
         val decoded = JWTHelper.decode(accessToken)
@@ -308,8 +316,7 @@ class FronteggAuth(
             } else {
                 Log.e(TAG, "Failed to exchange token")
                 if (webView != null) {
-                    val authorizeUrl = AuthorizeUrlGenerator()
-                    val url = authorizeUrl.generate()
+                    val url = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator().generate()
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
                     }
@@ -325,7 +332,7 @@ class FronteggAuth(
 
     private fun getDomainCookie(siteName: String): String? {
         val cookieManager = CookieManager.getInstance()
-        return cookieManager.getCookie(siteName);
+        return cookieManager.getCookie(siteName)
     }
 
 
@@ -474,9 +481,8 @@ class FronteggAuth(
 
 
     fun loginWithPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
-
-        val passkeyManager = CredentialManagerHandler(activity)
-        val scope = MainScope()
+        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
+        val scope = ScopeProvider.mainScope
         scope.launch {
             try {
 
@@ -514,8 +520,8 @@ class FronteggAuth(
 
     fun registerPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
 
-        val passkeyManager = CredentialManagerHandler(activity)
-        val scope = MainScope()
+        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
+        val scope = ScopeProvider.mainScope
         scope.launch {
             try {
 

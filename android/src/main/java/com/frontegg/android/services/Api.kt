@@ -68,17 +68,19 @@ open class Api(
         return headers.toHeaders()
     }
 
-    fun buildPostRequest(
-        path: String, data: JsonObject?, additionalHeaders: Map<String, String> = mapOf()
+    private fun buildPostRequest(
+        path: String,
+        data: JsonObject?,
+        additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
             data?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
-        val headers = this.prepareHeaders(additionalHeaders);
+        val headers = this.prepareHeaders(additionalHeaders)
 
         requestBuilder.method("POST", bodyRequest)
-        requestBuilder.headers(headers);
+        requestBuilder.headers(headers)
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
@@ -86,16 +88,18 @@ open class Api(
     }
 
     private fun buildPutRequest(
-        path: String, data: JsonObject, additionalHeaders: Map<String, String> = mapOf()
+        path: String,
+        data: JsonObject,
+        additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
             data.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        val headers = this.prepareHeaders(additionalHeaders);
+        val headers = this.prepareHeaders(additionalHeaders)
 
         requestBuilder.method("PUT", bodyRequest)
-        requestBuilder.headers(headers);
+        requestBuilder.headers(headers)
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
@@ -110,10 +114,10 @@ open class Api(
             "$baseUrl/$path".toHttpUrl()
         }
         val requestBuilder = Request.Builder()
-        val headers = prepareHeaders();
+        val headers = prepareHeaders()
 
         requestBuilder.method("GET", null)
-        requestBuilder.headers(headers);
+        requestBuilder.headers(headers)
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
@@ -121,7 +125,7 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun me(): User? {
+    fun me(): User? {
         val meCall = buildGetRequest(ApiConstants.me)
         val meResponse = meCall.execute()
         val tenantsCall = buildGetRequest(ApiConstants.tenants)
@@ -149,9 +153,7 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun refreshToken(refreshToken: String): AuthResponse? {
-
-
+    fun refreshToken(refreshToken: String): AuthResponse? {
         val body = JsonObject()
         body.addProperty("grant_type", "refresh_token")
         body.addProperty("refresh_token", refreshToken)
@@ -166,7 +168,7 @@ open class Api(
 
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun exchangeToken(
+    fun exchangeToken(
         code: String, redirectUrl: String, codeVerifier: String
     ): AuthResponse? {
 
@@ -246,7 +248,7 @@ open class Api(
 
         val call = buildPostRequest(ApiConstants.webauthnPrelogin, JsonObject())
         val response = call.execute()
-        val body = response.body;
+        val body = response.body
 
         if (!response.isSuccessful || body == null) {
             throw FailedToAuthenticateException(
@@ -280,7 +282,7 @@ open class Api(
             )
         )
         val response = call.execute()
-        val body = response.body;
+        val body = response.body
         if (!response.isSuccessful || body == null) {
             throw Exception("failed to authenticate with passkeys")
         }
@@ -307,7 +309,7 @@ open class Api(
 
         val call = buildPostRequest(ApiConstants.registerWebauthnDevice, JsonObject())
         val response = call.execute()
-        val body = response.body;
+        val body = response.body
 
         if (!response.isSuccessful || body == null) {
             throw FailedToAuthenticateException(
@@ -347,7 +349,7 @@ open class Api(
             )
         )
         val response = call.execute()
-        val body = response.body;
+        val body = response.body
 
         if (!response.isSuccessful || body == null) {
             throw FailedToRegisterWebAuthnDevice(
