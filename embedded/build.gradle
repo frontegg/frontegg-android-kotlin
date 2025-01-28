@@ -36,23 +36,23 @@ android {
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
 
-        testInstrumentationRunnerArguments["LOGIN_EMAIL"] = localProperties.getProperty("LOGIN_EMAIL")
-        testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = localProperties.getProperty("LOGIN_PASSWORD")
+        testInstrumentationRunnerArguments["LOGIN_EMAIL"] = localProperties.getOrDefault("LOGIN_EMAIL", "")
+        testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = localProperties.getOrDefault("LOGIN_PASSWORD", "")
 
-        testInstrumentationRunnerArguments["LOGIN_WRONG_EMAIL"] = localProperties.getProperty("LOGIN_WRONG_EMAIL")
-        testInstrumentationRunnerArguments["LOGIN_WRONG_PASSWORD"] = localProperties.getProperty("LOGIN_WRONG_PASSWORD")
+        testInstrumentationRunnerArguments["LOGIN_WRONG_EMAIL"] = localProperties.getOrDefault("LOGIN_WRONG_EMAIL", "")
+        testInstrumentationRunnerArguments["LOGIN_WRONG_PASSWORD"] = localProperties.getOrDefault("LOGIN_WRONG_PASSWORD", "")
 
-        testInstrumentationRunnerArguments["SIGN_UP_TEMPLATE"] = localProperties.getProperty("SIGN_UP_TEMPLATE")
-        testInstrumentationRunnerArguments["SIGN_UP_NAME"] = localProperties.getProperty("SIGN_UP_NAME")
-        testInstrumentationRunnerArguments["SIGN_UP_ORGANIZATION"] = localProperties.getProperty("SIGN_UP_ORGANIZATION")
+        testInstrumentationRunnerArguments["SIGN_UP_TEMPLATE"] = localProperties.getOrDefault("SIGN_UP_TEMPLATE", "")
+        testInstrumentationRunnerArguments["SIGN_UP_NAME"] = localProperties.getOrDefault("SIGN_UP_NAME", "")
+        testInstrumentationRunnerArguments["SIGN_UP_ORGANIZATION"] = localProperties.getOrDefault("SIGN_UP_ORGANIZATION", "")
 
-        testInstrumentationRunnerArguments["TENANT_NAME_1"] = localProperties.getProperty("TENANT_NAME_1")
-        testInstrumentationRunnerArguments["TENANT_NAME_2"] = localProperties.getProperty("TENANT_NAME_2")
+        testInstrumentationRunnerArguments["TENANT_NAME_1"] = localProperties.getOrDefault("TENANT_NAME_1", "")
+        testInstrumentationRunnerArguments["TENANT_NAME_2"] = localProperties.getOrDefault("TENANT_NAME_2", "")
 
-        testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = localProperties.getProperty("GOOGLE_EMAIL")
+        testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = localProperties.getOrDefault("GOOGLE_EMAIL", "")
 
-        testInstrumentationRunnerArguments["APPLE_EMAIL"] = localProperties.getProperty("APPLE_EMAIL")
-        testInstrumentationRunnerArguments["APPLE_PASSWORD"] = localProperties.getProperty("APPLE_PASSWORD")
+        testInstrumentationRunnerArguments["APPLE_EMAIL"] = localProperties.getOrDefault("APPLE_EMAIL", "")
+        testInstrumentationRunnerArguments["APPLE_PASSWORD"] = localProperties.getOrDefault("APPLE_PASSWORD", "")
 
     }
 
