@@ -72,4 +72,4 @@ jobs:
           # Convert the artifact URLs to a JSON list
           apk_urls=$(echo "$artifacts" | jq -Rsc 'split("\n") | map(select(length > 0))')
 
-          echo "artifact urls: $apk_urls"
+          echo "- artifact urls: $apk_urls"
