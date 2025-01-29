@@ -277,6 +277,54 @@ class FronteggAuthService(
         }
     }
 
+    override suspend fun requestAuthorizeAsync(
+        refreshToken: String,
+        deviceTokenCookie: String?
+    ): User {
+        isLoading.value = true
+        try {
+            Log.d(TAG, "Requesting silent authorization with refresh and device tokens")
+
+            // Call API to authorize with tokens
+            val authResponse = withContext(Dispatchers.IO) {
+                api.authorizeWithTokens(refreshToken, deviceTokenCookie)
+            }
+
+            // Set credentials and return the user
+            setCredentials(authResponse.access_token, authResponse.refresh_token)
+            user.value?.let {
+                return it
+            }
+
+            throw FailedToAuthenticateException(error = "Failed to authenticate")
+        } catch (e: Exception) {
+            Log.e(TAG, "Authorization request failed: ${e.message}", e)
+            isLoading.value = false
+            throw e
+        }
+    }
+
+
+    override fun requestAuthorize(
+        refreshToken: String,
+        deviceTokenCookie: String?,
+        callback: (Result<User>) -> Unit
+    ) {
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                val user = requestAuthorizeAsync(refreshToken, deviceTokenCookie)
+                withContext(Dispatchers.Main) {
+                    callback(Result.success(user))
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to authenticate: ${e.message}", e)
+                withContext(Dispatchers.Main) {
+                    callback(Result.failure(e))
+                }
+            }
+        }
+    }
+
     private fun startMultiFactorAuthenticator(
         activity: Activity,
         callback: ((error: Exception?) -> Unit)?,
