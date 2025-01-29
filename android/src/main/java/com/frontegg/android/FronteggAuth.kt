@@ -125,6 +125,35 @@ interface FronteggAuth {
         callback: ((error: Exception?) -> Unit)? = null,
     )
 
+    /**
+     * Requests silent authorization using a refresh token and an optional device token.
+     * This function runs asynchronously using a coroutine.
+     *
+     * @param refreshToken The refresh token used for authentication.
+     * @param deviceTokenCookie Optional device token for additional authentication.
+     * @return A [User] object if authentication succeeds.
+     * @throws FailedToAuthenticateException If authentication fails.
+     */
+    suspend fun requestAuthorizeAsync(
+        refreshToken: String,
+        deviceTokenCookie: String? = null
+    ): User
+
+    /**
+     * Initiates an asynchronous authorization request using a refresh token.
+     * Calls a callback function with the authentication result.
+     *
+     * @param refreshToken The refresh token used for authentication.
+     * @param deviceTokenCookie Optional device token for additional authentication.
+     * @param callback A callback function that returns a [Result] object containing
+     *                 either a successful [User] or an exception if authentication fails.
+     */
+    fun requestAuthorize(
+        refreshToken: String,
+        deviceTokenCookie: String? = null,
+        callback: (Result<User>) -> Unit
+    )
+
 
     companion object {
 

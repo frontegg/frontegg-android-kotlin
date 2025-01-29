@@ -37,7 +37,7 @@ class Constants {
         fun oauthCallbackUrl(baseUrl: String): String {
 
             val host = baseUrl.substring("https://".length)
-            val storage = FronteggInnerStorage();
+            val storage = FronteggInnerStorage()
             val packageName = storage.packageName
             val useAssetsLinks = storage.useAssetsLinks
             return if (useAssetsLinks) {

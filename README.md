@@ -24,6 +24,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Login with Frontegg](#login-with-frontegg)
     - [Logout user](#logout)
     - [Switch Tenant](#switch-tenant)
+    - [Passkey Authentication](#passkey-authentication)
 
 ## Get Started
 
@@ -767,4 +768,66 @@ class FirstFragment : Fragment() {
     // ...
 }
 
+```
+
+## Passkey Authentication
+
+The Frontegg SDK simplifies integrating passkeys for both registration and login processes
+
+### Setting Up Passkeys
+
+#### Integration Requirements
+
+To ensure compatibility with passkey functionality:
+
+1. **Update Gradle Dependencies**:
+   Add the following dependencies in your `android/build.gradle`:
+   ```groovy
+   dependencies {
+       implementation 'androidx.browser:browser:1.8.0'
+       implementation 'com.frontegg.sdk:android:1.2.30'
+   }
+   ```
+
+2. **Java Compatibility**: 
+    Ensure sourceCompatibility and targetCompatibility are set to Java 8 in android/app/build.gradle**:
+```groovy
+   android {
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+}
+```
+
+---
+
+#### Registering a Passkey
+To register a passkey, simply call the registerPasskeys method. This handles the passkey creation process automatically:
+
+```kotlin
+FronteggAuth.instance.registerPasskeys(activity!!) {
+    if (it != null) {
+        // Handle error
+        Log.e("FronteggAuth", "Failed to register passkey: $it")
+    } else {
+        // Success
+        Log.i("FronteggAuth", "Passkey registered successfully")
+    }
+}
+```
+
+#### Logging in with a Passkey
+To log in using an existing passkey, use the loginWithPasskeys method:
+
+```kotlin
+FronteggAuth.instance.loginWithPasskeys(activity!!) {
+    if (it != null) {
+        // Handle error
+        Log.e("FronteggAuth", "Failed to log in with passkey: $it")
+    } else {
+        // Success
+        Log.i("FronteggAuth", "Logged in successfully with passkey")
+    }
+}
 ```

@@ -39,9 +39,16 @@ open class Api(
     private val applicationId: String?
         get() = storage.applicationId
 
+    private val cookieName: String
+
     companion object {
         val TAG: String = Api::class.java.simpleName
     }
+
+    init {
+        cookieName = "fe_refresh_$clientId".replaceFirst("-", "")
+    }
+
 
     private fun prepareHeaders(additionalHeaders: Map<String, String> = mapOf()): Headers {
 
@@ -67,17 +74,19 @@ open class Api(
         return headers.toHeaders()
     }
 
-    fun buildPostRequest(
-        path: String, data: JsonObject?, additionalHeaders: Map<String, String> = mapOf()
+    private fun buildPostRequest(
+        path: String,
+        data: JsonObject?,
+        additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
             data?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
-        val headers = this.prepareHeaders(additionalHeaders);
+        val headers = this.prepareHeaders(additionalHeaders)
 
         requestBuilder.method("POST", bodyRequest)
-        requestBuilder.headers(headers);
+        requestBuilder.headers(headers)
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
@@ -85,16 +94,18 @@ open class Api(
     }
 
     private fun buildPutRequest(
-        path: String, data: JsonObject, additionalHeaders: Map<String, String> = mapOf()
+        path: String,
+        data: JsonObject,
+        additionalHeaders: Map<String, String> = mapOf()
     ): Call {
         val url = "${this.baseUrl}/$path".toHttpUrl()
         val requestBuilder = Request.Builder()
         val bodyRequest =
             data.toString().toRequestBody("application/json; charset=utf-8".toMediaType())
-        val headers = this.prepareHeaders(additionalHeaders);
+        val headers = this.prepareHeaders(additionalHeaders)
 
         requestBuilder.method("PUT", bodyRequest)
-        requestBuilder.headers(headers);
+        requestBuilder.headers(headers)
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
@@ -109,10 +120,10 @@ open class Api(
             "$baseUrl/$path".toHttpUrl()
         }
         val requestBuilder = Request.Builder()
-        val headers = prepareHeaders();
+        val headers = prepareHeaders()
 
         requestBuilder.method("GET", null)
-        requestBuilder.headers(headers);
+        requestBuilder.headers(headers)
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
@@ -120,7 +131,7 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun me(): User? {
+    fun me(): User? {
         val meCall = buildGetRequest(ApiConstants.me)
         val meResponse = meCall.execute()
         val tenantsCall = buildGetRequest(ApiConstants.tenants)
@@ -148,9 +159,7 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun refreshToken(refreshToken: String): AuthResponse? {
-
-
+    fun refreshToken(refreshToken: String): AuthResponse? {
         val body = JsonObject()
         body.addProperty("grant_type", "refresh_token")
         body.addProperty("refresh_token", refreshToken)
@@ -165,7 +174,7 @@ open class Api(
 
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    public fun exchangeToken(
+    fun exchangeToken(
         code: String, redirectUrl: String, codeVerifier: String
     ): AuthResponse? {
 
@@ -182,6 +191,23 @@ open class Api(
             return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
         }
         return null
+    }
+
+    fun authorizeWithTokens(
+        refreshToken: String,
+        deviceTokenCookie: String?,
+    ): AuthResponse {
+        // Format refresh token cookie
+        val refreshTokenCookie = "$cookieName=$refreshToken"
+
+        try {
+            // Call silentHostedLoginRefreshToken
+            return silentHostedLoginRefreshToken(refreshTokenCookie, deviceTokenCookie ?: "")
+        } catch (e: FailedToAuthenticateException) {
+            // Log and rethrow for handling at a higher level
+            Log.e(TAG, "Failed to authorize with tokens: ${e.message}")
+            throw e
+        }
     }
 
     fun logout(cookies: String, accessToken: String) {
@@ -228,10 +254,13 @@ open class Api(
 
         val call = buildPostRequest(ApiConstants.webauthnPrelogin, JsonObject())
         val response = call.execute()
-        val body = response.body;
+        val body = response.body
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
         }
 
         val gson = Gson()
@@ -259,7 +288,7 @@ open class Api(
             )
         )
         val response = call.execute()
-        val body = response.body;
+        val body = response.body
         if (!response.isSuccessful || body == null) {
             throw Exception("failed to authenticate with passkeys")
         }
@@ -286,10 +315,13 @@ open class Api(
 
         val call = buildPostRequest(ApiConstants.registerWebauthnDevice, JsonObject())
         val response = call.execute()
-        val body = response.body;
+        val body = response.body
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
         }
 
 
@@ -306,7 +338,8 @@ open class Api(
     }
 
     fun verifyWebAuthnDevice(
-        sessionCookie: String, challengeResponse: String
+        sessionCookie: String,
+        challengeResponse: String
     ) {
         this.credentialManager.get(CredentialKeys.ACCESS_TOKEN) ?: throw NotAuthenticatedException()
 
@@ -322,16 +355,20 @@ open class Api(
             )
         )
         val response = call.execute()
-        val body = response.body;
+        val body = response.body
 
         if (!response.isSuccessful || body == null) {
-            throw FailedToRegisterWebAuthnDevice(response.headers, body?.string() ?: "Unknown error occurred")
+            throw FailedToRegisterWebAuthnDevice(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
         }
     }
 
 
     private fun silentHostedLoginRefreshToken(
-        refreshTokenCookie: String, deviceIdCookie: String
+        refreshTokenCookie: String,
+        deviceIdCookie: String
     ): AuthResponse {
 
         val call = buildPostRequest(
@@ -343,7 +380,10 @@ open class Api(
 
         val body = response.body
         if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(response.headers, body?.string() ?: "Unknown error occurred")
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
         }
         return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
     }
