@@ -74,8 +74,8 @@ class FronteggNativeBridge(val context: Context) {
     }
 
     @JavascriptInterface
-    fun loginWithSocialProvider(provider: String) {
-        Log.d("FronteggNativeBridge", "loginWithSocialProvider(${provider})")
+    fun loginWithSocialLoginProvider(provider: String) {
+        Log.d("FronteggNativeBridge", "loginWithSocialLoginProvider(${provider})")
 
         val directLogin: Map<String, Any> = mapOf(
             "type" to "social-login",
