@@ -1,6 +1,7 @@
 package com.frontegg.android.utils
 
-import com.frontegg.android.FronteggApp
+import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.StorageProvider
 
 
 class ApiConstants {
@@ -11,6 +12,15 @@ class ApiConstants {
         const val exchangeToken: String = "oauth/token"
         const val logout: String = "frontegg/identity/resources/auth/v1/logout"
         const val switchTenant: String = "identity/resources/users/v1/tenant"
+        const val webauthnPrelogin: String = "identity/resources/auth/v1/webauthn/prelogin"
+        const val webauthnPostlogin: String = "identity/resources/auth/v1/webauthn/postlogin"
+        const val registerWebauthnDevice: String = "identity/resources/users/webauthn/v1/devices"
+        const val verifyWebauthnDevice: String = "identity/resources/users/webauthn/v1/devices/verify"
+
+        /**
+         * used to get oauth accessToken/refreshToken without webview
+         */
+        const val silentRefreshToken: String = "oauth/authorize/silent"
 
     }
 }
@@ -28,9 +38,9 @@ class Constants {
         fun oauthCallbackUrl(baseUrl: String): String {
 
             val host = baseUrl.substring("https://".length)
-            val app = FronteggApp.getInstance();
-            val packageName = app.packageName
-            val useAssetsLinks = app.useAssetsLinks
+            val storage = StorageProvider.getInnerStorage()
+            val packageName = storage.packageName
+            val useAssetsLinks = storage.useAssetsLinks
             return if (useAssetsLinks) {
                 "https://${host}/oauth/account/redirect/android/${packageName}"
             } else {

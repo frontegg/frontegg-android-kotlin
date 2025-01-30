@@ -1,62 +1,55 @@
 package com.frontegg.android
 
 import android.annotation.SuppressLint
-import android.content.ComponentName
 import android.content.Context
-import android.content.pm.PackageManager.MATCH_ALL
-import android.os.Handler
-import android.util.Log
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
+import com.frontegg.android.FronteggApp.Companion.init
+import com.frontegg.android.FronteggApp.Companion.initWithRegions
 import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
 import com.frontegg.android.regions.RegionConfig
-import com.frontegg.android.services.*
-import java.time.Instant
+import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.services.FronteggAppService
+import com.frontegg.android.utils.isActivityEnabled
 
-class FronteggApp private constructor(
-    val context: Context,
-    var baseUrl: String,
-    var clientId: String,
-    var applicationId: String?,
-    val isEmbeddedMode: Boolean = true,
-    val regions: List<RegionConfig> = listOf(),
-    val selectedRegion: RegionConfig? = null,
-    var handleLoginWithSocialLogin: Boolean = true,
-    var handleLoginWithSocialLoginProvider: Boolean = true,
-    var handleLoginWithCustomSocialLoginProvider: Boolean = true,
-    var customUserAgent: String? = null,
-    var handleLoginWithSSO: Boolean = false,
-    var shouldPromptSocialLoginConsent: Boolean = true,
-    val useAssetsLinks: Boolean = false,
-    var useChromeCustomTabs: Boolean = false,
-    var mainActivityClass: Class<*>? = null
-) {
-
-    val credentialManager: CredentialManager = CredentialManager(context)
-    val auth: FronteggAuth =
-        FronteggAuth(baseUrl, clientId, applicationId, credentialManager, regions, selectedRegion)
-    val packageName: String = context.packageName
-    var appInForeground = true
-
-    var lastJobStart: Long = Instant.now().toEpochMilli();
+/**
+ * An initialization class of Frontegg SDK. Use [init] or [initWithRegions] static methods
+ * to initialize the [FronteggApp]. To get access to an instance use the [getInstance] method.
+ *
+ * @property auth an authentication interface.
+ */
+interface FronteggApp {
+    val auth: FronteggAuth
 
     companion object {
 
         @SuppressLint("StaticFieldLeak")
         private var instance: FronteggApp? = null
 
-        public val TAG: String = FronteggApp::class.java.simpleName
-
-        public fun getInstance(): FronteggApp {
+        /**
+         * Provide [FronteggApp] instance.
+         * @return [FronteggApp] object if was initialized.
+         * @throws FronteggException with the message `frontegg.error.app_must_be_initialized`
+         * if FronteggApp wasn't initialized before. Use `init` or `initWithRegions` static methods
+         * to initialize the FronteggApp.
+         */
+        fun getInstance(): FronteggApp {
             if (instance == null) {
                 throw FronteggException(FRONTEGG_APP_MUST_BE_INITIALIZED)
             }
             return instance!!
         }
 
-        public fun init(
+        /**
+         * Initialization method of [FronteggApp].
+         * @param fronteggDomain is the Frontegg domain. Could be found at portal.frontegg.com;
+         * @param clientId is the Frontegg Client ID. Could be found at portal.frontegg.com;
+         * @param context is the application context;
+         * @param applicationId is the id of Frontegg application. Could be found at portal.frontegg.com;
+         * @param useAssetsLinks is the flag which says if Frontegg SDK uses assets links;
+         * @param useChromeCustomTabs is the flag which says if Frontegg SDK uses chrome custom tabs;
+         * @param mainActivityClass is the MainActivity.
+         */
+        fun init(
             fronteggDomain: String,
             clientId: String,
             context: Context,
@@ -71,11 +64,9 @@ class FronteggApp private constructor(
                 "https://$fronteggDomain"
             }
 
-            val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
+            val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
 
-
-
-            instance = FronteggApp(
+            instance = FronteggAppService(
                 context = context,
                 baseUrl = baseUrl,
                 clientId = clientId,
@@ -85,13 +76,17 @@ class FronteggApp private constructor(
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass
             )
-
-            Handler(context.mainLooper).post {
-                ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
-            }
         }
 
-        public fun initWithRegions(
+        /**
+         * Initialization method of [FronteggApp] for multi-regions.
+         * @param regions is a list of [RegionConfig]. Could find at portal.frontegg.com;
+         * @param context is the application context;
+         * @param useAssetsLinks is the flag which says if Frontegg SDK uses assets links;
+         * @param useChromeCustomTabs is the flag which says if Frontegg SDK uses chrome custom tabs;
+         * @param mainActivityClass is the MainActivity.
+         */
+        fun initWithRegions(
             regions: List<RegionConfig>,
             context: Context,
             useAssetsLinks: Boolean = false,
@@ -99,13 +94,13 @@ class FronteggApp private constructor(
             mainActivityClass: Class<*>? = null
         ): FronteggApp {
 
-            val isEmbeddedMode = isActivityEnabled(context, EmbeddedAuthActivity::class.java.name)
+            val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
             val selectedRegion = CredentialManager(context).getSelectedRegion()
             if (selectedRegion != null) {
                 val regionConfig = regions.find { it.key == selectedRegion }
 
                 if (regionConfig != null) {
-                    val newInstance = FronteggApp(
+                    val newInstance = FronteggAppService(
                         context = context,
                         baseUrl = regionConfig.baseUrl,
                         clientId = regionConfig.clientId,
@@ -121,7 +116,7 @@ class FronteggApp private constructor(
                     return newInstance
                 }
             }
-            val newInstance = FronteggApp(
+            val newInstance = FronteggAppService(
                 context = context,
                 baseUrl = "",
                 clientId = "",
@@ -135,57 +130,15 @@ class FronteggApp private constructor(
             instance = newInstance
             return newInstance
         }
-
-        private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
-            when (event) {
-                Lifecycle.Event.ON_STOP -> {
-                    Log.d(TAG, "ON_STOP")
-                    getInstance().appInForeground = false
-                    getInstance().auth.refreshTokenWhenNeeded()
-                }
-
-                Lifecycle.Event.ON_START -> {
-                    Log.d(TAG, "ON_START")
-                    getInstance().appInForeground = true
-                    getInstance().auth.refreshTokenWhenNeeded()
-                }
-
-                else -> {}
-            }
-        }
-
-        private fun isActivityEnabled(context: Context, activityClassName: String): Boolean {
-            return try {
-                val componentName = ComponentName(context, activityClassName)
-                val packageManager = context.packageManager
-                packageManager.getActivityInfo(componentName, MATCH_ALL).isEnabled
-            } catch (e: Exception) {
-                false
-            }
-        }
     }
 
-    fun initWithRegion(regionKey: String) {
-        if (this.regions.isEmpty()) {
-            throw RuntimeException("illegal state. Frontegg.plist does not contains regions array")
-        }
-
-        val keys = this.regions.joinToString(",") { it.key }
-
-        val config = regions.find { it.key == regionKey }
-            ?: throw RuntimeException("invalid region key ${regionKey}. available regions: $keys")
-
-
-        credentialManager.saveSelectedRegion(regionKey)
-
-        this.baseUrl = config.baseUrl
-        this.clientId = config.clientId
-        this.applicationId = config.applicationId
-        this.auth.reinitWithRegion(config)
-
-
-        Log.i(TAG, "Frontegg Initialized successfully (region: ${regionKey})")
-    }
-
-
+    /**
+     * The switch method of the region by [regionKey].
+     * To use this method you should initialize the [FronteggApp] with
+     * the [initWithRegions] static method.
+     * @param regionKey is one of the key of regions you pass into [initWithRegions].
+     * @throws RuntimeException if you didn't pass any regions to [initWithRegions]
+     * or [regionKey] does not exist in the regions.
+     */
+    fun initWithRegion(regionKey: String)
 }

@@ -3,6 +3,8 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+Properties localProperties = new Properties()
+localProperties.load(project.rootProject.file('test.properties').newDataInputStream())
 
 def fronteggDomain = "autheu.davidantoon.me"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
@@ -14,8 +16,10 @@ def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
 android {
     namespace 'com.frontegg.demo'
     compileSdk 34
+    compileSdkVersion 34
 
     defaultConfig {
+
         applicationId "com.frontegg.demo"
         minSdk 26
         targetSdk 34
@@ -25,14 +29,36 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders = [
-                "package_name" : applicationId,
-                "frontegg_domain" : fronteggDomain,
+                "package_name"      : applicationId,
+                "frontegg_domain"   : fronteggDomain,
                 "frontegg_client_id": fronteggClientId
         ]
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
 
+        testInstrumentationRunnerArguments["LOGIN_EMAIL"] = localProperties.getOrDefault("LOGIN_EMAIL", "")
+        testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = localProperties.getOrDefault("LOGIN_PASSWORD", "")
+
+        testInstrumentationRunnerArguments["LOGIN_WRONG_EMAIL"] = localProperties.getOrDefault("LOGIN_WRONG_EMAIL", "")
+        testInstrumentationRunnerArguments["LOGIN_WRONG_PASSWORD"] = localProperties.getOrDefault("LOGIN_WRONG_PASSWORD", "")
+
+        testInstrumentationRunnerArguments["SIGN_UP_TEMPLATE"] = localProperties.getOrDefault("SIGN_UP_TEMPLATE", "")
+        testInstrumentationRunnerArguments["SIGN_UP_NAME"] = localProperties.getOrDefault("SIGN_UP_NAME", "")
+        testInstrumentationRunnerArguments["SIGN_UP_ORGANIZATION"] = localProperties.getOrDefault("SIGN_UP_ORGANIZATION", "")
+
+        testInstrumentationRunnerArguments["TENANT_NAME_1"] = localProperties.getOrDefault("TENANT_NAME_1", "")
+        testInstrumentationRunnerArguments["TENANT_NAME_2"] = localProperties.getOrDefault("TENANT_NAME_2", "")
+
+        testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = localProperties.getOrDefault("GOOGLE_EMAIL", "")
+
+        testInstrumentationRunnerArguments["APPLE_EMAIL"] = localProperties.getOrDefault("APPLE_EMAIL", "")
+        testInstrumentationRunnerArguments["APPLE_PASSWORD"] = localProperties.getOrDefault("APPLE_PASSWORD", "")
+
+    }
+
+    testOptions {
+        execution "ANDROIDX_TEST_ORCHESTRATOR"
     }
 
     signingConfigs {
@@ -58,6 +84,9 @@ android {
         }
         debug {
             signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+            debuggable true
         }
     }
     compileOptions {
@@ -103,7 +132,9 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-web:' + rootProject.espressoVersion
     androidTestImplementation 'androidx.test:monitor:1.7.0-alpha01'
 
-    testImplementation 'androidx.test:core:' + rootProject.coreVersion;
-    testImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
-    testImplementation 'junit:junit:4.13.2'
+    implementation "junit:junit:4.13.2"
+
+    implementation "androidx.test.uiautomator:uiautomator:2.2.0"
+    androidTestUtil "androidx.test:orchestrator:1.5.1"
+
 }

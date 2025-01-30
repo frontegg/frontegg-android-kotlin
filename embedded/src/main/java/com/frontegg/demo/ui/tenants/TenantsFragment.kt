@@ -20,6 +20,7 @@ class CustomAdapter(context: Context, private val dataSource: MutableList<Tenant
         context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
 
     private var activeTenant: Tenant? = null
+    private var switchingTenant: Tenant? = null
 
 
     override fun getCount(): Int = dataSource.size
@@ -48,14 +49,19 @@ class CustomAdapter(context: Context, private val dataSource: MutableList<Tenant
         name.text = item.name
 
         view.setOnClickListener {
-            info.text = " (switching...)"
-            info.visibility = View.VISIBLE
+            activeTenant = null
+            switchingTenant = item
+            notifyDataSetChanged()
             FronteggAuth.instance.switchTenant(item.tenantId) {
-                info.visibility = View.GONE
+                switchingTenant = null
+                notifyDataSetChanged()
             }
         }
         if (activeTenant?.tenantId == item.tenantId) {
             info.text = " (active)"
+            info.visibility = View.VISIBLE
+        } else if (switchingTenant?.tenantId == item.tenantId) {
+            info.text = " (switching...)"
             info.visibility = View.VISIBLE
         } else {
             info.text = ""
