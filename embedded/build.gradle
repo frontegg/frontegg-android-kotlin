@@ -16,6 +16,7 @@ def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
 android {
     namespace 'com.frontegg.demo'
     compileSdk 34
+    compileSdkVersion 34
 
     defaultConfig {
 
