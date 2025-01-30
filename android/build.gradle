@@ -13,6 +13,7 @@ version '1.2.32'
 android {
     namespace 'com.frontegg.android'
     compileSdk 34
+    compileSdkVersion 34
 
     defaultConfig {
         minSdk 26
@@ -66,7 +67,7 @@ ext {
 
 dependencies {
 
-    implementation 'androidx.core:core-ktx:1.7.0'
+    implementation 'androidx.core:core-ktx:1.10.0'
     implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
     implementation 'com.squareup.okhttp3:okhttp:4.12.0'
     implementation 'com.google.code.gson:gson:2.10.1'
@@ -89,11 +90,13 @@ dependencies {
     // optional - needed for credentials support from play services, for devices running Android 13 and below.
     implementation "androidx.credentials:credentials-play-services-auth:$androidCredentialsVersion"
     implementation "androidx.credentials:credentials:$androidCredentialsVersion"
-    implementation 'androidx.test:core-ktx:1.6.1'
-    implementation 'androidx.test.ext:junit-ktx:1.2.1'
+
+
 
 
     // Testing
+    testImplementation 'androidx.test:core-ktx:1.6.1'
+    testImplementation 'androidx.test.ext:junit-ktx:1.2.1'
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.14.1'
     testImplementation "io.mockk:mockk:1.13.13"

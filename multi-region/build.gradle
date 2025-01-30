@@ -12,6 +12,7 @@ def fronteggDomain2 = "authus.davidantoon.me"
 android {
     namespace 'com.frontegg.demo'
     compileSdk 34
+    compileSdkVersion 34
 
     defaultConfig {
         applicationId "com.frontegg.demo"
