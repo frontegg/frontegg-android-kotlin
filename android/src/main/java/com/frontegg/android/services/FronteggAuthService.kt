@@ -20,7 +20,6 @@ import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceExc
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
-import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
@@ -40,7 +39,7 @@ import org.json.JSONObject
 class FronteggAuthService(
     val credentialManager: CredentialManager,
     appLifecycle: FronteggAppLifecycle,
-    val refreshTokenManager: FronteggRefreshTokenTimer
+    val refreshTokenTimer: FronteggRefreshTokenTimer
 ) : FronteggAuth {
 
     companion object {
@@ -61,8 +60,8 @@ class FronteggAuthService(
     override val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     override val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
 
-    private val api = Api(credentialManager)
-    private val storage = FronteggInnerStorage()
+    private val api = ApiProvider.getApi(credentialManager)
+    private val storage = StorageProvider.getInnerStorage()
 
     override val isMultiRegion: Boolean
         get() = regions.isNotEmpty()
@@ -78,6 +77,12 @@ class FronteggAuthService(
         get() = storage.selectedRegion
     override val isEmbeddedMode: Boolean
         get() = storage.isEmbeddedMode
+    override val useAssetsLinks: Boolean
+        get() = storage.useAssetsLinks
+    override val useChromeCustomTabs: Boolean
+        get() = storage.useChromeCustomTabs
+    override val mainActivityClass: Class<*>?
+        get() = storage.mainActivityClass
 
 
     init {
@@ -94,7 +99,7 @@ class FronteggAuthService(
             refreshTokenWhenNeeded()
         }
 
-        refreshTokenManager.refreshTokenIfNeeded.addCallback {
+        refreshTokenTimer.refreshTokenIfNeeded.addCallback {
             refreshTokenIfNeeded()
         }
     }
@@ -116,7 +121,7 @@ class FronteggAuthService(
         callback: () -> Unit,
     ) {
         isLoading.value = true
-        refreshTokenManager.cancelLastTimer()
+        refreshTokenTimer.cancelLastTimer()
 
         GlobalScope.launch(Dispatchers.IO) {
 
@@ -206,8 +211,10 @@ class FronteggAuthService(
         callback: ((error: Exception?) -> Unit)?,
     ) {
 
-        val passkeyManager = CredentialManagerHandler(activity)
-        val scope = MainScope()
+        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(
+            activity
+        )
+        val scope = ScopeProvider.mainScope
         scope.launch {
             try {
 
@@ -248,8 +255,8 @@ class FronteggAuthService(
         callback: ((error: Exception?) -> Unit)?,
     ) {
 
-        val passkeyManager = CredentialManagerHandler(activity)
-        val scope = MainScope()
+        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
+        val scope = ScopeProvider.mainScope
         scope.launch {
             try {
 
@@ -388,14 +395,14 @@ class FronteggAuthService(
             this.isAuthenticated.value = true
 
             // Cancel previous job if it exists
-            refreshTokenManager.cancelLastTimer()
+            refreshTokenTimer.cancelLastTimer()
 
 
             if (decoded.exp > 0) {
                 val offset = decoded.exp.calculateTimerOffset()
                 Log.d(TAG, "setCredentials, schedule for $offset")
 
-                refreshTokenManager.scheduleTimer(offset)
+                refreshTokenTimer.scheduleTimer(offset)
             }
         } else {
             this.refreshToken.value = null
@@ -429,7 +436,7 @@ class FronteggAuthService(
             } else {
                 Log.e(TAG, "Failed to exchange token")
                 if (webView != null) {
-                    val authorizeUrl = AuthorizeUrlGenerator()
+                    val authorizeUrl = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator()
                     val url = authorizeUrl.generate()
                     Handler(Looper.getMainLooper()).post {
                         webView.loadUrl(url.first)
@@ -508,7 +515,7 @@ class FronteggAuthService(
             return
         }
 
-        refreshTokenManager.cancelLastTimer()
+        refreshTokenTimer.cancelLastTimer()
 
         if (accessToken == null) {
             // when we have valid refreshToken without accessToken => failed to refresh in background
@@ -528,7 +535,7 @@ class FronteggAuthService(
                 }
             } else {
                 Log.d(TAG, "Schedule Refreshing Token for $offset")
-                refreshTokenManager.scheduleTimer(offset)
+                refreshTokenTimer.scheduleTimer(offset)
             }
         }
     }

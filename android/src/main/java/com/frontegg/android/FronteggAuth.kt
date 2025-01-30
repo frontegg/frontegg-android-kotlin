@@ -47,6 +47,10 @@ interface FronteggAuth {
     val selectedRegion: RegionConfig?
     val isEmbeddedMode: Boolean
 
+    val useAssetsLinks: Boolean
+    val useChromeCustomTabs: Boolean
+    val mainActivityClass: Class<*>?
+
     /**
      * Login user. Launch a user login process. Start [EmbeddedAuthActivity] or
      * [AuthenticationActivity] depending on [isEmbeddedMode] to show the Frontegg Login Box.

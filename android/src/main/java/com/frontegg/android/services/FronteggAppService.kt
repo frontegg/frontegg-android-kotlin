@@ -2,6 +2,7 @@ package com.frontegg.android.services
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.regions.RegionConfig
@@ -24,7 +25,9 @@ class FronteggAppService(
 ) : FronteggApp {
 
     private val storage = FronteggInnerStorage()
-    private val credentialManager = CredentialManager(context)
+
+    @VisibleForTesting
+    protected val credentialManager = CredentialManager(context)
     private val appLifecycle = FronteggAppLifecycle(context)
     private val refreshTokenManager = FronteggRefreshTokenTimer(context, appLifecycle)
 

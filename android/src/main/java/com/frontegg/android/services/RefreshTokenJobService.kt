@@ -43,7 +43,7 @@ class RefreshTokenJobService : JobService() {
                 FronteggAuthService.instance.isLoading.value = true
                 isError = true
                 if (e is SocketTimeoutException) {
-                    FronteggAuthService.instance.refreshTokenManager.scheduleTimer(20000)
+                    FronteggAuthService.instance.refreshTokenTimer.scheduleTimer(20000)
                 }
             } finally {
                 FronteggRefreshTokenTimer.lastJobStart = Instant.now().toEpochMilli()

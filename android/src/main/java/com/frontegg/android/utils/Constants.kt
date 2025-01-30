@@ -1,6 +1,7 @@
 package com.frontegg.android.utils
 
 import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.StorageProvider
 
 
 class ApiConstants {
@@ -37,7 +38,7 @@ class Constants {
         fun oauthCallbackUrl(baseUrl: String): String {
 
             val host = baseUrl.substring("https://".length)
-            val storage = FronteggInnerStorage()
+            val storage = StorageProvider.getInnerStorage()
             val packageName = storage.packageName
             val useAssetsLinks = storage.useAssetsLinks
             return if (useAssetsLinks) {
