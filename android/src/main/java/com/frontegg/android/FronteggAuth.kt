@@ -1,594 +1,173 @@
 package com.frontegg.android
 
-import android.annotation.SuppressLint
 import android.app.Activity
-import android.app.job.JobInfo
-import android.app.job.JobScheduler
-import android.content.ComponentName
-import android.content.Context
-import android.os.Handler
-import android.os.Looper
-import android.util.Base64
-import android.util.Log
-import android.webkit.CookieManager
-import android.webkit.WebView
-import androidx.credentials.PublicKeyCredential
-import com.frontegg.android.embedded.CredentialManagerHandler
-import com.frontegg.android.exceptions.FailedToAuthenticateException
-import com.frontegg.android.exceptions.MfaRequiredException
-import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
-import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
-import com.frontegg.android.services.Api
-import com.frontegg.android.services.AuthorizeUrlGeneratorProvider
-import com.frontegg.android.services.CredentialManager
-import com.frontegg.android.services.CredentialManagerHandlerProvider
-import com.frontegg.android.services.RefreshTokenService
-import com.frontegg.android.services.ScopeProvider
-import com.frontegg.android.utils.Constants
-import com.frontegg.android.utils.CredentialKeys
-import com.frontegg.android.utils.JWTHelper
-import com.frontegg.android.utils.ObservableValue
-import io.reactivex.rxjava3.core.Observable
-import kotlinx.coroutines.DelicateCoroutinesApi
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import org.jetbrains.annotations.VisibleForTesting
-import org.json.JSONObject
-import java.time.Instant
-import java.util.Timer
-import java.util.TimerTask
-import kotlin.concurrent.schedule
+import com.frontegg.android.utils.ReadOnlyObservableValue
 
 
-@SuppressLint("CheckResult")
-@OptIn(DelicateCoroutinesApi::class)
-class FronteggAuth(
-    var baseUrl: String,
-    var clientId: String,
-    var applicationId: String?,
-    val credentialManager: CredentialManager,
-    val regions: List<RegionConfig>,
-    var selectedRegion: RegionConfig?
-) {
+/**
+ * The authentication interface of Frontegg.
+ * Contains all necessary properties and methods for authentication flow.
+ *
+ * @property accessToken is a changeable value of access token. Null if the user is unauthorized;
+ * @property refreshToken is a changeable value of refresh token. Null if the user is unauthorized;
+ * @property user is a changeable value of the user date. Contains all information about the user.
+ *  Null if the user is unauthorized;
+ * @property isAuthenticated is a changeable value. True if the user is authenticated;
+ * @property isLoading is a changeable value. True if some process is running;
+ * @property initializing is a changeable value. True if Frontegg SDK is initializing;
+ * @property showLoader is a changeable value. True if need show loading UI;
+ * @property refreshingToken is a changeable value. True if refreshing token in progress;
+ *
+ * @property baseUrl is the Frontegg base URL;
+ * @property clientId is the Frontegg Client ID;
+ * @property applicationId is the id of Frontegg application;
+ * @property isMultiRegion is the flag which says if Frontegg SDK is multi-region;
+ * @property regions is the list of initialized [RegionConfig];
+ * @property selectedRegion is the current selected region;
+ * @property isEmbeddedMode is the flag which says if Frontegg SDK in embedded mode;
+ *
+ */
+interface FronteggAuth {
+    val accessToken: ReadOnlyObservableValue<String?>
+    val refreshToken: ReadOnlyObservableValue<String?>
+    val user: ReadOnlyObservableValue<User?>
+    val isAuthenticated: ReadOnlyObservableValue<Boolean>
+    val isLoading: ReadOnlyObservableValue<Boolean>
+    val initializing: ReadOnlyObservableValue<Boolean>
+    val showLoader: ReadOnlyObservableValue<Boolean>
+    val refreshingToken: ReadOnlyObservableValue<Boolean>
 
+    val baseUrl: String
+    val clientId: String
+    val applicationId: String?
+    val isMultiRegion: Boolean
+    val regions: List<RegionConfig>
+    val selectedRegion: RegionConfig?
+    val isEmbeddedMode: Boolean
 
-    companion object {
-        private val TAG = FronteggAuth::class.java.simpleName
-        const val JOB_ID = 1234 // Unique ID for the JobService
+    val useAssetsLinks: Boolean
+    val useChromeCustomTabs: Boolean
+    val mainActivityClass: Class<*>?
 
-        val instance: FronteggAuth
-            get() {
-                return FronteggApp.getInstance().auth
-            }
-
-    }
-
-    var accessToken: ObservableValue<String?> = ObservableValue(null)
-    var refreshToken: ObservableValue<String?> = ObservableValue(null)
-    val user: ObservableValue<User?> = ObservableValue(null)
-    val isAuthenticated: ObservableValue<Boolean> = ObservableValue(false)
-    val isLoading: ObservableValue<Boolean> = ObservableValue(true)
-    val initializing: ObservableValue<Boolean> = ObservableValue(true)
-    val showLoader: ObservableValue<Boolean> = ObservableValue(true)
-    val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
-    var pendingAppLink: String? = null
-    val isMultiRegion: Boolean = regions.isNotEmpty()
-    var refreshTokenJob: JobInfo? = null
-    var timerTask: TimerTask? = null
-    private var _api: Api? = null
-
-    init {
-
-        if (!isMultiRegion || selectedRegion !== null) {
-            this.initializeSubscriptions()
-        }
-    }
-
-    val api: Api
-        get() = (if (this._api == null) {
-            this._api = Api(this.baseUrl, this.clientId, this.applicationId, credentialManager)
-            this._api
-        } else {
-            this._api
-        })!!
-
-    @VisibleForTesting
-    internal fun setApi(api: Api) {
-        this._api = api
-    }
-
-
-    fun reinitWithRegion(region: RegionConfig) {
-        selectedRegion = region
-
-        this.baseUrl = region.baseUrl
-        this.clientId = region.clientId
-        this.applicationId = region.applicationId
-        this._api = null
-
-        this.initializeSubscriptions()
-    }
-
-    fun initializeSubscriptions() {
-        Observable.merge(
-            isLoading.observable,
-            isAuthenticated.observable,
-            initializing.observable,
-        ).subscribe {
-            showLoader.value = initializing.value || (!isAuthenticated.value && isLoading.value)
-        }
-
-        GlobalScope.launch(Dispatchers.IO) {
-
-            val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
-            val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)
-
-            if (accessTokenSaved != null && refreshTokenSaved != null) {
-                accessToken.value = accessTokenSaved
-                refreshToken.value = refreshTokenSaved
-
-                if (!refreshTokenIfNeeded()) {
-                    accessToken.value = null
-                    refreshToken.value = null
-                    initializing.value = false
-                    isLoading.value = false
-                }
-
-            } else {
-                initializing.value = false
-                isLoading.value = false
-            }
-        }
-    }
-
-    fun sendRefreshToken(): Boolean {
-        val refreshToken = this.refreshToken.value ?: return false
-        this.refreshingToken.value = true
-        try {
-
-            val data = api.refreshToken(refreshToken)
-            return if (data != null) {
-                setCredentials(data.access_token, data.refresh_token)
-                true
-            } else {
-                Log.e(TAG, "Failed to refresh token, data = null")
-                false
-            }
-        } finally {
-            this.refreshingToken.value = false
-        }
-    }
-
-    fun refreshTokenWhenNeeded() {
-        val accessToken = this.accessToken.value
-
-        if (this.refreshToken.value == null) {
-            return
-        }
-
-
-        cancelLastTimer()
-
-        if (accessToken == null) {
-            // when we have valid refreshToken without accessToken => failed to refresh in background
-            GlobalScope.launch(Dispatchers.IO) {
-                sendRefreshToken()
-            }
-            return
-        }
-
-        val decoded = JWTHelper.decode(accessToken)
-        if (decoded.exp > 0) {
-            val offset = calculateTimerOffset(decoded.exp)
-            if (offset <= 0) {
-                Log.d(TAG, "Refreshing Token...")
-                GlobalScope.launch(Dispatchers.IO) {
-                    sendRefreshToken()
-                }
-            } else {
-                Log.d(TAG, "Schedule Refreshing Token for $offset")
-                this.scheduleTimer(offset)
-            }
-        }
-    }
-
-    fun refreshTokenIfNeeded(): Boolean {
-
-        Log.d(TAG, "refreshTokenIfNeeded()")
-
-        return try {
-            this.sendRefreshToken()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send refresh token request", e)
-            false
-        }
-    }
-
-    private fun setCredentials(accessToken: String, refreshToken: String) {
-
-        if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
-            && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
-        ) {
-
-            val decoded = JWTHelper.decode(accessToken)
-            val user = api.me()
-
-            this.refreshToken.value = refreshToken
-            this.accessToken.value = accessToken
-            this.user.value = user
-            this.isAuthenticated.value = true
-            this.pendingAppLink = null
-
-            // Cancel previous job if it exists
-            this.cancelLastTimer()
-
-
-            if (decoded.exp > 0) {
-                val offset = calculateTimerOffset(decoded.exp)
-                Log.d(TAG, "setCredentials, schedule for $offset")
-
-                this.scheduleTimer(offset)
-            }
-        } else {
-            this.refreshToken.value = null
-            this.accessToken.value = null
-            this.user.value = null
-            this.isAuthenticated.value = false
-        }
-
-        this.isLoading.value = false
-        this.initializing.value = false
-    }
-
-    private fun cancelLastTimer() {
-        Log.d(TAG, "Cancel Last Timer")
-        if (timerTask != null) {
-            timerTask?.cancel()
-            timerTask = null
-        }
-        if (refreshTokenJob != null) {
-            val context = FronteggApp.getInstance().context
-            val jobScheduler =
-                context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            jobScheduler.cancel(JOB_ID)
-            this.refreshTokenJob = null
-        }
-    }
-
-    fun scheduleTimer(offset: Long) {
-        FronteggApp.getInstance().lastJobStart = Instant.now().toEpochMilli()
-        if (FronteggApp.getInstance().appInForeground) {
-            Log.d(TAG, "[foreground] Start Timer task (${offset} ms)")
-
-            this.timerTask = Timer().schedule(offset) {
-                Log.d(
-                    TAG,
-                    "[foreground] Job started, (${
-                        Instant.now().toEpochMilli() - FronteggApp.getInstance().lastJobStart
-                    } ms)"
-                )
-                refreshTokenIfNeeded()
-            }
-
-        } else {
-            Log.d(TAG, "[background] Start Job Scheduler task (${offset} ms)")
-            val context = FronteggApp.getInstance().context
-            val jobScheduler =
-                context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
-            // Schedule the job
-            val jobInfo = JobInfo.Builder(
-                JOB_ID, ComponentName(context, RefreshTokenService::class.java)
-            )
-                .setMinimumLatency(offset / 2) // Schedule the job to run after the offset
-                .setOverrideDeadline(offset) // Add a buffer to the deadline
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY) // Require network
-                .setBackoffCriteria(10000, JobInfo.BACKOFF_POLICY_LINEAR)
-                .build()
-            this.refreshTokenJob = jobInfo
-            jobScheduler.schedule(jobInfo)
-        }
-    }
-
-    fun handleHostedLoginCallback(
-        code: String,
-        webView: WebView? = null,
-        activity: Activity? = null,
+    /**
+     * Login user. Launch a user login process. Start [EmbeddedAuthActivity] or
+     * [AuthenticationActivity] depending on [isEmbeddedMode] to show the Frontegg Login Box.
+     * [accessToken], [refreshToken], and [user] should be not null, and [isAuthenticated]
+     * should be true after calling the [login] process is finished.
+     * @param activity is the activity of application;
+     * @param loginHint is a value that auto filled to login field at Frontegg LoginBox.
+     */
+    fun login(
+        activity: Activity,
+        loginHint: String? = null,
         callback: (() -> Unit)? = null
-    ): Boolean {
+    )
 
-        val codeVerifier = credentialManager.getCodeVerifier()
-        val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
+    /**
+     * Logout user. Clear data about the user. Could make a network request.
+     * [accessToken], [refreshToken], and [user] should be null, and [isAuthenticated]
+     * should be false after calling the [logout] method and [callback] was triggered.
+     * @param callback call after the logout process is finished.
+     */
+    fun logout(
+        callback: () -> Unit = {},
+    )
 
-        if (codeVerifier == null) {
-            return false
-        }
-
-        GlobalScope.launch(Dispatchers.IO) {
-            val data = api.exchangeToken(code, redirectUrl, codeVerifier)
-            if (data != null) {
-                setCredentials(data.access_token, data.refresh_token)
-                callback?.invoke()
-            } else {
-                Log.e(TAG, "Failed to exchange token")
-                if (webView != null) {
-                    val url = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator().generate()
-                    Handler(Looper.getMainLooper()).post {
-                        webView.loadUrl(url.first)
-                    }
-                } else if (activity != null && callback == null) {
-                    login(activity)
-                }
-
-            }
-        }
-
-        return true
-    }
-
-    private fun getDomainCookie(siteName: String): String? {
-        val cookieManager = CookieManager.getInstance()
-        return cookieManager.getCookie(siteName)
-    }
-
-
-    fun logout(callback: () -> Unit = {}) {
-        isLoading.value = true
-        this.cancelLastTimer()
-
-        GlobalScope.launch(Dispatchers.IO) {
-
-            val logoutCookies = getDomainCookie(baseUrl)
-            val logoutAccessToken = accessToken.value
-
-            if (logoutCookies != null &&
-                logoutAccessToken != null &&
-                FronteggApp.getInstance().isEmbeddedMode
-            ) {
-                api.logout(logoutCookies, logoutAccessToken)
-            }
-
-            isAuthenticated.value = false
-            accessToken.value = null
-            refreshToken.value = null
-            user.value = null
-            credentialManager.clear()
-
-            val handler = Handler(Looper.getMainLooper())
-            handler.post {
-                isLoading.value = false
-                callback()
-            }
-
-        }
-
-    }
-
-    suspend fun requestAuthorizeAsync(
-        refreshToken: String,
-        deviceTokenCookie: String? = null
-    ): User {
-        isLoading.value = true
-        try {
-            Log.d(TAG, "Requesting silent authorization with refresh and device tokens")
-
-            // Call API to authorize with tokens
-            val authResponse = withContext(Dispatchers.IO) {
-                api.authorizeWithTokens(refreshToken, deviceTokenCookie)
-            }
-
-            // Set credentials and return the user
-            setCredentials(authResponse.access_token, authResponse.refresh_token)
-            user.value?.let {
-                return it
-            }
-
-            throw FailedToAuthenticateException(error = "Failed to authenticate")
-        } catch (e: Exception) {
-            Log.e(TAG, "Authorization request failed: ${e.message}", e)
-            isLoading.value = false
-            throw e
-        }
-    }
-
-
-    fun requestAuthorize(
-        refreshToken: String,
-        deviceTokenCookie: String? = null,
-        callback: (Result<User>) -> Unit
-    ) {
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                val user = requestAuthorizeAsync(refreshToken, deviceTokenCookie)
-                withContext(Dispatchers.Main) {
-                    callback(Result.success(user))
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to authenticate: ${e.message}", e)
-                withContext(Dispatchers.Main) {
-                    callback(Result.failure(e))
-                }
-            }
-        }
-    }
-
-
-    fun login(activity: Activity, loginHint: String? = null, callback: (() -> Unit)? = null) {
-        if (FronteggApp.getInstance().isEmbeddedMode) {
-            EmbeddedAuthActivity.authenticate(activity, loginHint, callback)
-        } else {
-            AuthenticationActivity.authenticate(activity, loginHint, callback)
-        }
-    }
-
+    /**
+     * Direct Login Action process. Support only on Embedded Mode([EmbeddedAuthActivity] is enabled).
+     * @param activity is the activity of application;
+     * @param type is the type of direct login. Can be "direct", "social-login", or "custom-social-login";
+     * @param data is a data of direct login. For "direct" [type] it can be any URL string.
+     * For "social-login" [type] must be one of google, linkedin, facebook, github, apple, etc.
+     * For "custom-social-login" [type] must be configured UUID;
+     * @param callback call after the Direct Login Action process is finished.
+     */
     fun directLoginAction(
         activity: Activity,
         type: String,
         data: String,
         callback: (() -> Unit)? = null
-    ) {
-        if (FronteggApp.getInstance().isEmbeddedMode) {
-            EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)
-        } else {
-            Log.w(TAG, "Direct login action is not supported in non-embedded mode")
-        }
-    }
+    )
 
+    /**
+     * Switches user tenant.
+     * @param tenantId is available user tenants. Can extract them from [User].tenants.tenantId;
+     * @param callback call after the tenant switching process is finished.
+     */
+    fun switchTenant(
+        tenantId: String,
+        callback: (Boolean) -> Unit = {},
+    )
 
-    fun switchTenant(tenantId: String, callback: (Boolean) -> Unit = {}) {
-        Log.d(TAG, "switchTenant()")
-        GlobalScope.launch(Dispatchers.IO) {
-            val handler = Handler(Looper.getMainLooper())
+    /**
+     * Refresh token if needed.
+     * @return true if taken was successfully refreshed. False otherwise.
+     */
+    fun refreshTokenIfNeeded(): Boolean
 
-            isLoading.value = true
-            try {
-                api.switchTenant(tenantId)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to send switch tenant request", e)
-                handler.post {
-                    isLoading.value = false
-                    callback(false)
-                }
-                return@launch
-            }
-
-            val success = refreshTokenIfNeeded()
-
-            handler.post {
-                isLoading.value = false
-                callback(success)
-            }
-        }
-    }
-
-    private fun calculateTimerOffset(expirationTime: Long): Long {
-        val now: Long = Instant.now().toEpochMilli()
-        val remainingTime = (expirationTime * 1000) - now
-
-        val minRefreshWindow = 20000 // minimum 20 seconds before exp
-        val adaptiveRefreshTime = remainingTime * 0.8 // 80% of remaining time
-
-        return if (remainingTime > minRefreshWindow) {
-            adaptiveRefreshTime.toLong()
-        } else {
-            (remainingTime - minRefreshWindow).coerceAtLeast(0)
-        }
-    }
-
-
-    fun loginWithPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
-        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
-        val scope = ScopeProvider.mainScope
-        scope.launch {
-            try {
-
-                val webAuthnPreloginRequest = withContext(Dispatchers.IO) { api.webAuthnPrelogin() }
-
-                val result = passkeyManager.getPasskey(webAuthnPreloginRequest.jsonChallenge)
-
-                val challengeResponse =
-                    (result.credential as PublicKeyCredential).authenticationResponseJson
-
-                isLoading.value = true
-                val webAuthnPostLoginResponse = withContext(Dispatchers.IO) {
-                    api.webAuthnPostlogin(webAuthnPreloginRequest.cookie, challengeResponse)
-                }
-
-                Log.i(TAG, "Login with Passkeys succeeded, exchanging oauth token")
-                withContext(Dispatchers.IO) {
-                    setCredentials(
-                        webAuthnPostLoginResponse.access_token,
-                        webAuthnPostLoginResponse.refresh_token
-                    )
-                }
-
-                callback?.invoke(null)
-            } catch (e: Exception) {
-                Log.e(TAG, "failed to login with passkeys", e)
-                if (e is MfaRequiredException) {
-                    startMultiFactorAuthenticator(activity, callback, e.mfaRequestData)
-                } else {
-                    callback?.invoke(e)
-                }
-            }
-        }
-    }
-
-    fun registerPasskeys(activity: Activity, callback: ((error: Exception?) -> Unit)? = null) {
-
-        val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(activity)
-        val scope = ScopeProvider.mainScope
-        scope.launch {
-            try {
-
-                val webAuthnRegsiterRequest = withContext(Dispatchers.IO) {
-                    api.getWebAuthnRegisterChallenge()
-                }
-
-                val result = passkeyManager.createPasskey(webAuthnRegsiterRequest.jsonChallenge)
-
-                val challengeResponse = result.registrationResponseJson
-
-                withContext(Dispatchers.IO) {
-                    api.verifyWebAuthnDevice(webAuthnRegsiterRequest.cookie, challengeResponse)
-                }
-
-                callback?.invoke(null)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to login with passkeys", e)
-                if (isWebAuthnRegisteredBeforeException(e)) {
-                    callback?.invoke(WebAuthnAlreadyRegisteredInLocalDeviceException())
-                } else {
-                    callback?.invoke(e)
-                }
-            }
-        }
-    }
-
-    private fun startMultiFactorAuthenticator(
+    /**
+     * Login with passkeys
+     * @param activity is the activity of application;
+     * @param callback call after the registration is finished or was intercepted by Exception.
+     * [error] not null if some Exception happened during logging.
+     */
+    fun loginWithPasskeys(
         activity: Activity,
-        callback: ((error: Exception?) -> Unit)?,
-        mfaRequestData: String
-    ) {
+        callback: ((error: Exception?) -> Unit)? = null,
+    )
 
-        val authCallback: () -> Unit = {
-            if (this.isAuthenticated.value) {
-                callback?.invoke(null)
-            } else {
-                val error = FailedToAuthenticateException(error = "Failed to authenticate with MFA")
-                callback?.invoke(error)
+    /**
+     * Register passkeys.
+     * @param activity is the activity of application;
+     * @param callback call after the registration is finished or was intercepted by Exception.
+     * [error] not null if some Exception happened during registration.
+     */
+    fun registerPasskeys(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)? = null,
+    )
+
+    /**
+     * Requests silent authorization using a refresh token and an optional device token.
+     * This function runs asynchronously using a coroutine.
+     *
+     * @param refreshToken The refresh token used for authentication.
+     * @param deviceTokenCookie Optional device token for additional authentication.
+     * @return A [User] object if authentication succeeds.
+     * @throws FailedToAuthenticateException If authentication fails.
+     */
+    suspend fun requestAuthorizeAsync(
+        refreshToken: String,
+        deviceTokenCookie: String? = null
+    ): User
+
+    /**
+     * Initiates an asynchronous authorization request using a refresh token.
+     * Calls a callback function with the authentication result.
+     *
+     * @param refreshToken The refresh token used for authentication.
+     * @param deviceTokenCookie Optional device token for additional authentication.
+     * @param callback A callback function that returns a [Result] object containing
+     *                 either a successful [User] or an exception if authentication fails.
+     */
+    fun requestAuthorize(
+        refreshToken: String,
+        deviceTokenCookie: String? = null,
+        callback: (Result<User>) -> Unit
+    )
+
+
+    companion object {
+
+        /**
+         * Instance of [FronteggAuth].
+         */
+        val instance: FronteggAuth
+            get() {
+                return FronteggApp.getInstance().auth
             }
-        }
-
-        val multiFactorStateBase64 =
-            Base64.encodeToString(mfaRequestData.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        val directLogin = mapOf(
-            "type" to "direct",
-            "data" to "$baseUrl/oauth/account/mfa-mobile-authenticator?state=$multiFactorStateBase64",
-            "additionalQueryParams" to mapOf(
-                "prompt" to "consent"
-            )
-        )
-        val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
-        val loginDirectAction = Base64.encodeToString(jsonData, Base64.NO_WRAP)
-
-        if (FronteggApp.getInstance().isEmbeddedMode) {
-            EmbeddedAuthActivity.authenticateWithMultiFactor(
-                activity,
-                loginDirectAction,
-                authCallback
-            )
-        } else {
-            AuthenticationActivity.authenticateWithMultiFactor(
-                activity,
-                loginDirectAction,
-                authCallback
-            )
-        }
-
     }
 }
+

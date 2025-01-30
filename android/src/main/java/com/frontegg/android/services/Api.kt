@@ -27,12 +27,17 @@ import okhttp3.Response
 import java.io.IOException
 
 open class Api(
-    private var baseUrl: String,
-    private var clientId: String,
-    private var applicationId: String?,
     private var credentialManager: CredentialManager
 ) {
     private var httpClient: OkHttpClient = OkHttpClient()
+    private val storage = StorageProvider.getInnerStorage()
+    private val baseUrl: String
+        get() = storage.baseUrl
+    private val clientId: String
+        get() = storage.clientId
+    private val applicationId: String?
+        get() = storage.applicationId
+
     private val cookieName: String
 
     companion object {

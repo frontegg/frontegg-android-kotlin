@@ -22,3 +22,15 @@ object AuthorizeUrlGeneratorProvider {
         return AuthorizeUrlGenerator()
     }
 }
+
+object StorageProvider {
+    fun getInnerStorage(): FronteggInnerStorage {
+        return FronteggInnerStorage()
+    }
+}
+
+object ApiProvider {
+    fun getApi(credentialManager: CredentialManager): Api {
+        return Api(credentialManager)
+    }
+}
