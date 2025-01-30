@@ -10,8 +10,6 @@ import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
-import com.frontegg.android.EmbeddedAuthActivity.Companion
-import com.frontegg.android.services.FronteggAppService
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 
 class AuthenticationActivity : Activity() {

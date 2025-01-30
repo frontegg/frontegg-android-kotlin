@@ -21,6 +21,10 @@ class FronteggInnerStorage {
         get() = data["selectedRegion"] as RegionConfig?
     val handleLoginWithSocialLogin: Boolean
         get() = data["handleLoginWithSocialLogin"] as Boolean
+    val handleLoginWithSocialLoginProvider: Boolean
+        get() = data["handleLoginWithSocialLoginProvider"] as Boolean
+    val handleLoginWithCustomSocialLoginProvider: Boolean
+        get() = data["handleLoginWithCustomSocialLoginProvider"] as Boolean
     val customUserAgent: String?
         get() = data["customUserAgent"] as String?
     val handleLoginWithSSO: Boolean
@@ -44,6 +48,8 @@ class FronteggInnerStorage {
         regions: List<RegionConfig> = listOf(),
         selectedRegion: RegionConfig? = null,
         handleLoginWithSocialLogin: Boolean = true,
+        handleLoginWithSocialLoginProvider: Boolean = true,
+        handleLoginWithCustomSocialLoginProvider: Boolean = true,
         customUserAgent: String? = null,
         handleLoginWithSSO: Boolean = false,
         shouldPromptSocialLoginConsent: Boolean = true,
@@ -59,6 +65,8 @@ class FronteggInnerStorage {
         data["regions"] = regions
         data["selectedRegion"] = selectedRegion
         data["handleLoginWithSocialLogin"] = handleLoginWithSocialLogin
+        data["handleLoginWithSocialLoginProvider"] = handleLoginWithSocialLoginProvider
+        data["handleLoginWithCustomSocialLoginProvider"] = handleLoginWithCustomSocialLoginProvider
         data["customUserAgent"] = customUserAgent
         data["handleLoginWithSSO"] = handleLoginWithSSO
         data["shouldPromptSocialLoginConsent"] = shouldPromptSocialLoginConsent
