@@ -4,7 +4,7 @@ plugins {
 }
 
 Properties localProperties = new Properties()
-localProperties.load(project.rootProject.file('local.properties').newDataInputStream())
+localProperties.load(project.rootProject.file('test.properties').newDataInputStream())
 
 def fronteggDomain = "autheu.davidantoon.me"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
