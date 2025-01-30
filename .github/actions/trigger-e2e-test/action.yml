@@ -1,0 +1,58 @@
+name: Trigger E2E Action
+description: Trigger E2E workflow for a PR
+
+inputs:
+  debugApkUrl:
+    description: 'The URL of the debug APK artifact'
+    required: true
+  releaseApkUrl:
+    description: 'The URL of the debug APK artifact'
+    required: true
+  sha:
+    description: 'Commit SHA'
+    required: true
+  bot_app_id:
+    description: 'Bot App Id'
+    required: true
+  bot_app_key:
+    description: 'Bot App Key'
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - id: create_bot_token
+      name: Create bot token
+      uses: wow-actions/use-app-token@v2
+      with:
+        app_id: ${{ inputs.bot_app_id }}
+        private_key: ${{ inputs.bot_app_key }}
+
+    - name: "Trigger E2E tests"
+      uses: actions/github-script@v5
+      env:
+        debugApkUrl: ${{ inputs.debugApkUrl }}
+        releaseApkUrl: ${{ inputs.releaseApkUrl }}
+        sha: ${{ inputs.sha }}
+      with:
+        github-token: ${{ steps.create_bot_token.outputs.BOT_TOKEN }}
+        script: |
+          const {sha, releaseApkUrl, debugApkUrl} = process.env;
+          const repo = 'frontegg-android-kotlin'
+          const owner = 'frontegg'
+          const e2eRepo = 'e2e-system-tests'
+          const workflow_id = 'start-android-sdk-e2e.yaml'
+          const dispatch_id = `${repo}/${sha}`
+          
+          github.rest.actions.createWorkflowDispatch({
+            owner,
+            repo: e2eRepo,
+            workflow_id,
+            ref: 'master',
+            inputs: {
+              client_framework: 'native-android',
+              releaseApkUrl,
+              debugApkUrl,
+              dispatch_id,
+            }
+          })
