@@ -40,9 +40,6 @@ class ApiTest {
         val url = mockWebServer.url("")
 
         api = Api(
-            url.toString(),
-            "TestClientId",
-            null,
             mockkCredentialManager
         )
         every { mockkCredentialManager.get(CredentialKeys.ACCESS_TOKEN) }.returns("Test Access Token")

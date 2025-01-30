@@ -3,7 +3,9 @@ package com.frontegg.android.utils
 import android.net.Uri
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.services.FronteggInnerStorage
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.mockkClass
 import io.mockk.mockkObject
 import io.mockk.verify
@@ -17,6 +19,7 @@ class AuthorizeUrlGeneratorTest {
     private lateinit var authorizeUrlGenerator: AuthorizeUrlGenerator
     private lateinit var credentialManager: CredentialManager
     private lateinit var fronteggApp: FronteggApp
+    private val storage = mockk<FronteggInnerStorage>()
     private val baseUrl = "https://base.url.com/"
     private val clientId = "Test Client Id"
     @Before
@@ -25,12 +28,12 @@ class AuthorizeUrlGeneratorTest {
         credentialManager = mockkClass(CredentialManager::class)
         mockkObject(FronteggApp.Companion)
         every { FronteggApp.getInstance() }.returns(fronteggApp)
-        every { fronteggApp.clientId }.returns(clientId)
-        every { fronteggApp.applicationId }.returns(null)
-        every { fronteggApp.baseUrl }.returns(baseUrl)
-        every { fronteggApp.packageName }.returns("test.com")
-        every { fronteggApp.useAssetsLinks }.returns(false)
-        every { fronteggApp.credentialManager }.returns(credentialManager)
+        every { storage.clientId }.returns(clientId)
+        every { storage.applicationId }.returns(null)
+        every { storage.baseUrl }.returns(baseUrl)
+        every { storage.packageName }.returns("test.com")
+        every { storage.useAssetsLinks }.returns(false)
+//        every { storage.credentialManager }.returns(credentialManager)
         every { credentialManager.saveCodeVerifier(any()) }.returns(true)
 
         authorizeUrlGenerator = AuthorizeUrlGenerator()
@@ -92,9 +95,9 @@ class AuthorizeUrlGeneratorTest {
 
     @Test
     fun `client_id query parameter should be applicationId if applicationId not null`() {
-        every { fronteggApp.applicationId }.returns("Test Application Id")
+        every { storage.applicationId }.returns("Test Application Id")
         val url = AuthorizeUrlGenerator().generate()
-        every { fronteggApp.applicationId }.returns(null)
+        every { storage.applicationId }.returns(null)
         val uri = Uri.parse(url.first)
 
         val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")

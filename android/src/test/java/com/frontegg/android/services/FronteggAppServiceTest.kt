@@ -1,8 +1,9 @@
-package com.frontegg.android
+package com.frontegg.android.services
 
 import android.app.Activity
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
+import com.frontegg.android.FronteggApp
 import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.testUtils.FakeAndroidKeyStoreProvider
@@ -11,7 +12,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 @RunWith(AndroidJUnit4::class)
-class FronteggAppTest {
+class FronteggAppServiceTest {
     private val fronteggDomain = "frontegg.test.com"
     private val fronteggClientId = "Test Client Id"
     private val applicationId = "Application Id"
@@ -60,12 +61,12 @@ class FronteggAppTest {
 
         val fronteggApp = FronteggApp.getInstance()
 
-        assert(fronteggApp.baseUrl == "https://$fronteggDomain")
-        assert(fronteggApp.clientId == fronteggClientId)
-        assert(fronteggApp.applicationId == applicationId)
-        assert(fronteggApp.useAssetsLinks)
-        assert(fronteggApp.useChromeCustomTabs)
-        assert(fronteggApp.mainActivityClass == Activity::class.java)
+        assert(fronteggApp.auth.baseUrl == "https://$fronteggDomain")
+        assert(fronteggApp.auth.clientId == fronteggClientId)
+        assert(fronteggApp.auth.applicationId == applicationId)
+        assert(fronteggApp.auth.useAssetsLinks)
+        assert(fronteggApp.auth.useChromeCustomTabs)
+        assert(fronteggApp.auth.mainActivityClass == Activity::class.java)
     }
 
     @Test
@@ -92,10 +93,10 @@ class FronteggAppTest {
         )
 
         val fronteggApp = FronteggApp.getInstance()
-        assert(fronteggApp.regions.count() == 2)
-        assert(fronteggApp.regions.first().key == "key 1")
-        assert(fronteggApp.regions.last().key == "key 2")
-        assert(fronteggApp.baseUrl == "")
+        assert(fronteggApp.auth.regions.count() == 2)
+        assert(fronteggApp.auth.regions.first().key == "key 1")
+        assert(fronteggApp.auth.regions.last().key == "key 2")
+        assert(fronteggApp.auth.baseUrl == "")
     }
 
     @Test
@@ -124,14 +125,14 @@ class FronteggAppTest {
         val fronteggApp = FronteggApp.getInstance()
 
         fronteggApp.initWithRegion("key 1")
-        assert(fronteggApp.baseUrl == "https://frontegg.test.com 1")
-        assert(fronteggApp.clientId == "Test Client Id 1")
-        assert(fronteggApp.applicationId == "Application Id 1")
+        assert(fronteggApp.auth.baseUrl == "https://frontegg.test.com 1")
+        assert(fronteggApp.auth.clientId == "Test Client Id 1")
+        assert(fronteggApp.auth.applicationId == "Application Id 1")
 
         fronteggApp.initWithRegion("key 2")
-        assert(fronteggApp.baseUrl == "https://frontegg.test.com 2")
-        assert(fronteggApp.clientId == "Test Client Id 2")
-        assert(fronteggApp.applicationId == "Application Id 2")
+        assert(fronteggApp.auth.baseUrl == "https://frontegg.test.com 2")
+        assert(fronteggApp.auth.clientId == "Test Client Id 2")
+        assert(fronteggApp.auth.applicationId == "Application Id 2")
     }
 
     @Test
@@ -184,4 +185,44 @@ class FronteggAppTest {
             assert(true)
         }
     }
+
+    //
+//    @Test
+//    fun `reinitWithRegion should set up FronteggAuth_baseUrl`() {
+//        val regionConfig = RegionConfig(
+//            key = "key1",
+//            baseUrl = "TestBaseUrl",
+//            clientId = "TestClientId",
+//            applicationId = "TestApplicationId"
+//        )
+//        auth.reinitWithRegion(regionConfig)
+//
+//        assert(auth.baseUrl == "https://TestBaseUrl")
+//    }
+//
+//    @Test
+//    fun `reinitWithRegion should set up FronteggAuth_clientId`() {
+//        val regionConfig = RegionConfig(
+//            key = "key1",
+//            baseUrl = "TestBaseUrl",
+//            clientId = "TestClientId",
+//            applicationId = "TestApplicationId"
+//        )
+//        auth.reinitWithRegion(regionConfig)
+//
+//        assert(auth.clientId == "TestClientId")
+//    }
+//
+//    @Test
+//    fun `reinitWithRegion should set up FronteggAuth_applicationId`() {
+//        val regionConfig = RegionConfig(
+//            key = "key1",
+//            baseUrl = "TestBaseUrl",
+//            clientId = "TestClientId",
+//            applicationId = "TestApplicationId"
+//        )
+//        auth.reinitWithRegion(regionConfig)
+//
+//        assert(auth.applicationId == "TestApplicationId")
+//    }
 }

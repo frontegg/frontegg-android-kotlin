@@ -1,6 +1,7 @@
 package com.frontegg.android.utils
 
 import com.frontegg.android.FronteggApp
+import com.frontegg.android.services.FronteggInnerStorage
 import io.mockk.every
 import io.mockk.mockkClass
 import io.mockk.mockkObject
@@ -9,6 +10,7 @@ import org.junit.Test
 
 class ConstantsTest {
     private lateinit var fronteggApp: FronteggApp
+    private lateinit var storage: FronteggInnerStorage
 
     private val host = "base.url.com"
     private val baseUrl = "https://$host"
@@ -23,12 +25,12 @@ class ConstantsTest {
         fronteggApp = mockkClass(FronteggApp::class)
         mockkObject(FronteggApp.Companion)
         every { FronteggApp.getInstance() }.returns(fronteggApp)
-        every { fronteggApp.packageName }.returns(packageName)
+        every { storage.packageName }.returns(packageName)
     }
 
     @Test
     fun `oauthCallbackUrl should return useAssetLinksOAuthCallbackUrl if useAssetsLinks is true`() {
-        every { fronteggApp.useAssetsLinks }.returns(true)
+        every { storage.useAssetsLinks }.returns(true)
 
         val oauthCallbackUrl = Constants.oauthCallbackUrl(baseUrl)
 
@@ -36,7 +38,7 @@ class ConstantsTest {
     }
     @Test
     fun `oauthCallbackUrl should return oAuthCallbackUrl if useAssetsLinks is false`() {
-        every { fronteggApp.useAssetsLinks }.returns(false)
+        every { storage.useAssetsLinks }.returns(false)
 
         val oauthCallbackUrl = Constants.oauthCallbackUrl(baseUrl)
 
