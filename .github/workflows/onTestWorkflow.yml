@@ -14,7 +14,7 @@ concurrency:
 jobs:
   uploadApk:
     name: 'Upload apk'
-    runs-on: macos-latest-xl
+    runs-on: macos-14-xlarge
     steps:
       - name: Checkout
         uses: actions/checkout@v4.2.0
@@ -61,15 +61,17 @@ jobs:
           name: test-release.apk
           path: embedded/build/outputs/apk/release/embedded-release.apk
 
-      - name: Trigger Private Repo Workflow
+      - name: Fetch artifact details
         run: |
-          # Retrieve artifact URLs
-          artifacts=$(curl -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
-                             -H "Accept: application/vnd.github.v3+json" \
-                             https://api.github.com/repos/${{ github.repository }}/actions/artifacts \
-                             | jq -r '.artifacts[] | select(.name | startswith("android-apk")) | .archive_download_url')
+          # Fetch the artifacts for the current workflow run
+          response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
 
-          # Convert the artifact URLs to a JSON list
-          apk_urls=$(echo "$artifacts" | jq -Rsc 'split("\n") | map(select(length > 0))')
+          # Parse the response to extract artifact names and IDs
+          echo "Artifact details:"
+          echo "$response" | jq -r '.artifacts[] | "Artifact Name: \(.name), Artifact ID: \(.id)"'
 
-          echo "artifact urls: $apk_urls"
+          # Construct the GitHub download URL for each artifact
+          echo "Constructing download URLs..."
+          echo "$response" | jq -r '.artifacts[] | "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/\(.id)"'
