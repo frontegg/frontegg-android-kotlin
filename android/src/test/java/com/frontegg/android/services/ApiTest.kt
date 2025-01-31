@@ -10,7 +10,9 @@ import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.CredentialKeys
 import io.mockk.every
+import io.mockk.mockk
 import io.mockk.mockkClass
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.verify
 import okhttp3.mockwebserver.MockResponse
@@ -24,6 +26,8 @@ class ApiTest {
     private lateinit var api: Api
     private lateinit var mockkCredentialManager: CredentialManager
     private lateinit var mockWebServer: MockWebServer
+    private val mockStorage = mockk<FronteggInnerStorage>()
+
 
     private val userJson =
         "{\"tenantId\":\"d230e118-8e56-4837-b70b-92943e567911\",\"verified\":true,\"activatedForTenant\":true,\"tenantIds\":[\"d230e118-8e56-4837-b70b-92943e567911\"],\"roles\":[{\"vendorId\":\"392b348b-a37c-471f-8f1b-2c35d23aa7e6\",\"id\":\"12c36cb2-67a7-4468-ad8f-c1a0e8128234\",\"isDefault\":true,\"updatedAt\":\"2024-05-13T11:59:55.000Z\",\"createdAt\":\"2024-05-13T11:59:55.000Z\",\"permissions\":[\"0e8c0103-feb1-4ae0-8230-00de5fd0f8566\",\"502b112e-50fd-4e8d-875e-3abda628d955\",\"da015508-7cb1-4dcd-9436-d0518a2ecd44\"],\"name\":\"Admin\",\"key\":\"Admin\"}],\"name\":\"Test User\",\"mfaEnrolled\":false,\"profilePictureUrl\":\"https://lh3.googleusercontent.com/a/ACg8ocKc8DKSMBDaSp83L-7jJXvfHT0YdZ9w4_KnqLpvFhETmQsH_A=s96-c\",\"permissions\":[{\"fePermission\":true,\"id\":\"0e8c0103-feb1-4ae0-8230-00de5fd0f822\",\"categoryId\":\"0c587ef6-eb9e-4a10-b888-66ec4bcb1548\",\"updatedAt\":\"2024-03-21T07:27:46.000Z\",\"createdAt\":\"2024-03-21T07:27:46.000Z\",\"description\":\"View all applications in the account\",\"name\":\"Read application\",\"key\":\"fe.account-settings.read.app\"},{\"fePermission\":true,\"id\":\"502b112e-50fd-4e8d-875e-3abda628d921\",\"categoryId\":\"5c326535-c73b-4926-937e-170d6ad5c9bz\",\"key\":\"fe.connectivity.*\",\"description\":\"all connectivity permissions\",\"createdAt\":\"2021-02-11T10:58:31.000Z\",\"updatedAt\":\"2021-02-11T10:58:31.000Z\",\"name\":\" Connectivity general\"},{\"fePermission\":true,\"id\":\"502b112e-50fd-4e8d-822e-3abda628d921\",\"categoryId\":\"684202ce-2345-48f0-8d67-4c05fe6a4d9a\",\"key\":\"fe.secure.*\",\"description\":\"all secure access permissions\",\"createdAt\":\"2020-12-08T08:59:25.000Z\",\"updatedAt\":\"2020-12-08T08:59:25.000Z\",\"name\":\"Secure general\"}],\"email\":\"test@mail.com\",\"id\":\"d89330b3-f581-493c-bcd7-0c4b1dff1111\",\"superUser\":false}"
@@ -33,16 +37,20 @@ class ApiTest {
     @Before
     fun setUp() {
 
+        mockkObject(StorageProvider)
+        every { StorageProvider.getInnerStorage() }.returns(mockStorage)
+        every { mockStorage.clientId }.returns("TestClientId")
+        every { mockStorage.applicationId }.returns("TestApplicationId")
+        every { mockStorage.regions }.returns(listOf())
+
         mockkCredentialManager = mockkClass(CredentialManager::class)
 
         mockWebServer = MockWebServer()
         mockWebServer.start()
         val url = mockWebServer.url("")
+        every { mockStorage.baseUrl }.returns(url.toString())
 
         api = Api(
-            url.toString(),
-            "TestClientId",
-            null,
             mockkCredentialManager
         )
         every { mockkCredentialManager.get(CredentialKeys.ACCESS_TOKEN) }.returns("Test Access Token")
@@ -244,6 +252,4 @@ class ApiTest {
             assert(true)
         }
     }
-
-
 }

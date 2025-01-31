@@ -8,12 +8,12 @@ import android.util.Base64
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
+import androidx.annotation.VisibleForTesting
 import androidx.credentials.PublicKeyCredential
 import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
-import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
@@ -29,7 +29,6 @@ import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -86,7 +85,6 @@ class FronteggAuthService(
 
 
     init {
-
         if (!isMultiRegion || selectedRegion !== null) {
             this.initializeSubscriptions()
         }
@@ -453,11 +451,12 @@ class FronteggAuthService(
 
     private fun getDomainCookie(siteName: String): String? {
         val cookieManager = CookieManager.getInstance()
-        return cookieManager.getCookie(siteName);
+        return cookieManager.getCookie(siteName)
     }
 
 
-    private fun initializeSubscriptions() {
+    @VisibleForTesting
+    internal fun initializeSubscriptions() {
         Log.d(TAG, "initializeSubscriptions")
         Observable.merge(
             isLoading.observable,
@@ -508,7 +507,8 @@ class FronteggAuthService(
         }
     }
 
-    private fun refreshTokenWhenNeeded() {
+    @VisibleForTesting
+    internal fun refreshTokenWhenNeeded() {
         val accessToken = this.accessToken.value
 
         if (this.refreshToken.value == null) {
@@ -522,7 +522,7 @@ class FronteggAuthService(
             GlobalScope.launch(Dispatchers.IO) {
                 sendRefreshToken()
             }
-            return;
+            return
         }
 
         val decoded = JWTHelper.decode(accessToken)
