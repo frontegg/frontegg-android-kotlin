@@ -1,7 +1,10 @@
 package com.frontegg.android.utils
 
+import androidx.annotation.VisibleForTesting
+
 class FronteggCallback {
-    private val callbacks = mutableListOf<() -> Unit>()
+    @VisibleForTesting
+    internal val callbacks = mutableListOf<() -> Unit>()
 
     fun addCallback(callback: () -> Unit) {
         callbacks.add(callback)

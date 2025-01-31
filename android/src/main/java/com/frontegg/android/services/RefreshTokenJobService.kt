@@ -4,6 +4,7 @@ package com.frontegg.android.services
 import android.app.job.JobParameters
 import android.app.job.JobService
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import java.net.SocketTimeoutException
 import java.time.Instant
 
@@ -29,7 +30,8 @@ class RefreshTokenJobService : JobService() {
     }
 
 
-    private fun performBackgroundTask(params: JobParameters?) {
+    @VisibleForTesting
+    internal fun performBackgroundTask(params: JobParameters?) {
         // Simulate a background task with a new thread or coroutine if needed
         Thread {
             var isError = false

@@ -5,6 +5,7 @@ import android.app.job.JobScheduler
 import android.content.ComponentName
 import android.content.Context
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.frontegg.android.utils.FronteggCallback
 import java.time.Instant
 import java.util.Timer
@@ -55,17 +56,23 @@ class FronteggRefreshTokenTimer(
             val jobScheduler =
                 context.getSystemService(Context.JOB_SCHEDULER_SERVICE) as JobScheduler
             // Schedule the job
-            val jobInfo = JobInfo.Builder(
-                JOB_ID, ComponentName(context, RefreshTokenJobService::class.java)
-            )
-                .setMinimumLatency(offset / 2) // Schedule the job to run after the offset
-                .setOverrideDeadline(offset) // Add a buffer to the deadline
-                .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY) // Require network
-                .setBackoffCriteria(10000, JobInfo.BACKOFF_POLICY_LINEAR)
-                .build()
+            val jobInfo = buildJobInfo(offset)
             this.refreshTokenJob = jobInfo
             jobScheduler.schedule(jobInfo)
         }
+    }
+
+    @VisibleForTesting
+    internal fun buildJobInfo(offset: Long): JobInfo {
+        return JobInfo.Builder(
+            JOB_ID,
+            ComponentName(context, RefreshTokenJobService::class.java),
+        )
+            .setMinimumLatency(offset / 2) // Schedule the job to run after the offset
+            .setOverrideDeadline(offset) // Add a buffer to the deadline
+            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY) // Require network
+            .setBackoffCriteria(10000, JobInfo.BACKOFF_POLICY_LINEAR)
+            .build()
     }
 
     companion object {
