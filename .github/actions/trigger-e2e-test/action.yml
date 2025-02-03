@@ -39,7 +39,7 @@ runs:
         releaseApkUrl: ${{ inputs.releaseApkUrl }}
         sha: ${{ inputs.sha }}
       with:
-        github-token: ${{ steps.create_bot_token.outputs.BOT_TOKEN }}
+        github-token: ${{ steps.create_bot_token.outputs.token }}
         script: |
           const {sha, releaseApkUrl, debugApkUrl} = process.env;
           const repo = 'frontegg-android-kotlin'
