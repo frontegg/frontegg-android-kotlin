@@ -23,10 +23,14 @@ runs:
   steps:
     - id: create_bot_token
       name: Create bot token
-      uses: wow-actions/use-app-token@v2
+      uses: actions/create-github-app-token@v1
       with:
-        app_id: ${{ inputs.bot_app_id }}
-        private_key: ${{ inputs.bot_app_key }}
+        app_id: ${{ secrets.GH_FRONTEGG_BOT_APP_ID }}
+        private_key: ${{ secrets.GH_FRONTEGG_BOT_APP_SECRET }}
+        owner: ${{ github.repository_owner }}
+        repositories: |
+          frontegg-android-kotlin
+          e2e-system-tests
 
     - name: "Trigger E2E tests"
       uses: actions/github-script@v5
