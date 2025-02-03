@@ -3,7 +3,7 @@ package com.frontegg.android.utils
 import android.net.Uri
 import android.util.Log
 import com.frontegg.android.services.FronteggAuthService
-import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.StorageProvider
 import java.security.MessageDigest
 import java.util.Base64
 
@@ -12,7 +12,7 @@ class AuthorizeUrlGenerator {
         private val TAG = AuthorizeUrlGenerator::class.java.simpleName
     }
 
-    private var storage = FronteggInnerStorage()
+    private var storage = StorageProvider.getInnerStorage()
     private val clientId: String
         get() = storage.clientId
     private val applicationId: String?

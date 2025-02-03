@@ -38,14 +38,10 @@ open class Api(
     private val applicationId: String?
         get() = storage.applicationId
 
-    private val cookieName: String
+    private val cookieName: String = "fe_refresh_$clientId".replaceFirst("-", "")
 
     companion object {
         val TAG: String = Api::class.java.simpleName
-    }
-
-    init {
-        cookieName = "fe_refresh_$clientId".replaceFirst("-", "")
     }
 
 

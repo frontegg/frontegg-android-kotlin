@@ -15,27 +15,31 @@ class FronteggAppLifecycle(
     val startApp = FronteggCallback()
     val stopApp = FronteggCallback()
 
+    private var lifecycleEventObserver: LifecycleEventObserver
+
     init {
+        // Initialize lifecycleEventObserver before using it
+        lifecycleEventObserver = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_STOP -> {
+                    Log.d(TAG, "ON_STOP")
+                    appInForeground = false
+                    stopApp.trigger()
+                }
+
+                Lifecycle.Event.ON_START -> {
+                    Log.d(TAG, "ON_START")
+                    appInForeground = true
+                    startApp.trigger()
+                }
+
+                else -> {}
+            }
+        }
+
+
         Handler(context.mainLooper).post {
             ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleEventObserver)
-        }
-    }
-
-    private var lifecycleEventObserver = LifecycleEventObserver { _, event ->
-        when (event) {
-            Lifecycle.Event.ON_STOP -> {
-                Log.d(TAG, "ON_STOP")
-                appInForeground = false
-                stopApp.trigger()
-            }
-
-            Lifecycle.Event.ON_START -> {
-                Log.d(TAG, "ON_START")
-                appInForeground = true
-                startApp.trigger()
-            }
-
-            else -> {}
         }
     }
 
