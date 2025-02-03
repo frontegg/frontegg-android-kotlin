@@ -120,7 +120,7 @@
         </activity>
 
         <service
-            android:name="com.frontegg.android.services.RefreshTokenService"
+            android:name="com.frontegg.android.services.RefreshTokenJobService"
             android:exported="true"
             android:permission="android.permission.BIND_JOB_SERVICE">
             <intent-filter>
