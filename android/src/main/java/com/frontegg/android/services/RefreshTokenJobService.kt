@@ -8,6 +8,7 @@ import androidx.annotation.VisibleForTesting
 import java.net.SocketTimeoutException
 import java.time.Instant
 import com.frontegg.android.FronteggApp
+import com.frontegg.android.exceptions.FronteggException
 
 class RefreshTokenJobService : JobService() {
     companion object {
@@ -15,9 +16,14 @@ class RefreshTokenJobService : JobService() {
     }   
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        val appInstance = FronteggApp.getInstance()
-        if (appInstance !is FronteggAppService || !appInstance.isAppInForeground()) {
-            Log.d(TAG, "Either FronteggApp is not of type FronteggAppService or the app is not in the foreground, skipping token refresh")
+        val appInstance: FronteggApp? = try {
+            FronteggApp.getInstance()
+        } catch (e: FronteggException) {
+            null
+        }
+    
+        if (appInstance == null || appInstance !is FronteggAppService || !appInstance.isAppInForeground()) {
+            Log.d(TAG, "Either FronteggApp is not initialized, not of type FronteggAppService, or the app is not in the foreground. Skipping token refresh.")
             jobFinished(params, false)
             return false
         }
@@ -30,7 +36,7 @@ class RefreshTokenJobService : JobService() {
         )
         performBackgroundTask(params)
         return true
-    }
+    }    
 
     override fun onStopJob(params: JobParameters?): Boolean {
         Log.d(TAG, "Job stopped before completion")
