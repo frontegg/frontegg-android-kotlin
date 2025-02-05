@@ -43,6 +43,10 @@ class FronteggAppService(
             )
     }
 
+    fun isAppInForeground(): Boolean {
+        return appLifecycle.appInForeground
+    }
+
     private fun fillStorage() {
         storage.fill(
             baseUrl,
