@@ -15,10 +15,9 @@ class RefreshTokenJobService : JobService() {
     }   
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        val appService = FronteggApp.getInstance() as? FronteggAppService
-        
-        if (appService == null || !appService.isAppInForeground()) {
-            Log.d(TAG, "Application is not in the foreground, skipping token refresh")
+        val appInstance = FronteggApp.getInstance()
+        if (appInstance !is FronteggAppService || !appInstance.isAppInForeground()) {
+            Log.d(TAG, "Either FronteggApp is not of type FronteggAppService or the app is not in the foreground, skipping token refresh")
             jobFinished(params, false)
             return false
         }
