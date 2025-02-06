@@ -29,7 +29,7 @@ jobs:
 
       - name: Run Unit Tests
         shell: bash
-        run: ./gradlew :android:tests --no-daemon
+        run: ./gradlew :android:test --no-daemon
 
       - name: Build Libraries
         shell: bash
