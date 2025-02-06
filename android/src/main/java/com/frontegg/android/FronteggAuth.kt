@@ -1,6 +1,7 @@
 package com.frontegg.android
 
 import android.app.Activity
+import com.frontegg.android.models.SocialProvider
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.ReadOnlyObservableValue
@@ -84,10 +85,53 @@ interface FronteggAuth {
      * For "custom-social-login" [type] must be configured UUID;
      * @param callback call after the Direct Login Action process is finished.
      */
+    @Deprecated(
+        message = "Use directLogin(url), socialLogin(provider), or customSocialLogin(id) instead.",
+        replaceWith = ReplaceWith("directLogin(url) or socialLogin(provider) or customSocialLogin(id)")
+    )
     fun directLoginAction(
         activity: Activity,
         type: String,
         data: String,
+        callback: (() -> Unit)? = null
+    )
+
+    /**
+     * Initiates a direct login using a provided URL.
+     *
+     * @param activity is the activity of application;
+     * @param url The URL for the direct login.
+     * @param callback Callback function to be executed after the login process is completed.
+     */
+    fun directLogin(
+        activity: Activity,
+        url: String,
+        callback: (() -> Unit)? = null
+    )
+
+    /**
+     * Initiates a social login using the specified social provider.
+     *
+     * @param activity is the activity of application;
+     * @param provider The social provider for authentication (e.g., Google, Facebook, LinkedIn).
+     * @param callback Callback function to be executed after the login process is completed.
+     */
+    fun socialLogin(
+        activity: Activity,
+        provider: SocialProvider,
+        callback: (() -> Unit)? = null
+    )
+
+    /**
+     * Initiates a custom social login using a unique identifier.
+     *
+     * @param activity is the activity of application;
+     * @param id The unique identifier for the custom social login.
+     * @param callback Callback function to be executed after the login process is completed.
+     */
+    fun customSocialLogin(
+        activity: Activity,
+        id: String,
         callback: (() -> Unit)? = null
     )
 

@@ -18,6 +18,7 @@ import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
+import com.frontegg.android.models.SocialProvider
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.Constants
@@ -149,19 +150,54 @@ class FronteggAuthService(
     }
 
 
+    @Deprecated(
+        "Use directLogin(url), socialLogin(provider), or customSocialLogin(id) instead.",
+        replaceWith = ReplaceWith("directLogin(url) or socialLogin(provider) or customSocialLogin(id)")
+    )
     override fun directLoginAction(
         activity: Activity,
         type: String,
         data: String,
         callback: (() -> Unit)?
-    ) {
-        if (isEmbeddedMode) {
-            EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)
-        } else {
-            Log.w(TAG, "Direct login action is not supported in non-embedded mode")
-        }
-    }
+    ) = loginAction(
+        activity = activity,
+        type = type,
+        data = data,
+        callback = callback,
+    )
 
+    override fun directLogin(
+        activity: Activity,
+        url: String,
+        callback: (() -> Unit)?,
+    ) = loginAction(
+        activity = activity,
+        type = "direct",
+        data = url,
+        callback = callback,
+    )
+
+    override fun socialLogin(
+        activity: Activity,
+        provider: SocialProvider,
+        callback: (() -> Unit)?,
+    ) = loginAction(
+        activity = activity,
+        type = "social-login",
+        data = provider.type,
+        callback = callback,
+    )
+
+    override fun customSocialLogin(
+        activity: Activity,
+        id: String,
+        callback: (() -> Unit)?,
+    ) = loginAction(
+        activity = activity,
+        type = "custom-social-login",
+        data = id,
+        callback = callback,
+    )
 
     override fun switchTenant(
         tenantId: String,
@@ -327,6 +363,19 @@ class FronteggAuthService(
                     callback(Result.failure(e))
                 }
             }
+        }
+    }
+
+    private fun loginAction(
+        activity: Activity,
+        type: String,
+        data: String,
+        callback: (() -> Unit)?
+    ) {
+        if (isEmbeddedMode) {
+            EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)
+        } else {
+            Log.w(TAG, "Direct login action is not supported in non-embedded mode")
         }
     }
 
