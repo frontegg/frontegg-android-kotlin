@@ -4,8 +4,10 @@ enum class SocialProvider(
     val type: String
 ) {
     GOOGLE("google"),
-    LINKED_IN("linkedin"),
+    LINKEDIN("linkedin"),
     FACEBOOK("facebook"),
     GITHUB("github"),
     APPLE("apple"),
+    MICROSOFT("microsoft"),
+    SLACK("slack"),
 }
