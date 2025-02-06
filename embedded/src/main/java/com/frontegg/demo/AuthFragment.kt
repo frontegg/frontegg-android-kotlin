@@ -7,6 +7,7 @@ import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
 import com.frontegg.android.FronteggAuth
+import com.frontegg.android.models.SocialProvider
 import com.frontegg.demo.databinding.FragmentAuthBinding
 import io.reactivex.rxjava3.disposables.Disposable
 
@@ -42,10 +43,9 @@ class AuthFragment : Fragment() {
         }
 
         binding.googleLoginButton.setOnClickListener {
-            FronteggAuth.instance.directLoginAction(
+            FronteggAuth.instance.socialLogin(
                 requireActivity(),
-                "social-login",
-                "google",
+                provider = SocialProvider.GOOGLE,
                 callback = {
                     Log.d("AuthFragment", "Direct login action callback")
                 })
