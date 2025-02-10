@@ -3,6 +3,7 @@ package com.frontegg.android.services
 import android.app.job.JobParameters
 import android.util.Log
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
+import com.frontegg.android.FronteggApp
 import com.frontegg.android.utils.ObservableValue
 import io.mockk.Runs
 import io.mockk.every
@@ -52,10 +53,17 @@ class RefreshTokenJobServiceTest {
         mockkStatic(Log::class)
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
+
+        val mockkFronteggAppService = mockk<FronteggAppService>()
+        mockkObject(FronteggApp)
+        every { FronteggApp.getInstance() } returns mockkFronteggAppService
+        every { mockkFronteggAppService.isAppInForeground() } returns true
     }
 
     @Test
     fun `onStartJob should return true and start background task`() {
+        every { service.performBackgroundTask(any()) }.returns(Unit)
+
         val result = service.onStartJob(mockParams)
 
         assertTrue(result)
