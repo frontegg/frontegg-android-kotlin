@@ -6,6 +6,7 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
+import com.frontegg.android.embedded.DefaultLoader
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
 import com.frontegg.android.services.FronteggAuthService
@@ -29,8 +30,10 @@ class EmbeddedAuthActivity : Activity() {
         overridePendingTransition(R.anim.fadein, R.anim.fadeout)
 
         webView = findViewById(R.id.custom_webview)
-        loaderLayout = findViewById(R.id.loaderView)
-
+        loaderContainer = findViewById(R.id.loaderContainer)
+        val loaderView = DefaultLoader.create(this)
+        loaderContainer?.addView(loaderView)
+        loaderContainer?.visibility = View.VISIBLE
 
         consumeIntent(intent)
     }
@@ -105,12 +108,12 @@ class EmbeddedAuthActivity : Activity() {
     }
 
     private val disposables: ArrayList<Disposable> = arrayListOf()
-    private var loaderLayout: LinearLayout? = null
+    private var loaderContainer: LinearLayout? = null
 
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
-            loaderLayout?.visibility =
+            loaderContainer?.visibility =
                 if (it.value || FronteggAuth.instance.isAuthenticated.value) View.VISIBLE else View.GONE
         }
     }
