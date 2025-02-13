@@ -1,4 +1,4 @@
-package com.frontegg.android.embedded
+package com.frontegg.android.ui
 
 import android.content.Context
 import android.content.res.ColorStateList
@@ -9,18 +9,43 @@ import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ProgressBar
 
+/**
+ * Functional interface for providing a custom loader view.
+ */
 @FunctionalInterface
 fun interface LoaderProvider {
+    /**
+     * Provides a custom loader view.
+     *
+     * @param context The context used to create the view.
+     * @return A View instance representing the loader.
+     */
     fun provide(context: Context): View
 }
 
+/**
+ * Object responsible for creating and providing a loader view.
+ * Allows setting a custom loader provider or falls back to a default ProgressBar.
+ */
 object DefaultLoader {
     private var loaderProvider: LoaderProvider? = null
 
+    /**
+     * Sets a custom loader provider.
+     *
+     * @param loaderProvider The custom loader provider implementation.
+     */
     fun setLoaderProvider(loaderProvider: LoaderProvider) {
         this.loaderProvider = loaderProvider
     }
 
+    /**
+     * Creates a loader view. If a custom loader provider is set, it will be used;
+     * otherwise, a default ProgressBar will be created.
+     *
+     * @param context The context used to create the view.
+     * @return A View instance representing the loader.
+     */
     fun create(context: Context): View {
         val view: View =
             if (loaderProvider != null) {
