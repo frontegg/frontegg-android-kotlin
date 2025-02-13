@@ -25,6 +25,7 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Logout user](#logout)
     - [Switch Tenant](#switch-tenant)
     - [Passkey Authentication](#passkey-authentication)
+    - [Usage of DefaultLoader](#usage-of-DefaultLoader)
 
 ## Get Started
 
@@ -831,3 +832,18 @@ FronteggAuth.instance.loginWithPasskeys(activity!!) {
     }
 }
 ```
+
+## Usage of DefaultLoader
+
+You can customize the loader view by setting a custom `LoaderProvider`. Here is an example of how to use `DefaultLoader` with a red `ProgressBar`:
+
+```kotlin
+DefaultLoader.setLoaderProvider {
+    val progressBar = ProgressBar(it)
+    val colorStateList = ColorStateList.valueOf(Color.RED)
+    progressBar.indeterminateTintList = colorStateList
+    progressBar
+}
+```
+
+Once the LoaderProvider is set, our SDK will automatically use the customized loader when needed.
