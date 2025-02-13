@@ -13,17 +13,11 @@
 
 
     <LinearLayout
-        android:id="@+id/loaderView"
+        android:id="@+id/loaderContainer"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:background="@android:color/white"
         android:gravity="center"
         android:orientation="vertical">
-
-        <ProgressBar
-            android:indeterminateTint="@android:color/darker_gray"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_centerInParent="true" />
     </LinearLayout>
 </RelativeLayout>
