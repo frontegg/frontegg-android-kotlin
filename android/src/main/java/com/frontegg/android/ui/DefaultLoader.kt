@@ -8,6 +8,7 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.LinearLayout
 import android.widget.ProgressBar
+import androidx.annotation.VisibleForTesting
 
 /**
  * Functional interface for providing a custom loader view.
@@ -51,12 +52,15 @@ object DefaultLoader {
             if (loaderProvider != null) {
                 loaderProvider!!.provide(context)
             } else {
-                val progressBar = ProgressBar(context)
-                val colorStateList = ColorStateList.valueOf(Color.GRAY)
-                progressBar.indeterminateTintList = colorStateList
-                progressBar
+                createDefault(context)
             }
 
+        setUpLoader(view)
+        return view
+    }
+
+    @VisibleForTesting
+    internal fun setUpLoader(view: View) {
         view.layoutParams = LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.WRAP_CONTENT,
             ViewGroup.LayoutParams.WRAP_CONTENT
@@ -65,7 +69,13 @@ object DefaultLoader {
         if (view.layoutParams is LinearLayout.LayoutParams) {
             (view.layoutParams as LinearLayout.LayoutParams).gravity = Gravity.CENTER
         }
+    }
 
-        return view
+    @VisibleForTesting
+    internal fun createDefault(context: Context): View {
+        val progressBar = ProgressBar(context)
+        val colorStateList = ColorStateList.valueOf(Color.GRAY)
+        progressBar.indeterminateTintList = colorStateList
+        return progressBar
     }
 }
