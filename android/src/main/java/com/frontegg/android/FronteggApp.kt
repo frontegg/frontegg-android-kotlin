@@ -11,10 +11,6 @@ import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
 import com.frontegg.android.utils.isActivityEnabled
 import com.frontegg.debug.AndroidDebugConfigurationChecker
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 /**
  * An initialization class of Frontegg SDK. Use [init] or [initWithRegions] static methods
