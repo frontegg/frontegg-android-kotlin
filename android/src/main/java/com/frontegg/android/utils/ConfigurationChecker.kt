@@ -29,7 +29,6 @@ class AndroidDebugConfigurationChecker(
 
         CoroutineScope(Dispatchers.IO).launch {
             try {
-                checkAppUrl()
                 validateAssetLinks()
                 checkCustomDomain()
                 checkRedirectURI()
@@ -38,15 +37,6 @@ class AndroidDebugConfigurationChecker(
                 Log.e(TAG, "❌ ERROR: ${e.message}")
                 throw e
             }
-        }
-    }
-
-    /**
-     * ✅ Check if APP_URL is set to the default value (Warning)
-     */
-    private fun checkAppUrl() {
-        if (fronteggDomain == "default-app.com") {
-            Log.w(TAG, "⚠️ WARNING: APP_URL is set to the default app URL. Update it to a custom domain for production.")
         }
     }
 
