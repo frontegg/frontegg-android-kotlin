@@ -83,8 +83,8 @@ class AndroidDebugConfigurationChecker(
      * ✅ Check if the app is using a custom domain (Warning)
      */
     private fun checkCustomDomain() {
-        if (!fronteggDomain.contains(".")) {
-            Log.w(TAG, "⚠️ WARNING: No custom domain detected. Users may not be able to log in with passkeys/magic links.")
+        if (fronteggDomain.length < 3 || !fronteggDomain.contains(".")) {
+            Log.w(TAG, "⚠️ WARN: Custom domain seems incorrect or missing. Passkeys and magic-link login may not work.")
         }
     }
 
