@@ -3,15 +3,14 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-Properties localProperties = new Properties()
-localProperties.load(project.rootProject.file('test.properties').newDataInputStream())
+Properties testProperties = new Properties()
+testProperties.load(project.rootProject.file('test.properties').newDataInputStream())
 
-def fronteggDomain = "autheu.davidantoon.me"
-def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+Properties fronteggProperties = new Properties()
+fronteggProperties.load(project.rootProject.file('frontegg.properties').newDataInputStream())
 
-//def fronteggDomain = "auth.davidantoon.me"
-//def fronteggClientId = "04ae2174-d8d9-4a90-8bab-2548e210a508"
-
+def fronteggDomain = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN", "").toString()
+def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "").toString()
 
 android {
     namespace 'com.frontegg.demo'
@@ -37,24 +36,23 @@ android {
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
 
-        testInstrumentationRunnerArguments["LOGIN_EMAIL"] = localProperties.getOrDefault("LOGIN_EMAIL", "")
-        testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = localProperties.getOrDefault("LOGIN_PASSWORD", "")
+        testInstrumentationRunnerArguments["LOGIN_EMAIL"] = testProperties.getOrDefault("LOGIN_EMAIL", "")
+        testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = testProperties.getOrDefault("LOGIN_PASSWORD", "")
 
-        testInstrumentationRunnerArguments["LOGIN_WRONG_EMAIL"] = localProperties.getOrDefault("LOGIN_WRONG_EMAIL", "")
-        testInstrumentationRunnerArguments["LOGIN_WRONG_PASSWORD"] = localProperties.getOrDefault("LOGIN_WRONG_PASSWORD", "")
+        testInstrumentationRunnerArguments["LOGIN_WRONG_EMAIL"] = testProperties.getOrDefault("LOGIN_WRONG_EMAIL", "")
+        testInstrumentationRunnerArguments["LOGIN_WRONG_PASSWORD"] = testProperties.getOrDefault("LOGIN_WRONG_PASSWORD", "")
 
-        testInstrumentationRunnerArguments["SIGN_UP_TEMPLATE"] = localProperties.getOrDefault("SIGN_UP_TEMPLATE", "")
-        testInstrumentationRunnerArguments["SIGN_UP_NAME"] = localProperties.getOrDefault("SIGN_UP_NAME", "")
-        testInstrumentationRunnerArguments["SIGN_UP_ORGANIZATION"] = localProperties.getOrDefault("SIGN_UP_ORGANIZATION", "")
+        testInstrumentationRunnerArguments["SIGN_UP_TEMPLATE"] = testProperties.getOrDefault("SIGN_UP_TEMPLATE", "")
+        testInstrumentationRunnerArguments["SIGN_UP_NAME"] = testProperties.getOrDefault("SIGN_UP_NAME", "")
+        testInstrumentationRunnerArguments["SIGN_UP_ORGANIZATION"] = testProperties.getOrDefault("SIGN_UP_ORGANIZATION", "")
 
-        testInstrumentationRunnerArguments["TENANT_NAME_1"] = localProperties.getOrDefault("TENANT_NAME_1", "")
-        testInstrumentationRunnerArguments["TENANT_NAME_2"] = localProperties.getOrDefault("TENANT_NAME_2", "")
+        testInstrumentationRunnerArguments["TENANT_NAME_1"] = testProperties.getOrDefault("TENANT_NAME_1", "")
+        testInstrumentationRunnerArguments["TENANT_NAME_2"] = testProperties.getOrDefault("TENANT_NAME_2", "")
 
-        testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = localProperties.getOrDefault("GOOGLE_EMAIL", "")
+        testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = testProperties.getOrDefault("GOOGLE_EMAIL", "")
 
-        testInstrumentationRunnerArguments["APPLE_EMAIL"] = localProperties.getOrDefault("APPLE_EMAIL", "")
-        testInstrumentationRunnerArguments["APPLE_PASSWORD"] = localProperties.getOrDefault("APPLE_PASSWORD", "")
-
+        testInstrumentationRunnerArguments["APPLE_EMAIL"] = testProperties.getOrDefault("APPLE_EMAIL", "")
+        testInstrumentationRunnerArguments["APPLE_PASSWORD"] = testProperties.getOrDefault("APPLE_PASSWORD", "")
     }
 
     testOptions {

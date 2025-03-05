@@ -6,12 +6,15 @@ import com.frontegg.android.FronteggApp
 class App : Application() {
 
     companion object {
-        public lateinit var instance: App
+        lateinit var instance: App
     }
 
     override fun onCreate() {
         super.onCreate()
         instance = this
+
+        // Initialize FronteggApp. Necessary for working with Frontegg SDK.
+        // Optional parameters: useAssetsLinks, useChromeCustomTabs, mainActivityClass
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
@@ -19,7 +22,6 @@ class App : Application() {
             useAssetsLinks = true,
             useChromeCustomTabs = true,
             mainActivityClass = NavigationActivity::class.java
-
         )
     }
 }

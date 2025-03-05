@@ -40,14 +40,15 @@ interface FronteggApp {
         }
 
         /**
-         * Initialization method of [FronteggApp].
-         * @param fronteggDomain is the Frontegg domain. Could be found at portal.frontegg.com;
-         * @param clientId is the Frontegg Client ID. Could be found at portal.frontegg.com;
-         * @param context is the application context;
-         * @param applicationId is the id of Frontegg application. Could be found at portal.frontegg.com;
-         * @param useAssetsLinks is the flag which says if Frontegg SDK uses assets links;
-         * @param useChromeCustomTabs is the flag which says if Frontegg SDK uses chrome custom tabs;
-         * @param mainActivityClass is the MainActivity.
+         * Initializes [FronteggApp].
+         *
+         * @param fronteggDomain The Frontegg domain. Can be found at [portal.frontegg.com].
+         * @param clientId The Frontegg Client ID. Can be found at [portal.frontegg.com].
+         * @param context The application context.
+         * @param applicationId The ID of the Frontegg application. Can be found at [portal.frontegg.com].
+         * @param useAssetsLinks Whether the Frontegg SDK should use asset links (default: `false`).
+         * @param useChromeCustomTabs Whether the Frontegg SDK should use Chrome Custom Tabs (default: `false`).
+         * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
          */
         fun init(
             fronteggDomain: String,
@@ -80,11 +81,11 @@ interface FronteggApp {
 
         /**
          * Initialization method of [FronteggApp] for multi-regions.
-         * @param regions is a list of [RegionConfig]. Could find at portal.frontegg.com;
-         * @param context is the application context;
-         * @param useAssetsLinks is the flag which says if Frontegg SDK uses assets links;
-         * @param useChromeCustomTabs is the flag which says if Frontegg SDK uses chrome custom tabs;
-         * @param mainActivityClass is the MainActivity.
+         * @param regions A list of [RegionConfig]. Could find at [portal.frontegg.com];
+         * @param context The application context.
+         * @param useAssetsLinks Whether the Frontegg SDK should use asset links (default: `false`).
+         * @param useChromeCustomTabs Whether the Frontegg SDK should use Chrome Custom Tabs (default: `false`).
+         * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
          */
         fun initWithRegions(
             regions: List<RegionConfig>,
