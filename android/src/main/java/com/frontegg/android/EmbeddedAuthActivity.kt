@@ -96,8 +96,9 @@ class EmbeddedAuthActivity : Activity() {
         }
 
 
-        if (!FronteggAuth.instance.initializing.value
-            && !FronteggAuth.instance.isAuthenticated.value
+        if (FronteggAuth.instance.isStepUpAuthorization.value ||
+            (!FronteggAuth.instance.initializing.value
+                    && !FronteggAuth.instance.isAuthenticated.value)
         ) {
             webView.loadUrl(webViewUrl!!)
             webViewUrl = null
@@ -110,17 +111,43 @@ class EmbeddedAuthActivity : Activity() {
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
-            loaderLayout?.visibility =
-                if (it.value || FronteggAuth.instance.isAuthenticated.value) View.VISIBLE else View.GONE
+            if (FronteggAuth.instance.isStepUpAuthorization.value) {
+                loaderLayout?.visibility = if (it.value) View.VISIBLE else View.GONE
+            } else {
+                loaderLayout?.visibility =
+                    if (it.value || FronteggAuth.instance.isAuthenticated.value) View.VISIBLE else View.GONE
+            }
         }
     }
     private val isAuthenticatedConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
         if (it.value) {
             runOnUiThread {
+                navigateToAuthenticated()
                 onAuthFinishedCallback?.invoke()
                 onAuthFinishedCallback = null
+            }
+        }
+    }
+
+    private val isStepUpAuthorization: Consumer<NullableObject<Boolean>> = Consumer {
+        Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
+        if (!it.value) {
+            runOnUiThread {
                 navigateToAuthenticated()
+                onAuthFinishedCallback?.invoke()
+                onAuthFinishedCallback = null
+            }
+        }
+    }
+
+    private val isReAuthorization: Consumer<NullableObject<Boolean>> = Consumer {
+        Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
+        if (!it.value) {
+            runOnUiThread {
+                navigateToAuthenticated()
+                onAuthFinishedCallback?.invoke()
+                onAuthFinishedCallback = null
             }
         }
     }
@@ -139,9 +166,16 @@ class EmbeddedAuthActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        disposables.add(FronteggAuth.instance.showLoader.subscribe(this.showLoaderConsumer))
-        disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.isAuthenticatedConsumer))
 
+        disposables.add(FronteggAuth.instance.showLoader.subscribe(this.showLoaderConsumer))
+
+        if (!FronteggAuth.instance.isStepUpAuthorization.value) {
+            disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.isAuthenticatedConsumer))
+        } else if (FronteggAuth.instance.isStepUpAuthorization.value) {
+            disposables.add(FronteggAuth.instance.isStepUpAuthorization.subscribe(this.isStepUpAuthorization))
+        } else if (FronteggAuth.instance.isReAuthorization.value) {
+            disposables.add(FronteggAuth.instance.isReAuthorization.subscribe(this.isReAuthorization))
+        }
 
         if (directLoginLaunchedDone) {
             onAuthFinishedCallback?.invoke()
@@ -171,7 +205,12 @@ class EmbeddedAuthActivity : Activity() {
         disposables.forEach {
             it.dispose()
         }
+    }
 
+    override fun onDestroy() {
+        super.onDestroy()
+        onAuthFinishedCallback?.invoke()
+        onAuthFinishedCallback = null
     }
 
 

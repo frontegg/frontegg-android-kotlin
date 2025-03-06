@@ -1,6 +1,5 @@
 package com.frontegg.android.utils
 
-import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.StorageProvider
 
 
@@ -15,7 +14,9 @@ class ApiConstants {
         const val webauthnPrelogin: String = "identity/resources/auth/v1/webauthn/prelogin"
         const val webauthnPostlogin: String = "identity/resources/auth/v1/webauthn/postlogin"
         const val registerWebauthnDevice: String = "identity/resources/users/webauthn/v1/devices"
-        const val verifyWebauthnDevice: String = "identity/resources/users/webauthn/v1/devices/verify"
+        const val verifyWebauthnDevice: String =
+            "identity/resources/users/webauthn/v1/devices/verify"
+        const val generateStepUp: String = "identity/resources/auth/v1/user/step-up/generate"
 
         /**
          * used to get oauth accessToken/refreshToken without webview
@@ -23,6 +24,13 @@ class ApiConstants {
         const val silentRefreshToken: String = "oauth/authorize/silent"
 
     }
+}
+
+object StepUpConstants {
+    val ACR_VALUE = "http://schemas.openid.net/pape/policies/2007/06/multi-factor"
+    val AMR_MFA_VALUE = "mfa"
+    val AMR_ADDITIONAL_VALUE = listOf("otp", "sms", "hwk")
+    val STEP_UP_MAX_AGE_PARAM_NAME = "maxAge"
 }
 
 class Constants {

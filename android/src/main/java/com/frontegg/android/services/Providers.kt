@@ -34,3 +34,21 @@ object ApiProvider {
         return Api(credentialManager)
     }
 }
+
+object MultiFactorAuthenticatorProvider {
+    fun getMultiFactorAuthenticator(): MultiFactorAuthenticator {
+        return MultiFactorAuthenticator()
+    }
+}
+
+object StepUpAuthenticatorProvider {
+    fun getStepUpAuthenticator(
+        api: Api,
+        credentialManager: CredentialManager,
+    ): StepUpAuthenticator {
+        return StepUpAuthenticator(
+            api,
+            credentialManager
+        )
+    }
+}

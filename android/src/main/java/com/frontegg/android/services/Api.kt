@@ -126,6 +126,27 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
+    fun generateStepUp(
+        maxAge: Long? = null
+    ): String? {
+        val body = JsonObject()
+        body.addProperty("maxAge", maxAge)
+
+        Log.d("TAG", body.toString())
+
+        val generateStepUpCall = buildPostRequest(ApiConstants.generateStepUp, body)
+        val generateStepUpResponse = generateStepUpCall.execute()
+        generateStepUpResponse.body?.toString()?.let { Log.d("TAG", it )}
+        if (generateStepUpResponse.isSuccessful) {
+            return generateStepUpResponse.body!!.string()
+        } else if (generateStepUpResponse.code == 401) {
+            throw NotAuthenticatedException()
+        }
+
+        return null
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class)
     fun me(): User? {
         val meCall = buildGetRequest(ApiConstants.me)
         val meResponse = meCall.execute()

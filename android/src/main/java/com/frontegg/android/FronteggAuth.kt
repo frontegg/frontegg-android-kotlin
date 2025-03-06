@@ -4,6 +4,7 @@ import android.app.Activity
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.ReadOnlyObservableValue
+import kotlin.time.Duration
 
 
 /**
@@ -38,6 +39,8 @@ interface FronteggAuth {
     val initializing: ReadOnlyObservableValue<Boolean>
     val showLoader: ReadOnlyObservableValue<Boolean>
     val refreshingToken: ReadOnlyObservableValue<Boolean>
+    val isStepUpAuthorization: ReadOnlyObservableValue<Boolean>
+    val isReAuthorization: ReadOnlyObservableValue<Boolean>
 
     val baseUrl: String
     val clientId: String
@@ -156,6 +159,16 @@ interface FronteggAuth {
         refreshToken: String,
         deviceTokenCookie: String? = null,
         callback: (Result<User>) -> Unit
+    )
+
+    fun isSteppedUp(
+        maxAge: Duration? = null,
+    ): Boolean
+
+    fun stepUp(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)? = null,
+        maxAge: Duration? = null,
     )
 
 

@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
@@ -16,6 +15,7 @@ import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
+import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
@@ -24,6 +24,7 @@ import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.ObservableValue
+import com.frontegg.android.utils.ReadOnlyObservableValue
 import com.frontegg.android.utils.calculateTimerOffset
 import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -31,7 +32,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlin.time.Duration
 
 @OptIn(DelicateCoroutinesApi::class)
 @SuppressLint("CheckResult")
@@ -58,9 +59,15 @@ class FronteggAuthService(
     override val initializing: ObservableValue<Boolean> = ObservableValue(true)
     override val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     override val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
+    override val isStepUpAuthorization: ObservableValue<Boolean> = ObservableValue(false)
+    override val isReAuthorization: ObservableValue<Boolean> = ObservableValue(false)
 
     private val api = ApiProvider.getApi(credentialManager)
     private val storage = StorageProvider.getInnerStorage()
+    private val multiFactorAuthenticator =
+        MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
+    private val stepUpAuthenticator =
+        StepUpAuthenticatorProvider.getStepUpAuthenticator(api, credentialManager)
 
     override val isMultiRegion: Boolean
         get() = regions.isNotEmpty()
@@ -240,7 +247,7 @@ class FronteggAuthService(
             } catch (e: Exception) {
                 Log.e(TAG, "failed to login with passkeys", e)
                 if (e is MfaRequiredException) {
-                    startMultiFactorAuthenticator(activity, callback, e.mfaRequestData)
+                    multiFactorAuthenticator.start(activity, callback, e.mfaRequestData)
                 } else {
                     callback?.invoke(e)
                 }
@@ -309,7 +316,6 @@ class FronteggAuthService(
         }
     }
 
-
     override fun requestAuthorize(
         refreshToken: String,
         deviceTokenCookie: String?,
@@ -330,48 +336,62 @@ class FronteggAuthService(
         }
     }
 
-    private fun startMultiFactorAuthenticator(
+    //region Step Up functionality
+
+    override fun isSteppedUp(maxAge: Duration?): Boolean {
+        return stepUpAuthenticator.isSteppedUp(maxAge)
+    }
+
+    override fun stepUp(
         activity: Activity,
         callback: ((error: Exception?) -> Unit)?,
-        mfaRequestData: String
-    ) {
+        maxAge: Duration?
+    ) = stepUpAction(
+        activity,
+        callback,
+        maxAge
+    )
 
-        val authCallback: () -> Unit = {
-            if (this.isAuthenticated.value) {
-                callback?.invoke(null)
-            } else {
-                val error = FailedToAuthenticateException(error = "Failed to authenticate with MFA")
-                callback?.invoke(error)
+    private fun stepUpAction(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)?,
+        maxAge: Duration?,
+        isAttempt: Boolean = false
+    ) {
+        isStepUpAuthorization.value = true
+
+        val updatedCallback: ((error: Exception?) -> Unit) = {
+            if (isStepUpAuthorization.value) {
+                isStepUpAuthorization.value = false
+            }
+
+            showLoader.value = false
+            val scope = ScopeProvider.mainScope
+            scope.launch {
+//                callback?.invoke(it)
             }
         }
 
-        val multiFactorStateBase64 =
-            Base64.encodeToString(mfaRequestData.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        val directLogin = mapOf(
-            "type" to "direct",
-            "data" to "$baseUrl/oauth/account/mfa-mobile-authenticator?state=$multiFactorStateBase64",
-            "additionalQueryParams" to mapOf(
-                "prompt" to "consent"
-            )
-        )
-        val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
-        val loginDirectAction = Base64.encodeToString(jsonData, Base64.NO_WRAP)
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                stepUpAuthenticator.stepUp(activity, updatedCallback, maxAge)
+            } catch (e: NotAuthenticatedException) {
+                if (isAttempt) {
+                    updatedCallback(e)
+                    return@launch
+                }
 
-        if (isEmbeddedMode) {
-            EmbeddedAuthActivity.authenticateWithMultiFactor(
-                activity,
-                loginDirectAction,
-                authCallback
-            )
-        } else {
-            AuthenticationActivity.authenticateWithMultiFactor(
-                activity,
-                loginDirectAction,
-                authCallback
-            )
+                isStepUpAuthorization.value = false
+                isReAuthorization.value = true
+                login(activity) {
+                    stepUpAction(activity, callback, maxAge, true)
+                }
+            } catch (e: Exception) {
+                updatedCallback(e)
+            }
         }
-
     }
+//endregion
 
     fun reinitWithRegion() {
         this.initializeSubscriptions()
@@ -391,6 +411,7 @@ class FronteggAuthService(
             this.accessToken.value = accessToken
             this.user.value = user
             this.isAuthenticated.value = true
+            this.isReAuthorization.value = false
 
             // Cancel previous job if it exists
             refreshTokenTimer.cancelLastTimer()
