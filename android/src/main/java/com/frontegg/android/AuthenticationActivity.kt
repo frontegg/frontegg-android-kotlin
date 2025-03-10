@@ -8,6 +8,8 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
+import com.frontegg.android.exceptions.CanceledByUserException
+import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
@@ -53,7 +55,7 @@ class AuthenticationActivity : Activity() {
         } else {
             val intentUrl = intent.data
             if (intentUrl == null) {
-                invokeAuthFinishedCallback()
+                invokeAuthFinishedCallback(CanceledByUserException())
                 setResult(RESULT_CANCELED)
                 finish()
                 return
@@ -86,11 +88,11 @@ class AuthenticationActivity : Activity() {
      * AuthFinishedCallback in AuthenticationActivity used only
      * when using external browser login
      */
-    private fun invokeAuthFinishedCallback() {
+    private fun invokeAuthFinishedCallback(exception: FronteggException? = null) {
         if (FronteggAuth.instance.isEmbeddedMode) {
             return
         }
-        onAuthFinishedCallback?.invoke()
+        onAuthFinishedCallback?.invoke(exception)
         onAuthFinishedCallback = null
     }
 
@@ -121,12 +123,12 @@ class AuthenticationActivity : Activity() {
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private const val CUSTOM_TAB_LAUNCHED = "com.frontegg.android.CUSTOM_TAB_LAUNCHED"
         private val TAG = AuthenticationActivity::class.java.simpleName
-        var onAuthFinishedCallback: (() -> Unit)? = null // Store callback
+        var onAuthFinishedCallback: ((Exception?) -> Unit)? = null // Store callback
 
         fun authenticate(
             activity: Activity,
             loginHint: String? = null,
-            callback: (() -> Unit)? = null
+            callback: ((Exception?) -> Unit)? = null
         ) {
             val intent = Intent(activity, AuthenticationActivity::class.java)
             val authorizeUri = AuthorizeUrlGenerator().generate(loginHint = loginHint)
@@ -140,7 +142,7 @@ class AuthenticationActivity : Activity() {
         fun authenticateWithMultiFactor(
             activity: Activity,
             mfaLoginAction: String? = null,
-            callback: (() -> Unit)? = null
+            callback: ((Exception?) -> Unit)? = null
         ) {
             val intent = Intent(activity, AuthenticationActivity::class.java)
             val authorizeUri = AuthorizeUrlGenerator().generate(loginAction = mfaLoginAction)
