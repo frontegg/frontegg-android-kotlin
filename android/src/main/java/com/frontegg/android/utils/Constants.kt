@@ -27,10 +27,10 @@ class ApiConstants {
 }
 
 object StepUpConstants {
-    val ACR_VALUE = "http://schemas.openid.net/pape/policies/2007/06/multi-factor"
-    val AMR_MFA_VALUE = "mfa"
+    const val ACR_VALUE = "http://schemas.openid.net/pape/policies/2007/06/multi-factor"
+    const val AMR_MFA_VALUE = "mfa"
     val AMR_ADDITIONAL_VALUE = listOf("otp", "sms", "hwk")
-    val STEP_UP_MAX_AGE_PARAM_NAME = "maxAge"
+    const val STEP_UP_MAX_AGE_PARAM_NAME = "maxAge"
 }
 
 class Constants {

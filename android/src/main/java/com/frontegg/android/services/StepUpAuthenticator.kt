@@ -4,9 +4,7 @@ import android.app.Activity
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.StepUpConstants
-import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.Instant
@@ -43,8 +41,8 @@ class StepUpAuthenticator(
 
     suspend fun stepUp(
         activity: Activity,
+        maxAge: Duration? = null,
         callback: ((error: Exception?) -> Unit),
-        maxAge: Duration? = null
     ) {
         val mfaRequestData = withContext(Dispatchers.IO) {
             api.generateStepUp(maxAge?.inWholeSeconds)

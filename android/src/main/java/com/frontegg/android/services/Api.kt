@@ -12,6 +12,7 @@ import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
+import com.frontegg.android.utils.StepUpConstants
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
@@ -130,7 +131,7 @@ open class Api(
         maxAge: Long? = null
     ): String? {
         val body = JsonObject()
-        body.addProperty("maxAge", maxAge)
+        body.addProperty(StepUpConstants.STEP_UP_MAX_AGE_PARAM_NAME, maxAge)
 
         Log.d("TAG", body.toString())
 

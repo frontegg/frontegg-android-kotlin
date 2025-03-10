@@ -24,12 +24,12 @@ import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.ObservableValue
-import com.frontegg.android.utils.ReadOnlyObservableValue
 import com.frontegg.android.utils.calculateTimerOffset
 import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration
@@ -344,37 +344,45 @@ class FronteggAuthService(
 
     override fun stepUp(
         activity: Activity,
+        maxAge: Duration?,
         callback: ((error: Exception?) -> Unit)?,
-        maxAge: Duration?
     ) = stepUpAction(
         activity,
-        callback,
-        maxAge
+        maxAge,
+        callback = callback,
     )
 
     private fun stepUpAction(
         activity: Activity,
-        callback: ((error: Exception?) -> Unit)?,
         maxAge: Duration?,
-        isAttempt: Boolean = false
+        isAttempt: Boolean = false,
+        callback: ((error: Exception?) -> Unit)?,
     ) {
         isStepUpAuthorization.value = true
+        showLoader.value = true
 
-        val updatedCallback: ((error: Exception?) -> Unit) = {
+        val updatedCallback: ((error: Exception?) -> Unit) = { exception ->
             if (isStepUpAuthorization.value) {
                 isStepUpAuthorization.value = false
             }
 
             showLoader.value = false
-            val scope = ScopeProvider.mainScope
-            scope.launch {
-//                callback?.invoke(it)
+            GlobalScope.launch(Dispatchers.Main) {
+                callback?.invoke(exception)
             }
         }
 
         GlobalScope.launch(Dispatchers.IO) {
             try {
-                stepUpAuthenticator.stepUp(activity, updatedCallback, maxAge)
+                if (isAttempt) {
+                    // Wait for server refresh data
+                    delay(500)
+
+                    // Check if EmbeddedAuthActivity is finished
+                    EmbeddedAuthActivity.waitOnActivityDestroyed()
+                }
+
+                stepUpAuthenticator.stepUp(activity, maxAge, updatedCallback)
             } catch (e: NotAuthenticatedException) {
                 if (isAttempt) {
                     updatedCallback(e)
@@ -383,8 +391,12 @@ class FronteggAuthService(
 
                 isStepUpAuthorization.value = false
                 isReAuthorization.value = true
-                login(activity) {
-                    stepUpAction(activity, callback, maxAge, true)
+                login(activity) { exception ->
+                    if (exception != null) {
+                        updatedCallback(exception)
+                        return@login
+                    }
+                    stepUpAction(activity, maxAge, true, callback)
                 }
             } catch (e: Exception) {
                 updatedCallback(e)
@@ -412,6 +424,7 @@ class FronteggAuthService(
             this.user.value = user
             this.isAuthenticated.value = true
             this.isReAuthorization.value = false
+            this.isStepUpAuthorization.value = false
 
             // Cancel previous job if it exists
             refreshTokenTimer.cancelLastTimer()

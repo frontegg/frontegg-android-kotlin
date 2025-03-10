@@ -161,14 +161,27 @@ interface FronteggAuth {
         callback: (Result<User>) -> Unit
     )
 
+    /**
+     * Checks whether step-up authentication has been performed and is still valid.
+     *
+     * @param maxAge The maximum duration allowed for authentication validity. If provided, the authentication time is validated against this duration.
+     * @return `true` if step-up authentication is valid, otherwise `false`.
+     */
     fun isSteppedUp(
         maxAge: Duration? = null,
     ): Boolean
 
+    /**
+     * Initiates a step-up authentication process for the given activity.
+     *
+     * @param activity The current activity where authentication should take place.
+     * @param callback A callback to be invoked after the step-up authentication process completes, providing an optional error if one occurs.
+     * @param maxAge The maximum duration allowed for authentication validity.
+     */
     fun stepUp(
         activity: Activity,
-        callback: ((error: Exception?) -> Unit)? = null,
         maxAge: Duration? = null,
+        callback: ((error: Exception?) -> Unit)? = null,
     )
 
 
