@@ -50,35 +50,38 @@ class HomeFragment : Fragment() {
         }
 
         binding.stepUpButton.setOnClickListener {
-            activity?.let { it1 ->
-                val maxAge = 1.toDuration(DurationUnit.MINUTES)
-                val isSteppedUp = FronteggAuth.instance.isSteppedUp(maxAge)
-                if (!isSteppedUp) {
-                    FronteggAuth.instance.stepUp(
-                        activity = it1,
-                        callback = { exception ->
-                            if (exception != null) {
-                                Toast.makeText(
-                                    requireContext(),
-                                    "ERROR: ${exception.message}",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            } else {
-                                Toast.makeText(
-                                    requireContext(),
-                                    "SUCCESS",
-                                    Toast.LENGTH_LONG
-                                ).show()
-                            }
-                        },
-                        maxAge = maxAge,
-                    )
-                } else {
-                    Toast.makeText(
-                        requireContext(),
-                        "No need step up right now!",
-                        Toast.LENGTH_LONG
-                    ).show()
+            val maxAge = 60.toDuration(DurationUnit.MINUTES)
+
+            val isSteppedUp = FronteggAuth.instance.isSteppedUp(maxAge)
+            if (isSteppedUp) {
+                Toast.makeText(
+                    requireContext(),
+                    "No need step up right now!",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
+            activity?.let { activity ->
+
+
+                FronteggAuth.instance.stepUp(
+                    activity,
+                    maxAge,
+                )
+                { exception ->
+                    if (exception != null) {
+                        Toast.makeText(
+                            requireContext(),
+                            "ERROR: ${exception.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            "FINISHED",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
                 }
             }
         }
