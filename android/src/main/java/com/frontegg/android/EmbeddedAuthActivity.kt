@@ -8,12 +8,16 @@ import android.view.View
 import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
+import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import kotlinx.coroutines.delay
+import java.lang.ref.WeakReference
+
 
 class EmbeddedAuthActivity : Activity() {
     private val storage = FronteggInnerStorage()
@@ -43,7 +47,7 @@ class EmbeddedAuthActivity : Activity() {
     }
 
     private fun consumeIntent(intent: Intent) {
-
+        Log.d(TAG, "consumeIntent")
         val intentLaunched =
             intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
 
@@ -95,11 +99,14 @@ class EmbeddedAuthActivity : Activity() {
             webViewUrl = intentUrl.toString()
         }
 
+        if (webViewUrl == null) {
+            return
+        }
 
-        if (FronteggAuth.instance.isStepUpAuthorization.value ||
-            (!FronteggAuth.instance.initializing.value
-                    && !FronteggAuth.instance.isAuthenticated.value)
+        if ((FronteggAuth.instance.isStepUpAuthorization.value || FronteggAuth.instance.isReAuthorization.value ||
+                    (!FronteggAuth.instance.initializing.value && !FronteggAuth.instance.isAuthenticated.value))
         ) {
+            Log.d(TAG, "loadUrl $webViewUrl")
             webView.loadUrl(webViewUrl!!)
             webViewUrl = null
         }
@@ -111,7 +118,7 @@ class EmbeddedAuthActivity : Activity() {
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
-            if (FronteggAuth.instance.isStepUpAuthorization.value) {
+            if (FronteggAuth.instance.isStepUpAuthorization.value || FronteggAuth.instance.isReAuthorization.value) {
                 loaderLayout?.visibility = if (it.value) View.VISIBLE else View.GONE
             } else {
                 loaderLayout?.visibility =
@@ -124,29 +131,29 @@ class EmbeddedAuthActivity : Activity() {
         if (it.value) {
             runOnUiThread {
                 navigateToAuthenticated()
-                onAuthFinishedCallback?.invoke()
+                onAuthFinishedCallback?.invoke(null)
                 onAuthFinishedCallback = null
             }
         }
     }
 
     private val isStepUpAuthorization: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
+        Log.d(TAG, "isStepUpAuthorization: ${it.value}")
         if (!it.value) {
             runOnUiThread {
                 navigateToAuthenticated()
-                onAuthFinishedCallback?.invoke()
+                onAuthFinishedCallback?.invoke(null)
                 onAuthFinishedCallback = null
             }
         }
     }
 
     private val isReAuthorization: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
+        Log.d(TAG, "isReAuthorization: ${it.value}")
         if (!it.value) {
             runOnUiThread {
                 navigateToAuthenticated()
-                onAuthFinishedCallback?.invoke()
+                onAuthFinishedCallback?.invoke(null)
                 onAuthFinishedCallback = null
             }
         }
@@ -166,10 +173,16 @@ class EmbeddedAuthActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        lastActivity = WeakReference(this)
 
         disposables.add(FronteggAuth.instance.showLoader.subscribe(this.showLoaderConsumer))
 
-        if (!FronteggAuth.instance.isStepUpAuthorization.value) {
+        Log.d(
+            TAG,
+            "onResume isStepUpAuthorization: ${FronteggAuth.instance.isStepUpAuthorization.value}, isReAuthorization: ${FronteggAuth.instance.isReAuthorization.value}"
+        )
+
+        if (!FronteggAuth.instance.isStepUpAuthorization.value && !FronteggAuth.instance.isReAuthorization.value) {
             disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.isAuthenticatedConsumer))
         } else if (FronteggAuth.instance.isStepUpAuthorization.value) {
             disposables.add(FronteggAuth.instance.isStepUpAuthorization.subscribe(this.isStepUpAuthorization))
@@ -178,7 +191,7 @@ class EmbeddedAuthActivity : Activity() {
         }
 
         if (directLoginLaunchedDone) {
-            onAuthFinishedCallback?.invoke()
+            onAuthFinishedCallback?.invoke(null)
             onAuthFinishedCallback = null
             FronteggAuthService.instance.isLoading.value = false
             FronteggAuthService.instance.showLoader.value = false
@@ -209,7 +222,7 @@ class EmbeddedAuthActivity : Activity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        onAuthFinishedCallback?.invoke()
+        onAuthFinishedCallback?.invoke(CanceledByUserException())
         onAuthFinishedCallback = null
     }
 
@@ -224,14 +237,28 @@ class EmbeddedAuthActivity : Activity() {
         const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
-        var onAuthFinishedCallback: (() -> Unit)? = null // Store callback
+        var onAuthFinishedCallback: ((error: Exception?) -> Unit)? = null // Store callback
+        private var lastActivity: WeakReference<Activity>? = null
+
+        fun isActivityDestroyed(): Boolean {
+            val activity = lastActivity?.get()
+            Log.d(TAG, "isActivityActive, isDestroyed: ${activity?.isDestroyed}")
+            return activity != null && !activity.isDestroyed
+        }
+
+        suspend fun waitOnActivityDestroyed() {
+            while (isActivityDestroyed()) {
+                delay(50)
+            }
+        }
 
         @JvmStatic
         fun authenticate(
             activity: Activity,
             loginHint: String? = null,
-            callback: (() -> Unit)? = null
+            callback: ((error: Exception?) -> Unit)? = null
         ) {
+            Log.d(TAG, "authenticate")
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
             val authorizeUri = AuthorizeUrlGenerator().generate(loginHint = loginHint)
@@ -245,8 +272,9 @@ class EmbeddedAuthActivity : Activity() {
             activity: Activity,
             type: String,
             data: String,
-            callback: (() -> Unit)? = null
+            callback: ((error: Exception?) -> Unit)? = null
         ) {
+            Log.d(TAG, "directLoginAction")
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
             intent.putExtra(DIRECT_LOGIN_ACTION_LAUNCHED, true)
@@ -275,8 +303,9 @@ class EmbeddedAuthActivity : Activity() {
         fun authenticateWithMultiFactor(
             activity: Activity,
             mfaLoginAction: String? = null,
-            callback: (() -> Unit)? = null
+            callback: ((error: Exception?) -> Unit)? = null
         ) {
+            Log.d(TAG, "authenticateWithMultiFactor")
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
             val authorizeUri = AuthorizeUrlGenerator().generate(loginAction = mfaLoginAction)

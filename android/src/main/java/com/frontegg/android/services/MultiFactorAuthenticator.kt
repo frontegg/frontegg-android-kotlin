@@ -17,9 +17,9 @@ class MultiFactorAuthenticator {
         mfaRequestData: String
     ) {
 
-        val authCallback: () -> Unit = {
+        val authCallback: (error: Exception?) -> Unit = { exception ->
             if (FronteggAuth.instance.isAuthenticated.value) {
-                callback?.invoke(null)
+                callback?.invoke(exception)
             } else {
                 val error = FailedToAuthenticateException(error = "Failed to authenticate with MFA")
                 callback?.invoke(error)

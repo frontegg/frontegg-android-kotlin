@@ -65,7 +65,7 @@ interface FronteggAuth {
     fun login(
         activity: Activity,
         loginHint: String? = null,
-        callback: (() -> Unit)? = null
+        callback: ((Exception?) -> Unit)? = null
     )
 
     /**
@@ -91,7 +91,7 @@ interface FronteggAuth {
         activity: Activity,
         type: String,
         data: String,
-        callback: (() -> Unit)? = null
+        callback: ((Exception?) -> Unit)? = null
     )
 
     /**
