@@ -32,6 +32,8 @@ import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
 import org.junit.Before
 import org.junit.Test
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 class FronteggAuthServiceTest {
     private val mockActivity = mockk<Activity>()
@@ -40,6 +42,8 @@ class FronteggAuthServiceTest {
     private val apiMock = mockk<Api>()
     private val authResponse = AuthResponse()
     private val storageMock = mockk<FronteggInnerStorage>()
+
+    private val stepUpAuthenticator = mockk<StepUpAuthenticator>()
 
 
     @Before
@@ -62,6 +66,14 @@ class FronteggAuthServiceTest {
 
         mockkObject(ApiProvider)
         every { ApiProvider.getApi(any()) }.returns(apiMock)
+
+        mockkObject(StepUpAuthenticatorProvider)
+        every {
+            StepUpAuthenticatorProvider.getStepUpAuthenticator(
+                any(),
+                any()
+            )
+        } returns stepUpAuthenticator
 
         auth = FronteggAuthService(
             credentialManager = credentialManagerMock,
@@ -649,5 +661,23 @@ class FronteggAuthServiceTest {
         Thread.sleep(1_000)
         assert(called)
         assert(exception != null)
+    }
+
+    @Test
+    fun `isSteppedUp calls stepUpAuthenticator and returns result`() {
+        every { stepUpAuthenticator.isSteppedUp(any()) } returns true
+
+        val duration = 5.toDuration(DurationUnit.MINUTES)
+        assert(auth.isSteppedUp(duration))
+        verify { stepUpAuthenticator.isSteppedUp(duration) }
+    }
+
+    @Test
+    fun `stepUp calls stepUpAuthenticator`() {
+        coEvery { stepUpAuthenticator.stepUp(any(), any(), any()) } returns Unit
+
+        val duration = 5.toDuration(DurationUnit.MINUTES)
+        auth.stepUp(mockActivity, duration, null)
+        coVerify { stepUpAuthenticator.stepUp(any(), any(), any()) }
     }
 }
