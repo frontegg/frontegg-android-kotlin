@@ -396,7 +396,9 @@ class FronteggAuthService(
                         updatedCallback(exception)
                         return@login
                     }
-                    stepUpAction(activity, maxAge, true, callback)
+                    if (!stepUpAuthenticator.isSteppedUp(maxAge)) {
+                        stepUpAction(activity, maxAge, true, callback)
+                    }
                 }
             } catch (e: Exception) {
                 updatedCallback(e)
