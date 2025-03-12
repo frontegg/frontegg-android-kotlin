@@ -127,24 +127,19 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    fun generateStepUp(
-        maxAge: Long? = null
-    ): String? {
-        val body = JsonObject()
-        body.addProperty(StepUpConstants.STEP_UP_MAX_AGE_PARAM_NAME, maxAge)
-
-        Log.d("TAG", body.toString())
-
-        val generateStepUpCall = buildPostRequest(ApiConstants.generateStepUp, body)
-        val generateStepUpResponse = generateStepUpCall.execute()
-        generateStepUpResponse.body?.toString()?.let { Log.d("TAG", it )}
-        if (generateStepUpResponse.isSuccessful) {
-            return generateStepUpResponse.body!!.string()
-        } else if (generateStepUpResponse.code == 401) {
-            throw NotAuthenticatedException()
+    fun generateStepUp(maxAge: Long? = null): String {
+        val body = JsonObject().apply {
+            addProperty(StepUpConstants.STEP_UP_MAX_AGE_PARAM_NAME, maxAge)
         }
 
-        return null
+        val response = buildPostRequest(ApiConstants.generateStepUp, body).execute()
+        val responseBody = response.body?.string()
+
+        if (response.isSuccessful && responseBody != null) {
+            return responseBody
+        }
+
+        throw NotAuthenticatedException()
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)

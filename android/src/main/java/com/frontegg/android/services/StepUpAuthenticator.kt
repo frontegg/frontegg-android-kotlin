@@ -48,11 +48,9 @@ class StepUpAuthenticator(
             api.generateStepUp(maxAge?.inWholeSeconds)
         }
 
-        if (mfaRequestData != null) {
-            val scope = ScopeProvider.mainScope
-            scope.launch {
-                multiFactorAuthenticator.start(activity, callback, mfaRequestData)
-            }
+        val scope = ScopeProvider.mainScope
+        scope.launch {
+            multiFactorAuthenticator.start(activity, callback, mfaRequestData)
         }
     }
 }
