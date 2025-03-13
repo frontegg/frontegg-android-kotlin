@@ -1,4 +1,3 @@
-# TBD
-- Added automation of generation `CHANGELOG.md` 
+- Added automation of generation `CHANGELOG.md`
 
 
