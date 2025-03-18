@@ -138,6 +138,8 @@ open class Api(
         if (response.isSuccessful && responseBody != null) {
             return responseBody
         }
+        // TODO: check if error code is 400 and FronteggError ER-01097
+        // throw MFANotEnrolledException()
 
         throw NotAuthenticatedException()
     }

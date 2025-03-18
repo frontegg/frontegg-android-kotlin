@@ -1,6 +1,11 @@
 package com.frontegg.android.services
 
 import android.app.Activity
+import com.frontegg.android.AuthenticationActivity
+import com.frontegg.android.EmbeddedAuthActivity
+import com.frontegg.android.FronteggAuth
+import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.StepUpConstants
@@ -44,13 +49,30 @@ class StepUpAuthenticator(
         maxAge: Duration? = null,
         callback: ((error: Exception?) -> Unit),
     ) {
-        val mfaRequestData = withContext(Dispatchers.IO) {
-            api.generateStepUp(maxAge?.inWholeSeconds)
-        }
+        try {
+            val mfaRequestData = withContext(Dispatchers.IO) {
+                api.generateStepUp(maxAge?.inWholeSeconds)
+            }
+            val scope = ScopeProvider.mainScope
+            scope.launch {
+                multiFactorAuthenticator.start(activity, callback, mfaRequestData)
+            }
+        } catch (e: MFANotEnrolledException) {
 
-        val scope = ScopeProvider.mainScope
-        scope.launch {
-            multiFactorAuthenticator.start(activity, callback, mfaRequestData)
+            val authCallback: (error: Exception?) -> Unit = { exception ->
+                if (FronteggAuth.instance.isAuthenticated.value) {
+                    callback.invoke(exception)
+                } else {
+                    val error =
+                        FailedToAuthenticateException(error = "Failed to authenticate with MFA")
+                    callback.invoke(error)
+                }
+            }
+            if (storage.isEmbeddedMode) {
+                EmbeddedAuthActivity.authenticateWithStepUp(activity, maxAge, authCallback)
+            } else {
+                AuthenticationActivity.authenticateWithStepUp(activity, maxAge, authCallback)
+            }
         }
     }
 }

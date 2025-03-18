@@ -6,6 +6,7 @@ import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.StorageProvider
 import java.security.MessageDigest
 import java.util.Base64
+import kotlin.time.Duration
 
 class AuthorizeUrlGenerator {
     companion object {
@@ -44,7 +45,9 @@ class AuthorizeUrlGenerator {
     fun generate(
         loginHint: String? = null,
         loginAction: String? = null,
-        preserveCodeVerifier: Boolean? = false
+        preserveCodeVerifier: Boolean? = false,
+        stepUp: Boolean? = null,
+        maxAge: Duration? = null,
     ): Pair<String, String> {
         val nonce = createRandomString()
         val credentialManager = FronteggAuthService.instance.credentialManager
@@ -72,6 +75,19 @@ class AuthorizeUrlGenerator {
             .appendQueryParameter("code_challenge", codeChallenge)
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("nonce", nonce)
+
+        if (stepUp == true) {
+            authorizeUrlBuilder.appendQueryParameter(
+                "acr_values",
+                "http://schemas.openid.net/pape/policies/2007/06/multi-factor"
+            )
+            if (maxAge != null) {
+                authorizeUrlBuilder.appendQueryParameter(
+                    "max-age",
+                    maxAge.inWholeSeconds.toString()
+                )
+            }
+        }
 
         if (loginHint != null) {
             authorizeUrlBuilder.appendQueryParameter("login_hint", loginHint)

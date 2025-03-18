@@ -17,6 +17,7 @@ import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 import kotlinx.coroutines.delay
 import java.lang.ref.WeakReference
+import kotlin.time.Duration
 
 
 class EmbeddedAuthActivity : Activity() {
@@ -309,6 +310,24 @@ class EmbeddedAuthActivity : Activity() {
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
             val authorizeUri = AuthorizeUrlGenerator().generate(loginAction = mfaLoginAction)
+            intent.putExtra(AUTH_LAUNCHED, true)
+            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+            onAuthFinishedCallback = callback
+            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+        }
+
+        fun authenticateWithStepUp(
+            activity: Activity,
+            maxAge: Duration? = null,
+            callback: ((error: Exception?) -> Unit)? = null
+        ) {
+            Log.d(TAG, "authenticateWithStepUp")
+            val intent = Intent(activity, EmbeddedAuthActivity::class.java)
+
+            val authorizeUri = AuthorizeUrlGenerator().generate(
+                stepUp = true,
+                maxAge=maxAge
+            )
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             onAuthFinishedCallback = callback
