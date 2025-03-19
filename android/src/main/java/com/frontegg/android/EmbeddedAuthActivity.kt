@@ -15,7 +15,10 @@ import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import java.lang.ref.WeakReference
 import kotlin.time.Duration
 
@@ -104,8 +107,9 @@ class EmbeddedAuthActivity : Activity() {
             return
         }
 
-        if ((FronteggAuth.instance.isStepUpAuthorization.value || FronteggAuth.instance.isReAuthorization.value ||
-                    (!FronteggAuth.instance.initializing.value && !FronteggAuth.instance.isAuthenticated.value))
+        if ((FronteggAuth.instance.isStepUpAuthorization.value ||
+                    (!FronteggAuth.instance.initializing.value &&
+                            !FronteggAuth.instance.isAuthenticated.value))
         ) {
             Log.d(TAG, "loadUrl $webViewUrl")
             webView.loadUrl(webViewUrl!!)
@@ -119,7 +123,7 @@ class EmbeddedAuthActivity : Activity() {
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
-            if (FronteggAuth.instance.isStepUpAuthorization.value || FronteggAuth.instance.isReAuthorization.value) {
+            if (FronteggAuth.instance.isStepUpAuthorization.value) {
                 loaderLayout?.visibility = if (it.value) View.VISIBLE else View.GONE
             } else {
                 loaderLayout?.visibility =
@@ -149,17 +153,6 @@ class EmbeddedAuthActivity : Activity() {
         }
     }
 
-    private val isReAuthorization: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isReAuthorization: ${it.value}")
-        if (!it.value) {
-            runOnUiThread {
-                navigateToAuthenticated()
-                onAuthFinishedCallback?.invoke(null)
-                onAuthFinishedCallback = null
-            }
-        }
-    }
-
     private fun navigateToAuthenticated() {
         val mainActivityClass = storage.mainActivityClass
         if (mainActivityClass != null) {
@@ -180,15 +173,13 @@ class EmbeddedAuthActivity : Activity() {
 
         Log.d(
             TAG,
-            "onResume isStepUpAuthorization: ${FronteggAuth.instance.isStepUpAuthorization.value}, isReAuthorization: ${FronteggAuth.instance.isReAuthorization.value}"
+            "onResume isStepUpAuthorization: ${FronteggAuth.instance.isStepUpAuthorization.value}"
         )
 
-        if (!FronteggAuth.instance.isStepUpAuthorization.value && !FronteggAuth.instance.isReAuthorization.value) {
+        if (!FronteggAuth.instance.isStepUpAuthorization.value) {
             disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.isAuthenticatedConsumer))
         } else if (FronteggAuth.instance.isStepUpAuthorization.value) {
             disposables.add(FronteggAuth.instance.isStepUpAuthorization.subscribe(this.isStepUpAuthorization))
-        } else if (FronteggAuth.instance.isReAuthorization.value) {
-            disposables.add(FronteggAuth.instance.isReAuthorization.subscribe(this.isReAuthorization))
         }
 
         if (directLoginLaunchedDone) {
@@ -319,18 +310,31 @@ class EmbeddedAuthActivity : Activity() {
         fun authenticateWithStepUp(
             activity: Activity,
             maxAge: Duration? = null,
-            callback: ((error: Exception?) -> Unit)? = null
+            callback: ((error: Exception?) -> Unit)? = null,
         ) {
             Log.d(TAG, "authenticateWithStepUp")
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
             val authorizeUri = AuthorizeUrlGenerator().generate(
                 stepUp = true,
-                maxAge=maxAge
+                maxAge = maxAge,
             )
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             onAuthFinishedCallback = callback
+            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+        }
+
+        fun authenticateWithStepUpMultiFactor(
+            activity: Activity,
+            mfaLoginAction: String? = null,
+        ) {
+            Log.d(TAG, "authenticateWithStepUpMultiFactor")
+            val intent = Intent(activity, EmbeddedAuthActivity::class.java)
+
+            val authorizeUri = AuthorizeUrlGenerator().generate(loginAction = mfaLoginAction)
+            intent.putExtra(AUTH_LAUNCHED, true)
+            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
 
@@ -340,6 +344,5 @@ class EmbeddedAuthActivity : Activity() {
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             activity.startActivity(intent)
         }
-
     }
 }

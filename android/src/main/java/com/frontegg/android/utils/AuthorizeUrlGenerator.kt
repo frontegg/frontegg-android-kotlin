@@ -102,6 +102,9 @@ class AuthorizeUrlGenerator {
         val url = authorizeUrlBuilder.build().toString()
         Log.d(TAG, "Generated url: $url")
 
+        if (stepUp == true) {
+            return Pair(url, codeVerifier)
+        }
 
         val authorizeUrl = Uri.Builder()
             .encodedPath(baseUrl)

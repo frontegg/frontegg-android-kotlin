@@ -11,6 +11,22 @@ import org.json.JSONObject
 class MultiFactorAuthenticator {
     private val storage = StorageProvider.getInnerStorage()
 
+    fun createMFALoginAction(
+        mfaRequestData: String
+    ): String {
+        val multiFactorStateBase64 =
+            Base64.encodeToString(mfaRequestData.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
+        val directLogin = mapOf(
+            "type" to "direct",
+            "data" to "${storage.baseUrl}/oauth/account/mfa-mobile-authenticator?state=$multiFactorStateBase64",
+            "additionalQueryParams" to mapOf(
+                "prompt" to "consent"
+            )
+        )
+        val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
+        return Base64.encodeToString(jsonData, Base64.NO_WRAP)
+    }
+
     fun start(
         activity: Activity,
         callback: ((error: Exception?) -> Unit)?,
@@ -26,17 +42,7 @@ class MultiFactorAuthenticator {
             }
         }
 
-        val multiFactorStateBase64 =
-            Base64.encodeToString(mfaRequestData.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        val directLogin = mapOf(
-            "type" to "direct",
-            "data" to "${storage.baseUrl}/oauth/account/mfa-mobile-authenticator?state=$multiFactorStateBase64",
-            "additionalQueryParams" to mapOf(
-                "prompt" to "consent"
-            )
-        )
-        val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
-        val loginDirectAction = Base64.encodeToString(jsonData, Base64.NO_WRAP)
+        val loginDirectAction = createMFALoginAction(mfaRequestData)
 
         if (storage.isEmbeddedMode) {
             EmbeddedAuthActivity.authenticateWithMultiFactor(

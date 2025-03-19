@@ -4,6 +4,7 @@ import android.util.Log
 import com.frontegg.android.exceptions.CookieNotFoundException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
+import com.frontegg.android.exceptions.MFANotEnrolledException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
@@ -138,8 +139,15 @@ open class Api(
         if (response.isSuccessful && responseBody != null) {
             return responseBody
         }
-        // TODO: check if error code is 400 and FronteggError ER-01097
-        // throw MFANotEnrolledException()
+        else if (response.code == 400 && responseBody != null) {
+            val gson = Gson()
+            val mapType = object : TypeToken<MutableMap<String, Any>>() {}.type
+
+            val errorMap: MutableMap<String, Any> = gson.fromJson(responseBody, mapType)
+            if (errorMap["errorCode"] == "ER-01097") {
+                throw MFANotEnrolledException()
+            }
+        }
 
         throw NotAuthenticatedException()
     }
