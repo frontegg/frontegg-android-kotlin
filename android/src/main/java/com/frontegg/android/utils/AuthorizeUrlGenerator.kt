@@ -83,7 +83,7 @@ class AuthorizeUrlGenerator {
             )
             if (maxAge != null) {
                 authorizeUrlBuilder.appendQueryParameter(
-                    "max-age",
+                    "max_age",
                     maxAge.inWholeSeconds.toString()
                 )
             }
