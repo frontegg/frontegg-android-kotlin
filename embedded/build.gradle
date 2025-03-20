@@ -15,13 +15,12 @@ def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "")
 android {
     namespace 'com.frontegg.demo'
     compileSdk 34
-    compileSdkVersion 34
 
     defaultConfig {
 
         applicationId "com.frontegg.demo"
         minSdk 26
-        targetSdk 34
+        targetSdk 35
         versionCode 1
         versionName "1.0"
 
@@ -50,9 +49,7 @@ android {
         testInstrumentationRunnerArguments["TENANT_NAME_2"] = testProperties.getOrDefault("TENANT_NAME_2", "")
 
         testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = testProperties.getOrDefault("GOOGLE_EMAIL", "")
-
-        testInstrumentationRunnerArguments["APPLE_EMAIL"] = testProperties.getOrDefault("APPLE_EMAIL", "")
-        testInstrumentationRunnerArguments["APPLE_PASSWORD"] = testProperties.getOrDefault("APPLE_PASSWORD", "")
+        testInstrumentationRunnerArguments["GOOGLE_PASSWORD"] = testProperties.getOrDefault("GOOGLE_PASSWORD", "")
     }
 
     testOptions {

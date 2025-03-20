@@ -32,6 +32,8 @@ object Env {
 
     val googleEmail: String
         get() = getStringByName("GOOGLE_EMAIL")
+    val googlePassword: String
+        get() = getStringByName("GOOGLE_PASSWORD")
 
     val appleEmail: String
         get() = getStringByName("APPLE_EMAIL")
