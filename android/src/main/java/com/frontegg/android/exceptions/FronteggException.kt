@@ -25,5 +25,8 @@ public open class FronteggException(message: String, cause: Throwable? = null) :
 
         public const val FAILED_TO_AUTHENTICATE: String =
             "frontegg.error.failed_to_authenticate"
+
+        public const val CANCELED_BY_USER_ERROR: String =
+            "frontegg.error.canceled_by_user"
     }
 }

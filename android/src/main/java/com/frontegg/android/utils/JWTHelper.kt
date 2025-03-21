@@ -13,7 +13,9 @@ class JWT {
     lateinit var iss: String
     var iat: Long = 0
     var exp: Long = 0
-
+    var amr: List<String> = listOf()
+    var auth_time: Long? = null
+    var acr: String? = null
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -29,6 +31,9 @@ class JWT {
         if (iss != other.iss) return false
         if (iat != other.iat) return false
         if (exp != other.exp) return false
+        if (amr != other.amr) return false
+        if (auth_time != other.auth_time) return false
+        if (acr != other.acr) return false
 
         return true
     }
@@ -43,18 +48,20 @@ class JWT {
         result = 31 * result + iss.hashCode()
         result = 31 * result + iat.hashCode()
         result = 31 * result + exp.hashCode()
+        result = 31 * result + amr.hashCode()
+        result = 31 * result + (auth_time?.hashCode() ?: 0)
+        result = 31 * result + (acr?.hashCode() ?: 0)
         return result
     }
+
+
 }
 
-class JWTHelper {
-
-    companion object {
-        fun decode(token: String): JWT {
-            val chunks: List<String> = token.split(Regex("\\."), 0)
-            val decoder: Base64.Decoder = Base64.getUrlDecoder()
-            val payload = String(decoder.decode(chunks[1]))
-            return Gson().fromJson(payload, JWT::class.java)!!
-        }
+object JWTHelper {
+    fun decode(token: String): JWT {
+        val chunks: List<String> = token.split(Regex("\\."), 0)
+        val decoder: Base64.Decoder = Base64.getUrlDecoder()
+        val payload = String(decoder.decode(chunks[1]))
+        return Gson().fromJson(payload, JWT::class.java)!!
     }
 }

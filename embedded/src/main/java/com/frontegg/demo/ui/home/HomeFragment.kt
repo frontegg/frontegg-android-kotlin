@@ -2,7 +2,6 @@ package com.frontegg.demo.ui.home
 
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -12,6 +11,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
 import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentHomeBinding
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 class HomeFragment : Fragment() {
 
@@ -46,6 +47,43 @@ class HomeFragment : Fragment() {
 
         binding.logoutButton.setOnClickListener {
             FronteggAuth.instance.logout()
+        }
+
+        binding.stepUpButton.setOnClickListener {
+            val maxAge = 60.toDuration(DurationUnit.MINUTES)
+
+            val isSteppedUp = FronteggAuth.instance.isSteppedUp(maxAge)
+            if (isSteppedUp) {
+                Toast.makeText(
+                    requireContext(),
+                    "No need step up right now!",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
+            activity?.let { activity ->
+
+
+                FronteggAuth.instance.stepUp(
+                    activity,
+                    maxAge,
+                )
+                { exception ->
+                    if (exception != null) {
+                        Toast.makeText(
+                            requireContext(),
+                            "ERROR: ${exception.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            "FINISHED",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
         }
 
         binding.registerPasskeysButton.setOnClickListener {

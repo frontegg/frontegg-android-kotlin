@@ -12,6 +12,7 @@ import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
+import com.frontegg.android.utils.StepUpConstants
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
@@ -123,6 +124,22 @@ open class Api(
 
         val request = requestBuilder.build()
         return this.httpClient.newCall(request)
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class)
+    fun generateStepUp(maxAge: Long? = null): String {
+        val body = JsonObject().apply {
+            addProperty(StepUpConstants.STEP_UP_MAX_AGE_PARAM_NAME, maxAge)
+        }
+
+        val response = buildPostRequest(ApiConstants.generateStepUp, body).execute()
+        val responseBody = response.body?.string()
+
+        if (response.isSuccessful && responseBody != null) {
+            return responseBody
+        }
+
+        throw NotAuthenticatedException()
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
