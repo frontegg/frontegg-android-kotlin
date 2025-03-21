@@ -25,8 +25,6 @@ class App : Application() {
             progressBar
         }
 
-        Button(applicationContext).setOnClickListener {  }
-
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
