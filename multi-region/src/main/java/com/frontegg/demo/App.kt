@@ -14,20 +14,22 @@ class App : Application() {
         super.onCreate()
         instance = this
 
+        // Initialize Frontegg SDK with multiple regional configurations
+        // This allows the app to work with different authentication endpoints based on user's region
         FronteggApp.initWithRegions(
             listOf(
                 RegionConfig(
-                    "eu",
-                    "autheu.davidantoon.me",
-                    "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+                    "eu",              // Region identifier for Europe
+                    "autheu.davidantoon.me",  // Base URL for EU authentication endpoint
+                    "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"  // Client ID for EU region
                 ),
                 RegionConfig(
-                    "us",
-                    "authus.davidantoon.me",
-                    "6903cab0-9809-4a2e-97dd-b8c0f966c813"
+                    "us",              // Region identifier for United States
+                    "authus.davidantoon.me",  // Base URL for US authentication endpoint
+                    "6903cab0-9809-4a2e-97dd-b8c0f966c813"  // Client ID for US region
                 )
             ),
-            this
+            this  // Application context reference
         )
     }
 }

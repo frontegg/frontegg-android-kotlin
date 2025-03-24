@@ -1,80 +1,26 @@
 package com.frontegg.demo.ui.tenants
 
-import android.content.Context
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.BaseAdapter
 import android.widget.ListView
-import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
-import com.frontegg.android.FronteggAuth
 import com.frontegg.android.models.Tenant
-import com.frontegg.demo.R
 import com.frontegg.demo.databinding.FragmentTenantsBinding
 
-class CustomAdapter(context: Context, private val dataSource: MutableList<Tenant>) : BaseAdapter() {
-    private val inflater: LayoutInflater =
-        context.getSystemService(Context.LAYOUT_INFLATER_SERVICE) as LayoutInflater
-
-    private var activeTenant: Tenant? = null
-
-
-    override fun getCount(): Int = dataSource.size
-
-    override fun getItem(position: Int): Any = dataSource[position]
-
-    override fun getItemId(position: Int): Long = position.toLong()
-
-    fun setItems(items: List<Tenant>) {
-        this.dataSource.clear()
-        this.dataSource.addAll(items.sortedBy { it.name })
-        notifyDataSetChanged()
-    }
-
-    fun setActiveTenant(activeTenant: Tenant?) {
-        this.activeTenant = activeTenant
-        notifyDataSetChanged()
-    }
-
-    override fun getView(position: Int, convertView: View?, parent: ViewGroup?): View {
-        val view = convertView ?: inflater.inflate(R.layout.tenant_row_item, parent, false)
-        val name: TextView = view.findViewById(R.id.name)
-        val info: TextView = view.findViewById(R.id.info)
-
-        val item = getItem(position) as Tenant
-        name.text = item.name
-
-        view.setOnClickListener {
-            info.text = " (switching...)"
-            info.visibility = View.VISIBLE
-            FronteggAuth.instance.switchTenant(item.tenantId) {
-                info.visibility = View.GONE
-            }
-        }
-        if (activeTenant?.tenantId == item.tenantId) {
-            info.text = " (active)"
-            info.visibility = View.VISIBLE
-        } else {
-            info.text = ""
-            info.visibility = View.GONE
-        }
-
-        return view
-    }
-}
-
+// Fragment for displaying and managing tenants
 class TenantsFragment : Fragment() {
 
+    // View binding instance (only valid between onCreateView and onDestroyView)
     private var _binding: FragmentTenantsBinding? = null
-
-    // This property is only valid between onCreateView and
-    // onDestroyView.
     private val binding get() = _binding!!
+
+    // List to store tenant objects
     private var tenants: MutableList<Tenant> = mutableListOf()
 
+    // ViewModel instance for managing tenant data
     private lateinit var tenantsViewModel: TenantsViewModel
 
     override fun onCreateView(
@@ -82,31 +28,32 @@ class TenantsFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        // Initialize ViewModel
         tenantsViewModel = ViewModelProvider(this)[TenantsViewModel::class.java]
 
+        // Inflate the layout for this fragment using View Binding
         _binding = FragmentTenantsBinding.inflate(inflater, container, false)
 
+        // Get reference to ListView and set up the adapter
         val listView: ListView = binding.tenantsList
-        val adapter = CustomAdapter(requireContext(), tenants)
+        val adapter = TenantCustomAdapter(requireContext(), tenants)
         listView.adapter = adapter
 
+        // Observe tenant list updates and refresh the adapter when changes occur
         tenantsViewModel.tenants.observe(viewLifecycleOwner) {
             adapter.setItems(it)
         }
 
+        // Observe changes in the active tenant and update the adapter accordingly
         tenantsViewModel.activeTenant.observe(viewLifecycleOwner) {
             adapter.setActiveTenant(it)
         }
+
         return binding.root
-    }
-
-    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
-        super.onViewCreated(view, savedInstanceState)
-
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null
+        _binding = null  // Clear binding reference to prevent memory leaks
     }
 }
