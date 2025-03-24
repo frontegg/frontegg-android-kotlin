@@ -65,6 +65,8 @@ jobs:
           cat <<EOF > frontegg.properties
           FRONTEGG_DOMAIN=${{ secrets.FRONTEGG_DOMAIN }}
           FRONTEGG_CLIENT_ID=${{ secrets.FRONTEGG_CLIENT_ID }}
+          FRONTEGG_APPLICATION_ID=${{ secrets.FRONTEGG_APPLICATION_ID }}
+          FRONTEGG_DOMAIN_2=${{ secrets.FRONTEGG_DOMAIN_2 }}
           EOF
 
           echo "Files created successfully."
@@ -100,8 +102,18 @@ jobs:
           ram-size: 2048M
           heap-size: 1024M
           script: |
-            ./gradlew embedded:connectedAndroidTest      
-      
+            ./gradlew embedded:connectedAndroidTest    
+            adb uninstall com.frontegg.demo
+            
+            ./gradlew app:connectedAndroidTest    
+            adb uninstall com.frontegg.demo
+            
+            ./gradlew applicationId:connectedAndroidTest    
+            adb uninstall com.frontegg.demo
+            
+            ./gradlew multi-region:connectedAndroidTest    
+            adb uninstall com.frontegg.demo
+
 
       - name: Publish test report
         uses: mikepenz/action-junit-report@v2
