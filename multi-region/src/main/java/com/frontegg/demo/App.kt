@@ -3,6 +3,8 @@ package com.frontegg.demo
 import android.app.Application
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.regions.RegionConfig
+import java.io.File
+
 
 class App : Application() {
 
@@ -31,5 +33,42 @@ class App : Application() {
             ),
             this  // Application context reference
         )
+    }
+
+    /**
+     * Clears all application data except native libraries.
+     * Removes cache and internal storage files by traversing through
+     * application's data directory and deleting all files and folders
+     * except the 'lib' directory.
+     */
+    fun clearApplicationData() {
+        val cacheDirectory = cacheDir
+        val applicationDirectory = cacheDirectory.parent?.let { File(it) }
+        if (applicationDirectory?.exists() == true) {
+            val fileNames = applicationDirectory.list() ?: arrayOf<String>()
+            for (fileName in fileNames) {
+                if (fileName != "lib") {
+                    deleteFile(File(applicationDirectory, fileName))
+                }
+            }
+        }
+    }
+
+    private fun deleteFile(file: File?): Boolean {
+        var deletedAll = true
+        if (file != null) {
+            if (file.isDirectory) {
+                val children = file.list()
+                if (children != null) {
+                    for (i in children.indices) {
+                        deletedAll = deleteFile(File(file, children[i])) && deletedAll
+                    }
+                }
+            } else {
+                deletedAll = file.delete()
+            }
+        }
+
+        return deletedAll
     }
 }

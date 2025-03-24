@@ -1,5 +1,6 @@
 package com.frontegg.demo
 
+import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
@@ -75,6 +76,10 @@ class NavigationActivity : AppCompatActivity() {
         // Subscribe to Frontegg authentication events
         disposables.add(FronteggAuth.instance.showLoader.subscribe(this.onShowLoaderChange))
         disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.onIsAuthenticatedChange))
+
+        if (FronteggAuth.instance.isMultiRegion && FronteggAuth.instance.selectedRegion == null) {
+            startActivity(Intent(this, RegionSelectionActivity::class.java))
+        }
     }
 
     override fun onPause() {
