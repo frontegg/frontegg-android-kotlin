@@ -5,7 +5,6 @@ plugins {
 
 def fronteggDomain = "autheu.davidantoon.me"
 def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
-def fronteggApplicationId = "16407b9a-5b6c-43de-9f58-6a1d1e0077f8"
 
 android {
     namespace 'com.frontegg.demo'
@@ -22,14 +21,13 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         manifestPlaceholders = [
-                "package_name" : applicationId,
-                "frontegg_domain" : fronteggDomain,
+                "package_name"      : applicationId,
+                "frontegg_domain"   : fronteggDomain,
                 "frontegg_client_id": fronteggClientId,
         ]
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
-        buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
     }
 
     buildTypes {
@@ -82,7 +80,7 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-web:' + rootProject.espressoVersion
     androidTestImplementation 'androidx.test:monitor:1.7.0-alpha01'
 
-    testImplementation 'androidx.test:core:' + rootProject.coreVersion;
+    testImplementation 'androidx.test:core:' + rootProject.coreVersion
     testImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
     testImplementation 'junit:junit:4.13.2'
 }
