@@ -13,6 +13,7 @@ class JWT {
     lateinit var iss: String
     var iat: Long = 0
     var exp: Long = 0
+    var applicationId: String? = null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -29,6 +30,7 @@ class JWT {
         if (iss != other.iss) return false
         if (iat != other.iat) return false
         if (exp != other.exp) return false
+        if (applicationId != other.applicationId) return false
 
         return true
     }
@@ -43,6 +45,10 @@ class JWT {
         result = 31 * result + iss.hashCode()
         result = 31 * result + iat.hashCode()
         result = 31 * result + exp.hashCode()
+        if (applicationId != null) {
+            result = 31 * result + applicationId.hashCode()
+        }
+
         return result
     }
 }
