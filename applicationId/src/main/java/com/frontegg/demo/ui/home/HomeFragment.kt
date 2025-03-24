@@ -46,6 +46,12 @@ class HomeFragment : Fragment() {
             }
         }
 
+        homeViewModel.applicationId.observe(viewLifecycleOwner) {
+            if (it != null) {
+                binding.applicationId.text = it
+            }
+        }
+
         // Set up the logout button functionality
         binding.logoutButton.setOnClickListener {
             FronteggAuth.instance.logout()

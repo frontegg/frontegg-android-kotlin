@@ -3,9 +3,16 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-def fronteggDomain = "autheu.davidantoon.me"
-def fronteggClientId = "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
-def fronteggApplicationId = "16407b9a-5b6c-43de-9f58-6a1d1e0077f8"
+Properties testProperties = new Properties()
+testProperties.load(project.rootProject.file('test.properties').newDataInputStream())
+
+Properties fronteggProperties = new Properties()
+fronteggProperties.load(project.rootProject.file('frontegg.properties').newDataInputStream())
+
+def fronteggDomain = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN", "").toString()
+def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "").toString()
+def fronteggApplicationId = fronteggProperties.getOrDefault("FRONTEGG_APPLICATION_ID", "").toString()
+
 
 android {
     namespace 'com.frontegg.demo'
@@ -30,14 +37,47 @@ android {
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
         buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
+
+        testInstrumentationRunnerArguments["LOGIN_EMAIL"] = testProperties.getOrDefault("LOGIN_EMAIL", "")
+        testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = testProperties.getOrDefault("LOGIN_PASSWORD", "")
+
+        testInstrumentationRunnerArguments["FRONTEGG_APPLICATION_ID"] = fronteggApplicationId
     }
 
+    testOptions {
+        execution "ANDROIDX_TEST_ORCHESTRATOR"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(project.property("RELEASE_STORE_FILE"))
+            storePassword project.property("RELEASE_STORE_PASSWORD")
+            keyAlias project.property("RELEASE_KEY_ALIAS")
+            keyPassword project.property("RELEASE_KEY_PASSWORD")
+        }
+        debug {
+            storeFile file(project.property("DEBUG_STORE_FILE"))
+            storePassword project.property("DEBUG_STORE_PASSWORD")
+            keyAlias project.property("DEBUG_KEY_ALIAS")
+            keyPassword project.property("DEBUG_KEY_PASSWORD")
+        }
+    }
+    
     buildTypes {
         release {
             minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+            debuggable true
         }
     }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_8
         targetCompatibility JavaVersion.VERSION_1_8
@@ -85,4 +125,7 @@ dependencies {
     testImplementation 'androidx.test:core:' + rootProject.coreVersion
     testImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
     testImplementation 'junit:junit:4.13.2'
+
+    implementation "androidx.test.uiautomator:uiautomator:2.2.0"
+    androidTestUtil "androidx.test:orchestrator:1.5.1"
 }

@@ -7,6 +7,7 @@ import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.models.User
+import com.frontegg.android.utils.JWTHelper
 
 class HomeViewModel : ViewModel() {
 
@@ -19,8 +20,19 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    // LiveData to store the current access token, initially set to null
+    private val _applicationId = MutableLiveData<String?>().apply {
+        FronteggAuth.instance.accessToken.subscribe { accessToken ->
+            val accessTokenValue = accessToken.value
+            if (accessTokenValue != null) {
+                val jwt = JWTHelper.decode(accessTokenValue)
+                Handler(Looper.getMainLooper()).post {
+                    value = jwt.applicationId
+                }
+            }
+        }
+    }
 
     val user: LiveData<User?> = _user
-
-
+    val applicationId: LiveData<String?> = _applicationId
 }
