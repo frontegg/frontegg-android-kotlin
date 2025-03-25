@@ -2,12 +2,9 @@ package com.frontegg.demo.ui.home
 
 import android.graphics.Color
 import android.os.Bundle
-import android.os.Handler
-import android.os.Looper
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
-import android.widget.TextView
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
@@ -15,11 +12,11 @@ import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentHomeBinding
 
 class HomeFragment : Fragment() {
-
+    // Binding variable for fragment's views, nullable to handle lifecycle properly
     private var _binding: FragmentHomeBinding? = null
 
-    // This property is only valid between onCreateView and
-    // onDestroyView.
+    // This property is only valid between onCreateView and onDestroyView.
+    // It gives access to the views from the fragment's layout.
     private val binding get() = _binding!!
 
     override fun onCreateView(
@@ -27,15 +24,19 @@ class HomeFragment : Fragment() {
         container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
+        // Initialize the ViewModel associated with this fragment
         val homeViewModel = ViewModelProvider(this)[HomeViewModel::class.java]
 
+        // Inflate the layout for the fragment using the generated binding class
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
 
         val root: View = binding.root
 
+        // Set up logout button appearance
         binding.logoutButton.setBackgroundColor(Color.RED)
-        homeViewModel.user.observe(viewLifecycleOwner) {
 
+        // Observe the user data from the ViewModel to update the UI with user info
+        homeViewModel.user.observe(viewLifecycleOwner) {
             if (it != null) {
                 Glide.with(requireContext()).load(it.profilePictureUrl)
                     .into(binding.image)
@@ -45,6 +46,7 @@ class HomeFragment : Fragment() {
             }
         }
 
+        // Set up the logout button functionality
         binding.logoutButton.setOnClickListener {
             FronteggAuth.instance.logout()
         }
@@ -54,6 +56,7 @@ class HomeFragment : Fragment() {
 
     override fun onDestroyView() {
         super.onDestroyView()
+        // Set the binding to null to avoid memory leaks
         _binding = null
     }
 }

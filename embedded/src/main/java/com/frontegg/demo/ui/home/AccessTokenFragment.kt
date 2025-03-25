@@ -37,7 +37,7 @@ class AccessTokenFragment : Fragment() {
             }
         }
 
-        homeViewModel.accesstoken.observe(viewLifecycleOwner) {
+        homeViewModel.accessToken.observe(viewLifecycleOwner) {
 
             // this one will be disable in background
             // will resume on foreground

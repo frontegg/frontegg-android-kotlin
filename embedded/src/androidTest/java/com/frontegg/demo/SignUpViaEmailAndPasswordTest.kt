@@ -36,6 +36,8 @@ class SignUpViaEmailAndPasswordTest {
         instrumentation.inputTextByIndex(2, Env.loginPassword)
         instrumentation.inputTextByIndex(3, Env.signUpOrganization)
 
+        hideKeyboard()
+
         instrumentation.clickByText("Sign up")
 
         instrumentation.logout()
@@ -54,6 +56,8 @@ class SignUpViaEmailAndPasswordTest {
         instrumentation.inputTextByIndex(1, Env.signUpName)
         instrumentation.inputTextByIndex(2, Env.loginPassword)
         instrumentation.inputTextByIndex(3, Env.signUpOrganization)
+
+        hideKeyboard()
 
         instrumentation.clickByText("Sign up")
 
@@ -75,9 +79,11 @@ class SignUpViaEmailAndPasswordTest {
         instrumentation.inputTextByIndex(2, Env.loginPassword)
         instrumentation.inputTextByIndex(3, Env.signUpOrganization)
 
+        hideKeyboard()
+
         instrumentation.clickByText("Sign up")
 
-        instrumentation.waitForView(By.text("Must be a valid Email"))
+        instrumentation.waitForView(By.text("Must be a valid email"))
             ?: throw Exception("Should 'Must be a valid Email' warning be visible")
     }
 
@@ -94,6 +100,8 @@ class SignUpViaEmailAndPasswordTest {
         instrumentation.inputTextByIndex(1, "")
         instrumentation.inputTextByIndex(2, Env.loginPassword)
         instrumentation.inputTextByIndex(3, Env.signUpOrganization)
+
+        hideKeyboard()
 
         instrumentation.clickByText("Sign up")
 
@@ -115,6 +123,8 @@ class SignUpViaEmailAndPasswordTest {
         instrumentation.inputTextByIndex(2, "")
         instrumentation.inputTextByIndex(3, Env.signUpOrganization)
 
+        hideKeyboard()
+
         instrumentation.clickByText("Sign up")
 
         instrumentation.waitForView(By.text("Password is required"))
@@ -134,6 +144,8 @@ class SignUpViaEmailAndPasswordTest {
         instrumentation.inputTextByIndex(1, Env.signUpName)
         instrumentation.inputTextByIndex(2, Env.loginPassword)
         instrumentation.inputTextByIndex(3, "")
+
+        hideKeyboard()
 
         instrumentation.clickByText("Sign up")
 

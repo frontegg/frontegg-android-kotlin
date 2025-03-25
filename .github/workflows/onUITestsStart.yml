@@ -1,0 +1,123 @@
+name: "onUITestsStart"
+
+on:
+  pull_request:
+    types:
+      - opened
+      - edited
+    branches-ignore:
+      - 'master'
+      - 'release/next'
+
+jobs:
+
+  run-ui-tests:
+    #  Temporarily
+    if: "false"
+    name: Build And Test
+    runs-on: 'macos-latest-large'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4.2.0
+        with:
+          fetch-depth: "0"
+
+      - name: Set up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'  # Use the required Java version for your project
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install required Android SDK components
+        run: |
+          sdkmanager --install "platforms;android-34" "build-tools;34.0.0" "platform-tools"
+
+      - name: Ensure correct compile SDK version
+        run: sed -i 's/compileSdkVersion 35/compileSdkVersion 34/g' app/build.gradle
+
+      - name: Grant execute permission for Gradle
+        run: chmod +x gradlew
+
+      - name: Build properties
+        shell: bash
+        run: |
+          cat <<EOF > test.properties
+          LOGIN_EMAIL=${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD=${{ secrets.LOGIN_PASSWORD }}
+          
+          LOGIN_WRONG_EMAIL=${{ secrets.LOGIN_WRONG_EMAIL }}
+          LOGIN_WRONG_PASSWORD=${{ secrets.LOGIN_WRONG_PASSWORD }}
+          
+          SIGN_UP_TEMPLATE=${{ secrets.SIGN_UP_TEMPLATE }}
+          SIGN_UP_NAME=${{ secrets.SIGN_UP_NAME }}
+          SIGN_UP_ORGANIZATION=${{ secrets.SIGN_UP_ORGANIZATION }}
+          
+          GOOGLE_EMAIL=${{ secrets.GOOGLE_EMAIL }}
+          GOOGLE_PASSWORD=${{ secrets.GOOGLE_PASSWORD }}
+          
+          TENANT_NAME_1=${{ secrets.TENANT_NAME_1 }}
+          TENANT_NAME_2=${{ secrets.TENANT_NAME_2 }}
+          EOF
+
+          cat <<EOF > frontegg.properties
+          FRONTEGG_DOMAIN=${{ secrets.FRONTEGG_DOMAIN }}
+          FRONTEGG_CLIENT_ID=${{ secrets.FRONTEGG_CLIENT_ID }}
+          FRONTEGG_APPLICATION_ID=${{ secrets.FRONTEGG_APPLICATION_ID }}
+          FRONTEGG_DOMAIN_2=${{ secrets.FRONTEGG_DOMAIN_2 }}
+          EOF
+
+          echo "Files created successfully."
+          
+          echo "test.properties:"
+          echo $(cat test.properties)
+          echo "frontegg.properties:"
+          echo $(cat frontegg.properties)
+
+      - name: Clean build cache
+        run: ./gradlew clean
+
+      - name: Build app
+        run: ./gradlew embedded:assembleDebug embedded:assembleAndroidTest
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: avdmanager list device
+        run: avdmanager list device
+
+      - name: run tests
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 33
+          target: google_apis_playstore
+          arch: x86_64
+          profile: pixel_5
+          cores: 4
+          ram-size: 2048M
+          heap-size: 1024M
+          script: |
+            ./gradlew embedded:connectedAndroidTest    
+            adb uninstall com.frontegg.demo
+            
+            ./gradlew app:connectedAndroidTest    
+            adb uninstall com.frontegg.demo
+            
+            ./gradlew applicationId:connectedAndroidTest    
+            adb uninstall com.frontegg.demo
+            
+            ./gradlew multi-region:connectedAndroidTest    
+            adb uninstall com.frontegg.demo
+
+
+      - name: Publish test report
+        uses: mikepenz/action-junit-report@v2
+        if: always() # always run even if the tests fail
+        with:
+          report_paths: 'build/test-results/**/*.xml'

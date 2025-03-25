@@ -25,6 +25,7 @@ class JWTHelperTest {
         jwt.iss = "https://frontegg.test.com"
         jwt.iat = 1734520950
         jwt.exp = 1734521550
+        jwt.applicationId = "f717b75f-e09a-48cc-a84e-e20a8454a9cf"
     }
 
     @Test

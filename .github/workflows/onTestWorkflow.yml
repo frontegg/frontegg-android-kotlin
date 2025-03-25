@@ -41,6 +41,41 @@ jobs:
             manifest = manifest.replace(/<application/g, '<application android:networkSecurityConfig="@xml/network_security_config"');
             fs.writeFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/AndroidManifest.xml'), manifest, 'utf8');
 
+      - name: Build properties
+        shell: bash
+        run: |
+          cat <<EOF > test.properties
+          LOGIN_EMAIL=${{ secrets.LOGIN_EMAIL }}
+          LOGIN_PASSWORD=${{ secrets.LOGIN_PASSWORD }}
+          
+          LOGIN_WRONG_EMAIL=${{ secrets.LOGIN_WRONG_EMAIL }}
+          LOGIN_WRONG_PASSWORD=${{ secrets.LOGIN_WRONG_PASSWORD }}
+          
+          SIGN_UP_TEMPLATE=${{ secrets.SIGN_UP_TEMPLATE }}
+          SIGN_UP_NAME=${{ secrets.SIGN_UP_NAME }}
+          SIGN_UP_ORGANIZATION=${{ secrets.SIGN_UP_ORGANIZATION }}
+          
+          GOOGLE_EMAIL=${{ secrets.GOOGLE_EMAIL }}
+          GOOGLE_PASSWORD=${{ secrets.GOOGLE_PASSWORD }}
+          
+          TENANT_NAME_1=${{ secrets.TENANT_NAME_1 }}
+          TENANT_NAME_2=${{ secrets.TENANT_NAME_2 }}
+          EOF
+
+          cat <<EOF > frontegg.properties
+          FRONTEGG_DOMAIN=${{ secrets.FRONTEGG_DOMAIN }}
+          FRONTEGG_CLIENT_ID=${{ secrets.FRONTEGG_CLIENT_ID }}
+          FRONTEGG_APPLICATION_ID=${{ secrets.FRONTEGG_APPLICATION_ID }}
+          FRONTEGG_DOMAIN_2=${{ secrets.FRONTEGG_DOMAIN_2 }}
+          EOF
+
+          echo "Files created successfully."
+          
+          echo "test.properties:"
+          echo $(cat test.properties)
+          echo "frontegg.properties:"
+          echo $(cat frontegg.properties)
+
       - name: Clean build
         run: ./gradlew clean
       - name: Build debug test apk
