@@ -4,7 +4,6 @@ import android.annotation.SuppressLint
 import android.app.Activity
 import android.os.Handler
 import android.os.Looper
-import android.util.Base64
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
@@ -16,6 +15,7 @@ import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
+import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
@@ -29,9 +29,10 @@ import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
+import kotlin.time.Duration
 
 @OptIn(DelicateCoroutinesApi::class)
 @SuppressLint("CheckResult")
@@ -58,9 +59,15 @@ class FronteggAuthService(
     override val initializing: ObservableValue<Boolean> = ObservableValue(true)
     override val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     override val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
+    override val isStepUpAuthorization: ObservableValue<Boolean> = ObservableValue(false)
+    override val isReAuthorization: ObservableValue<Boolean> = ObservableValue(false)
 
     private val api = ApiProvider.getApi(credentialManager)
     private val storage = StorageProvider.getInnerStorage()
+    private val multiFactorAuthenticator =
+        MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
+    private val stepUpAuthenticator =
+        StepUpAuthenticatorProvider.getStepUpAuthenticator(api, credentialManager)
 
     override val isMultiRegion: Boolean
         get() = regions.isNotEmpty()
@@ -106,7 +113,7 @@ class FronteggAuthService(
     override fun login(
         activity: Activity,
         loginHint: String?,
-        callback: (() -> Unit)?,
+        callback: ((Exception?) -> Unit)?,
     ) {
         if (isEmbeddedMode) {
             EmbeddedAuthActivity.authenticate(activity, loginHint, callback)
@@ -153,7 +160,7 @@ class FronteggAuthService(
         activity: Activity,
         type: String,
         data: String,
-        callback: (() -> Unit)?
+        callback: ((Exception?) -> Unit)?
     ) {
         if (isEmbeddedMode) {
             EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)
@@ -240,7 +247,7 @@ class FronteggAuthService(
             } catch (e: Exception) {
                 Log.e(TAG, "failed to login with passkeys", e)
                 if (e is MfaRequiredException) {
-                    startMultiFactorAuthenticator(activity, callback, e.mfaRequestData)
+                    multiFactorAuthenticator.start(activity, callback, e.mfaRequestData)
                 } else {
                     callback?.invoke(e)
                 }
@@ -309,7 +316,6 @@ class FronteggAuthService(
         }
     }
 
-
     override fun requestAuthorize(
         refreshToken: String,
         deviceTokenCookie: String?,
@@ -330,48 +336,76 @@ class FronteggAuthService(
         }
     }
 
-    private fun startMultiFactorAuthenticator(
-        activity: Activity,
-        callback: ((error: Exception?) -> Unit)?,
-        mfaRequestData: String
-    ) {
+    //region Step Up functionality
 
-        val authCallback: () -> Unit = {
-            if (this.isAuthenticated.value) {
-                callback?.invoke(null)
-            } else {
-                val error = FailedToAuthenticateException(error = "Failed to authenticate with MFA")
-                callback?.invoke(error)
+    override fun isSteppedUp(maxAge: Duration?): Boolean {
+        return stepUpAuthenticator.isSteppedUp(maxAge)
+    }
+
+    override fun stepUp(
+        activity: Activity,
+        maxAge: Duration?,
+        callback: ((error: Exception?) -> Unit)?,
+    ) = stepUpAction(
+        activity,
+        maxAge,
+        callback = callback,
+    )
+
+    private fun stepUpAction(
+        activity: Activity,
+        maxAge: Duration?,
+        isAttempt: Boolean = false,
+        callback: ((error: Exception?) -> Unit)?,
+    ) {
+        isStepUpAuthorization.value = true
+        showLoader.value = true
+
+        val updatedCallback: ((error: Exception?) -> Unit) = { exception ->
+            if (isStepUpAuthorization.value) {
+                isStepUpAuthorization.value = false
+            }
+
+            showLoader.value = false
+            GlobalScope.launch(Dispatchers.Main) {
+                callback?.invoke(exception)
             }
         }
 
-        val multiFactorStateBase64 =
-            Base64.encodeToString(mfaRequestData.toByteArray(Charsets.UTF_8), Base64.NO_WRAP)
-        val directLogin = mapOf(
-            "type" to "direct",
-            "data" to "$baseUrl/oauth/account/mfa-mobile-authenticator?state=$multiFactorStateBase64",
-            "additionalQueryParams" to mapOf(
-                "prompt" to "consent"
-            )
-        )
-        val jsonData = JSONObject(directLogin).toString().toByteArray(Charsets.UTF_8)
-        val loginDirectAction = Base64.encodeToString(jsonData, Base64.NO_WRAP)
+        GlobalScope.launch(Dispatchers.IO) {
+            try {
+                if (isAttempt) {
+                    // Wait for server refresh data
+                    delay(500)
 
-        if (isEmbeddedMode) {
-            EmbeddedAuthActivity.authenticateWithMultiFactor(
-                activity,
-                loginDirectAction,
-                authCallback
-            )
-        } else {
-            AuthenticationActivity.authenticateWithMultiFactor(
-                activity,
-                loginDirectAction,
-                authCallback
-            )
+                    // Check if EmbeddedAuthActivity is finished
+                    EmbeddedAuthActivity.waitOnActivityDestroyed()
+                }
+
+                stepUpAuthenticator.stepUp(activity, maxAge, updatedCallback)
+            } catch (e: NotAuthenticatedException) {
+                if (isAttempt) {
+                    updatedCallback(e)
+                    return@launch
+                }
+
+                isStepUpAuthorization.value = false
+                isReAuthorization.value = true
+                login(activity) { exception ->
+                    if (exception != null) {
+                        updatedCallback(exception)
+                        return@login
+                    }
+                    if (!stepUpAuthenticator.isSteppedUp(maxAge)) {
+                        stepUpAction(activity, maxAge, true, callback)
+                    }
+                }
+            } catch (e: Exception) {
+                updatedCallback(e)
+            }
         }
-
     }
+//endregion
 
     fun reinitWithRegion() {
         this.initializeSubscriptions()
@@ -391,6 +425,8 @@ class FronteggAuthService(
             this.accessToken.value = accessToken
             this.user.value = user
             this.isAuthenticated.value = true
+            this.isReAuthorization.value = false
+            this.isStepUpAuthorization.value = false
 
             // Cancel previous job if it exists
             refreshTokenTimer.cancelLastTimer()

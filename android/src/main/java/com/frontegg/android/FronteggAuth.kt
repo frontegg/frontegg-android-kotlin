@@ -4,6 +4,7 @@ import android.app.Activity
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.ReadOnlyObservableValue
+import kotlin.time.Duration
 
 
 /**
@@ -38,6 +39,8 @@ interface FronteggAuth {
     val initializing: ReadOnlyObservableValue<Boolean>
     val showLoader: ReadOnlyObservableValue<Boolean>
     val refreshingToken: ReadOnlyObservableValue<Boolean>
+    val isStepUpAuthorization: ReadOnlyObservableValue<Boolean>
+    val isReAuthorization: ReadOnlyObservableValue<Boolean>
 
     val baseUrl: String
     val clientId: String
@@ -62,7 +65,7 @@ interface FronteggAuth {
     fun login(
         activity: Activity,
         loginHint: String? = null,
-        callback: (() -> Unit)? = null
+        callback: ((Exception?) -> Unit)? = null
     )
 
     /**
@@ -88,7 +91,7 @@ interface FronteggAuth {
         activity: Activity,
         type: String,
         data: String,
-        callback: (() -> Unit)? = null
+        callback: ((Exception?) -> Unit)? = null
     )
 
     /**
@@ -156,6 +159,29 @@ interface FronteggAuth {
         refreshToken: String,
         deviceTokenCookie: String? = null,
         callback: (Result<User>) -> Unit
+    )
+
+    /**
+     * Checks whether step-up authentication has been performed and is still valid.
+     *
+     * @param maxAge The maximum duration allowed for authentication validity. If provided, the authentication time is validated against this duration.
+     * @return `true` if step-up authentication is valid, otherwise `false`.
+     */
+    fun isSteppedUp(
+        maxAge: Duration? = null,
+    ): Boolean
+
+    /**
+     * Initiates a step-up authentication process for the given activity.
+     *
+     * @param activity The current activity where authentication should take place.
+     * @param callback A callback to be invoked after the step-up authentication process completes, providing an optional error if one occurs.
+     * @param maxAge The maximum duration allowed for authentication validity.
+     */
+    fun stepUp(
+        activity: Activity,
+        maxAge: Duration? = null,
+        callback: ((error: Exception?) -> Unit)? = null,
     )
 
 

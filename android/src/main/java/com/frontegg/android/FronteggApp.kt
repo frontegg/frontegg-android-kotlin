@@ -10,6 +10,7 @@ import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
 import com.frontegg.android.utils.isActivityEnabled
+import com.frontegg.debug.AndroidDebugConfigurationChecker
 
 /**
  * An initialization class of Frontegg SDK. Use [init] or [initWithRegions] static methods
@@ -77,6 +78,10 @@ interface FronteggApp {
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass
             )
+            
+            val debugChecker = AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
+            debugChecker.runChecks()
+            
         }
 
         /**
@@ -114,6 +119,10 @@ interface FronteggApp {
                         mainActivityClass = mainActivityClass
                     )
                     instance = newInstance
+                    
+                    val debugChecker = AndroidDebugConfigurationChecker(context, regionConfig.baseUrl, regionConfig.clientId)
+                    debugChecker.runChecks()
+
                     return newInstance
                 }
             }

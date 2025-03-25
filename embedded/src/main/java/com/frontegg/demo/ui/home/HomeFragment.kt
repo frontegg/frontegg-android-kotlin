@@ -11,6 +11,8 @@ import androidx.lifecycle.ViewModelProvider
 import com.bumptech.glide.Glide
 import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentHomeBinding
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 class HomeFragment : Fragment() {
 
@@ -22,7 +24,8 @@ class HomeFragment : Fragment() {
     private val binding get() = _binding!!
 
     override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
+        inflater: LayoutInflater,
+        container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View {
         // Initialize the ViewModel associated with this fragment
@@ -52,6 +55,44 @@ class HomeFragment : Fragment() {
         // Set up the logout button functionality
         binding.logoutButton.setOnClickListener {
             FronteggAuth.instance.logout()
+        }
+
+        // Set up the step-up button functionality
+        binding.stepUpButton.setOnClickListener {
+            val maxAge = 60.toDuration(DurationUnit.MINUTES)
+
+            val isSteppedUp = FronteggAuth.instance.isSteppedUp(maxAge)
+            if (isSteppedUp) {
+                Toast.makeText(
+                    requireContext(),
+                    "No need step up right now!",
+                    Toast.LENGTH_LONG
+                ).show()
+                return@setOnClickListener
+            }
+            activity?.let { activity ->
+
+
+                FronteggAuth.instance.stepUp(
+                    activity,
+                    maxAge,
+                )
+                { exception ->
+                    if (exception != null) {
+                        Toast.makeText(
+                            requireContext(),
+                            "ERROR: ${exception.message}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        Toast.makeText(
+                            requireContext(),
+                            "FINISHED",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            }
         }
 
         // Set up the register passkeys button functionality
