@@ -128,31 +128,6 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)
-    fun generateStepUp(maxAge: Long? = null): String {
-        val body = JsonObject().apply {
-            addProperty(StepUpConstants.STEP_UP_MAX_AGE_PARAM_NAME, maxAge)
-        }
-
-        val response = buildPostRequest(ApiConstants.generateStepUp, body).execute()
-        val responseBody = response.body?.string()
-
-        if (response.isSuccessful && responseBody != null) {
-            return responseBody
-        }
-        else if (response.code == 400 && responseBody != null) {
-            val gson = Gson()
-            val mapType = object : TypeToken<MutableMap<String, Any>>() {}.type
-
-            val errorMap: MutableMap<String, Any> = gson.fromJson(responseBody, mapType)
-            if (errorMap["errorCode"] == "ER-01097") {
-                throw MFANotEnrolledException()
-            }
-        }
-
-        throw NotAuthenticatedException()
-    }
-
-    @Throws(IllegalArgumentException::class, IOException::class)
     fun me(): User? {
         val meCall = buildGetRequest(ApiConstants.me)
         val meResponse = meCall.execute()

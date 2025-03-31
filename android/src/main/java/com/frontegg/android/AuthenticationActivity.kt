@@ -7,14 +7,19 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.webkit.CookieManager
 import androidx.browser.customtabs.CustomTabsIntent
+import com.frontegg.android.EmbeddedAuthActivity.Companion
 import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.FronteggState
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import kotlin.math.max
 import kotlin.time.Duration
+import kotlin.time.DurationUnit
+import kotlin.time.toDuration
 
 class AuthenticationActivity : Activity() {
     private val storage = FronteggInnerStorage()
@@ -91,7 +96,7 @@ class AuthenticationActivity : Activity() {
      * when using external browser login
      */
     private fun invokeAuthFinishedCallback(exception: FronteggException? = null) {
-        if (FronteggAuth.instance.isEmbeddedMode) {
+        if (FronteggAuth.instance.isEmbeddedMode && !FronteggState.isStepUpAuthorization.value) {
             return
         }
         onAuthFinishedCallback?.invoke(exception)

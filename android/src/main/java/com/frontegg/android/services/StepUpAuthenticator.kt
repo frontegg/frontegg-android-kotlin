@@ -70,41 +70,7 @@ class StepUpAuthenticator(
 
         FronteggState.showLoader.value = true
         FronteggState.isStepUpAuthorization.value = true
-
-        GlobalScope.launch(Dispatchers.IO) {
-
-
-            try {
-                val scope = ScopeProvider.mainScope
-//                    val mfaRequestData = api.generateStepUp(maxAge?.inWholeSeconds)
-                scope.launch {
-                    authenticateWithStepUp(activity, maxAge, updatedCallback)
-
-//                    multiFactorAuthenticator.start(activity, updatedCallback, mfaRequestData)
-                }
-            } catch (e: Exception) {
-                exceptionHandler(e, activity, maxAge, updatedCallback)
-            }
-        }
-    }
-
-    private fun exceptionHandler(
-        e: Exception,
-        activity: Activity,
-        maxAge: Duration?,
-        callback: ((Exception?) -> Unit)
-    ) = when (e) {
-        is NotAuthenticatedException -> {
-            authenticateWithStepUp(activity, maxAge, callback)
-        }
-
-        is MFANotEnrolledException -> {
-            authenticateWithStepUp(activity, maxAge, callback)
-        }
-
-        else -> {
-            callback(e)
-        }
+        authenticateWithStepUp(activity, maxAge, updatedCallback)
     }
 
     private fun authenticateWithStepUp(
@@ -119,24 +85,16 @@ class StepUpAuthenticator(
         }
     }
 
-    @OptIn(DelicateCoroutinesApi::class)
     fun handleHostedLoginCallback(
         activity: Activity?,
     ) {
         if (!FronteggState.isStepUpAuthorization.value) return
-        if (storage.isEmbeddedMode && activity != null && !isSteppedUp(maxAge)) {
-            GlobalScope.launch(Dispatchers.IO) {
-                try {
-                    val mfaRequestData = api.generateStepUp(maxAge?.inWholeSeconds)
-                    val loginAction = multiFactorAuthenticator.createMFALoginAction(mfaRequestData)
-                    EmbeddedAuthActivity.authenticateWithStepUpMultiFactor(
-                        activity,
-                        loginAction
-                    )
-                } catch (e: Exception) {
-                    callback?.let { it(e) }
-                }
-            }
+        if (storage.isEmbeddedMode && activity != null && !isSteppedUp(maxAge) && activity is AuthenticationActivity) {
+            AuthenticationActivity.authenticateWithStepUp(
+                activity,
+                maxAge,
+                callback
+            )
         } else {
             FronteggState.isStepUpAuthorization.value = false
         }

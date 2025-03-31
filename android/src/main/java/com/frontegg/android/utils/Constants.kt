@@ -16,7 +16,6 @@ class ApiConstants {
         const val registerWebauthnDevice: String = "identity/resources/users/webauthn/v1/devices"
         const val verifyWebauthnDevice: String =
             "identity/resources/users/webauthn/v1/devices/verify"
-        const val generateStepUp: String = "identity/resources/auth/v1/user/step-up/generate"
 
         /**
          * used to get oauth accessToken/refreshToken without webview
