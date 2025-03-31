@@ -62,8 +62,7 @@ class FronteggAuthService(
     private val storage = StorageProvider.getInnerStorage()
     private val multiFactorAuthenticator =
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
-    private val stepUpAuthenticator =
-        StepUpAuthenticatorProvider.getStepUpAuthenticator(api, credentialManager)
+    private val stepUpAuthenticator = StepUpAuthenticatorProvider.getStepUpAuthenticator(credentialManager)
 
     override val isMultiRegion: Boolean
         get() = regions.isNotEmpty()
