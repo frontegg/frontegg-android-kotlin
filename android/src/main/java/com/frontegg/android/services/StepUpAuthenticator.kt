@@ -16,9 +16,7 @@ import java.time.Instant
 import kotlin.time.Duration
 
 class StepUpAuthenticator(
-    private val api: Api,
     private val credentialManager: CredentialManager,
-    private val multiFactorAuthenticator: MultiFactorAuthenticator = MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator(),
     private val storage: FronteggInnerStorage = StorageProvider.getInnerStorage()
 ) {
 

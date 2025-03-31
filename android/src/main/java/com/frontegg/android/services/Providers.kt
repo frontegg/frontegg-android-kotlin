@@ -43,11 +43,9 @@ object MultiFactorAuthenticatorProvider {
 
 object StepUpAuthenticatorProvider {
     fun getStepUpAuthenticator(
-        api: Api,
         credentialManager: CredentialManager,
     ): StepUpAuthenticator {
         return StepUpAuthenticator(
-            api,
             credentialManager
         )
     }
