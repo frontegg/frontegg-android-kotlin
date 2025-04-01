@@ -1,7 +1,12 @@
 package com.frontegg.demo
 
 import android.app.Application
+import android.content.res.ColorStateList
+import android.graphics.Color
+import android.widget.Button
+import android.widget.ProgressBar
 import com.frontegg.android.FronteggApp
+import com.frontegg.android.ui.DefaultLoader
 
 class App : Application() {
 
@@ -12,6 +17,14 @@ class App : Application() {
     override fun onCreate() {
         super.onCreate()
         instance = this
+        DefaultLoader.setLoaderProvider {
+           val progressBar = ProgressBar(it)
+            val colorStateList = ColorStateList.valueOf(Color.RED)
+            progressBar.indeterminateTintList = colorStateList
+
+            progressBar
+        }
+
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,

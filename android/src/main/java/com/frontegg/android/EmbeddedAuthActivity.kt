@@ -12,6 +12,7 @@ import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.StepUpAuthenticator
+import com.frontegg.android.ui.DefaultLoader
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
@@ -33,8 +34,10 @@ class EmbeddedAuthActivity : Activity() {
         overridePendingTransition(R.anim.fadein, R.anim.fadeout)
 
         webView = findViewById(R.id.custom_webview)
-        loaderLayout = findViewById(R.id.loaderView)
-
+        loaderContainer = findViewById(R.id.loaderContainer)
+        val loaderView = DefaultLoader.create(this)
+        loaderContainer?.addView(loaderView)
+        loaderContainer?.visibility = View.VISIBLE
 
         consumeIntent(intent)
     }
@@ -114,15 +117,15 @@ class EmbeddedAuthActivity : Activity() {
     }
 
     private val disposables: ArrayList<Disposable> = arrayListOf()
-    private var loaderLayout: LinearLayout? = null
+    private var loaderContainer: LinearLayout? = null
 
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
-            if (FronteggAuth.instance.isStepUpAuthorization.value) {
-                loaderLayout?.visibility = if (it.value) View.VISIBLE else View.GONE
+            if (FronteggAuth.instance.isStepUpAuthorization.value || FronteggAuth.instance.isReAuthorization.value) {
+                loaderContainer?.visibility = if (it.value) View.VISIBLE else View.GONE
             } else {
-                loaderLayout?.visibility =
+                loaderContainer?.visibility =
                     if (it.value || FronteggAuth.instance.isAuthenticated.value) View.VISIBLE else View.GONE
             }
         }
@@ -315,5 +318,6 @@ class EmbeddedAuthActivity : Activity() {
             intent.addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP)
             activity.startActivity(intent)
         }
+
     }
 }
