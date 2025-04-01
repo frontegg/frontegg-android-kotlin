@@ -122,7 +122,7 @@ class EmbeddedAuthActivity : Activity() {
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
-            if (FronteggAuth.instance.isStepUpAuthorization.value || FronteggAuth.instance.isReAuthorization.value) {
+            if (FronteggAuth.instance.isStepUpAuthorization.value) {
                 loaderContainer?.visibility = if (it.value) View.VISIBLE else View.GONE
             } else {
                 loaderContainer?.visibility =
