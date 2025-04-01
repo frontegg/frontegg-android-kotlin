@@ -4,6 +4,7 @@ import android.util.Log
 import com.frontegg.android.exceptions.CookieNotFoundException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
+import com.frontegg.android.exceptions.MFANotEnrolledException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
@@ -124,22 +125,6 @@ open class Api(
 
         val request = requestBuilder.build()
         return this.httpClient.newCall(request)
-    }
-
-    @Throws(IllegalArgumentException::class, IOException::class)
-    fun generateStepUp(maxAge: Long? = null): String {
-        val body = JsonObject().apply {
-            addProperty(StepUpConstants.STEP_UP_MAX_AGE_PARAM_NAME, maxAge)
-        }
-
-        val response = buildPostRequest(ApiConstants.generateStepUp, body).execute()
-        val responseBody = response.body?.string()
-
-        if (response.isSuccessful && responseBody != null) {
-            return responseBody
-        }
-
-        throw NotAuthenticatedException()
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)

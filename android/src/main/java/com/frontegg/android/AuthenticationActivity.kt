@@ -12,7 +12,10 @@ import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.FronteggState
+import com.frontegg.android.services.StepUpAuthenticator
 import com.frontegg.android.utils.AuthorizeUrlGenerator
+import kotlin.time.Duration
 
 class AuthenticationActivity : Activity() {
     private val storage = FronteggInnerStorage()
@@ -39,6 +42,8 @@ class AuthenticationActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+
+        StepUpAuthenticator.resumeAuthenticationActivity()
 
         val intentLaunched = intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
         Log.d(TAG, "onResume | intentLaunched: $intentLaunched")
@@ -89,7 +94,7 @@ class AuthenticationActivity : Activity() {
      * when using external browser login
      */
     private fun invokeAuthFinishedCallback(exception: FronteggException? = null) {
-        if (FronteggAuth.instance.isEmbeddedMode) {
+        if (FronteggAuth.instance.isEmbeddedMode && !FronteggState.isStepUpAuthorization.value) {
             return
         }
         onAuthFinishedCallback?.invoke(exception)
@@ -146,6 +151,23 @@ class AuthenticationActivity : Activity() {
         ) {
             val intent = Intent(activity, AuthenticationActivity::class.java)
             val authorizeUri = AuthorizeUrlGenerator().generate(loginAction = mfaLoginAction)
+            intent.putExtra(AUTH_LAUNCHED, true)
+            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+            intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
+            onAuthFinishedCallback = callback
+            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+        }
+
+        fun authenticateWithStepUp(
+            activity: Activity,
+            maxAge: Duration? = null,
+            callback: ((Exception?) -> Unit)? = null,
+        ) {
+            val intent = Intent(activity, AuthenticationActivity::class.java)
+            val authorizeUri = AuthorizeUrlGenerator().generate(
+                stepUp = true,
+                maxAge = maxAge
+            )
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)

@@ -15,7 +15,6 @@ import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
-import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
@@ -23,13 +22,11 @@ import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
-import com.frontegg.android.utils.ObservableValue
 import com.frontegg.android.utils.calculateTimerOffset
 import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlin.time.Duration
@@ -51,23 +48,22 @@ class FronteggAuthService(
 
     }
 
-    override var accessToken: ObservableValue<String?> = ObservableValue(null)
-    override var refreshToken: ObservableValue<String?> = ObservableValue(null)
-    override val user: ObservableValue<User?> = ObservableValue(null)
-    override val isAuthenticated: ObservableValue<Boolean> = ObservableValue(false)
-    override val isLoading: ObservableValue<Boolean> = ObservableValue(true)
-    override val initializing: ObservableValue<Boolean> = ObservableValue(true)
-    override val showLoader: ObservableValue<Boolean> = ObservableValue(true)
-    override val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
-    override val isStepUpAuthorization: ObservableValue<Boolean> = ObservableValue(false)
-    override val isReAuthorization: ObservableValue<Boolean> = ObservableValue(false)
+    override val accessToken = FronteggState.accessToken
+    override val refreshToken = FronteggState.refreshToken
+    override val user = FronteggState.user
+    override val isAuthenticated = FronteggState.isAuthenticated
+    override val isLoading = FronteggState.isLoading
+    override val initializing = FronteggState.initializing
+    override val showLoader = FronteggState.showLoader
+    override val refreshingToken = FronteggState.refreshingToken
+    override val isStepUpAuthorization = FronteggState.isStepUpAuthorization
 
     private val api = ApiProvider.getApi(credentialManager)
     private val storage = StorageProvider.getInnerStorage()
     private val multiFactorAuthenticator =
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
     private val stepUpAuthenticator =
-        StepUpAuthenticatorProvider.getStepUpAuthenticator(api, credentialManager)
+        StepUpAuthenticatorProvider.getStepUpAuthenticator(credentialManager)
 
     override val isMultiRegion: Boolean
         get() = regions.isNotEmpty()
@@ -346,65 +342,14 @@ class FronteggAuthService(
         activity: Activity,
         maxAge: Duration?,
         callback: ((error: Exception?) -> Unit)?,
-    ) = stepUpAction(
-        activity,
-        maxAge,
-        callback = callback,
-    )
-
-    private fun stepUpAction(
-        activity: Activity,
-        maxAge: Duration?,
-        isAttempt: Boolean = false,
-        callback: ((error: Exception?) -> Unit)?,
     ) {
-        isStepUpAuthorization.value = true
-        showLoader.value = true
-
-        val updatedCallback: ((error: Exception?) -> Unit) = { exception ->
-            if (isStepUpAuthorization.value) {
-                isStepUpAuthorization.value = false
-            }
-
-            showLoader.value = false
-            GlobalScope.launch(Dispatchers.Main) {
-                callback?.invoke(exception)
-            }
-        }
-
-        GlobalScope.launch(Dispatchers.IO) {
-            try {
-                if (isAttempt) {
-                    // Wait for server refresh data
-                    delay(500)
-
-                    // Check if EmbeddedAuthActivity is finished
-                    EmbeddedAuthActivity.waitOnActivityDestroyed()
-                }
-
-                stepUpAuthenticator.stepUp(activity, maxAge, updatedCallback)
-            } catch (e: NotAuthenticatedException) {
-                if (isAttempt) {
-                    updatedCallback(e)
-                    return@launch
-                }
-
-                isStepUpAuthorization.value = false
-                isReAuthorization.value = true
-                login(activity) { exception ->
-                    if (exception != null) {
-                        updatedCallback(exception)
-                        return@login
-                    }
-                    if (!stepUpAuthenticator.isSteppedUp(maxAge)) {
-                        stepUpAction(activity, maxAge, true, callback)
-                    }
-                }
-            } catch (e: Exception) {
-                updatedCallback(e)
-            }
-        }
+        stepUpAuthenticator.stepUp(
+            activity,
+            maxAge,
+            callback
+        )
     }
+
 //endregion
 
     fun reinitWithRegion() {
@@ -425,12 +370,9 @@ class FronteggAuthService(
             this.accessToken.value = accessToken
             this.user.value = user
             this.isAuthenticated.value = true
-            this.isReAuthorization.value = false
-            this.isStepUpAuthorization.value = false
 
             // Cancel previous job if it exists
             refreshTokenTimer.cancelLastTimer()
-
 
             if (decoded.exp > 0) {
                 val offset = decoded.exp.calculateTimerOffset()
@@ -455,6 +397,10 @@ class FronteggAuthService(
         activity: Activity? = null,
         callback: (() -> Unit)? = null,
     ): Boolean {
+        if (stepUpAuthenticator.handleHostedLoginCallback(activity)) {
+            return false
+        }
+
         val codeVerifier = credentialManager.getCodeVerifier()
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
 
@@ -466,6 +412,7 @@ class FronteggAuthService(
             val data = api.exchangeToken(code, redirectUrl, codeVerifier)
             if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
+
                 callback?.invoke()
             } else {
                 Log.e(TAG, "Failed to exchange token")

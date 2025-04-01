@@ -24,17 +24,15 @@ import kotlin.time.toDuration
 
 class StepUpAuthenticatorTest {
 
-    private lateinit var api: Api
     private lateinit var credentialManager: CredentialManager
     private lateinit var multiFactorAuthenticator: MultiFactorAuthenticator
     private lateinit var stepUpAuthenticator: StepUpAuthenticator
 
     @Before
     fun setUp() {
-        api = mockk()
         credentialManager = mockk()
         multiFactorAuthenticator = mockk()
-        stepUpAuthenticator = StepUpAuthenticator(api, credentialManager, multiFactorAuthenticator)
+        stepUpAuthenticator = StepUpAuthenticator(credentialManager)
 
         mockkObject(ScopeProvider)
         every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
@@ -142,18 +140,5 @@ class StepUpAuthenticatorTest {
         every { JWTHelper.decode("mock_token") } returns mockToken
 
         assertTrue(!stepUpAuthenticator.isSteppedUp())
-    }
-
-    @Test
-    fun `stepUp calls MultiFactorAuthenticator`() = runBlocking {
-        val activity = mockk<Activity>(relaxed = true)
-        val callback: (Exception?) -> Unit = mockk(relaxed = true)
-
-        coEvery { api.generateStepUp(any()) } returns ""
-        coEvery { multiFactorAuthenticator.start(activity, callback, "") } just Runs
-
-        stepUpAuthenticator.stepUp(activity, callback = callback)
-
-        coVerify { multiFactorAuthenticator.start(activity, callback, "") }
     }
 }

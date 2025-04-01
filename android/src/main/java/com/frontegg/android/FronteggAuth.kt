@@ -40,7 +40,6 @@ interface FronteggAuth {
     val showLoader: ReadOnlyObservableValue<Boolean>
     val refreshingToken: ReadOnlyObservableValue<Boolean>
     val isStepUpAuthorization: ReadOnlyObservableValue<Boolean>
-    val isReAuthorization: ReadOnlyObservableValue<Boolean>
 
     val baseUrl: String
     val clientId: String

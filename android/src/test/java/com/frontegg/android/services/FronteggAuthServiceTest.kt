@@ -71,7 +71,6 @@ class FronteggAuthServiceTest {
         every {
             StepUpAuthenticatorProvider.getStepUpAuthenticator(
                 any(),
-                any()
             )
         } returns stepUpAuthenticator
 
@@ -220,6 +219,7 @@ class FronteggAuthServiceTest {
 
     @Test
     fun `handleHostedLoginCallback should return false if codeVerifier is null`() {
+        every { stepUpAuthenticator.handleHostedLoginCallback(any()) } returns false
         every { credentialManagerMock.getCodeVerifier() }.returns(null)
         every { storageMock.packageName }.returns("dem.test.com")
         every { storageMock.useAssetsLinks }.returns(true)
@@ -231,6 +231,7 @@ class FronteggAuthServiceTest {
 
     @Test
     fun `handleHostedLoginCallback should return true if codeVerifier is not null`() {
+        every { stepUpAuthenticator.handleHostedLoginCallback(any()) } returns false
         every { credentialManagerMock.getCodeVerifier() }.returns("TestCodeVerifier")
         every { storageMock.packageName }.returns("dem.test.com")
         every { storageMock.useAssetsLinks }.returns(true)
@@ -247,6 +248,8 @@ class FronteggAuthServiceTest {
         every { credentialManagerMock.getCodeVerifier() }.returns("TestCodeVerifier")
         every { storageMock.packageName }.returns("dem.test.com")
         every { storageMock.useAssetsLinks }.returns(true)
+
+        every { stepUpAuthenticator.handleHostedLoginCallback(any()) } returns false
         var called = false
 
         every { apiMock.exchangeToken(any(), any(), any()) }.returns(authResponse)
@@ -263,6 +266,8 @@ class FronteggAuthServiceTest {
     fun `handleHostedLoginCallback should call AuthorizeUrlGenerator_generate if data is null and webView is not null`() {
         every { credentialManagerMock.getCodeVerifier() }.returns("TestCodeVerifier")
         every { credentialManagerMock.saveCodeVerifier(any()) }.returns(true)
+
+        every { stepUpAuthenticator.handleHostedLoginCallback(any()) } returns false
 
         every { storageMock.packageName }.returns("dem.test.com")
         every { storageMock.useAssetsLinks }.returns(true)
@@ -291,6 +296,8 @@ class FronteggAuthServiceTest {
 
         every { storageMock.packageName }.returns("dem.test.com")
         every { storageMock.useAssetsLinks }.returns(true)
+
+        every { stepUpAuthenticator.handleHostedLoginCallback(any()) } returns false
 
         every { apiMock.exchangeToken(any(), any(), any()) }.returns(null)
 
