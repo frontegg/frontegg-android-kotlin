@@ -62,7 +62,8 @@ class FronteggAuthService(
     private val storage = StorageProvider.getInnerStorage()
     private val multiFactorAuthenticator =
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
-    private val stepUpAuthenticator = StepUpAuthenticatorProvider.getStepUpAuthenticator(credentialManager)
+    private val stepUpAuthenticator =
+        StepUpAuthenticatorProvider.getStepUpAuthenticator(credentialManager)
 
     override val isMultiRegion: Boolean
         get() = regions.isNotEmpty()
@@ -396,6 +397,10 @@ class FronteggAuthService(
         activity: Activity? = null,
         callback: (() -> Unit)? = null,
     ): Boolean {
+        if (stepUpAuthenticator.handleHostedLoginCallback(activity)) {
+            return false
+        }
+
         val codeVerifier = credentialManager.getCodeVerifier()
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
 
@@ -407,7 +412,7 @@ class FronteggAuthService(
             val data = api.exchangeToken(code, redirectUrl, codeVerifier)
             if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
-                stepUpAuthenticator.handleHostedLoginCallback(activity)
+
                 callback?.invoke()
             } else {
                 Log.e(TAG, "Failed to exchange token")

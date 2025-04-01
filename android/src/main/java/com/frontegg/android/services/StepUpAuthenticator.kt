@@ -3,8 +3,7 @@ package com.frontegg.android.services
 import android.app.Activity
 import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
-import com.frontegg.android.exceptions.MFANotEnrolledException
-import com.frontegg.android.exceptions.NotAuthenticatedException
+import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.StepUpConstants
@@ -43,8 +42,6 @@ class StepUpAuthenticator(
         return isACRValid && isAMRIncludesMFA && isAMRIncludesMethod;
     }
 
-    private var maxAge: Duration? = null
-    private var callback: ((Exception?) -> Unit)? = null
 
     @OptIn(DelicateCoroutinesApi::class)
     fun stepUp(
@@ -52,6 +49,8 @@ class StepUpAuthenticator(
         maxAge: Duration? = null,
         callback: ((Exception?) -> Unit)?,
     ) {
+        embeddedReStepUp = false
+        startOpenAuthActivityInEmbeddedMode = false
         val updatedCallback: ((Exception?) -> Unit) = { exception ->
             if (FronteggState.isStepUpAuthorization.value) {
                 FronteggState.isStepUpAuthorization.value = false
@@ -61,10 +60,12 @@ class StepUpAuthenticator(
             GlobalScope.launch(Dispatchers.Main) {
                 callback?.invoke(exception)
             }
+            StepUpAuthenticator.callback = null
+            StepUpAuthenticator.maxAge = null
         }
 
-        this.maxAge = maxAge
-        this.callback = updatedCallback
+        StepUpAuthenticator.maxAge = maxAge
+        StepUpAuthenticator.callback = updatedCallback
 
         FronteggState.showLoader.value = true
         FronteggState.isStepUpAuthorization.value = true
@@ -85,16 +86,46 @@ class StepUpAuthenticator(
 
     fun handleHostedLoginCallback(
         activity: Activity?,
-    ) {
-        if (!FronteggState.isStepUpAuthorization.value) return
-        if (storage.isEmbeddedMode && activity != null && !isSteppedUp(maxAge) && activity is AuthenticationActivity) {
+    ): Boolean {
+        if (!FronteggState.isStepUpAuthorization.value) return false
+        if (activity != null && activity is AuthenticationActivity &&
+            !startOpenAuthActivityInEmbeddedMode &&
+            storage.isEmbeddedMode &&
+            !isSteppedUp(maxAge)
+        ) {
             AuthenticationActivity.authenticateWithStepUp(
                 activity,
                 maxAge,
-                callback
+                callback,
             )
-        } else {
-            FronteggState.isStepUpAuthorization.value = false
+            startOpenAuthActivityInEmbeddedMode = true
+            return true
+        }
+        embeddedReStepUp = false
+        FronteggState.isStepUpAuthorization.value = false
+        return false
+    }
+
+    companion object {
+        private var embeddedReStepUp = false
+        private var startOpenAuthActivityInEmbeddedMode = false
+        private var maxAge: Duration? = null
+        private var callback: ((Exception?) -> Unit)? = null
+
+        fun resumeAuthenticationActivity() {
+            if (startOpenAuthActivityInEmbeddedMode) {
+                embeddedReStepUp = true
+            }
+        }
+
+        fun resumeEmbeddedActivity() {
+            if (embeddedReStepUp) {
+                callback?.invoke(CanceledByUserException())
+                EmbeddedAuthActivity.onAuthFinishedCallback = null
+                FronteggState.isStepUpAuthorization.value = false
+                embeddedReStepUp = false
+                startOpenAuthActivityInEmbeddedMode = false
+            }
         }
     }
 }

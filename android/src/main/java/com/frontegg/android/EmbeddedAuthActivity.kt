@@ -11,12 +11,11 @@ import com.frontegg.android.embedded.FronteggWebView
 import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.StepUpAuthenticator
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
-import kotlinx.coroutines.delay
-import java.lang.ref.WeakReference
 import kotlin.time.Duration
 
 
@@ -164,7 +163,8 @@ class EmbeddedAuthActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
-        lastActivity = WeakReference(this)
+
+        StepUpAuthenticator.resumeEmbeddedActivity()
 
         disposables.add(FronteggAuth.instance.showLoader.subscribe(this.showLoaderConsumer))
 
@@ -227,19 +227,6 @@ class EmbeddedAuthActivity : Activity() {
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
         var onAuthFinishedCallback: ((error: Exception?) -> Unit)? = null // Store callback
-        private var lastActivity: WeakReference<Activity>? = null
-
-        fun isActivityDestroyed(): Boolean {
-            val activity = lastActivity?.get()
-            Log.d(TAG, "isActivityActive, isDestroyed: ${activity?.isDestroyed}")
-            return activity != null && !activity.isDestroyed
-        }
-
-        suspend fun waitOnActivityDestroyed() {
-            while (isActivityDestroyed()) {
-                delay(50)
-            }
-        }
 
         @JvmStatic
         fun authenticate(
