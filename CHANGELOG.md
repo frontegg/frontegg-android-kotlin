@@ -1,4 +1,7 @@
 ## v
+- fixed `onPullRequestMerged` workflow
+
+## v
 - Fix step-up
 
 ## v1.2.35
