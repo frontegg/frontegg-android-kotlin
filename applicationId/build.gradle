@@ -1,0 +1,131 @@
+plugins {
+    id 'com.android.application'
+    id 'org.jetbrains.kotlin.android'
+}
+
+Properties testProperties = new Properties()
+testProperties.load(project.rootProject.file('test.properties').newDataInputStream())
+
+Properties fronteggProperties = new Properties()
+fronteggProperties.load(project.rootProject.file('frontegg.properties').newDataInputStream())
+
+def fronteggDomain = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN", "").toString()
+def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "").toString()
+def fronteggApplicationId = fronteggProperties.getOrDefault("FRONTEGG_APPLICATION_ID", "").toString()
+
+
+android {
+    namespace 'com.frontegg.demo'
+    compileSdk 34
+    compileSdkVersion 34
+
+    defaultConfig {
+        applicationId "com.frontegg.demo"
+        minSdk 26
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+
+        manifestPlaceholders = [
+                "package_name"      : applicationId,
+                "frontegg_domain"   : fronteggDomain,
+                "frontegg_client_id": fronteggClientId,
+        ]
+
+        buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
+        buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
+        buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
+
+        testInstrumentationRunnerArguments["LOGIN_EMAIL"] = testProperties.getOrDefault("LOGIN_EMAIL", "")
+        testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = testProperties.getOrDefault("LOGIN_PASSWORD", "")
+
+        testInstrumentationRunnerArguments["FRONTEGG_APPLICATION_ID"] = fronteggApplicationId
+    }
+
+    testOptions {
+        execution "ANDROIDX_TEST_ORCHESTRATOR"
+    }
+
+    signingConfigs {
+        release {
+            storeFile file(project.property("RELEASE_STORE_FILE"))
+            storePassword project.property("RELEASE_STORE_PASSWORD")
+            keyAlias project.property("RELEASE_KEY_ALIAS")
+            keyPassword project.property("RELEASE_KEY_PASSWORD")
+        }
+        debug {
+            storeFile file(project.property("DEBUG_STORE_FILE"))
+            storePassword project.property("DEBUG_STORE_PASSWORD")
+            keyAlias project.property("DEBUG_KEY_ALIAS")
+            keyPassword project.property("DEBUG_KEY_PASSWORD")
+        }
+    }
+    
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.release
+        }
+        debug {
+            signingConfig signingConfigs.debug
+            minifyEnabled false
+            shrinkResources false
+            debuggable true
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    buildFeatures {
+        viewBinding true
+        buildConfig true
+    }
+    buildToolsVersion buildToolsVersion
+
+}
+
+
+dependencies {
+
+    implementation 'androidx.core:core-ktx:1.10.0'
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+    implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
+    implementation 'com.google.android.material:material:1.8.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
+    implementation 'androidx.navigation:navigation-fragment-ktx:2.5.3'
+    implementation 'androidx.navigation:navigation-ui-ktx:2.5.3'
+    implementation 'androidx.tracing:tracing:1.1.0'
+    implementation project(path: ':android')
+    implementation 'androidx.lifecycle:lifecycle-livedata-ktx:2.6.1'
+    implementation 'androidx.lifecycle:lifecycle-viewmodel-ktx:2.6.1'
+    implementation 'de.hdodenhof:circleimageview:3.1.0'
+    implementation 'com.github.bumptech.glide:glide:4.12.0'
+
+    androidTestImplementation 'org.jetbrains.kotlin:kotlin-stdlib:' + rootProject.kotlinVersion
+    androidTestImplementation 'androidx.test:core:' + rootProject.coreVersion
+    androidTestImplementation 'androidx.test:core-ktx:' + rootProject.coreVersion
+    androidTestImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
+    androidTestImplementation 'androidx.test.ext:junit-ktx:' + rootProject.extJUnitVersion
+    androidTestImplementation 'androidx.test:rules:1.6.0-alpha01'
+    androidTestImplementation 'androidx.test:runner:1.6.0-alpha02'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test.espresso:espresso-intents:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test.espresso:espresso-web:' + rootProject.espressoVersion
+    androidTestImplementation 'androidx.test:monitor:1.7.0-alpha01'
+
+    testImplementation 'androidx.test:core:' + rootProject.coreVersion
+    testImplementation 'androidx.test.ext:junit:' + rootProject.extJUnitVersion
+    testImplementation 'junit:junit:4.13.2'
+
+    implementation "androidx.test.uiautomator:uiautomator:2.2.0"
+    androidTestUtil "androidx.test:orchestrator:1.5.1"
+}

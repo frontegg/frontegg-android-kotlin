@@ -13,9 +13,11 @@ class JWT {
     lateinit var iss: String
     var iat: Long = 0
     var exp: Long = 0
+    var applicationId: String? = null
     var amr: List<String> = listOf()
     var auth_time: Long? = null
     var acr: String? = null
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
@@ -34,6 +36,7 @@ class JWT {
         if (amr != other.amr) return false
         if (auth_time != other.auth_time) return false
         if (acr != other.acr) return false
+        if (applicationId != other.applicationId) return false
 
         return true
     }
@@ -51,10 +54,12 @@ class JWT {
         result = 31 * result + amr.hashCode()
         result = 31 * result + (auth_time?.hashCode() ?: 0)
         result = 31 * result + (acr?.hashCode() ?: 0)
+        if (applicationId != null) {
+            result = 31 * result + applicationId.hashCode()
+        }
+
         return result
     }
-
-
 }
 
 object JWTHelper {

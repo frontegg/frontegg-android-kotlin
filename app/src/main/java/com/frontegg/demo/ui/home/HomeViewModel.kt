@@ -10,6 +10,7 @@ import com.frontegg.android.models.User
 
 class HomeViewModel : ViewModel() {
 
+    // LiveData to store the current user object, initially set to null
     private val _user = MutableLiveData<User?>().apply {
         FronteggAuth.instance.user.subscribe {
             Handler(Looper.getMainLooper()).post {
@@ -20,6 +21,4 @@ class HomeViewModel : ViewModel() {
 
 
     val user: LiveData<User?> = _user
-
-
 }
