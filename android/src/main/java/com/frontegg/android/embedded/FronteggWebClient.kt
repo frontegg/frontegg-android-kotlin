@@ -295,13 +295,21 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
         val url = request?.url
 
         if (url != null) {
-            when (getOverrideUrlType(request.url)) {
+            if (url.toString().contains("terms", ignoreCase = true) ||
+                url.toString().contains("privacy", ignoreCase = true) ||
+                url.toString().endsWith(".pdf", ignoreCase = true)
+            ) {
+                openExternalBrowser(url)
+                return true
+            }
+
+            when (getOverrideUrlType(url)) {
                 OverrideUrlType.HostedLoginCallback -> {
-                    return handleHostedLoginCallback(view, request.url?.query)
+                    return handleHostedLoginCallback(view, url.query)
                 }
 
                 OverrideUrlType.SocialOauthPreLogin -> {
-                    if (setSocialLoginRedirectUri(view!!, request.url)) {
+                    if (setSocialLoginRedirectUri(view!!, url)) {
                         return true
                     }
                     return super.shouldOverrideUrlLoading(view, request)
@@ -314,9 +322,9 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
                     return super.shouldOverrideUrlLoading(view, request)
                 }
             }
-        } else {
-            return super.shouldOverrideUrlLoading(view, request)
         }
+
+        return super.shouldOverrideUrlLoading(view, request)
     }
 
 
