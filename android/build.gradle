@@ -7,7 +7,7 @@ plugins {
 
 
 group 'com.frontegg.android'
-version '1.2.37'
+version '1.2.38'
 
 
 android {
