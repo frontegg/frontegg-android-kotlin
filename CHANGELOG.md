@@ -1,3 +1,6 @@
+## v
+- FIxed `RefreshTokenJobService`.
+
 ## v1.2.37
 - fixed `onPullRequestMerged` workflow
 - ✅ Legal links like /terms-of-use/ or /privacy-policy/ or .pdf will open in the system browser
