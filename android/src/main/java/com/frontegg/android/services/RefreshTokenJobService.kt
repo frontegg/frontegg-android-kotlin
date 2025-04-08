@@ -22,7 +22,7 @@ class RefreshTokenJobService : JobService() {
             null
         }
     
-        if (appInstance == null || appInstance !is FronteggAppService || !appInstance.isAppInForeground()) {
+        if (appInstance == null || appInstance !is FronteggAppService || appInstance.isAppInForeground()) {
             Log.d(TAG, "Either FronteggApp is not initialized, not of type FronteggAppService, or the app is not in the foreground. Skipping token refresh.")
             jobFinished(params, false)
             return false
