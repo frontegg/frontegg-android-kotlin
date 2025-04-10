@@ -869,7 +869,7 @@ This guide describes how to use the `isSteppedUp` and `stepUp` methods in your A
 Triggers the step-up authentication process. Typically involves MFA or other user verification.
 
 ```kotlin
-authenticationManager.stepUp(
+FronteggAuth.instance.stepUp(
     activity = this,
     maxAge = Duration.ofMinutes(5)
 ) { error ->
@@ -910,17 +910,17 @@ Example Use Case:
 
 ```kotlin
 fun onSecureActionClicked() {
-    if (FronteggAuth.instance.isSteppedUp(maxAge = Duration.ofMinutes(5))) {
+  if (FronteggAuth.instance.isSteppedUp(maxAge = Duration.ofMinutes(5))) {
+    performSecureOperation()
+  } else {
+    FronteggAuth.instance.stepUp(this, Duration.ofMinutes(5)) { error ->
+      if (error == null) {
         performSecureOperation()
-    } else {
-        authenticationManager.stepUp(this, Duration.ofMinutes(5)) { error ->
-            if (error == null) {
-                performSecureOperation()
-            } else {
-                Toast.makeText(this, "Step-up failed: ${error.message}", Toast.LENGTH_LONG).show()
-            }
-        }
+      } else {
+        Toast.makeText(this, "Step-up failed: ${error.message}", Toast.LENGTH_LONG).show()
+      }
     }
+  }
 }
 
 fun performSecureOperation() {
