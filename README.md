@@ -26,6 +26,8 @@ and integrate them into their SaaS portals in up to 5 lines of code.
     - [Switch Tenant](#switch-tenant)
     - [Passkey Authentication](#passkey-authentication)
     - [Usage of DefaultLoader](#usage-of-DefaultLoader)
+    - [Step-Up](#step-up)
+
 
 ## Get Started
 
@@ -33,57 +35,60 @@ and integrate them into their SaaS portals in up to 5 lines of code.
 
 - Android SDK 26+
   Set defaultConfig's minSDK to 26+ in build.gradle:
-  
+
 Groovy:
-  
+
   ```groovy
   android {
-      defaultConfig {
-          minSdk 26
-      }
-  }
+    defaultConfig {
+        minSdk 26
+    }
+}
   ```
-  
+
 Kotlin:
-  
+
   ```kotlin
   android {
-      defaultConfig {
-          minSdk = 26
-      }
-  }
+    defaultConfig {
+        minSdk = 26
+    }
+}
   ```
+
 - Java 8+
   Set target java 8 byte code for Android and Kotlin plugins respectively build.gradle:
-  
+
 Groovy:
-  
+
   ```groovy
   android {
-      compileOptions {
-          sourceCompatibility JavaVersion.VERSION_1_8
-          targetCompatibility JavaVersion.VERSION_1_8
-      }
-  
-      kotlinOptions {
-          jvmTarget = '1.8'
-      }
-  }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+}
   ```
+
 Kotlin:
-  
+
   ```kotlin
     android {
-      compileOptions {
-          sourceCompatibility = JavaVersion.VERSION_1_8
-          targetCompatibility = JavaVersion.VERSION_1_8
-      }
-  
-      kotlinOptions {
-          jvmTarget = "1.8"
-      }
-  	}
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = "1.8"
+    }
+}
   ```
+
 ### Prepare Frontegg workspace
 
 Navigate to [Frontegg Portal Settings](https://portal.frontegg.com/development/settings), If you
@@ -122,11 +127,11 @@ Groovy:
 ```
 
 Kotlin:
-  
+
 ```kotlin
     dependencies {
     // Add the Frontegg Android Kotlin SDK
-    implementation ("com.frontegg.sdk:android:LATEST_VERSION")
+    implementation("com.frontegg.sdk:android:LATEST_VERSION")
     // Add Frontegg observables dependency
     implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
 }
@@ -153,8 +158,8 @@ Kotlin:
 ```kotlin
 android {
     defaultConfig {
-       minSdk = 26
-       // ...
+        minSdk = 26
+        // ...
     }
 }
 ```
@@ -272,17 +277,18 @@ Register the custom `App` in the app's manifest file
 
 ### Enabling Chrome Custom Tabs for Social Login
 
-To enable social login via Chrome Custom Tabs, set the `useChromeCustomTabs` flag to `true` during the
+To enable social login via Chrome Custom Tabs, set the `useChromeCustomTabs` flag to `true` during
+the
 initialization of `FronteggApp`. By default, the SDK uses the Chrome browser for social login.
 
 ```kotlin
   FronteggApp.init(
-      BuildConfig.FRONTEGG_DOMAIN,
-      BuildConfig.FRONTEGG_CLIENT_ID,
-      this, // Application Context
-      // ...
-      useChromeCustomTabs = true
-  )
+    BuildConfig.FRONTEGG_DOMAIN,
+    BuildConfig.FRONTEGG_CLIENT_ID,
+    this, // Application Context
+    // ...
+    useChromeCustomTabs = true
+)
   ```
 
 ### Embedded Webview vs Custom Chrome Tab
@@ -299,18 +305,14 @@ the application manifest:
 ```xml
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-          xmlns:tools="http://schemas.android.com/tools">
+    xmlns:tools="http://schemas.android.com/tools">
     <application>
         <!-- ... -->
 
-        <activity
-            android:name="com.frontegg.android.EmbeddedAuthActivity"
-            android:enabled="false"
+        <activity android:name="com.frontegg.android.EmbeddedAuthActivity" android:enabled="false"
             tools:replace="android:enabled" />
-        
-        <activity
-            android:name="com.frontegg.android.HostedAuthActivity"
-            android:enabled="true"
+
+        <activity android:name="com.frontegg.android.HostedAuthActivity" android:enabled="true"
             tools:replace="android:enabled" />
 
         <!-- ... -->
@@ -375,7 +377,8 @@ generate a vendor token.
 
 ## Multi-apps Support
 
-This guide outlines the steps to configure your Android application to support multiple applications.
+This guide outlines the steps to configure your Android application to support multiple
+applications.
 
 ### Step 1: Modify the Build.gradle file
 
@@ -459,7 +462,6 @@ android {
 }
 ```
 
-
 ### Step 2: Modify the App File
 
 First, adjust your `App.kt/java` file to handle multiple regions:
@@ -525,46 +527,46 @@ of `com.frontegg.android.EmbeddedAuthActivity`
 
 <application>
     <activity android:exported="true" android:name="com.frontegg.android.EmbeddedAuthActivity"
-              tools:node="merge">
+        tools:node="merge">
         <intent-filter android:autoVerify="true">
-            <action android:name="android.intent.action.VIEW"/>
+            <action android:name="android.intent.action.VIEW" />
 
-            <category android:name="android.intent.category.DEFAULT"/>
-            <category android:name="android.intent.category.BROWSABLE"/>
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
 
-            <data android:scheme="https"/>
+            <data android:scheme="https" />
             <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                  android:pathPrefix="/oauth/account/activate"/>
+                android:pathPrefix="/oauth/account/activate" />
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                  android:pathPrefix="/oauth/account/invitation/accept"/>
+                android:pathPrefix="/oauth/account/invitation/accept" />
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                  android:pathPrefix="/oauth/account/reset-password"/>
+                android:pathPrefix="/oauth/account/reset-password" />
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                  android:pathPrefix="/oauth/account/login/magic-link"/>
+                android:pathPrefix="/oauth/account/login/magic-link" />
         </intent-filter>
     </activity>
 
     <activity android:exported="true" android:name="com.frontegg.android.AuthenticationActivity"
-              tools:node="merge">
+        tools:node="merge">
         <!-- DONT NOT COMBINE THE FOLLOWING FILTERS INTO ONE LINE-->
         <intent-filter>
-            <action android:name="android.intent.action.VIEW"/>
+            <action android:name="android.intent.action.VIEW" />
 
-            <category android:name="android.intent.category.DEFAULT"/>
-            <category android:name="android.intent.category.BROWSABLE"/>
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
 
             <data android:host="${FRONTEGG_DOMAIN_2}"
-                  android:pathPrefix="/oauth/account/redirect/android/${package_name}"
-                  android:scheme="https"/>
+                android:pathPrefix="/oauth/account/redirect/android/${package_name}"
+                android:scheme="https" />
         </intent-filter>
         <intent-filter>
-            <action android:name="android.intent.action.VIEW"/>
+            <action android:name="android.intent.action.VIEW" />
 
-            <category android:name="android.intent.category.DEFAULT"/>
-            <category android:name="android.intent.category.BROWSABLE"/>
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
 
-            <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}"/>
+            <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}" />
         </intent-filter>
     </activity>
 </application>
@@ -629,6 +631,7 @@ class RegionSelectionActivity : AppCompatActivity() {
 ## Enable `buildconfig` feature:
 
 1. Add the below line to your `gradle.properties`:
+
 ```properties
 android.defaults.buildfeatures.buildconfig=true
 ```
@@ -659,7 +662,7 @@ android {
 }
 ```
 
-##  `Proguard` setup (Optional)
+## `Proguard` setup (Optional)
 
 If `minifyEnabled` and `shrinkResources` is true follow the instruction below:
 
@@ -690,7 +693,6 @@ If `minifyEnabled` and `shrinkResources` is true follow the instruction below:
 # Retain Tink classes used for shared preferences encryption
 -keep class com.google.crypto.tink.** { *; }
 ```
-
 
 ## Usage
 
@@ -790,8 +792,10 @@ To ensure compatibility with passkey functionality:
    }
    ```
 
-2. **Java Compatibility**: 
-    Ensure sourceCompatibility and targetCompatibility are set to Java 8 in android/app/build.gradle**:
+2. **Java Compatibility**:
+   Ensure sourceCompatibility and targetCompatibility are set to Java 8 in
+   android/app/build.gradle**:
+
 ```groovy
    android {
     compileOptions {
@@ -804,7 +808,9 @@ To ensure compatibility with passkey functionality:
 ---
 
 #### Registering a Passkey
-To register a passkey, simply call the registerPasskeys method. This handles the passkey creation process automatically:
+
+To register a passkey, simply call the registerPasskeys method. This handles the passkey creation
+process automatically:
 
 ```kotlin
 FronteggAuth.instance.registerPasskeys(activity!!) {
@@ -819,6 +825,7 @@ FronteggAuth.instance.registerPasskeys(activity!!) {
 ```
 
 #### Logging in with a Passkey
+
 To log in using an existing passkey, use the loginWithPasskeys method:
 
 ```kotlin
@@ -835,7 +842,8 @@ FronteggAuth.instance.loginWithPasskeys(activity!!) {
 
 ## Usage of DefaultLoader
 
-You can customize the loader view by setting a custom `LoaderProvider`. Here is an example of how to use `DefaultLoader` with a red `ProgressBar`:
+You can customize the loader view by setting a custom `LoaderProvider`. Here is an example of how to
+use `DefaultLoader` with a red `ProgressBar`:
 
 ```kotlin
 DefaultLoader.setLoaderProvider {
@@ -847,3 +855,78 @@ DefaultLoader.setLoaderProvider {
 ```
 
 Once the LoaderProvider is set, our SDK will automatically use the customized loader when needed.
+
+### Step-Up
+
+Step-Up Authentication is a security feature that temporarily elevates a user’s authentication level
+to perform sensitive actions, such as accessing personal data, making transactions, or changing
+security settings.
+
+This guide describes how to use the `isSteppedUp` and `stepUp` methods in your Android application.
+
+## stepUp
+
+Triggers the step-up authentication process. Typically involves MFA or other user verification.
+
+```kotlin
+authenticationManager.stepUp(
+    activity = this,
+    maxAge = Duration.ofMinutes(5)
+) { error ->
+    if (error != null) {
+// Handle authentication failure
+        Log.e("StepUp", "Authentication failed", error)
+    } else {
+// Authentication succeeded, continue with sensitive action
+        performSecureOperation()
+    }
+}
+```
+
+`activity`: The current Android Activity instance.
+
+`callback`: A callback that receives an Exception if something goes wrong.
+
+`maxAge` (optional): Same as in isSteppedUp, defines how long the step-up remains valid.
+
+## isSteppedUp
+
+Checks whether the user has already completed a step-up authentication and it is still valid.
+
+```kotlin
+val isSteppedUp = FronteggAuth.instance.isSteppedUp(maxAge = Duration.ofMinutes(5))
+
+if (isSteppedUp) {
+// Proceed with sensitive operation
+} else {
+// Trigger step-up
+}
+```
+
+`maxAge` (optional): Specifies the maximum age of the current authentication session. If omitted,
+default behavior will apply.
+
+Example Use Case:
+
+```kotlin
+fun onSecureActionClicked() {
+    if (FronteggAuth.instance.isSteppedUp(maxAge = Duration.ofMinutes(5))) {
+        performSecureOperation()
+    } else {
+        authenticationManager.stepUp(this, Duration.ofMinutes(5)) { error ->
+            if (error == null) {
+                performSecureOperation()
+            } else {
+                Toast.makeText(this, "Step-up failed: ${error.message}", Toast.LENGTH_LONG).show()
+            }
+        }
+    }
+}
+
+fun performSecureOperation() {
+// Execute the action that requires elevated authentication
+}
+```
+
+This integration ensures that your app handles sensitive actions securely by checking authentication
+status and prompting for re-verification only when necessary.
