@@ -2,7 +2,7 @@
 
 In this guide, you'll find an overview and best practices for enabling advanced features like passkeys and multi-app configurations.
 
-### Passkeys authentication
+## Passkeys authentication
 
 Passkeys enable seamless, passwordless login with biometric authentication and WebAuthn. Follow these steps to integrate them manually using Frontegg's APIs.
 
@@ -39,7 +39,7 @@ FronteggAuth.instance.loginWithPasskeys(activity!!) { error ->
 ```
 
 
-### Multi-apps support
+## Multi-apps support
 
 This guide outlines the steps to configure your Android application to support multiple applications.
 
@@ -69,7 +69,7 @@ android {
 }
 ```
 
-#### Modify the app file
+### Modify the app file
 
 Add `BuildConfig`.`FRONTEGG_APPLICATION_ID` to `FronteggApp`.`init`.
 
@@ -94,7 +94,7 @@ class App : Application() {
     }
 }
 ```
-### Step-up authentication
+## Step-up authentication
 
 Step-up authentication is a security feature that temporarily elevates a user's authentication level to perform sensitive actions, such as accessing personal data, making transactions, or changing security settings.
 
@@ -102,7 +102,7 @@ This guide describes how to use the `isSteppedUp` and `stepUp` methods in your A
 
 Please follow [this guide](https://developers.frontegg.com/guides/step-up/intro) for more details.
 
-#### `stepUp`
+**stepUp**:
 
 Triggers the step-up authentication process. Typically involves MFA or other user verification.
 
@@ -127,7 +127,7 @@ FronteggAuth.instance.stepUp(
 
 `maxAge` (optional): Same as in isSteppedUp, defines how long the step-up remains valid.
 
-#### `isSteppedUp`
+**isSteppedUp**:
 
 This method whether the user has already completed a step-up authentication and is allowed to proceed.
 
@@ -164,7 +164,7 @@ fun performSecureOperation() {
 ```
 
 
-### Multi-region support
+## Multi-region support
 
 This guide outlines the steps to configure your Android application to support multiple regions.
 

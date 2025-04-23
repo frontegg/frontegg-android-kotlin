@@ -6,7 +6,7 @@ Frontegg offers multiple authentication flows to enhance your Android app’s us
 * **Chrome Custom Tabs**: A secure and seamless way to handle social login using the device's default browser, offering a native-like user experience.
 * **Passkeys**: A modern, passwordless login method using biometric authentication and WebAuthn standards, supported on Android devices with compatible hardware.
 
-### Chrome custom tabs
+## Chrome custom tabs
 
 To use Chrome Custom Tabs for social login instead of the default Embedded WebView:
 
@@ -44,7 +44,7 @@ FronteggApp.init(
 </manifest>
 ```
 
-### Login with Frontegg
+## Login with Frontegg
 
 To log in with Frontegg, follow these steps:
 
@@ -72,7 +72,7 @@ class FirstFragment : Fragment() {
 ```
 
 
-### Switch account (tenant)
+## Switch account (tenant)
 
 To switch user tenants, call the `FronteggAuth.instance.switchTenant()` method with the desired tenant ID. Make sure to retrieve the list of available tenant IDs from the current user session.
 
@@ -101,7 +101,7 @@ class FirstFragment : Fragment() {
 
 ```
 
-### Logout user
+## Logout user
 
 To log out the user, simply call the `FronteggAuth.instance.logout()` method. This will clear all user data from the device.
 
@@ -123,7 +123,7 @@ class FirstFragment : Fragment() {
 
 ```
 
-### Using `DefaultLoader`
+## Using `DefaultLoader`
 
 You can customize the loader view by setting a custom `LoaderProvider`. This allows you to control the appearance of the loading indicator during authentication flows.
 
