@@ -11,8 +11,8 @@ single SDK.
 
 This repository includes:
 
-- A [Setup Guide](/docs/setup.md) with detailed setup instructions
 - A [Get Started](/docs/getting-started.md) guide for quick integration
+- A [Setup Guide](/docs/setup.md) with detailed setup instructions
 - An [API Reference](/docs/api.md) for detailed SDK functionality
 - [Usage Examples](/docs/usage.md) with common implementation patterns
 - [Advanced Topics](/docs/advanced.md) for complex integration scenarios
