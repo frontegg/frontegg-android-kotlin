@@ -1,5 +1,5 @@
 # Frontegg Android SDK
-![Frontegg_Android_SDK (Kotlin)](/docs/images/frontegg-kotlin.png)
+![Frontegg_Android_SDK (Kotlin)](/images/frontegg-kotlin.png)
 
 Welcome to the official **Frontegg Android SDK** — your all-in-one solution for
 integrating authentication and user management into your Android mobile
