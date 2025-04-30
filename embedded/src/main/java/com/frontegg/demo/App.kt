@@ -30,6 +30,7 @@ class App : Application() {
         FronteggApp.init(
             BuildConfig.FRONTEGG_DOMAIN,
             BuildConfig.FRONTEGG_CLIENT_ID,
+            BuildConfig.FRONTEGG_DEEP_LINK_SCHEME,
             this,
             useAssetsLinks = true,
             useChromeCustomTabs = true,

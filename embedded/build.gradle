@@ -11,6 +11,7 @@ fronteggProperties.load(project.rootProject.file('frontegg.properties').newDataI
 
 def fronteggDomain = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN", "").toString()
 def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "").toString()
+def fronteggDeepLinkScheme = fronteggProperties.getOrDefault("FRONTEGG_DEEP_LINK_SCHEME", "").toString()
 
 android {
     namespace 'com.frontegg.demo'
@@ -34,6 +35,7 @@ android {
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
+        buildConfigField "String", 'FRONTEGG_DEEP_LINK_SCHEME', "\"$fronteggDeepLinkScheme\""
 
         testInstrumentationRunnerArguments["LOGIN_EMAIL"] = testProperties.getOrDefault("LOGIN_EMAIL", "")
         testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = testProperties.getOrDefault("LOGIN_PASSWORD", "")

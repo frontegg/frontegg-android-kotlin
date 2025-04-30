@@ -54,6 +54,7 @@ interface FronteggApp {
         fun init(
             fronteggDomain: String,
             clientId: String,
+            deepLinkScheme: String? = null,
             context: Context,
             applicationId: String? = null,
             useAssetsLinks: Boolean = false,
@@ -72,6 +73,7 @@ interface FronteggApp {
                 context = context,
                 baseUrl = baseUrl,
                 clientId = clientId,
+                deepLinkScheme = deepLinkScheme,
                 applicationId = applicationId,
                 isEmbeddedMode = isEmbeddedMode,
                 useAssetsLinks = useAssetsLinks,

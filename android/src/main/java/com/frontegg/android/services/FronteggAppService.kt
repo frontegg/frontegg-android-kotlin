@@ -22,7 +22,8 @@ class FronteggAppService(
     private val shouldPromptSocialLoginConsent: Boolean = true,
     private val useAssetsLinks: Boolean = false,
     private var useChromeCustomTabs: Boolean = false,
-    private var mainActivityClass: Class<*>? = null
+    private var mainActivityClass: Class<*>? = null,
+    private var deepLinkScheme: String? = null
 ) : FronteggApp {
 
     private val storage = StorageProvider.getInnerStorage()
@@ -65,6 +66,7 @@ class FronteggAppService(
             useChromeCustomTabs,
             mainActivityClass,
             context.packageName,
+            deepLinkScheme,
         )
     }
 
