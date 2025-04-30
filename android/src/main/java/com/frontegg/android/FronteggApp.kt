@@ -54,12 +54,12 @@ interface FronteggApp {
         fun init(
             fronteggDomain: String,
             clientId: String,
-            deepLinkScheme: String? = null,
             context: Context,
             applicationId: String? = null,
             useAssetsLinks: Boolean = false,
             useChromeCustomTabs: Boolean = false,
-            mainActivityClass: Class<*>? = null
+            mainActivityClass: Class<*>? = null,
+            deepLinkScheme: String? = null,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
