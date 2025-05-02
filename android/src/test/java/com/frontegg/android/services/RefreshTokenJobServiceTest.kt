@@ -18,7 +18,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
-import java.net.SocketTimeoutException
 
 class RefreshTokenJobServiceTest {
 
@@ -28,6 +27,7 @@ class RefreshTokenJobServiceTest {
     private lateinit var service: RefreshTokenJobService
     private lateinit var tokenTimer: FronteggRefreshTokenTimer
     private lateinit var mockParams: JobParameters
+    private var mockkFronteggAppService = mockk<FronteggAppService>()
 
     @Before
     fun setUp() {
@@ -54,15 +54,14 @@ class RefreshTokenJobServiceTest {
         every { Log.d(any(), any()) } returns 0
         every { Log.e(any(), any(), any()) } returns 0
 
-        val mockkFronteggAppService = mockk<FronteggAppService>()
         mockkObject(FronteggApp)
         every { FronteggApp.getInstance() } returns mockkFronteggAppService
-        every { mockkFronteggAppService.isAppInForeground() } returns true
     }
 
     @Test
     fun `onStartJob should return true and start background task`() {
         every { service.performBackgroundTask(any()) }.returns(Unit)
+        every { mockkFronteggAppService.isAppInForeground() } returns false
 
         val result = service.onStartJob(mockParams)
 

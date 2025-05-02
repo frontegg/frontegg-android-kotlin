@@ -15,6 +15,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.app.Activity
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
@@ -300,6 +301,18 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
                 url.toString().endsWith(".pdf", ignoreCase = true)
             ) {
                 openExternalBrowser(url)
+                return true
+            }
+
+            if (url.scheme.equals(storage.deepLinkScheme, ignoreCase = true)) {
+                val intent = Intent(Intent.ACTION_VIEW, url)
+                context.startActivity(intent)
+
+                (context as? Activity)?.runOnUiThread {
+                    (context).setResult(Activity.RESULT_OK)
+                    (context).finish()
+                }
+
                 return true
             }
 

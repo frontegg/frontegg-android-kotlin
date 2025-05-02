@@ -58,7 +58,8 @@ interface FronteggApp {
             applicationId: String? = null,
             useAssetsLinks: Boolean = false,
             useChromeCustomTabs: Boolean = false,
-            mainActivityClass: Class<*>? = null
+            mainActivityClass: Class<*>? = null,
+            deepLinkScheme: String? = null,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
@@ -72,6 +73,7 @@ interface FronteggApp {
                 context = context,
                 baseUrl = baseUrl,
                 clientId = clientId,
+                deepLinkScheme = deepLinkScheme,
                 applicationId = applicationId,
                 isEmbeddedMode = isEmbeddedMode,
                 useAssetsLinks = useAssetsLinks,
