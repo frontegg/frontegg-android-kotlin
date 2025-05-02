@@ -304,9 +304,7 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
             }
 
             if (url.scheme.equals(storage.deepLinkScheme, ignoreCase = true)) {
-
                 val intent = Intent(Intent.ACTION_VIEW, url)
-                intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
                 context.startActivity(intent)
 
                 return true
