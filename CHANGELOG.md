@@ -1,4 +1,9 @@
 ## v
+- Added `step-up` instruction.
+- Updated docs.
+- Support deep linking for redirect in Embedded Login WebView
+
+## v
 - FIxed `RefreshTokenJobService`.
 
 ## v1.2.37
