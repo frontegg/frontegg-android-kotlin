@@ -1,4 +1,4 @@
-## v
+## v1.2.39
 - Added `step-up` instruction.
 - Updated docs.
 - Support deep linking for redirect in Embedded Login WebView
