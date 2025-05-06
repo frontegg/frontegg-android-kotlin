@@ -16,7 +16,7 @@ This repository includes:
 - An [API Reference](/docs/api.md) for detailed SDK functionality
 - [Usage Examples](/docs/usage.md) with common implementation patterns
 - [Advanced Topics](/docs/advanced.md) for complex integration scenarios
-- A [Hosted](./app), [Embedded](./embedded), [Application-Id](./applicationId), and [Multi-Region](./multi-region) example projects to help you get started quickly
+- A [Hosted](https://github.com/frontegg/frontegg-android-kotlin/tree/master/app), [Embedded](https://github.com/frontegg/frontegg-android-kotlin/tree/master/embedded), [Application-Id](https://github.com/frontegg/frontegg-android-kotlin/tree/master/applicationId), and [Multi-Region](https://github.com/frontegg/frontegg-android-kotlin/tree/master/multi-region) example projects to help you get started quickly
 
 For full documentation, visit the Frontegg Developer Portal:  
 🔗 [https://developers.frontegg.com](https://developers.frontegg.com)
