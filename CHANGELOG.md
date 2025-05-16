@@ -1,4 +1,8 @@
 ## v
+- Updated README.md
+- Added Restoration SDK mechanism to Activities
+
+## v
 - Improved `FronteggInnerStorage`
 
 ## v1.2.39
