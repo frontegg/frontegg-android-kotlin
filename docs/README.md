@@ -11,11 +11,11 @@ single SDK.
 
 This repository includes:
 
-- A [Get Started](/docs/getting-started.md) guide for quick integration
-- A [Setup Guide](/docs/setup.md) with detailed setup instructions
-- An [API Reference](/docs/api.md) for detailed SDK functionality
-- [Usage Examples](/docs/usage.md) with common implementation patterns
-- [Advanced Topics](/docs/advanced.md) for complex integration scenarios
+- A [Get Started](https://android-kotlin-guide.frontegg.com/#/getting-started) guide for quick integration
+- A [Setup Guide](https://android-kotlin-guide.frontegg.com/#/setup) with detailed setup instructions
+- An [API Reference](https://android-kotlin-guide.frontegg.com/#/api) for detailed SDK functionality
+- [Usage Examples](https://android-kotlin-guide.frontegg.com/#/usage) with common implementation patterns
+- [Advanced Topics](https://android-kotlin-guide.frontegg.com/#/advanced) for complex integration scenarios
 - A [Hosted](https://github.com/frontegg/frontegg-android-kotlin/tree/master/app), [Embedded](https://github.com/frontegg/frontegg-android-kotlin/tree/master/embedded), [Application-Id](https://github.com/frontegg/frontegg-android-kotlin/tree/master/applicationId), and [Multi-Region](https://github.com/frontegg/frontegg-android-kotlin/tree/master/multi-region) example projects to help you get started quickly
 
 For full documentation, visit the Frontegg Developer Portal:  
