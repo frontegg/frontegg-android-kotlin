@@ -10,6 +10,7 @@ import android.util.Log
 import androidx.browser.customtabs.CustomTabsIntent
 import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.exceptions.FronteggException
+import com.frontegg.android.services.FronteggAppReInitializer
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
@@ -42,6 +43,7 @@ class AuthenticationActivity : Activity() {
 
     override fun onResume() {
         super.onResume()
+        FronteggAppReInitializer.tryReinitialize(this)
 
         StepUpAuthenticator.resumeAuthenticationActivity()
 

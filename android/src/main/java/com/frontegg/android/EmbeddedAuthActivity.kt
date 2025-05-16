@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
 import com.frontegg.android.exceptions.CanceledByUserException
+import com.frontegg.android.services.FronteggAppReInitializer
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.StepUpAuthenticator
@@ -30,6 +31,9 @@ class EmbeddedAuthActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_embedded_auth)
+
+        FronteggAppReInitializer.tryReinitialize(this)
+
         @Suppress("DEPRECATION")
         overridePendingTransition(R.anim.fadein, R.anim.fadeout)
 

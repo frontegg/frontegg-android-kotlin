@@ -41,6 +41,18 @@ interface FronteggApp {
         }
 
         /**
+         * Checks whether the [FronteggApp] has been initialized.
+         *
+         * This method returns `true` if the [FronteggApp.init] or [FronteggApp.initWithRegions]
+         * method has been called successfully and an instance is available.
+         *
+         * @return `true` if the SDK has been initialized, `false` otherwise.
+         */
+        fun isInitialized(): Boolean {
+            return instance != null
+        }
+
+        /**
          * Initializes [FronteggApp].
          *
          * @param fronteggDomain The Frontegg domain. Can be found at [portal.frontegg.com].
