@@ -15,7 +15,6 @@ def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "")
 android {
     namespace 'com.frontegg.demo'
     compileSdk 34
-    compileSdkVersion 34
 
     defaultConfig {
         applicationId "com.frontegg.demo"
