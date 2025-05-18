@@ -77,11 +77,15 @@ class RefreshTokenJobServiceTest {
 
     @Test
     fun `performBackgroundTask should call sendRefreshToken and finish job successfully`() {
-        every { FronteggAuthService.instance.sendRefreshToken() }.returns(true)
+        // Arrange
+        every { FronteggAuthService.instance.sendRefreshToken() } returns true
+        every { service.jobFinished(any(), any()) } just Runs
 
+        // Act
         service.performBackgroundTask(mockParams)
 
-        verify { FronteggAuthService.instance.sendRefreshToken() }
-        verify { service.jobFinished(mockParams, false) } // No error occurred
+        // Assert
+        verify { FronteggAuthService.instance.sendRefreshToken() } // Ensure sendRefreshToken is called
+        verify { service.jobFinished(mockParams, false) } // Ensure job finishes without errors
     }
 }
