@@ -4,10 +4,16 @@ plugins {
 }
 
 Properties testProperties = new Properties()
-testProperties.load(project.rootProject.file('test.properties').newDataInputStream())
+File testPropsFile = project.rootProject.file('test.properties')
+if (testPropsFile.exists()) {
+    testProperties.load(testPropsFile.newDataInputStream())
+}
 
 Properties fronteggProperties = new Properties()
-fronteggProperties.load(project.rootProject.file('frontegg.properties').newDataInputStream())
+File fronteggPropsFile = project.rootProject.file('test.properties')
+if (fronteggPropsFile.exists()) {
+    fronteggProperties.load(fronteggPropsFile.newDataInputStream())
+}
 
 def fronteggDomain = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN", "").toString()
 def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "").toString()
