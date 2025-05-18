@@ -15,10 +15,11 @@ import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
 import com.frontegg.android.services.StepUpAuthenticator
+import com.frontegg.android.ui.FronteggBaseActivity
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import kotlin.time.Duration
 
-class AuthenticationActivity : Activity() {
+class AuthenticationActivity : FronteggBaseActivity() {
     private val storage = FronteggInnerStorage()
     private var customTabLaunched = false
     private fun startAuth(url: String) {

@@ -503,6 +503,7 @@ class FronteggAuthService(
         if (accessToken == null) {
             // when we have valid refreshToken without accessToken => failed to refresh in background
             GlobalScope.launch(Dispatchers.IO) {
+                // TODO: consider catching exceptions
                 sendRefreshToken()
             }
             return
@@ -514,6 +515,7 @@ class FronteggAuthService(
             if (offset <= 0) {
                 Log.d(TAG, "Refreshing Token...")
                 GlobalScope.launch(Dispatchers.IO) {
+                    // TODO: consider catching exceptions
                     sendRefreshToken()
                 }
             } else {

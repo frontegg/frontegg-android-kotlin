@@ -14,6 +14,7 @@ import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.StepUpAuthenticator
 import com.frontegg.android.ui.DefaultLoader
+import com.frontegg.android.ui.FronteggBaseActivity
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
@@ -21,7 +22,7 @@ import io.reactivex.rxjava3.functions.Consumer
 import kotlin.time.Duration
 
 
-class EmbeddedAuthActivity : Activity() {
+class EmbeddedAuthActivity : FronteggBaseActivity() {
     private val storage = FronteggInnerStorage()
     private lateinit var webView: FronteggWebView
     private var webViewUrl: String? = null
