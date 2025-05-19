@@ -10,7 +10,7 @@ if (testPropsFile.exists()) {
 }
 
 Properties fronteggProperties = new Properties()
-File fronteggPropsFile = project.rootProject.file('test.properties')
+File fronteggPropsFile = project.rootProject.file('frontegg.properties')
 if (fronteggPropsFile.exists()) {
     fronteggProperties.load(fronteggPropsFile.newDataInputStream())
 }
