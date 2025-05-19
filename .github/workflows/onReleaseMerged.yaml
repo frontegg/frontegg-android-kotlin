@@ -102,14 +102,19 @@ jobs:
           git_commit_sha: ${{ github.sha }}
           git_tag_prefix: "v"
 
-      - name: prepare release
+      - name: Publish → Close → Release to OSSRH
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
           NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
           GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
           GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-        run: ./gradlew publish --no-daemon --no-parallel
+        run: |
+          ./gradlew \
+            publishToSonatype \
+            closeSonatypeStagingRepository \
+            releaseSonatypeStagingRepository \
+            --no-daemon --no-parallel
 
 
       - name: Create Release

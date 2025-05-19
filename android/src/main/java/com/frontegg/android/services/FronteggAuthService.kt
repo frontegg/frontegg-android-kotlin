@@ -29,6 +29,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import kotlin.time.Duration
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -472,6 +473,13 @@ class FronteggAuthService(
         }
     }
 
+    /**
+     * Sends a refresh token to the server to obtain a new access token.
+     *
+     *  @return true if the refresh token was successfully sent and a new access token was obtained, false otherwise.
+     * @throws Exception if an error occurs during the process.
+     */
+    @Throws(IllegalArgumentException::class, IOException::class)
     fun sendRefreshToken(): Boolean {
         val refreshToken = this.refreshToken.value ?: return false
         this.refreshingToken.value = true
@@ -503,7 +511,7 @@ class FronteggAuthService(
         if (accessToken == null) {
             // when we have valid refreshToken without accessToken => failed to refresh in background
             GlobalScope.launch(Dispatchers.IO) {
-                sendRefreshToken()
+                refreshTokenIfNeeded()
             }
             return
         }
@@ -514,7 +522,7 @@ class FronteggAuthService(
             if (offset <= 0) {
                 Log.d(TAG, "Refreshing Token...")
                 GlobalScope.launch(Dispatchers.IO) {
-                    sendRefreshToken()
+                    refreshTokenIfNeeded()
                 }
             } else {
                 Log.d(TAG, "Schedule Refreshing Token for $offset")

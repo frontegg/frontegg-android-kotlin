@@ -3,6 +3,7 @@ plugins {
     id 'com.android.application' version '7.4.2' apply false
     id 'com.android.library' version '7.4.2' apply false
     id 'org.jetbrains.kotlin.android' version '1.9.10' apply false
+    id 'io.github.gradle-nexus.publish-plugin' version '2.0.0'
 }
 
 
@@ -14,4 +15,18 @@ ext {
     coreVersion = "1.6.0-alpha01"
     extJUnitVersion = "1.2.0-alpha01"
     espressoVersion = "3.6.0-alpha01"
+}
+
+
+nexusPublishing {
+    repositories {
+        sonatype {
+            username.set(System.getenv('NEXUS_USERNAME'))
+            password.set(System.getenv('NEXUS_PASSWORD'))
+            packageGroup = "com.frontegg.android"
+            // auto‐release right after close (optional)
+//                closeAndReleaseSonatypeStagingRepository.set(true)
+            // stagingProfileId.set("YOUR_PROFILE_ID")   // only if you need to force a specific profile
+        }
+    }
 }

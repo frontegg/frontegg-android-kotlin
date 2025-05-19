@@ -9,11 +9,11 @@ import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
 import com.frontegg.android.exceptions.CanceledByUserException
-import com.frontegg.android.services.FronteggAppReInitializer
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.StepUpAuthenticator
 import com.frontegg.android.ui.DefaultLoader
+import com.frontegg.android.ui.FronteggBaseActivity
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
@@ -21,7 +21,7 @@ import io.reactivex.rxjava3.functions.Consumer
 import kotlin.time.Duration
 
 
-class EmbeddedAuthActivity : Activity() {
+class EmbeddedAuthActivity : FronteggBaseActivity() {
     private val storage = FronteggInnerStorage()
     private lateinit var webView: FronteggWebView
     private var webViewUrl: String? = null
@@ -31,9 +31,6 @@ class EmbeddedAuthActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_embedded_auth)
-
-        FronteggAppReInitializer.tryReinitialize(this)
-
         @Suppress("DEPRECATION")
         overridePendingTransition(R.anim.fadein, R.anim.fadeout)
 

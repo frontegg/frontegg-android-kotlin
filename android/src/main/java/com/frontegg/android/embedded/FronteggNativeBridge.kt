@@ -9,6 +9,7 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import androidx.browser.customtabs.CustomTabsIntent
 import com.frontegg.android.EmbeddedAuthActivity
+import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import org.json.JSONException
@@ -95,6 +96,12 @@ class FronteggNativeBridge(val context: Context) {
         )
 
         directLoginWithContext(context, directLogin, true)
+    }
+
+    @JavascriptInterface
+    fun setLoading(value: Boolean) {
+        Log.d("FronteggNativeBridge", "setLoading(${if (value) "true" else "false"})")
+        FronteggAuthService.instance.isLoading.value = value
     }
 
     @JavascriptInterface

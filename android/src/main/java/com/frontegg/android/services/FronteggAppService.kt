@@ -36,7 +36,6 @@ class FronteggAppService(
 
     init {
         fillStorage()
-        saveInitData()
         auth =
             FronteggAuthService(
                 credentialManager,
@@ -47,19 +46,6 @@ class FronteggAppService(
 
     fun isAppInForeground(): Boolean {
         return appLifecycle.appInForeground
-    }
-
-    private fun saveInitData() {
-        FronteggAppReInitializer.saveInitData(
-            context,
-            baseUrl.replaceFirst("https://", ""),
-            clientId,
-            applicationId,
-            useAssetsLinks,
-            useChromeCustomTabs,
-            mainActivityClass,
-            deepLinkScheme
-        )
     }
 
     private fun fillStorage() {
@@ -102,7 +88,6 @@ class FronteggAppService(
         this.applicationId = config.applicationId
         this.selectedRegion = config
         fillStorage()
-        saveInitData()
 
         FronteggAuthService.instance.reinitWithRegion()
 

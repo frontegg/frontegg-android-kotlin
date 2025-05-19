@@ -56,17 +56,8 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         Log.d(TAG, "onPageFinished $url")
-        when (getOverrideUrlType(Uri.parse(url))) {
-            OverrideUrlType.HostedLoginCallback ->
-                FronteggAuthService.instance.isLoading.value = true
+        FronteggAuthService.instance.isLoading.value = false
 
-            OverrideUrlType.Unknown,
-            OverrideUrlType.loginRoutes ->
-                FronteggAuthService.instance.isLoading.value = false
-
-            else ->
-                FronteggAuthService.instance.isLoading.value = true
-        }
 
         if (url?.startsWith("data:text/html,") == true) {
             FronteggAuthService.instance.isLoading.value = false

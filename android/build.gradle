@@ -116,15 +116,6 @@ afterEvaluate {
                 from components.release
 
                 pom {
-                    // Signing configuration
-                    signing {
-                        def gpgPrivateKey = System.getenv('GPG_PRIVATE_KEY')
-                        def gpgPassphrase = System.getenv("GPG_PASSPHRASE")
-
-                        useInMemoryPgpKeys("0D80D868", gpgPrivateKey, gpgPassphrase)
-                        sign publishing.publications.mavenJava
-                    }
-
                     name = 'android'
                     description = 'Frontegg Android Kotlin'
                     url = 'https://github.com/frontegg/frontegg-android-kotlin'
@@ -171,4 +162,15 @@ afterEvaluate {
             }
         }
     }
+    // Signing configuration
+    signing {
+        useInMemoryPgpKeys(
+                "0D80D868",
+                System.getenv('GPG_PRIVATE_KEY'),
+                System.getenv('GPG_PASSPHRASE')
+        )
+        sign publishing.publications.mavenJava
+    }
+
 }
+

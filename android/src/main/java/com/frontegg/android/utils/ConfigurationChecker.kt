@@ -50,7 +50,10 @@ class AndroidDebugConfigurationChecker(
             val jsonArray = JSONArray(response)
 
             if (jsonArray.length() == 0) {
-                Log.w(TAG, "⚠️ WARNING: `assetlinks.json` is empty. This may cause issues with passkeys/magic links.")
+                Log.w(
+                    TAG,
+                    "⚠️ WARNING: `assetlinks.json` is empty. This may cause issues with passkeys/magic links."
+                )
                 return
             }
 
@@ -68,14 +71,20 @@ class AndroidDebugConfigurationChecker(
             }
 
             if (!isValid) {
-                Log.w(TAG, "⚠️ WARNING: `assetlinks.json` is missing required fields. Passkeys and deep links may not work.")
+                Log.w(
+                    TAG,
+                    "⚠️ WARNING: `assetlinks.json` is missing required fields. Passkeys and deep links may not work."
+                )
                 return
             }
 
             Log.d(TAG, "✅ `assetlinks.json` is valid. App verification is correctly configured.")
 
         } catch (e: JSONException) {
-            Log.w(TAG, "⚠️ WARNING: JSON Parsing failed in `assetlinks.json` - ${e.localizedMessage}")
+            Log.w(
+                TAG,
+                "⚠️ WARNING: JSON Parsing failed in `assetlinks.json` - ${e.localizedMessage}"
+            )
         }
     }
 
@@ -84,7 +93,10 @@ class AndroidDebugConfigurationChecker(
      */
     private fun checkCustomDomain() {
         if (fronteggDomain.length < 3 || !fronteggDomain.contains(".")) {
-            Log.w(TAG, "⚠️ WARN: Custom domain seems incorrect or missing. Passkeys and magic-link login may not work.")
+            Log.w(
+                TAG,
+                "⚠️ WARN: Custom domain seems incorrect or missing. Passkeys and magic-link login may not work."
+            )
         }
     }
 
@@ -115,14 +127,19 @@ class AndroidDebugConfigurationChecker(
 
     private suspend fun makeHttpRequest(urlString: String): String {
         return withContext(Dispatchers.IO) {
-            val url = URL(urlString)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-
             try {
-                connection.inputStream.bufferedReader().use { it.readText() }
-            } finally {
-                connection.disconnect()
+                val url = URL(urlString)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+
+                try {
+                    connection.inputStream.bufferedReader().use { it.readText() }
+                } finally {
+                    connection.disconnect()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ ERROR: Failed to make HTTP request - ${e.localizedMessage}")
+                throw e
             }
         }
     }
@@ -142,7 +159,10 @@ class AndroidDebugConfigurationChecker(
     }
 
     private fun buildUrlWithParams(base: String, params: Map<String, String>): String {
-        return params.entries.joinToString("&", prefix = "$base?") { (key, value) -> "$key=${value.encode()}" }
+        return params.entries.joinToString(
+            "&",
+            prefix = "$base?"
+        ) { (key, value) -> "$key=${value.encode()}" }
     }
 
     private fun String.encode(): String {
