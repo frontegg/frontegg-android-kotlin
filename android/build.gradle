@@ -165,6 +165,7 @@ afterEvaluate {
     // Signing configuration
     signing {
         useInMemoryPgpKeys(
+                "0D80D868",
                 System.getenv('GPG_PRIVATE_KEY'),
                 System.getenv('GPG_PASSPHRASE')
         )

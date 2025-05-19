@@ -7,33 +7,51 @@ import android.os.Bundle
 object FlutterInitHelper {
     fun initializeFlutterIfPresent(context: Context) {
         try {
-            // 1. Load the FlutterLoader class
+            // 1) Reflectively load & init FlutterLoader once
             val loaderClass = Class.forName("io.flutter.embedding.engine.loader.FlutterLoader")
-
-            // 2. Create a new instance via its no-arg constructor
-            val ctor = loaderClass.getConstructor()
-            val loaderInstance = ctor.newInstance()
-
-            // 3. Check initialization state: loader.initialized()
+            val getInstance = loaderClass.getConstructor()
+            val loader = getInstance.newInstance()
             val isInitialized = loaderClass
                 .getMethod("initialized")
-                .invoke(loaderInstance) as Boolean
+                .invoke(loader) as Boolean
 
             if (!isInitialized) {
-                // 4a. Call startInitialization(Context)
-                val startInit = loaderClass
-                    .getMethod("startInitialization", android.content.Context::class.java)
-                startInit.invoke(loaderInstance, context)
-
-                // 4b. Call ensureInitializationComplete(Context, Array<String>?)
-                val ensureInit = loaderClass.getMethod(
-                    "ensureInitializationComplete",
-                    android.content.Context::class.java,
-                    Array<String>::class.java
-                )
-                // pass `null` for the Dart entrypoint args
-                ensureInit.invoke(loaderInstance, context, null)
+                loaderClass
+                    .getMethod("startInitialization", Context::class.java)
+                    .invoke(loader, context)
+                loaderClass
+                    .getMethod(
+                        "ensureInitializationComplete",
+                        Context::class.java,
+                        Array<String>::class.java
+                    )
+                    .invoke(loader, context, null)
             }
+
+            // 2) Reflectively construct FlutterEngine(context, dartEntrypointArgs=null, autoRegister=false)
+            val engineClass = Class.forName("io.flutter.embedding.engine.FlutterEngine")
+            val constructor = engineClass.getConstructor(
+                Context::class.java,
+                Array<String>::class.java,
+                Boolean::class.javaPrimitiveType!!
+            )
+            val engine = constructor.newInstance(context, null, false)
+
+            // 3) Reflectively instantiate & register only your Frontegg plugin
+            val pluginClass = Class.forName("com.frontegg.flutter.FronteggFlutterPlugin")
+            val pluginInstance = pluginClass.getDeclaredConstructor().newInstance()
+
+            val getPlugins = engineClass.getMethod("getPlugins")
+            val registry = getPlugins.invoke(engine)
+            // PluginRegistry.add(FlutterPlugin) — adds and calls onAttachedToEngine(…)
+            registry.javaClass
+                .getMethod(
+                    "add",
+                    Class.forName("io.flutter.embedding.engine.plugins.FlutterPlugin")
+                )
+                .invoke(registry, pluginInstance)
+
+
         } catch (e: ClassNotFoundException) {
             // FlutterLoader isn’t on the classpath → nothing to do
         } catch (e: ReflectiveOperationException) {

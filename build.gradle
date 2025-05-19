@@ -23,6 +23,7 @@ nexusPublishing {
         sonatype {
             username.set(System.getenv('NEXUS_USERNAME'))
             password.set(System.getenv('NEXUS_PASSWORD'))
+            packageGroup = "com.frontegg.android"
             // auto‐release right after close (optional)
 //                closeAndReleaseSonatypeStagingRepository.set(true)
             // stagingProfileId.set("YOUR_PROFILE_ID")   // only if you need to force a specific profile
