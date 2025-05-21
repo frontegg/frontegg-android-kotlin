@@ -24,9 +24,12 @@ import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.calculateTimerOffset
 import io.reactivex.rxjava3.core.Observable
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -37,8 +40,13 @@ import kotlin.time.Duration
 class FronteggAuthService(
     val credentialManager: CredentialManager,
     appLifecycle: FronteggAppLifecycle,
-    val refreshTokenTimer: FronteggRefreshTokenTimer
+    val refreshTokenTimer: FronteggRefreshTokenTimer,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) : FronteggAuth {
+    // use a dedicated scope instead of GlobalScope
+    private val bgScope = CoroutineScope(ioDispatcher + SupervisorJob())
+
 
     companion object {
         private val TAG = FronteggAuth::class.java.simpleName
@@ -54,6 +62,7 @@ class FronteggAuthService(
     override val user = FronteggState.user
     override val isAuthenticated = FronteggState.isAuthenticated
     override val isLoading = FronteggState.isLoading
+    override val webLoading = FronteggState.webLoading
     override val initializing = FronteggState.initializing
     override val showLoader = FronteggState.showLoader
     override val refreshingToken = FronteggState.refreshingToken
@@ -125,7 +134,7 @@ class FronteggAuthService(
         isLoading.value = true
         refreshTokenTimer.cancelLastTimer()
 
-        GlobalScope.launch(Dispatchers.IO) {
+        bgScope.launch {
 
             val logoutCookies = getDomainCookie(baseUrl)
             val logoutAccessToken = accessToken.value
@@ -143,8 +152,7 @@ class FronteggAuthService(
             user.value = null
             credentialManager.clear()
 
-            val handler = Handler(Looper.getMainLooper())
-            handler.post {
+            withContext(mainDispatcher) {
                 isLoading.value = false
                 callback()
             }
@@ -172,7 +180,7 @@ class FronteggAuthService(
         callback: (Boolean) -> Unit,
     ) {
         Log.d(TAG, "switchTenant()")
-        GlobalScope.launch(Dispatchers.IO) {
+        bgScope.launch {
             val handler = Handler(Looper.getMainLooper())
 
             isLoading.value = true
@@ -216,11 +224,10 @@ class FronteggAuthService(
         val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(
             activity
         )
-        val scope = ScopeProvider.mainScope
-        scope.launch {
+        GlobalScope.launch(mainDispatcher){
             try {
 
-                val webAuthnPreloginRequest = withContext(Dispatchers.IO) { api.webAuthnPrelogin() }
+                val webAuthnPreloginRequest = withContext(ioDispatcher) { api.webAuthnPrelogin() }
 
                 val result = passkeyManager.getPasskey(webAuthnPreloginRequest.jsonChallenge)
 
@@ -228,12 +235,12 @@ class FronteggAuthService(
                     (result.credential as PublicKeyCredential).authenticationResponseJson
 
                 isLoading.value = true
-                val webAuthnPostLoginResponse = withContext(Dispatchers.IO) {
+                val webAuthnPostLoginResponse = withContext(ioDispatcher) {
                     api.webAuthnPostlogin(webAuthnPreloginRequest.cookie, challengeResponse)
                 }
 
                 Log.i(TAG, "Login with Passkeys succeeded, exchanging oauth token")
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     setCredentials(
                         webAuthnPostLoginResponse.access_token,
                         webAuthnPostLoginResponse.refresh_token
@@ -241,13 +248,12 @@ class FronteggAuthService(
                 }
 
                 callback?.invoke(null)
+            } catch (e: MfaRequiredException) {
+                Log.e(TAG, "failed to login with passkeys", e)
+                multiFactorAuthenticator.start(activity, callback, e.mfaRequestData)
             } catch (e: Exception) {
                 Log.e(TAG, "failed to login with passkeys", e)
-                if (e is MfaRequiredException) {
-                    multiFactorAuthenticator.start(activity, callback, e.mfaRequestData)
-                } else {
-                    callback?.invoke(e)
-                }
+                callback?.invoke(e)
             }
         }
     }
@@ -262,7 +268,7 @@ class FronteggAuthService(
         scope.launch {
             try {
 
-                val webAuthnRegsiterRequest = withContext(Dispatchers.IO) {
+                val webAuthnRegsiterRequest = withContext(ioDispatcher) {
                     api.getWebAuthnRegisterChallenge()
                 }
 
@@ -270,7 +276,7 @@ class FronteggAuthService(
 
                 val challengeResponse = result.registrationResponseJson
 
-                withContext(Dispatchers.IO) {
+                withContext(ioDispatcher) {
                     api.verifyWebAuthnDevice(webAuthnRegsiterRequest.cookie, challengeResponse)
                 }
 
@@ -295,7 +301,7 @@ class FronteggAuthService(
             Log.d(TAG, "Requesting silent authorization with refresh and device tokens")
 
             // Call API to authorize with tokens
-            val authResponse = withContext(Dispatchers.IO) {
+            val authResponse = withContext(ioDispatcher) {
                 api.authorizeWithTokens(refreshToken, deviceTokenCookie)
             }
 
@@ -318,15 +324,15 @@ class FronteggAuthService(
         deviceTokenCookie: String?,
         callback: (Result<User>) -> Unit
     ) {
-        GlobalScope.launch(Dispatchers.IO) {
+        bgScope.launch {
             try {
                 val user = requestAuthorizeAsync(refreshToken, deviceTokenCookie)
-                withContext(Dispatchers.Main) {
+                withContext(mainDispatcher) {
                     callback(Result.success(user))
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to authenticate: ${e.message}", e)
-                withContext(Dispatchers.Main) {
+                withContext(mainDispatcher) {
                     callback(Result.failure(e))
                 }
             }
@@ -409,7 +415,7 @@ class FronteggAuthService(
             return false
         }
 
-        GlobalScope.launch(Dispatchers.IO) {
+        bgScope.launch {
             val data = api.exchangeToken(code, redirectUrl, codeVerifier)
             if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
@@ -420,7 +426,7 @@ class FronteggAuthService(
                 if (webView != null) {
                     val authorizeUrl = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator()
                     val url = authorizeUrl.generate()
-                    Handler(Looper.getMainLooper()).post {
+                    withContext(mainDispatcher){
                         webView.loadUrl(url.first)
                     }
                 } else if (activity != null && callback == null) {
@@ -446,11 +452,13 @@ class FronteggAuthService(
             isLoading.observable,
             isAuthenticated.observable,
             initializing.observable,
+            webLoading.observable,
         ).subscribe {
-            showLoader.value = initializing.value || (!isAuthenticated.value && isLoading.value)
+            showLoader.value =
+                initializing.value || (!isAuthenticated.value && (isLoading.value || webLoading.value))
         }
 
-        GlobalScope.launch(Dispatchers.IO) {
+        bgScope.launch {
 
             val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
             val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)
@@ -510,7 +518,7 @@ class FronteggAuthService(
 
         if (accessToken == null) {
             // when we have valid refreshToken without accessToken => failed to refresh in background
-            GlobalScope.launch(Dispatchers.IO) {
+            bgScope.launch {
                 refreshTokenIfNeeded()
             }
             return
@@ -521,7 +529,7 @@ class FronteggAuthService(
             val offset = decoded.exp.calculateTimerOffset()
             if (offset <= 0) {
                 Log.d(TAG, "Refreshing Token...")
-                GlobalScope.launch(Dispatchers.IO) {
+                bgScope.launch {
                     refreshTokenIfNeeded()
                 }
             } else {

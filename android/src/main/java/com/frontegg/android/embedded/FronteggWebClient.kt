@@ -27,18 +27,31 @@ import com.frontegg.android.utils.generateErrorPage
 import com.google.gson.JsonParser
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
+import androidx.core.net.toUri
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.withContext
+import java.util.Timer
+import java.util.TimerTask
+import kotlin.concurrent.schedule
 
 
-class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWebListener) :
+class FronteggWebClient(
+    val context: Context, val passkeyWebListener: PasskeyWebListener,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
+) :
     WebViewClient() {
     companion object {
         private val TAG = FronteggWebClient::class.java.simpleName
     }
+
+    private val bgScope = CoroutineScope(ioDispatcher + SupervisorJob())
 
     private var webViewStatusCode: Int = 200
     private var lastErrorResponse: WebResourceResponse? = null
@@ -53,11 +66,28 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
         view?.evaluateJavascript(PasskeyWebListener.INJECTED_VAL, null)
     }
 
+    private var lastTimer: TimerTask? = null
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
         Log.d(TAG, "onPageFinished $url")
-        FronteggAuthService.instance.isLoading.value = false
 
+        try {
+            if (url != null) {
+                val urlType = getOverrideUrlType(url.toUri())
+                if (urlType == OverrideUrlType.internalRoutes) {
+                    if (lastTimer != null) {
+                        lastTimer?.cancel()
+                    }
+                    lastTimer = Timer().schedule(300) {
+                        FronteggAuthService.instance.isLoading.value = false;
+                    }
+                } else {
+                    FronteggAuthService.instance.isLoading.value = false
+                }
+            }
+        } catch (e: Exception) {
+            FronteggAuthService.instance.isLoading.value = false
+        }
 
         if (url?.startsWith("data:text/html,") == true) {
             FronteggAuthService.instance.isLoading.value = false
@@ -89,6 +119,7 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
                 "shouldPromptSocialLoginConsent",
                 storage.shouldPromptSocialLoginConsent
             )
+            nativeModuleFunctions.put("useNativeLoader", true)
             val jsObject = nativeModuleFunctions.toString()
             view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
         }
@@ -379,7 +410,7 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
 
         FronteggAuthService.instance.isLoading.value = true
         try {
-            GlobalScope.launch(Dispatchers.IO) {
+            bgScope.launch {
                 val requestBuilder = Request.Builder()
                 requestBuilder.method("GET", null)
                 requestBuilder.url(newUri.toString())
@@ -390,11 +421,14 @@ class FronteggWebClient(val context: Context, val passkeyWebListener: PasskeyWeb
                     .build();
                 val response = client.newCall(requestBuilder.build()).execute()
 
-                val redirect = Uri.parse(response.headers["Location"])
+                val redirect = response.headers["Location"]?.toUri()
+                if (redirect == null) {
+                    Log.e(TAG, "setSocialLoginRedirectUri failed to generate social login url")
+                    return@launch
+                }
                 val socialLoginUrl = setUriParameter(redirect, "external", "true")
 
-                val handler = Handler(Looper.getMainLooper())
-                handler.post {
+                withContext(mainDispatcher) {
                     val browserIntent = Intent(Intent.ACTION_VIEW, socialLoginUrl)
                     context.startActivity(browserIntent)
                     FronteggAuthService.instance.isLoading.value = false

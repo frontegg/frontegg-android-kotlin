@@ -1,0 +1,8 @@
+plugins {
+    id 'org.jetbrains.kotlin.jvm'
+}
+
+dependencies {
+    // for writing a Detekt plugin
+    compileOnly "io.gitlab.arturbosch.detekt:detekt-api:1.23.8"
+}

@@ -3,12 +3,42 @@ plugins {
     id 'org.jetbrains.kotlin.android'
     id 'maven-publish'
     id 'signing'
+    id 'io.gitlab.arturbosch.detekt'
 }
 
 
 group 'com.frontegg.android'
 version '1.2.40'
 
+
+detekt {
+    toolVersion = "1.23.8"
+    buildUponDefaultConfig = true
+    config.setFrom(file("$rootDir/config/detekt/detekt.yml"))
+}
+
+tasks.withType(io.gitlab.arturbosch.detekt.Detekt).configureEach { detektTask ->
+    // point at your sources
+    detektTask.source = files("src/main/java", "src/main/kotlin")
+
+    // match your jvm target
+    detektTask.jvmTarget = "1.8"
+
+    // include compiled classes so type resolution works
+    detektTask.classpath = files(
+            "$buildDir/classes/kotlin/main",
+            "$buildDir/resources/main"
+    )
+
+    // ensure your rule JAR is built first
+    detektTask.dependsOn(":detekt-rules:jar")
+
+    detektTask.outputs.upToDateWhen { false }
+    // never cache the outputs in the build cache:
+    detektTask.outputs.cacheIf { false }
+}
+// tasks.named("detektDebug", io.gitlab.arturbosch.detekt.Detekt) { dependsOn ":detekt-rules:jar" }
+// tasks.named("detektRelease", io.gitlab.arturbosch.detekt.Detekt) { dependsOn ":detekt-rules:jar" }
 
 android {
     namespace 'com.frontegg.android'
@@ -66,6 +96,8 @@ ext {
 
 
 dependencies {
+
+    detektPlugins files("$rootDir/detekt-rules/build/libs/detekt-rules.jar")
 
     implementation 'androidx.core:core-ktx:1.10.0'
     implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'

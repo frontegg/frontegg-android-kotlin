@@ -34,6 +34,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         @Suppress("DEPRECATION")
         overridePendingTransition(R.anim.fadein, R.anim.fadeout)
 
+        FronteggAuthService.instance.webLoading.value = false
         webView = findViewById(R.id.custom_webview)
         loaderContainer = findViewById(R.id.loaderContainer)
         val loaderView = DefaultLoader.create(this)
@@ -42,7 +43,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
 
         consumeIntent(intent)
     }
-
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
@@ -215,6 +215,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        FronteggAuthService.instance.webLoading.value = false
         onAuthFinishedCallback?.invoke(CanceledByUserException())
         onAuthFinishedCallback = null
     }

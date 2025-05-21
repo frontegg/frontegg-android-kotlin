@@ -224,7 +224,7 @@ class ApiTest {
         try {
             api.getWebAuthnRegisterChallenge()
             assert(false)
-        } catch (e: FailedToAuthenticateException) {
+        } catch (ignore: FailedToAuthenticateException) {
             assert(true)
         }
     }
@@ -236,7 +236,7 @@ class ApiTest {
         try {
             api.verifyWebAuthnDevice("fe_webauthn_test Coolie", "{}")
             assert(true)
-        } catch (e: Exception) {
+        } catch (ignore: Exception) {
             assert(false)
         }
     }
@@ -248,7 +248,7 @@ class ApiTest {
         try {
             api.verifyWebAuthnDevice("fe_webauthn_test Coolie", "{}")
             assert(false)
-        } catch (e: FailedToRegisterWebAuthnDevice) {
+        } catch (ignore: FailedToRegisterWebAuthnDevice) {
             assert(true)
         }
     }
