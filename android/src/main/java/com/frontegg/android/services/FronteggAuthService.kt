@@ -372,20 +372,29 @@ class FronteggAuthService(
 
             val decoded = JWTHelper.decode(accessToken)
             Log.d(TAG, "setCredentials, going to get user info")
-            val user = api.me()
-            this.refreshToken.value = refreshToken
-            this.accessToken.value = accessToken
-            this.user.value = user
-            this.isAuthenticated.value = true
-
+    
+            try {
+                val user = api.me()
+                this.refreshToken.value = refreshToken
+                this.accessToken.value = accessToken
+                this.user.value = user
+                this.isAuthenticated.value = true
+    
             // Cancel previous job if it exists
-            refreshTokenTimer.cancelLastTimer()
+                refreshTokenTimer.cancelLastTimer()
+    
+                if (decoded.exp > 0) {
+                    val offset = decoded.exp.calculateTimerOffset()
+                    Log.d(TAG, "setCredentials, schedule for $offset")
 
-            if (decoded.exp > 0) {
-                val offset = decoded.exp.calculateTimerOffset()
-                Log.d(TAG, "setCredentials, schedule for $offset")
-
-                refreshTokenTimer.scheduleTimer(offset)
+                    refreshTokenTimer.scheduleTimer(offset)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to fetch user info via api.me()", e)
+                this.refreshToken.value = null
+                this.accessToken.value = null
+                this.user.value = null
+                this.isAuthenticated.value = false
             }
         } else {
             this.refreshToken.value = null
@@ -393,7 +402,7 @@ class FronteggAuthService(
             this.user.value = null
             this.isAuthenticated.value = false
         }
-
+    
         this.isLoading.value = false
         this.initializing.value = false
     }
@@ -407,36 +416,48 @@ class FronteggAuthService(
         if (stepUpAuthenticator.handleHostedLoginCallback(activity)) {
             return false
         }
-
+    
         val codeVerifier = credentialManager.getCodeVerifier()
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
-
+    
         if (codeVerifier == null) {
             return false
         }
-
+    
         bgScope.launch {
-            val data = api.exchangeToken(code, redirectUrl, codeVerifier)
-            if (data != null) {
-                setCredentials(data.access_token, data.refresh_token)
+            try {
+                val data = api.exchangeToken(code, redirectUrl, codeVerifier)
+                if (data != null) {
+                    setCredentials(data.access_token, data.refresh_token)
 
-                callback?.invoke()
-            } else {
-                Log.e(TAG, "Failed to exchange token")
-                if (webView != null) {
-                    val authorizeUrl = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator()
-                    val url = authorizeUrl.generate()
-                    withContext(mainDispatcher) {
-                        webView.loadUrl(url.first)
-                    }
-                } else if (activity != null && callback == null) {
-                    login(activity)
+                    callback?.invoke()
+                } else {
+                    Log.e(TAG, "Failed to exchange token")
+                    handleFailedTokenExchange(webView, activity, callback)
                 }
-
+            } catch (e: Exception) {
+                Log.e(TAG, "handleHostedLoginCallback failed", e)
+                handleFailedTokenExchange(webView, activity, callback)
             }
         }
-
+    
         return true
+    }
+
+    private suspend fun handleFailedTokenExchange(
+        webView: WebView?,
+        activity: Activity?,
+        callback: (() -> Unit)?
+    ) {
+        if (webView != null) {
+            val authorizeUrl = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator()
+            val url = authorizeUrl.generate()
+            withContext(mainDispatcher) {
+                webView.loadUrl(url.first)
+            }
+        } else if (activity != null && callback == null) {
+            login(activity)
+        }
     }
 
     private fun getDomainCookie(siteName: String): String? {
