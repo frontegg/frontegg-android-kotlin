@@ -369,42 +369,51 @@ class FronteggAuthService(
         if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
         ) {
-
-            val decoded = JWTHelper.decode(accessToken)
+            
             Log.d(TAG, "setCredentials, going to get user info")
     
             try {
                 val user = api.me()
-                this.refreshToken.value = refreshToken
-                this.accessToken.value = accessToken
-                this.user.value = user
-                this.isAuthenticated.value = true
-    
-            // Cancel previous job if it exists
-                refreshTokenTimer.cancelLastTimer()
-    
-                if (decoded.exp > 0) {
-                    val offset = decoded.exp.calculateTimerOffset()
-                    Log.d(TAG, "setCredentials, schedule for $offset")
-
-                    refreshTokenTimer.scheduleTimer(offset)
+                if (user != null) {
+                    updateStateWithCredentials(accessToken, refreshToken, user)
+                } else {
+                    Log.e(TAG, "Failed to fetch user info via api.me(), user is null")
+                    clearCredentials()
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch user info via api.me()", e)
-                this.refreshToken.value = null
-                this.accessToken.value = null
-                this.user.value = null
-                this.isAuthenticated.value = false
+                clearCredentials()
             }
         } else {
-            this.refreshToken.value = null
-            this.accessToken.value = null
-            this.user.value = null
-            this.isAuthenticated.value = false
+            clearCredentials()
         }
-    
         this.isLoading.value = false
         this.initializing.value = false
+    }
+
+    private fun updateStateWithCredentials(accessToken: String, refreshToken: String, user: User) {
+        this.refreshToken.value = refreshToken
+        this.accessToken.value = accessToken
+        this.user.value = user
+        this.isAuthenticated.value = true
+
+        // Cancel previous job if it exists
+        refreshTokenTimer.cancelLastTimer()
+
+        val decoded = JWTHelper.decode(accessToken)
+        if (decoded.exp > 0) {
+            val offset = decoded.exp.calculateTimerOffset()
+            Log.d(TAG, "setCredentials, schedule for $offset")
+
+            refreshTokenTimer.scheduleTimer(offset)
+        }
+    }
+
+    private fun clearCredentials() {
+        this.refreshToken.value = null
+        this.accessToken.value = null
+        this.user.value = null
+        this.isAuthenticated.value = false
     }
 
     fun handleHostedLoginCallback(
@@ -416,14 +425,14 @@ class FronteggAuthService(
         if (stepUpAuthenticator.handleHostedLoginCallback(activity)) {
             return false
         }
-    
+
         val codeVerifier = credentialManager.getCodeVerifier()
         val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
-    
+
         if (codeVerifier == null) {
             return false
         }
-    
+
         bgScope.launch {
             try {
                 val data = api.exchangeToken(code, redirectUrl, codeVerifier)
@@ -440,7 +449,7 @@ class FronteggAuthService(
                 handleFailedTokenExchange(webView, activity, callback)
             }
         }
-    
+
         return true
     }
 
