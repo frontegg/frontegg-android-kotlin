@@ -73,12 +73,12 @@ class FronteggWebClient(
 
         try {
             if (url != null) {
+                if (lastTimer != null) {
+                    lastTimer?.cancel()
+                }
                 val urlType = getOverrideUrlType(url.toUri())
                 if (urlType == OverrideUrlType.internalRoutes) {
-                    if (lastTimer != null) {
-                        lastTimer?.cancel()
-                    }
-                    lastTimer = Timer().schedule(300) {
+                    lastTimer = Timer().schedule(400) {
                         FronteggAuthService.instance.isLoading.value = false;
                     }
                 } else {
