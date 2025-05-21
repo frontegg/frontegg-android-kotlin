@@ -62,11 +62,6 @@ jobs:
           echo "frontegg.properties:"
           echo $(cat frontegg.properties)
 
-      - uses: github/codeql-action/init@v3
-        with:
-          # For Kotlin projects you still use "java" here
-          languages: java
-
       - name: Run Detekt Check
         run: ./gradlew :android:detektDebug --no-daemon
 
