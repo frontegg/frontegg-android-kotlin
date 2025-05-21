@@ -247,7 +247,7 @@ open class Api(
         return prefixedCookie.split(';')[0]
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class, CookieNotFoundException::class)
     fun webAuthnPrelogin(): WebAuthnAssertionRequest {
 
         val call = buildPostRequest(ApiConstants.webauthnPrelogin, JsonObject())
@@ -273,7 +273,7 @@ open class Api(
         )
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticatePasskeysException::class)
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticatePasskeysException::class, CookieNotFoundException::class)
     fun webAuthnPostlogin(sessionCookie: String, challengeResponse: String): AuthResponse {
 
         val gson = Gson()
@@ -306,7 +306,7 @@ open class Api(
     }
 
 
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class, CookieNotFoundException::class)
     fun getWebAuthnRegisterChallenge(): WebAuthnRegistrationRequest {
         val accessToken = this.credentialManager.get(CredentialKeys.ACCESS_TOKEN)
         if (accessToken == null) {

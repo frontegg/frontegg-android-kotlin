@@ -63,7 +63,7 @@ jobs:
           echo $(cat frontegg.properties)
 
       - name: Run Detekt Check
-        run: ./gradlew :android:detekt --no-daemon
+        run: ./gradlew :android:detektDebug --no-daemon
 
       - name: Run Unit Tests
         shell: bash
@@ -77,4 +77,4 @@ jobs:
         if: success() || failure()
         uses: github/codeql-action/upload-sarif@v3
         with:
-          sarif_file: android/build/reports/detekt/detekt.sarif
+          sarif_file: android/build/reports/detekt/debug.sarif
