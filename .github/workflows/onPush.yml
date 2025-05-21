@@ -62,22 +62,24 @@ jobs:
           echo "frontegg.properties:"
           echo $(cat frontegg.properties)
 
+      - uses: github/codeql-action/init@v3
+        with:
+          # For Kotlin projects you still use "java" here
+          languages: java
+
+      - name: Run Detekt Check
+        run: ./gradlew :android:detektDebug --no-daemon
+
       - name: Run Unit Tests
         shell: bash
         run: ./gradlew :android:test --no-daemon
-
-      - name: Run Detekt Check
-        shell: bash
-        run: ./gradlew :android:detektDebug --no-daemon
 
       - name: Build Libraries
         shell: bash
         run: ./gradlew :app:build --no-daemon
 
-      # Make sure we always run this upload task,
-      # because the previous step may fail if there are findings.
-      - name: 'Upload SARIF to GitHub using the upload-sarif action'
-        uses: github/codeql-action/upload-sarif@v2
+      - name: Upload Detekt SARIF
         if: success() || failure()
+        uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: android/build/reports/detekt/detekt.sarif
