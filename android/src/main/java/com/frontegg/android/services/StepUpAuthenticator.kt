@@ -57,7 +57,7 @@ class StepUpAuthenticator(
             }
 
             FronteggState.showLoader.value = false
-            GlobalScope.launch(Dispatchers.Main) {
+            ScopeProvider.mainScope.launch {
                 callback?.invoke(exception)
             }
             StepUpAuthenticator.callback = null

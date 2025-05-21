@@ -224,7 +224,7 @@ class FronteggAuthService(
         val passkeyManager = CredentialManagerHandlerProvider.getCredentialManagerHandler(
             activity
         )
-        GlobalScope.launch(mainDispatcher){
+        ScopeProvider.mainScope.launch {
             try {
 
                 val webAuthnPreloginRequest = withContext(ioDispatcher) { api.webAuthnPrelogin() }
