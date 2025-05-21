@@ -63,7 +63,7 @@ jobs:
           echo $(cat frontegg.properties)
 
       - name: Run Detekt Check
-        run: ./gradlew :android:detektDebug --no-daemon
+        run: ./gradlew :android:detekt --no-daemon
 
       - name: Run Unit Tests
         shell: bash
