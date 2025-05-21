@@ -68,4 +68,8 @@ jobs:
 
       - name: Build Libraries
         shell: bash
+        run: ./gradlew :android:detektDebug --no-daemon
+
+      - name: Build Libraries
+        shell: bash
         run: ./gradlew :app:build --no-daemon
