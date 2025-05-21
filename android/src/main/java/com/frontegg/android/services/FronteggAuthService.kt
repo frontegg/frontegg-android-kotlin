@@ -372,7 +372,7 @@ class FronteggAuthService(
 
             val decoded = JWTHelper.decode(accessToken)
             Log.d(TAG, "setCredentials, going to get user info")
-                val user = api.me()
+            val user = api.me()
             this.refreshToken.value = refreshToken
             this.accessToken.value = accessToken
             this.user.value = user
@@ -426,7 +426,7 @@ class FronteggAuthService(
                 if (webView != null) {
                     val authorizeUrl = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator()
                     val url = authorizeUrl.generate()
-                    withContext(mainDispatcher){
+                    withContext(mainDispatcher) {
                         webView.loadUrl(url.first)
                     }
                 } else if (activity != null && callback == null) {

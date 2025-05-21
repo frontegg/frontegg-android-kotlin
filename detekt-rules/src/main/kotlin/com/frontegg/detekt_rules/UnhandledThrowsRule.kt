@@ -1,6 +1,7 @@
 package com.frontegg.detekt_rules
 
 import io.gitlab.arturbosch.detekt.api.*
+import org.jetbrains.kotlin.com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.psi.*
 import org.jetbrains.kotlin.resolve.calls.callUtil.getResolvedCall
 import org.jetbrains.kotlin.name.FqName
@@ -76,9 +77,28 @@ class UnhandledThrowsRule(config: Config) : Rule(config) {
                         }
                 }
 
-            Log.warn("thrownExceptionShortNames: $thrownExceptionShortNames")
             // 3) If we’re inside any try…catch at all, assume handled (we’ll catch generic below)
-            if (call.parents.any { it is KtTryExpression }) return
+            run {
+                // find the nearest try above us, if any
+                val tryExpr = call.parents.filterIsInstance<KtTryExpression>().firstOrNull()
+                if (tryExpr != null) {
+                    // collect all ancestors between our call and that try
+                    val pathToTry = generateSequence(call as PsiElement) { it.parent }
+                        .takeWhile { it != tryExpr }
+                        .toList()
+
+                    // if there is *no* launch/async/etc in between, the try really does enclose us
+                    val hasCoroutineBoundary = pathToTry.any {
+                        it is KtCallExpression &&
+                                it.calleeExpression?.text?.let { name ->
+                                    name == "launch" || name == "async" || name == "runBlocking"
+                                } == true
+                    }
+
+                    // if there is no coroutine boundary, we’re truly inside a try, so it’s handled
+                    if (!hasCoroutineBoundary) return
+                }
+            }
 
             // 4) If an enclosing function itself has @Throws for one of these same exceptions, skip
             val parentIsDeclaring =
