@@ -101,7 +101,7 @@ class FronteggNativeBridge(val context: Context) {
     @JavascriptInterface
     fun setLoading(value: Boolean) {
         Log.d("FronteggNativeBridge", "setLoading(${if (value) "true" else "false"})")
-        FronteggAuthService.instance.isLoading.value = value
+        FronteggAuthService.instance.webLoading.value = value
     }
 
     @JavascriptInterface

@@ -12,9 +12,10 @@ import com.frontegg.android.BuildConfig
 class AndroidDebugConfigurationChecker(
     private val context: Context,
     private val fronteggDomain: String,
-    private val clientId: String
+    private val clientId: String,
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
-
+    private val scope = CoroutineScope(ioDispatcher + SupervisorJob())
     private val baseUrl: String = "https://$fronteggDomain"
     private val assetLinksUrl: String = "$baseUrl/.well-known/assetlinks.json"
     private val oauthPreloginEndpoint: String = "$baseUrl/oauth/prelogin"
@@ -27,7 +28,7 @@ class AndroidDebugConfigurationChecker(
 
         Log.d(TAG, "🔍 Running Android debug configuration checks...")
 
-        CoroutineScope(Dispatchers.IO).launch {
+        scope.launch {
             try {
                 validateAssetLinks()
                 checkCustomDomain()
@@ -126,7 +127,7 @@ class AndroidDebugConfigurationChecker(
     }
 
     private suspend fun makeHttpRequest(urlString: String): String {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             try {
                 val url = URL(urlString)
                 val connection = url.openConnection() as HttpURLConnection
@@ -145,7 +146,7 @@ class AndroidDebugConfigurationChecker(
     }
 
     private suspend fun makeHttpRequestForStatus(urlString: String): Int {
-        return withContext(Dispatchers.IO) {
+        return withContext(ioDispatcher) {
             val url = URL(urlString)
             val connection = url.openConnection() as HttpURLConnection
             connection.requestMethod = "GET"

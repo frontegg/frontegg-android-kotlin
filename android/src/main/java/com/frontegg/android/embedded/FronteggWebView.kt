@@ -10,7 +10,6 @@ import android.webkit.WebView
 import com.frontegg.android.services.FronteggInnerStorage
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
-import com.frontegg.android.FronteggApp
 import kotlinx.coroutines.MainScope
 
 

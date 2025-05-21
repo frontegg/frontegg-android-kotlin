@@ -1,10 +1,11 @@
 package com.frontegg.android.services
 
+import kotlin.jvm.Throws
 import android.util.Log
 import com.frontegg.android.exceptions.CookieNotFoundException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.FailedToAuthenticatePasskeysException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
-import com.frontegg.android.exceptions.MFANotEnrolledException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
@@ -13,7 +14,6 @@ import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
-import com.frontegg.android.utils.StepUpConstants
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
@@ -45,7 +45,6 @@ open class Api(
     companion object {
         val TAG: String = Api::class.java.simpleName
     }
-
 
     private fun prepareHeaders(additionalHeaders: Map<String, String> = mapOf()): Headers {
 
@@ -169,7 +168,6 @@ open class Api(
         return null
     }
 
-
     @Throws(IllegalArgumentException::class, IOException::class)
     fun exchangeToken(
         code: String, redirectUrl: String, codeVerifier: String
@@ -190,6 +188,7 @@ open class Api(
         return null
     }
 
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
     fun authorizeWithTokens(
         refreshToken: String,
         deviceTokenCookie: String?,
@@ -229,6 +228,7 @@ open class Api(
         }
     }
 
+    @Throws(IllegalArgumentException::class, IOException::class)
     fun switchTenant(tenantId: String) {
         val data = JsonObject()
         data.addProperty("tenantId", tenantId)
@@ -236,7 +236,7 @@ open class Api(
         call.execute()
     }
 
-
+    @Throws(CookieNotFoundException::class)
     private fun getSetCookieValue(prefix: String, response: Response): String {
 
         val cookies = response.headers("set-cookie")
@@ -247,6 +247,7 @@ open class Api(
         return prefixedCookie.split(';')[0]
     }
 
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class, CookieNotFoundException::class)
     fun webAuthnPrelogin(): WebAuthnAssertionRequest {
 
         val call = buildPostRequest(ApiConstants.webauthnPrelogin, JsonObject())
@@ -272,6 +273,7 @@ open class Api(
         )
     }
 
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticatePasskeysException::class, CookieNotFoundException::class)
     fun webAuthnPostlogin(sessionCookie: String, challengeResponse: String): AuthResponse {
 
         val gson = Gson()
@@ -287,7 +289,7 @@ open class Api(
         val response = call.execute()
         val body = response.body
         if (!response.isSuccessful || body == null) {
-            throw Exception("failed to authenticate with passkeys")
+            throw FailedToAuthenticatePasskeysException(response.message)
         }
 
         val authResponseStr = body.string()
@@ -304,6 +306,7 @@ open class Api(
     }
 
 
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class, CookieNotFoundException::class)
     fun getWebAuthnRegisterChallenge(): WebAuthnRegistrationRequest {
         val accessToken = this.credentialManager.get(CredentialKeys.ACCESS_TOKEN)
         if (accessToken == null) {
@@ -334,6 +337,7 @@ open class Api(
         )
     }
 
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToRegisterWebAuthnDevice::class, NotAuthenticatedException::class)
     fun verifyWebAuthnDevice(
         sessionCookie: String,
         challengeResponse: String
@@ -362,7 +366,7 @@ open class Api(
         }
     }
 
-
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
     private fun silentHostedLoginRefreshToken(
         refreshTokenCookie: String,
         deviceIdCookie: String

@@ -54,16 +54,12 @@ class AuthenticationActivity : FronteggBaseActivity() {
             if (url != null) {
                 startAuth(url)
             } else {
-                invokeAuthFinishedCallback()
-                setResult(RESULT_CANCELED)
-                finish()
+                safeFinishActivity(RESULT_CANCELED)
             }
         } else {
             val intentUrl = intent.data
             if (intentUrl == null) {
-                invokeAuthFinishedCallback(CanceledByUserException())
-                setResult(RESULT_CANCELED)
-                finish()
+                safeFinishActivity(RESULT_CANCELED, CanceledByUserException())
                 return
             }
 
@@ -76,17 +72,13 @@ class AuthenticationActivity : FronteggBaseActivity() {
                 if (storage.useChromeCustomTabs && storage.isEmbeddedMode) {
                     EmbeddedAuthActivity.afterAuthentication(this)
                 } else {
-                    invokeAuthFinishedCallback()
-                    setResult(RESULT_OK)
-                    finish()
+                    safeFinishActivity(RESULT_OK)
                 }
                 return
             }
 
             Log.d(TAG, "Got intent with unknown data")
-            setResult(RESULT_CANCELED)
-            invokeAuthFinishedCallback()
-            finish()
+            safeFinishActivity(RESULT_CANCELED)
         }
     }
 
@@ -107,6 +99,35 @@ class AuthenticationActivity : FronteggBaseActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
     }
+
+    fun safeFinishActivity(resultCode: Int, exception: FronteggException? = null) {
+        invokeAuthFinishedCallback(exception)
+        setResult(resultCode)
+        if(isTaskRoot){
+            val intent = intent
+            // 2) …and we didn’t come here via the normal launcher (ACTION_MAIN + CATEGORY_LAUNCHER)
+            val isLauncher = intent.action == Intent.ACTION_MAIN &&
+                    intent.hasCategory(Intent.CATEGORY_LAUNCHER)
+            if (!isLauncher) {
+                // 3) Grab the real “main launcher” Intent for this package
+                val launchIntent = packageManager
+                    .getLaunchIntentForPackage(packageName)
+                    ?.apply {
+                        // wipe any existing history/task and start fresh
+                        addFlags(
+                            Intent.FLAG_ACTIVITY_NEW_TASK or
+                                    Intent.FLAG_ACTIVITY_CLEAR_TASK
+                        )
+                    }
+                // 4) Fire it and kill yourself
+                launchIntent?.let { startActivity(it) }
+                finish()
+                return
+            }
+        }
+        finish()
+    }
+
 
     @SuppressLint("QueryPermissionsNeeded")
     @Suppress("DEPRECATION")

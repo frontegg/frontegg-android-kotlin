@@ -9,6 +9,7 @@ object FronteggState {
     val user: ObservableValue<User?> = ObservableValue(null)
     val isAuthenticated: ObservableValue<Boolean> = ObservableValue(false)
     val isLoading: ObservableValue<Boolean> = ObservableValue(true)
+    val webLoading: ObservableValue<Boolean> = ObservableValue(false)
     val initializing: ObservableValue<Boolean> = ObservableValue(true)
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
