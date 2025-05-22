@@ -142,8 +142,10 @@ jobs:
 
       - name: Commit changes
         shell: bash -ex {0}
+        id: 'cpr_commit_sha'
         run: |
           git add . && git commit -m "chore(release): publish ${{ steps.incremented-patch-version.outputs.version }}"
+          echo "sha=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Create Release Pull Request
         id: cpr
@@ -161,7 +163,7 @@ jobs:
           branch: "release/next"
 
       - name: Set Alpha Version
-        id: incremented-alpha-version
+        id: incremented-version
         uses: ./.github/actions/update-gradle-version
         with:
           type: alpha
@@ -179,3 +181,11 @@ jobs:
             closeSonatypeStagingRepository \
             releaseSonatypeStagingRepository \
             --no-daemon --no-parallel
+
+      - name: "Call trigger-e2e-test action"
+        uses: ./.github/actions/trigger-e2e-test
+        with:
+          version: ${{ steps.incremented-patch-version.outputs.version }}
+          sha: ${{ steps.cpr_commit_sha.outputs.sha }}
+          bot_app_id: ${{ secrets.GH_FRONTEGG_BOT_APP_ID }}
+          bot_app_key: ${{ secrets.GH_FRONTEGG_BOT_APP_SECRET }}
