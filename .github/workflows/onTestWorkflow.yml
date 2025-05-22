@@ -1,112 +1,33 @@
-name: "(▶) E2E Test"
+name: "(▶) Trigger E2E tests Workflow"
+
 on:
-  push:
-
-env:
-  CI: true
-  LANG: en_US.UTF-8
-  API_LEVEL: 34
-
-concurrency:
-  group: ci-e2e-test-${{ github.ref }}
-  cancel-in-progress: true
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version'
+        required: true
+      sha:
+        description: 'Commit SHA'
+        required: true
 
 jobs:
-  uploadApk:
-    name: 'Upload apk'
-    runs-on: macos-14-xlarge
+  trigger_e2e_tests:
+    name: "Trigger E2E tests Workflow"
+    runs-on: 'ubuntu-latest'
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4.2.0
-        with:
-          fetch-depth: "0"
+      - uses: actions/checkout@v4
 
-      - name: Setup
-        uses: ./.github/actions/setup
-        with:
-          github_token: ${{ secrets.GITHUB_TOKEN }}
-
-
-      - name: Config root certificate for testing
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const path = require('path');
-            const securityConfig = `<network-security-config>\n    <base-config>\n        <trust-anchors>\n            <!-- Trust preinstalled CAs -->\n            <certificates src="system" />\n            <!-- Additionally trust user added CAs -->\n            <certificates src="user" />\n        </trust-anchors>\n    </base-config>\n</network-security-config>`
-            fs.mkdirSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/res/xml'),  { recursive: true });
-            fs.writeFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/res/xml/network_security_config.xml'), securityConfig, 'utf8');
-            
-            let manifest = fs.readFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/AndroidManifest.xml'), 'utf8');
-            manifest = manifest.replace(/<application/g, '<application android:networkSecurityConfig="@xml/network_security_config"');
-            fs.writeFileSync(path.join(process.env.GITHUB_WORKSPACE, 'embedded/src/main/AndroidManifest.xml'), manifest, 'utf8');
-
-      - name: Build properties
-        shell: bash
+      - name: "Print inputs"
         run: |
-          cat <<EOF > test.properties
-          LOGIN_EMAIL=${{ secrets.LOGIN_EMAIL }}
-          LOGIN_PASSWORD=${{ secrets.LOGIN_PASSWORD }}
-          
-          LOGIN_WRONG_EMAIL=${{ secrets.LOGIN_WRONG_EMAIL }}
-          LOGIN_WRONG_PASSWORD=${{ secrets.LOGIN_WRONG_PASSWORD }}
-          
-          SIGN_UP_TEMPLATE=${{ secrets.SIGN_UP_TEMPLATE }}
-          SIGN_UP_NAME=${{ secrets.SIGN_UP_NAME }}
-          SIGN_UP_ORGANIZATION=${{ secrets.SIGN_UP_ORGANIZATION }}
-          
-          GOOGLE_EMAIL=${{ secrets.GOOGLE_EMAIL }}
-          GOOGLE_PASSWORD=${{ secrets.GOOGLE_PASSWORD }}
-          
-          TENANT_NAME_1=${{ secrets.TENANT_NAME_1 }}
-          TENANT_NAME_2=${{ secrets.TENANT_NAME_2 }}
-          EOF
+          echo "Received test request for FronteggSwift @${{ inputs.version }}"
+          echo "From: ${{ inputs.dispatch_id }}"
 
-          cat <<EOF > frontegg.properties
-          FRONTEGG_DOMAIN=${{ secrets.FRONTEGG_DOMAIN }}
-          FRONTEGG_CLIENT_ID=${{ secrets.FRONTEGG_CLIENT_ID }}
-          FRONTEGG_APPLICATION_ID=${{ secrets.FRONTEGG_APPLICATION_ID }}
-          FRONTEGG_DOMAIN_2=${{ secrets.FRONTEGG_DOMAIN_2 }}
-          EOF
-
-          echo "Files created successfully."
-          
-          echo "test.properties:"
-          echo $(cat test.properties)
-          echo "frontegg.properties:"
-          echo $(cat frontegg.properties)
-
-      - name: Clean build
-        run: ./gradlew clean
-      - name: Build debug test apk
-        run: ./gradlew :embedded:assembleDebug
-
-      - name: Build release test apk
-        run: ./gradlew :embedded:assembleRelease
-
-      - name: Upload a Assemble Debug Artifact
-        uses: actions/upload-artifact@v4.4.0
+      - name: "Call trigger-e2e-test action"
+        uses: ./.github/actions/trigger-e2e-test
         with:
-          name: test-debug.apk
-          path: embedded/build/outputs/apk/debug/embedded-debug.apk
+          version: ${{ inputs.version }}
+          sha: ${{ inputs.sha }}
+          bot_app_id: ${{ secrets.GH_FRONTEGG_BOT_APP_ID }}
+          bot_app_key: ${{ secrets.GH_FRONTEGG_BOT_APP_SECRET }}
 
-      - name: Upload a Assemble Release Artifact
-        uses: actions/upload-artifact@v4.4.0
-        with:
-          name: test-release.apk
-          path: embedded/build/outputs/apk/release/embedded-release.apk
 
-      - name: Fetch artifact details
-        run: |
-          # Fetch the artifacts for the current workflow run
-          response=$(curl -s -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github.v3+json" \
-            https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts)
-
-          # Parse the response to extract artifact names and IDs
-          echo "Artifact details:"
-          echo "$response" | jq -r '.artifacts[] | "Artifact Name: \(.name), Artifact ID: \(.id)"'
-
-          # Construct the GitHub download URL for each artifact
-          echo "Constructing download URLs..."
-          echo "$response" | jq -r '.artifacts[] | "https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}/artifacts/\(.id)"'
