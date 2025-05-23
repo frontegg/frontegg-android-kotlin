@@ -1,4 +1,4 @@
-## v
+## v1.2.42
 - Add support for caching web js font css files
 - Fix login direct action command
 
