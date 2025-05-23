@@ -23,7 +23,8 @@ class FronteggAppService(
     private val useAssetsLinks: Boolean = false,
     private var useChromeCustomTabs: Boolean = false,
     private var mainActivityClass: Class<*>? = null,
-    private var deepLinkScheme: String? = null
+    private var deepLinkScheme: String? = null,
+    private var useDiskCacheWebview: Boolean = false
 ) : FronteggApp {
 
     private val storage = StorageProvider.getInnerStorage()
@@ -67,6 +68,7 @@ class FronteggAppService(
             mainActivityClass,
             context.packageName,
             deepLinkScheme,
+            useDiskCacheWebview,
         )
     }
 

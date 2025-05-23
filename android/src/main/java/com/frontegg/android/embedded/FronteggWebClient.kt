@@ -1,5 +1,6 @@
 package com.frontegg.android.embedded
 
+import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.graphics.Bitmap
@@ -15,7 +16,7 @@ import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
-import android.app.Activity
+import androidx.core.net.toUri
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
@@ -25,17 +26,19 @@ import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
 import com.frontegg.android.utils.generateErrorPage
 import com.google.gson.JsonParser
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import androidx.core.net.toUri
-import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.withContext
+import java.io.ByteArrayInputStream
+import java.net.URLConnection
 import java.util.Timer
 import java.util.TimerTask
 import kotlin.concurrent.schedule
@@ -362,6 +365,27 @@ class FronteggWebClient(
         return super.shouldOverrideUrlLoading(view, request)
     }
 
+    private val cache = WebResourceCache.getInstance(context)
+
+    override fun shouldInterceptRequest(
+        view: WebView?,
+        request: WebResourceRequest?
+    ): WebResourceResponse? {
+
+        if (storage.useDiskCacheWebview) {
+            request?.let {
+                val url = it.url.toString()
+                Log.d(TAG, "shouldInterceptRequest: $url")
+                if (cache.shouldCache(url)) {
+                    cache.get(url)?.let { response ->
+                        return response;
+                    }
+                }
+                Log.d(TAG, "shouldInterceptRequest: not cacheable $url")
+            }
+        }
+        return super.shouldInterceptRequest(view, request)
+    }
 
     override fun onLoadResource(view: WebView?, url: String?) {
         if (url == null || view == null) {

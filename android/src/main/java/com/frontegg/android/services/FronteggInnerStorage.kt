@@ -45,6 +45,9 @@ class FronteggInnerStorage {
         get() = data["packageName"] as String? ?: ""
     val deepLinkScheme: String?
         get() = data["deepLinkScheme"] as String?
+    val useDiskCacheWebview: Boolean
+        get() = data["useDiskCacheWebview"] as Boolean? ?: false
+
 
     fun fill(
         baseUrl: String,
@@ -63,7 +66,8 @@ class FronteggInnerStorage {
         useChromeCustomTabs: Boolean = false,
         mainActivityClass: Class<*>? = null,
         packageName: String,
-        deepLinkScheme: String? = null
+        deepLinkScheme: String? = null,
+        useDiskCacheWebview: Boolean = false
     ) {
         data["baseUrl"] = baseUrl
         data["clientId"] = clientId
@@ -82,6 +86,7 @@ class FronteggInnerStorage {
         data["mainActivityClass"] = mainActivityClass
         data["packageName"] = packageName
         data["deepLinkScheme"] = deepLinkScheme
+        data["useDiskCacheWebview"] = useDiskCacheWebview
     }
 
     companion object {
