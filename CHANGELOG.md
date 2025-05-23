@@ -1,6 +1,36 @@
 ## v1.2.42
-- Add support for caching web js font css files
-- Fix login direct action command
+
+### 🌟 New Features
+
+* **Web Resource Caching for WebView**
+  Added support for persistent caching of **JavaScript**, **font**, and **CSS** files loaded via WebView. This reduces redundant network requests and improves page load performance for embedded login and other hosted assets.
+
+  **How to enable:**
+  Set `useDiskCacheWebview = true` when initializing the SDK:
+
+  ```kotlin
+  FronteggApp.init(
+      fronteggDomain = "your-domain.frontegg.com",
+      clientId = "your-client-id",
+      context = applicationContext,
+      useDiskCacheWebview = true
+  )
+  ```
+
+  For multi-region apps:
+
+  ```kotlin
+  FronteggApp.initWithRegions(
+      regions = yourRegionList,
+      context = applicationContext,
+      useDiskCacheWebview = true
+  )
+  ```
+
+### 🐞 Bug Fixes
+
+* **Login Direct Action**
+  Fixed an issue where the `loginDirectAction` command was not executing properly in certain scenarios, especially when triggered after cold app launches or delayed SDK initialization.
 
 ## v1.2.41
 ## 🚀 New Features & Enhancements
