@@ -35,6 +35,7 @@ class App : Application() {
             useChromeCustomTabs = true,
             mainActivityClass = NavigationActivity::class.java,
             deepLinkScheme = BuildConfig.FRONTEGG_DEEP_LINK_SCHEME,
+            useDiskCacheWebview = true
         )
     }
 }

@@ -50,6 +50,7 @@ interface FronteggApp {
          * @param useAssetsLinks Whether the Frontegg SDK should use asset links (default: `false`).
          * @param useChromeCustomTabs Whether the Frontegg SDK should use Chrome Custom Tabs (default: `false`).
          * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
+         * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
          */
         fun init(
             fronteggDomain: String,
@@ -60,6 +61,7 @@ interface FronteggApp {
             useChromeCustomTabs: Boolean = false,
             mainActivityClass: Class<*>? = null,
             deepLinkScheme: String? = null,
+            useDiskCacheWebview: Boolean = false,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
@@ -78,7 +80,8 @@ interface FronteggApp {
                 isEmbeddedMode = isEmbeddedMode,
                 useAssetsLinks = useAssetsLinks,
                 useChromeCustomTabs = useChromeCustomTabs,
-                mainActivityClass = mainActivityClass
+                mainActivityClass = mainActivityClass,
+                useDiskCacheWebview = useDiskCacheWebview
             )
             
             val debugChecker = AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
@@ -93,13 +96,15 @@ interface FronteggApp {
          * @param useAssetsLinks Whether the Frontegg SDK should use asset links (default: `false`).
          * @param useChromeCustomTabs Whether the Frontegg SDK should use Chrome Custom Tabs (default: `false`).
          * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
+         * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
          */
         fun initWithRegions(
             regions: List<RegionConfig>,
             context: Context,
             useAssetsLinks: Boolean = false,
             useChromeCustomTabs: Boolean = false,
-            mainActivityClass: Class<*>? = null
+            mainActivityClass: Class<*>? = null,
+            useDiskCacheWebview: Boolean = false,
         ): FronteggApp {
 
             val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
@@ -118,7 +123,8 @@ interface FronteggApp {
                         selectedRegion = regionConfig,
                         useAssetsLinks = useAssetsLinks,
                         useChromeCustomTabs = useChromeCustomTabs,
-                        mainActivityClass = mainActivityClass
+                        mainActivityClass = mainActivityClass,
+                        useDiskCacheWebview = useDiskCacheWebview
                     )
                     instance = newInstance
                     
@@ -137,7 +143,8 @@ interface FronteggApp {
                 regions = regions,
                 useAssetsLinks = useAssetsLinks,
                 useChromeCustomTabs = useChromeCustomTabs,
-                mainActivityClass = mainActivityClass
+                mainActivityClass = mainActivityClass,
+                useDiskCacheWebview = useDiskCacheWebview
             )
             instance = newInstance
             return newInstance
