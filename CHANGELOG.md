@@ -1,3 +1,7 @@
+## v
+- Add support for caching web js font css files
+- Fix login direct action command
+
 ## v1.2.41
 ## 🚀 New Features & Enhancements
 
