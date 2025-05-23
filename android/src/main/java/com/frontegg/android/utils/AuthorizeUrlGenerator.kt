@@ -75,6 +75,7 @@ class AuthorizeUrlGenerator {
             .appendQueryParameter("code_challenge", codeChallenge)
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("nonce", nonce)
+            .appendQueryParameter("prompt", "login")
 
         if (stepUp == true) {
             authorizeUrlBuilder.appendQueryParameter(
@@ -95,7 +96,6 @@ class AuthorizeUrlGenerator {
 
         if (loginAction != null) {
             authorizeUrlBuilder.appendQueryParameter("login_direct_action", loginAction)
-            authorizeUrlBuilder.appendQueryParameter("prompt", "login")
             return Pair(authorizeUrlBuilder.build().toString(), codeVerifier)
         }
 
