@@ -99,7 +99,7 @@ jobs:
             DESCRIPTION="$PR_BODY"
           else
             echo "No PR found with label '$TARGET_LABEL'"
-            DESCRIPTION="## v${{ steps.incremented-version.outputs.result }}"
+            DESCRIPTION="## v${{ steps.incremented-patch-version.outputs.result }}"
           fi
 
           # Append current PR description if available
