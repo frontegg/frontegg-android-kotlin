@@ -7,6 +7,7 @@ import com.google.android.material.bottomnavigation.BottomNavigationView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavController
 import androidx.navigation.findNavController
+import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import androidx.navigation.ui.setupWithNavController
@@ -32,8 +33,6 @@ class NavigationActivity : AppCompatActivity() {
     private val authenticatedTabs = AppBarConfiguration(
         setOf(
             R.id.navigation_home,
-            R.id.navigation_tenants,
-            R.id.navigation_access_token
         )
     )
 
@@ -54,16 +53,23 @@ class NavigationActivity : AppCompatActivity() {
         binding = ActivityNavigationBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Setup bottom navigation view and navigation controller
-        val navView: BottomNavigationView = binding.navView
-        navController = findNavController(R.id.nav_host_fragment_activity_navigation)
+        // Get the NavHostFragment
+        val navHostFragment = supportFragmentManager
+            .findFragmentById(R.id.nav_host_fragment_activity_navigation) as NavHostFragment
 
-        // Attach navigation view to the navController
-        navView.setupWithNavController(navController)
+        // Get the NavController
+        navController = navHostFragment.navController
+
 
         // Set default navigation graph for non-authenticated users
         setupActionBarWithNavController(navController, nonAuthTabs)
-        navController.setGraph(R.navigation.not_auth_navigation)
+
+        // Set the initial navigation graph
+        if (savedInstanceState == null) {
+            navController.setGraph(R.navigation.not_auth_navigation)
+        }
+
+        setToolbarVisibility(false)
     }
 
     /**
@@ -125,14 +131,12 @@ class NavigationActivity : AppCompatActivity() {
                 // User is authenticated: switch to authenticated navigation graph
                 setupActionBarWithNavController(navController, authenticatedTabs)
                 navController.setGraph(R.navigation.navigation)
-                binding.navView.visibility = View.VISIBLE
-                setToolbarVisibility(true)
+
             } else {
                 // User is not authenticated: switch to non-authenticated navigation graph
                 setupActionBarWithNavController(navController, nonAuthTabs)
                 navController.setGraph(R.navigation.not_auth_navigation)
-                binding.navView.visibility = View.GONE
-                setToolbarVisibility(false)
+
             }
         }
     }

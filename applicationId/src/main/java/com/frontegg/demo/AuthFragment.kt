@@ -1,6 +1,9 @@
 package com.frontegg.demo
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
@@ -8,24 +11,16 @@ import androidx.fragment.app.Fragment
 import com.frontegg.android.FronteggAuth
 import com.frontegg.demo.databinding.FragmentAuthBinding
 
-/**
- * Fragment responsible for handling authentication-related UI and logic.
- * This fragment manages the login button and authentication state using Frontegg SDK.
- */
 class AuthFragment : Fragment() {
 
-    // View binding instance for fragment_auth.xml layout
-    // Null when view is destroyed
     private var _binding: FragmentAuthBinding? = null
 
-    // Safe access to binding with validity check
-    // Only valid between onCreateView and onDestroyView
+    /**
+     * Binding property, only valid between onCreateView and onDestroyView.
+     * This ensures safe access to UI elements within the fragment's lifecycle.
+     */
     private val binding get() = _binding!!
 
-    /**
-     * Creates and inflates the fragment's view hierarchy.
-     * Initializes view binding for the auth fragment layout.
-     */
     override fun onCreateView(
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
@@ -34,25 +29,69 @@ class AuthFragment : Fragment() {
         return binding.root
     }
 
-    /**
-     * Sets up view interactions after the view is created.
-     * Configures the login button to initiate Frontegg authentication.
-     */
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
+        /**
+         * Handles user login via the Embedded Frontegg WebView login dialog.
+         */
         binding.loginButton.setOnClickListener {
-            // Launch Frontegg's login flow using the current activity context
-            FronteggAuth.instance.login(requireActivity())
+            FronteggAuth.instance.login(requireActivity()) {
+                Log.d("AuthFragment", "Login callback")
+            }
+        }
+
+        /**
+         * Opens the Frontegg Android Kotlin documentation in the default browser.
+         * This button is part of the footer and provides quick access to the official documentation.
+         */
+        binding.footer.docsButton.setOnClickListener {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://android-kotlin-guide.frontegg.com/#/")
+            )
+            startActivity(intent)
+        }
+
+        /**
+         * Opens the Frontegg Android Kotlin GitHub repository in the default browser.
+         * This button is part of the footer and provides quick access to the source code and issues.
+         */
+        binding.footer.githubButton.setOnClickListener {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://github.com/frontegg/frontegg-android-kotlin")
+            )
+            startActivity(intent)
+        }
+
+        /**
+         * Opens the Slack OAuth authorization page in the default browser.
+         * This button is part of the footer and allows users to connect with the Frontegg community on Slack.
+         */
+        binding.footer.slackButton.setOnClickListener {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://slack.com/oauth/authorize?client_id=1234567890.1234567890&scope=identity.basic,identity.email,identity.team,identity.avatar")
+            )
+            startActivity(intent)
+        }
+
+        /**
+         * Opens the Frontegg sign-up page in the default browser.
+         * This button is part of the footer's sign-up banner and allows users to create their own Frontegg account.
+         */
+        binding.footer.signUpButton.setOnClickListener {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://frontegg-prod.frontegg.com/oauth/account/sign-up")
+            )
+            startActivity(intent)
         }
     }
 
-    /**
-     * Cleans up resources when the fragment's view is destroyed.
-     * Prevents memory leaks by nullifying the view binding.
-     */
     override fun onDestroyView() {
         super.onDestroyView()
-        _binding = null
+        _binding = null // Prevents memory leaks by nullifying the binding reference.
     }
 }

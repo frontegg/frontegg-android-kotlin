@@ -1,5 +1,7 @@
 package com.frontegg.demo
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.view.LayoutInflater
@@ -112,6 +114,54 @@ class AuthFragment : Fragment() {
                     Log.d("AuthFragment", "Passkeys Login Callback")
                 },
             )
+        }
+
+        /**
+         * Opens the Frontegg Android Kotlin documentation in the default browser.
+         * This button is part of the footer and provides quick access to the official documentation.
+         */
+        binding.footer.docsButton.setOnClickListener {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://android-kotlin-guide.frontegg.com/#/")
+            )
+            startActivity(intent)
+        }
+
+        /**
+         * Opens the Frontegg Android Kotlin GitHub repository in the default browser.
+         * This button is part of the footer and provides quick access to the source code and issues.
+         */
+        binding.footer.githubButton.setOnClickListener {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://github.com/frontegg/frontegg-android-kotlin")
+            )
+            startActivity(intent)
+        }
+
+        /**
+         * Opens the Slack OAuth authorization page in the default browser.
+         * This button is part of the footer and allows users to connect with the Frontegg community on Slack.
+         */
+        binding.footer.slackButton.setOnClickListener {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://slack.com/oauth/authorize?client_id=1234567890.1234567890&scope=identity.basic,identity.email,identity.team,identity.avatar")
+            )
+            startActivity(intent)
+        }
+
+        /**
+         * Opens the Frontegg sign-up page in the default browser.
+         * This button is part of the footer's sign-up banner and allows users to create their own Frontegg account.
+         */
+        binding.footer.signUpButton.setOnClickListener {
+            val intent = Intent(
+                Intent.ACTION_VIEW,
+                Uri.parse("https://frontegg-prod.frontegg.com/oauth/account/sign-up")
+            )
+            startActivity(intent)
         }
     }
 

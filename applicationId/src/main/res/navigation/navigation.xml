@@ -11,9 +11,4 @@
         android:label="@string/title_home"
         tools:layout="@layout/fragment_home" />
 
-    <fragment
-        android:id="@+id/navigation_tenants"
-        android:name="com.frontegg.demo.ui.tenants.TenantsFragment"
-        android:label="@string/title_tenants"
-        tools:layout="@layout/fragment_tenants" />
 </navigation>
