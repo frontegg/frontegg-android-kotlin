@@ -61,7 +61,7 @@
                     android:layout_height="24dp"
                     android:fontFamily="@font/manrope_semibold"
                     android:fontWeight="600"
-                    android:text="ID:"
+                    android:text="ID"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                 <TextView
@@ -70,7 +70,7 @@
                     android:layout_marginTop="16dp"
                     android:fontFamily="@font/manrope_semibold"
                     android:fontWeight="600"
-                    android:text="Website:"
+                    android:text="Website"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
 
@@ -80,7 +80,7 @@
                     android:layout_marginTop="16dp"
                     android:fontFamily="@font/manrope_semibold"
                     android:fontWeight="600"
-                    android:text="Creator:"
+                    android:text="Creator"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
             </LinearLayout>

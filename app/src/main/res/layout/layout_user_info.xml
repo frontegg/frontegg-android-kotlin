@@ -68,7 +68,7 @@
                     android:layout_height="wrap_content"
                     android:fontFamily="@font/manrope_semibold"
                     android:fontWeight="600"
-                    android:text="Name:"
+                    android:text="Name"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
                 <TextView
@@ -77,7 +77,7 @@
                     android:layout_marginTop="16dp"
                     android:fontFamily="@font/manrope_semibold"
                     android:fontWeight="600"
-                    android:text="Email:"
+                    android:text="Email"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
 
@@ -87,7 +87,7 @@
                     android:layout_marginTop="16dp"
                     android:fontFamily="@font/manrope_semibold"
                     android:fontWeight="600"
-                    android:text="Roles:"
+                    android:text="Roles"
                     android:textAppearance="?attr/textAppearanceBodyMedium" />
 
             </LinearLayout>
