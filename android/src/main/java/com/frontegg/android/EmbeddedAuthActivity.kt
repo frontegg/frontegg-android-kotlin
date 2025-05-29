@@ -19,10 +19,6 @@ import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 import kotlin.time.Duration
-import android.net.ConnectivityManager
-import android.net.Network
-import android.net.NetworkRequest
-import android.content.Context
 
 
 class EmbeddedAuthActivity : FronteggBaseActivity() {
@@ -31,9 +27,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
     private var webViewUrl: String? = null
     private var directLoginLaunchedDone: Boolean = false
     private var directLoginLaunched: Boolean = false
-    private lateinit var connectivityManager: ConnectivityManager
-    private var networkCallback: ConnectivityManager.NetworkCallback? = null
-    
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,7 +42,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         loaderContainer?.visibility = View.VISIBLE
 
         consumeIntent(intent)
-        setupNetworkRecovery()
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
@@ -173,25 +165,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         }
     }
 
-    private fun setupNetworkRecovery() {
-        connectivityManager = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-    
-        networkCallback = object : ConnectivityManager.NetworkCallback() {
-            override fun onAvailable(network: Network) {
-                runOnUiThread {
-                    if (!webView.url.orEmpty().contains("/oauth/prelogin")) {
-                        Log.d(TAG, "Network restored — reloading login page")
-                        webView.loadUrl("https://${FronteggApp.getInstance().auth.baseUrl}/oauth/prelogin")
-                    }
-                }
-            }
-        }
-    
-        val request = NetworkRequest.Builder().build()
-        connectivityManager.registerNetworkCallback(request, networkCallback!!)
-    }
-    
-
     override fun onResume() {
         super.onResume()
 
@@ -245,9 +218,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         FronteggAuthService.instance.webLoading.value = false
         onAuthFinishedCallback?.invoke(CanceledByUserException())
         onAuthFinishedCallback = null
-        networkCallback?.let {
-            connectivityManager.unregisterNetworkCallback(it)
-        }
     }
 
 
