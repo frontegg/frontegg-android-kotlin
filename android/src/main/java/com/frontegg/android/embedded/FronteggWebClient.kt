@@ -148,12 +148,18 @@ class FronteggWebClient(
             try {
                 val errorMessage = "Check your internet connection and try again."
                 val htmlError = Html.escapeHtml(errorMessage)
-                val authorizeUrlGenerator = AuthorizeUrlGenerator()
-                val authLoginUrl = authorizeUrlGenerator.generate().first
+                val failedUrl = request?.url.toString()
+                val fallbackToAuthUrl = failedUrl.contains("/identity/resources/auth/") ||
+                                failedUrl.contains("/oauth/logout")
+                val errorRedirectUrl = if (fallbackToAuthUrl) {
+                    AuthorizeUrlGenerator().generate().first
+                } else {
+                    failedUrl
+                }
                 val errorPage = generateErrorPage(
                     htmlError,
                     error = error.description?.toString(),
-                    url = authLoginUrl,
+                    url = errorRedirectUrl,
                 )
                 val encodedHtml = Base64.encodeToString(errorPage.toByteArray(), Base64.NO_PADDING)
                 Handler(Looper.getMainLooper()).post {
