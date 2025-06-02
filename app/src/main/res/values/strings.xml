@@ -13,4 +13,5 @@
     <string name="title_activity_navigation">NavigationActivity</string>
     <string name="title_home">Profile</string>
     <string name="title_tenants">Tenants</string>
+    <string name="title_access_token">Access Token</string>
 </resources>

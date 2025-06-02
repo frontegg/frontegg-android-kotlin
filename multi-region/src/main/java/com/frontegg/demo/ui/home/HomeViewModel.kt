@@ -9,6 +9,7 @@ import com.frontegg.android.FronteggAuth
 import com.frontegg.android.models.User
 
 class HomeViewModel : ViewModel() {
+
     // LiveData to store the current user object, initially set to null
     private val _user = MutableLiveData<User?>().apply {
         FronteggAuth.instance.user.subscribe {
@@ -18,5 +19,16 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    // LiveData to store the current access token, initially set to null
+    private val _accessToken = MutableLiveData<String?>().apply {
+        FronteggAuth.instance.accessToken.subscribe {
+            Handler(Looper.getMainLooper()).post {
+                value = it.value
+            }
+        }
+    }
+
+
     val user: LiveData<User?> = _user
+    val accessToken: LiveData<String?> = _accessToken
 }

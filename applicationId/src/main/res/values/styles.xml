@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<resources>
+    <style name="TextAppearance.MyApplication.HeadlineMedium" parent="TextAppearance.Material3.HeadlineMedium">
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">32sp</item>
+        <item name="android:fontFamily">@font/manrope_bold</item>
+        <item name="android:fontWeight">700</item>
+    </style>
+
+    <style name="TextAppearance.MyApplication.HeadlineSmall" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">26sp</item>
+        <item name="android:fontFamily">@font/manrope_semibold</item>
+        <item name="android:fontWeight">600</item>
+    </style>
+
+    <style name="TextAppearance.MyApplication.BodyLarge" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">16sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:fontWeight">400</item>
+    </style>
+
+    <style name="TextAppearance.MyApplication.BodyMedium" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">14sp</item>
+        <item name="android:fontFamily">@font/manrope</item>
+        <item name="android:fontWeight">400</item>
+    </style>
+
+    <style name="TextAppearance.MyApplication.BodySmall" parent="TextAppearance.Material3.BodySmall">
+        <item name="android:textColor">@color/text</item>
+        <item name="android:textSize">12sp</item>
+        <item name="android:fontFamily">@font/manrope_semibold</item>
+        <item name="android:fontWeight">600</item>
+    </style>
+
+</resources>
