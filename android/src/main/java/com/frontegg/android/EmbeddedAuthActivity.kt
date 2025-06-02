@@ -164,7 +164,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             finish()
         }
     }
-
+    
     override fun onResume() {
         super.onResume()
 

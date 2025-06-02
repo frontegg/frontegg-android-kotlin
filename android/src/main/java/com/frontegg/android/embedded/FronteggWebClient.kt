@@ -148,10 +148,12 @@ class FronteggWebClient(
             try {
                 val errorMessage = "Check your internet connection and try again."
                 val htmlError = Html.escapeHtml(errorMessage)
+                val authorizeUrlGenerator = AuthorizeUrlGenerator()
+                val authLoginUrl = authorizeUrlGenerator.generate().first
                 val errorPage = generateErrorPage(
                     htmlError,
                     error = error.description?.toString(),
-                    url = request?.url?.toString()
+                    url = authLoginUrl,
                 )
                 val encodedHtml = Base64.encodeToString(errorPage.toByteArray(), Base64.NO_PADDING)
                 Handler(Looper.getMainLooper()).post {
