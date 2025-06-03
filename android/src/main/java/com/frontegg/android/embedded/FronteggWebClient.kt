@@ -148,7 +148,7 @@ class FronteggWebClient(
             try {
                 val errorMessage = "Check your internet connection and try again."
                 val htmlError = Html.escapeHtml(errorMessage)
-                val failedUrl = request?.url.toString()
+                val failedUrl = request?.url?.toString() ?: ""
                 val fallbackToAuthUrl = failedUrl.contains("/identity/resources/auth/") ||
                                 failedUrl.contains("/oauth/logout")
                 val errorRedirectUrl = if (fallbackToAuthUrl) {
