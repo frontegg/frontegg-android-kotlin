@@ -1,3 +1,6 @@
+## v
+- fixed url handling for oauth
+
 ## v1.2.42
 
 ### 🌟 New Features
