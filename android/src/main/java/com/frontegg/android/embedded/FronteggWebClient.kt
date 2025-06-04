@@ -150,7 +150,7 @@ class FronteggWebClient(
                 val htmlError = Html.escapeHtml(errorMessage)
                 val failedUrl = request?.url?.toString() ?: ""
                 val fallbackToAuthUrl = failedUrl.contains("/identity/resources/auth/") ||
-                                failedUrl.contains("/oauth/logout")
+                                failedUrl.contains("/oauth/")
                 val errorRedirectUrl = if (fallbackToAuthUrl) {
                     AuthorizeUrlGenerator().generate().first
                 } else {
