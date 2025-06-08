@@ -2,6 +2,7 @@ import android.content.Context
 import android.util.Log
 import android.webkit.WebResourceResponse
 import androidx.collection.LruCache
+import com.frontegg.android.services.FronteggAuthService
 import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.OkHttpClient
@@ -16,11 +17,24 @@ class WebResourceCache(
     memoryCacheSize: Int = 5 * 1024 * 1024,
     diskCacheMaxSize: Long = 50L * 1024 * 1024
 ) {
+
     private data class CacheEntry(
         val data: ByteArray,
         val mimeType: String,
         val encoding: String,
         var lastAccess: Long = System.currentTimeMillis()
+    )
+
+
+    private var corsHeaders: Map<String, String> = mapOf(
+        "Access-Control-Allow-Origin" to FronteggAuthService.instance.baseUrl,
+        "Access-Control-Allow-Methods" to "GET, OPTIONS"
+    );
+
+    private val staticAssetPattern = Regex(
+        "https://(cdn\\.frontegg\\.com/content/hosted-login|" +
+                "assets\\.frontegg\\.com/admin-box/|fonts\\.gstatic\\.com|" +
+                "fonts\\.googleapis\\.com)/.*"
     )
 
     private val memoryCache = LruCache<String, CacheEntry>(memoryCacheSize)
@@ -140,16 +154,6 @@ class WebResourceCache(
         memoryCache.put(url, CacheEntry(data, mimeType, encoding))
     }
 
-    private val corsHeaders = mapOf(
-        "Access-Control-Allow-Origin" to "https://autheu.davidantoon.me",
-        "Access-Control-Allow-Methods" to "GET, OPTIONS"
-    )
-
-    private val staticAssetPattern = Regex(
-        "https://(cdn\\.frontegg\\.com/content/hosted-login|" +
-                "assets\\.frontegg\\.com/admin-box/|fonts\\.gstatic\\.com|" +
-                "fonts\\.googleapis\\.com)/.*"
-    )
 
     /** Should we attempt to cache this URL? */
     fun shouldCache(url: String): Boolean =

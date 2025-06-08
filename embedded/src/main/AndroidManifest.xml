@@ -39,14 +39,14 @@
 
 
         <!-- Enable EmbeddedAuthActivity, disable HostedAuthActivity -->
-        <activity
-            android:name="com.frontegg.android.EmbeddedAuthActivity"
-            android:enabled="true"
-            tools:replace="android:enabled" />
-        <activity
-            android:name="com.frontegg.android.HostedAuthActivity"
-            android:enabled="false"
-            tools:replace="android:enabled" />
+ <!--        <activity-->
+<!--            android:name="com.frontegg.android.EmbeddedAuthActivity"-->
+<!--            android:enabled="true"-->
+<!--            tools:replace="android:enabled" />-->
+<!--        <activity-->
+<!--            android:name="com.frontegg.android.HostedAuthActivity"-->
+<!--            android:enabled="false"-->
+<!--            tools:replace="android:enabled" />-->
 
 
         <!-- Enable CustomSchemeActivity -->
