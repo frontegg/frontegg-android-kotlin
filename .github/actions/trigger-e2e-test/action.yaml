@@ -22,8 +22,8 @@ runs:
       name: Create bot token
       uses: actions/create-github-app-token@v2
       with:
-        app_id: ${{ inputs.bot_app_id }}
-        private_key: ${{ inputs.bot_app_key }}
+        app-id: ${{ inputs.bot_app_id }}
+        private-key: ${{ inputs.bot_app_key }}
         owner: ${{ github.repository_owner }}
         repositories: |
           frontegg-android-kotlin
