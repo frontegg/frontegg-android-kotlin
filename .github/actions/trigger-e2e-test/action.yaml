@@ -44,7 +44,7 @@ runs:
             owner,
             repo: e2eRepo,
             workflow_id,
-            ref: 'add-mobile-sdk-tests',
+            ref: 'master',
             inputs: {
               client_framework: 'native-android',
               version,
