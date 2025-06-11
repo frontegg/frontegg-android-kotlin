@@ -1,3 +1,8 @@
+## v
+- Updated example projects UI
+- added redirect to auth page if auth request failed due to connectivity problems
+- fixed url lazy evaluation
+
 ## v1.2.42
 
 ### 🌟 New Features
