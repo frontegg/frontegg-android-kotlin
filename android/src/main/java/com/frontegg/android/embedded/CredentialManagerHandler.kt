@@ -73,4 +73,43 @@ class CredentialManagerHandler(private val activity: Activity) {
         }
     }
 
+    suspend fun saveCredential(username: String, password: String) {
+        val request = CreatePasswordRequest(id = username, password = password)
+        try {
+            mCredMan.createCredential(
+                request = request,
+                context = activity,
+            )
+            Log.d(TAG, "Credential saved successfully")
+        } catch (e: CreateCredentialException) {
+            Log.e(TAG, "Failed to save credential: ${e.message}")
+            throw e
+        }
+    }
+
+    suspend fun retrieveCredential(): Pair<String, String>? {
+        val request = GetCredentialRequest(listOf(GetPasswordOption()))
+        try {
+            val result = mCredMan.getCredential(
+                request = request,
+                context = activity
+            )
+
+            val credential = result.credential
+            if (credential is PasswordCredential) {
+                val username = credential.id
+                val password = credential.password
+
+                Log.d(
+                    TAG,
+                    "Autofilled from CredentialManager: $username, ${password.length} characters"
+                )
+
+                return Pair(username, password)
+            }
+        } catch (e: GetCredentialException) {
+            Log.d(TAG, "No saved credentials: ${e.message}")
+        }
+        return null
+    }
 }
