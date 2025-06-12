@@ -1,5 +1,6 @@
 package com.frontegg.android.embedded
 
+import WebResourceCache
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -33,19 +34,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import java.io.ByteArrayInputStream
-import java.net.URLConnection
 import java.util.Timer
 import java.util.TimerTask
 import kotlin.concurrent.schedule
 
 
 class FronteggWebClient(
-    val context: Context, val passkeyWebListener: PasskeyWebListener,
+    val context: Context,
+    private val passkeyWebListener: PasskeyWebListener,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) :
@@ -123,6 +122,7 @@ class FronteggWebClient(
                 storage.shouldPromptSocialLoginConsent
             )
             nativeModuleFunctions.put("useNativeLoader", true)
+            nativeModuleFunctions.put("suggestSavePassword", storage.suggestSavePassword)
             val jsObject = nativeModuleFunctions.toString()
             view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
         }

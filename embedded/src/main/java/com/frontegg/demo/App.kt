@@ -20,7 +20,7 @@ class App : Application() {
         // Initialize FronteggApp. Necessary for working with Frontegg SDK.
         // Optional parameters: useAssetsLinks, useChromeCustomTabs, mainActivityClass
         DefaultLoader.setLoaderProvider {
-           val progressBar = ProgressBar(it)
+            val progressBar = ProgressBar(it)
             val colorStateList = ColorStateList.valueOf(Color.RED)
             progressBar.indeterminateTintList = colorStateList
 
@@ -35,7 +35,8 @@ class App : Application() {
             useChromeCustomTabs = true,
             mainActivityClass = NavigationActivity::class.java,
             deepLinkScheme = BuildConfig.FRONTEGG_DEEP_LINK_SCHEME,
-            useDiskCacheWebview = true
+            useDiskCacheWebview = true,
+            suggestSavePassword = true,
         )
     }
 }

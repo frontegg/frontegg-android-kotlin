@@ -69,7 +69,7 @@ open class FronteggWebView : WebView {
         webViewClient = FronteggWebClient(context, passkeyWebListener)
 
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-        this.addJavascriptInterface(FronteggNativeBridge(context), "FronteggNativeBridge")
+        this.addJavascriptInterface(FronteggNativeBridge(context, credentialManagerHandler, scope), "FronteggNativeBridge")
         val rules = setOf("*")
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(
