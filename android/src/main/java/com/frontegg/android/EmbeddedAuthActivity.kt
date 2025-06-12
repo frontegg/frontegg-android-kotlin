@@ -5,6 +5,7 @@ import android.content.Intent
 import android.os.Bundle
 import android.util.Log
 import android.view.View
+import android.view.autofill.AutofillManager
 import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
@@ -36,6 +37,10 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
 
         FronteggAuthService.instance.webLoading.value = false
         webView = findViewById(R.id.custom_webview)
+        webView.importantForAutofill = View.IMPORTANT_FOR_AUTOFILL_YES
+        val autofillManager = getSystemService(AutofillManager::class.java)
+        autofillManager?.requestAutofill(webView)
+
         loaderContainer = findViewById(R.id.loaderContainer)
         val loaderView = DefaultLoader.create(this)
         loaderContainer?.addView(loaderView)
