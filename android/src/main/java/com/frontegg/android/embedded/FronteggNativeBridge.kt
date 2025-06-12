@@ -12,11 +12,17 @@ import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.utils.AuthorizeUrlGenerator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.launch
 import org.json.JSONException
 import org.json.JSONObject
 
 
-class FronteggNativeBridge(val context: Context) {
+class FronteggNativeBridge(
+    val context: Context,
+    private val credentialManagerHandler: CredentialManagerHandler,
+    private val coroutineScope: CoroutineScope,
+) {
 
     @JavascriptInterface
     fun loginWithSSO(email: String) {
@@ -107,6 +113,16 @@ class FronteggNativeBridge(val context: Context) {
     fun setLoading(value: Boolean) {
         Log.d("FronteggNativeBridge", "setLoading(${if (value) "true" else "false"})")
         FronteggAuthService.instance.webLoading.value = value
+    }
+
+
+    @JavascriptInterface
+    fun suggestSavePassword(email: String, password: String) {
+        Log.d("FronteggNativeBridge", "suggestSavePassword ${email} ${password}")
+
+        coroutineScope.launch {
+            credentialManagerHandler.saveCredential(email, password)
+        }
     }
 
     @JavascriptInterface

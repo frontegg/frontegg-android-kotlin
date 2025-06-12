@@ -2,6 +2,7 @@ package com.frontegg.android
 
 import android.annotation.SuppressLint
 import android.content.Context
+import com.frontegg.android.FronteggApp.Companion.getInstance
 import com.frontegg.android.FronteggApp.Companion.init
 import com.frontegg.android.FronteggApp.Companion.initWithRegions
 import com.frontegg.android.exceptions.FronteggException
@@ -62,6 +63,7 @@ interface FronteggApp {
             mainActivityClass: Class<*>? = null,
             deepLinkScheme: String? = null,
             useDiskCacheWebview: Boolean = false,
+            suggestSavePassword: Boolean = false,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
@@ -81,12 +83,13 @@ interface FronteggApp {
                 useAssetsLinks = useAssetsLinks,
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass,
-                useDiskCacheWebview = useDiskCacheWebview
+                useDiskCacheWebview = useDiskCacheWebview,
+                suggestSavePassword = suggestSavePassword,
             )
-            
+
             val debugChecker = AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
             debugChecker.runChecks()
-            
+
         }
 
         /**
@@ -105,6 +108,7 @@ interface FronteggApp {
             useChromeCustomTabs: Boolean = false,
             mainActivityClass: Class<*>? = null,
             useDiskCacheWebview: Boolean = false,
+            suggestSavePassword: Boolean = false,
         ): FronteggApp {
 
             val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
@@ -124,11 +128,16 @@ interface FronteggApp {
                         useAssetsLinks = useAssetsLinks,
                         useChromeCustomTabs = useChromeCustomTabs,
                         mainActivityClass = mainActivityClass,
-                        useDiskCacheWebview = useDiskCacheWebview
+                        useDiskCacheWebview = useDiskCacheWebview,
+                        suggestSavePassword = suggestSavePassword,
                     )
                     instance = newInstance
-                    
-                    val debugChecker = AndroidDebugConfigurationChecker(context, regionConfig.baseUrl, regionConfig.clientId)
+
+                    val debugChecker = AndroidDebugConfigurationChecker(
+                        context,
+                        regionConfig.baseUrl,
+                        regionConfig.clientId
+                    )
                     debugChecker.runChecks()
 
                     return newInstance
@@ -144,7 +153,8 @@ interface FronteggApp {
                 useAssetsLinks = useAssetsLinks,
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass,
-                useDiskCacheWebview = useDiskCacheWebview
+                useDiskCacheWebview = useDiskCacheWebview,
+                suggestSavePassword = suggestSavePassword,
             )
             instance = newInstance
             return newInstance
