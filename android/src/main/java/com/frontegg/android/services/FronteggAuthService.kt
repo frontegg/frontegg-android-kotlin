@@ -409,6 +409,13 @@ class FronteggAuthService(
         }
     }
 
+    override fun updateCredentials(accessToken: String, refreshToken: String) {
+        if (accessToken.isBlank() || refreshToken.isBlank()) {
+            throw IllegalArgumentException("Access token and refresh token must not be blank")
+        }
+        setCredentials(accessToken, refreshToken)
+    }
+
     private fun clearCredentials() {
         this.refreshToken.value = null
         this.accessToken.value = null
