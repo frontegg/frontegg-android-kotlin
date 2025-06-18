@@ -1,5 +1,6 @@
 package com.frontegg.android.embedded
 
+import WebResourceCache
 import android.app.Activity
 import android.content.Context
 import android.content.Intent
@@ -33,12 +34,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.CacheControl
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import java.io.ByteArrayInputStream
-import java.net.URLConnection
 import java.util.Timer
 import java.util.TimerTask
 import kotlin.concurrent.schedule
@@ -46,7 +44,7 @@ import kotlin.concurrent.schedule
 
 class FronteggWebClient(
     val context: Context, val passkeyWebListener: PasskeyWebListener,
-    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
+    ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
 ) :
     WebViewClient() {
@@ -82,7 +80,7 @@ class FronteggWebClient(
                 val urlType = getOverrideUrlType(url.toUri())
                 if (urlType == OverrideUrlType.internalRoutes) {
                     lastTimer = Timer().schedule(400) {
-                        FronteggAuthService.instance.isLoading.value = false;
+                        FronteggAuthService.instance.isLoading.value = false
                     }
                 } else {
                     FronteggAuthService.instance.isLoading.value = false
@@ -150,7 +148,7 @@ class FronteggWebClient(
                 val htmlError = Html.escapeHtml(errorMessage)
                 val failedUrl = request?.url?.toString() ?: ""
                 val fallbackToAuthUrl = failedUrl.contains("/identity/resources/auth/") ||
-                                failedUrl.contains("/oauth/")
+                        failedUrl.contains("/oauth/")
                 val errorRedirectUrl = if (fallbackToAuthUrl) {
                     AuthorizeUrlGenerator().generate().first
                 } else {
@@ -298,7 +296,7 @@ class FronteggWebClient(
 
     private fun getOverrideUrlType(url: Uri): OverrideUrlType {
         val urlPath = url.path
-        val hostedLoginCallback = Constants.oauthCallbackUrl(storage.baseUrl);
+        val hostedLoginCallback = Constants.oauthCallbackUrl(storage.baseUrl)
 
         if (url.toString().startsWith(hostedLoginCallback)) {
             return OverrideUrlType.HostedLoginCallback
@@ -385,11 +383,13 @@ class FronteggWebClient(
                 val url = it.url.toString()
                 Log.d(TAG, "shouldInterceptRequest: $url")
                 if (cache.shouldCache(url)) {
+                    Log.d(TAG, "shouldInterceptRequest: cacheable $url")
                     cache.get(url)?.let { response ->
-                        return response;
+                        return response
                     }
+                } else {
+                    Log.d(TAG, "shouldInterceptRequest: not cacheable $url")
                 }
-                Log.d(TAG, "shouldInterceptRequest: not cacheable $url")
             }
         }
         return super.shouldInterceptRequest(view, request)
@@ -401,7 +401,7 @@ class FronteggWebClient(
             return
         }
 
-        val uri = Uri.parse(url)
+        val uri = url.toUri()
         val urlType = getOverrideUrlType(uri)
         val query = uri.query
         when (urlType) {
@@ -450,7 +450,7 @@ class FronteggWebClient(
                 val client = OkHttpClient().newBuilder()
                     .followRedirects(false)
                     .followSslRedirects(false)
-                    .build();
+                    .build()
                 val response = client.newCall(requestBuilder.build()).execute()
 
                 val redirect = response.headers["Location"]?.toUri()
@@ -500,7 +500,7 @@ class FronteggWebClient(
         }
 
         if (FronteggAuthService.instance.handleHostedLoginCallback(code, webView)) {
-            return true;
+            return true
         }
 
         val authorizeUrl = AuthorizeUrlGenerator()

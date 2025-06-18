@@ -2,6 +2,7 @@ import android.content.Context
 import android.util.Log
 import android.webkit.WebResourceResponse
 import androidx.collection.LruCache
+import com.frontegg.android.FronteggAuth
 import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.OkHttpClient
@@ -88,7 +89,7 @@ class WebResourceCache(
                     entry.mimeType,
                     entry.encoding,
                     ByteArrayInputStream(entry.data)
-                ).apply { responseHeaders = corsHeaders }
+                ).apply { responseHeaders = getCorsHeaders() }
             }
 
             // 2️⃣ On‐disk cache (onlyIfCached + maxStale = 10 days)
@@ -109,7 +110,7 @@ class WebResourceCache(
                     val (mime, encoding) = parseContentType(resp.header("Content-Type"), url)
                     put(url, bytes, mime, encoding)
                     return WebResourceResponse(mime, encoding, ByteArrayInputStream(bytes))
-                        .apply { responseHeaders = corsHeaders }
+                        .apply { responseHeaders = getCorsHeaders() }
                 } else {
                     Log.d(TAG, "No usable disk cache (miss or >10d old): $url")
                 }
@@ -127,7 +128,7 @@ class WebResourceCache(
                 val (mime, encoding) = parseContentType(resp.header("Content-Type"), url)
                 put(url, bytes, mime, encoding)
                 return WebResourceResponse(mime, encoding, ByteArrayInputStream(bytes))
-                    .apply { responseHeaders = corsHeaders }
+                    .apply { responseHeaders = getCorsHeaders() }
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching resource $url", e)
@@ -140,15 +141,21 @@ class WebResourceCache(
         memoryCache.put(url, CacheEntry(data, mimeType, encoding))
     }
 
-    private val corsHeaders = mapOf(
-        "Access-Control-Allow-Origin" to "https://autheu.davidantoon.me",
-        "Access-Control-Allow-Methods" to "GET, OPTIONS"
-    )
+    private fun getCorsHeaders(): Map<String, String> {
+        return mapOf(
+            "Access-Control-Allow-Origin" to FronteggAuth.instance.baseUrl,
+            "Access-Control-Allow-Methods" to "GET, OPTIONS"
+        )
+    }
 
     private val staticAssetPattern = Regex(
-        "https://(cdn\\.frontegg\\.com/content/hosted-login|" +
-                "assets\\.frontegg\\.com/admin-box/|fonts\\.gstatic\\.com|" +
-                "fonts\\.googleapis\\.com)/.*"
+        "https://("+
+                "cdn\\.frontegg\\.com/content/hosted-login|" +
+                "cdn\\.us\\.frontegg\\.com/content/hosted-login|" +
+                "assets\\.frontegg\\.com/admin-box|"+
+                "fonts\\.gstatic\\.com|" +
+                "fonts\\.googleapis\\.com"+
+                ")/.*"
     )
 
     /** Should we attempt to cache this URL? */
