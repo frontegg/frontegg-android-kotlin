@@ -75,7 +75,7 @@ class AuthorizeUrlGenerator {
             .appendQueryParameter("code_challenge", codeChallenge)
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("nonce", nonce)
-            .appendQueryParameter("prompt", "login")
+
 
         if (stepUp == true) {
             authorizeUrlBuilder.appendQueryParameter(
@@ -88,6 +88,8 @@ class AuthorizeUrlGenerator {
                     maxAge.inWholeSeconds.toString()
                 )
             }
+        } else {
+            authorizeUrlBuilder.appendQueryParameter("prompt", "login")
         }
 
         if (loginHint != null) {
@@ -102,17 +104,7 @@ class AuthorizeUrlGenerator {
         val url = authorizeUrlBuilder.build().toString()
         Log.d(TAG, "Generated url: $url")
 
-        if (stepUp == true) {
-            return Pair(url, codeVerifier)
-        }
-
-        val authorizeUrl = Uri.Builder()
-            .encodedPath(baseUrl)
-            .appendEncodedPath("oauth/logout")
-            .appendQueryParameter("post_logout_redirect_uri", url)
-            .build().toString()
-
-        return Pair(authorizeUrl, codeVerifier)
+        return Pair(url, codeVerifier)
     }
 }
 
