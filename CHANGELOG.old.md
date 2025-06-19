@@ -1,3 +1,9 @@
+## v1.2.44
+- fixed url handling for oauth
+- Fix e2e trigger ref #151
+Fix e2e trigger script
+- exposed function `updateCredentials` that sets the access token and refresh token for the current session
+
 ## v
 - Updated example projects UI
 - added redirect to auth page if auth request failed due to connectivity problems
