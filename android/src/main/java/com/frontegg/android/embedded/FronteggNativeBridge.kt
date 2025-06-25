@@ -118,10 +118,14 @@ class FronteggNativeBridge(
 
     @JavascriptInterface
     fun suggestSavePassword(email: String, password: String) {
-        Log.d("FronteggNativeBridge", "suggestSavePassword ${email} ${password}")
+        Log.d("FronteggNativeBridge", "suggestSavePassword")
 
         coroutineScope.launch {
-            credentialManagerHandler.saveCredential(email, password)
+            try {
+                credentialManagerHandler.saveCredential(email, password)
+            } catch (e: Exception) {
+                Log.e("FronteggNativeBridge", "Error saving user password: ${e.message}")
+            }
         }
     }
 

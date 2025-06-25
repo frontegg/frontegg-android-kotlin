@@ -84,6 +84,12 @@ class CredentialManagerHandler(private val activity: Activity) {
         } catch (e: CreateCredentialException) {
             Log.e(TAG, "Failed to save credential: ${e.message}")
             throw e
+        } catch (e: CreateCredentialProviderConfigurationException) {
+            Log.e(TAG, "No provider dependencies found", e)
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected exception", e)
+            throw e
         }
     }
 
@@ -109,6 +115,12 @@ class CredentialManagerHandler(private val activity: Activity) {
             }
         } catch (e: GetCredentialException) {
             Log.d(TAG, "No saved credentials: ${e.message}")
+        } catch (e: CreateCredentialProviderConfigurationException) {
+            Log.e(TAG, "No provider dependencies found", e)
+            throw e
+        } catch (e: Exception) {
+            Log.e(TAG, "Unexpected exception", e)
+            throw e
         }
         return null
     }
