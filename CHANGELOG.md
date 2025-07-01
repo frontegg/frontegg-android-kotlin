@@ -1,4 +1,5 @@
-## v
+## v1.2.45
+
 - Reduce number of full page load when loading login page
 
 ## v1.2.44
