@@ -7,7 +7,6 @@ import java.io.File
 
 
 class App : Application() {
-
     companion object {
         lateinit var instance: App
     }

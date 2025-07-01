@@ -54,55 +54,29 @@ class AuthorizeUrlGeneratorTest {
     }
 
     @Test
-    fun `generate should contains base url and oauth_logout path`() {
+    fun `query parameter should contains baseUrl and oauth_authorize path`() {
         val url = authorizeUrlGenerator.generate()
 
         assert(url.first.contains(baseUrl))
-        assert(url.first.contains("/oauth/logout"))
+        assert(url.first.contains("/oauth/authorize"))
     }
 
     @Test
-    fun `generate should return url with post_logout_redirect_uri query parameter`() {
+    fun `should contains response_type query parameter`() {
         val url = authorizeUrlGenerator.generate()
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-    }
-
-    @Test
-    fun `post_logout_redirect_uri query parameter should contains baseUrl and oauth_authorize path`() {
-        val url = authorizeUrlGenerator.generate()
-        val uri = Uri.parse(url.first)
-
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-        assert(postLogoutRedirectUri!!.contains(baseUrl))
-        assert(postLogoutRedirectUri.contains("/oauth/authorize"))
-    }
-
-    @Test
-    fun `post_logout_redirect_uri query parameter should contains response_type query parameter`() {
-        val url = authorizeUrlGenerator.generate()
-        val uri = Uri.parse(url.first)
-
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
-        val responseType = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("response_type")
+        val responseType = uri.getQueryParameter("response_type")
         assert(responseType != null)
         assert(responseType == "code")
     }
 
     @Test
-    fun `post_logout_redirect_uri query parameter should contains client_id query parameter`() {
+    fun `should contains client_id query parameter`() {
         val url = authorizeUrlGenerator.generate()
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
-        val clientId = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("client_id")
+        val clientId = uri.getQueryParameter("client_id")
         assert(clientId != null)
         assert(clientId == clientId)
     }
@@ -114,102 +88,79 @@ class AuthorizeUrlGeneratorTest {
         every { mockStorage.applicationId }.returns(null)
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
-        val clientId = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("client_id")
+        val clientId = uri.getQueryParameter("client_id")
         assert(clientId != null)
         assert(clientId == "Test Application Id")
     }
 
     @Test
-    fun `post_logout_redirect_uri query parameter should contains scope query parameter`() {
+    fun `should contains scope query parameter`() {
         val url = authorizeUrlGenerator.generate()
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
-        val scope = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("scope")
+        val scope = uri.getQueryParameter("scope")
         assert(scope != null)
         assert(scope == "openid email profile")
     }
 
     @Test
-    fun `post_logout_redirect_uri query parameter should contains redirect_uri query parameter`() {
+    fun `should contains redirect_uri query parameter`() {
         mockkObject(Constants.Companion)
         every { Constants.oauthCallbackUrl(baseUrl) }.returns("oauthCallbackUrl")
 
         val url = authorizeUrlGenerator.generate()
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
-        val redirectUri = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("redirect_uri")
+        val redirectUri = uri.getQueryParameter("redirect_uri")
         assert(redirectUri != null)
         assert(redirectUri == "oauthCallbackUrl")
     }
 
     @Test
-    fun `post_logout_redirect_uri query parameter should contains code_challenge query parameter`() {
+    fun `should contains code_challenge query parameter`() {
         val url = authorizeUrlGenerator.generate()
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
 
-        val codeChallenge = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("code_challenge")
+        val codeChallenge = uri.getQueryParameter("code_challenge")
         assert(codeChallenge != null)
     }
 
     @Test
-    fun `post_logout_redirect_uri query parameter should contains code_challenge_method query parameter`() {
+    fun `should contains code_challenge_method query parameter`() {
         val url = authorizeUrlGenerator.generate()
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
         val codeChallengeMethod =
-            Uri.parse(postLogoutRedirectUri!!).getQueryParameter("code_challenge_method")
+            uri.getQueryParameter("code_challenge_method")
         assert(codeChallengeMethod != null)
         assert(codeChallengeMethod == "S256")
     }
 
     @Test
-    fun `post_logout_redirect_uri query parameter should contains nonce query parameter`() {
+    fun `should contains nonce query parameter`() {
         val url = authorizeUrlGenerator.generate()
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
-        val nonce = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("nonce")
+        val nonce = uri.getQueryParameter("nonce")
         assert(nonce != null)
     }
 
     @Test
-    fun `post_logout_redirect_uri query parameter should not contains loginHint query parameter`() {
+    fun `should not contains loginHint query parameter`() {
         val url = authorizeUrlGenerator.generate()
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
-        val loginHint = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("login_hint")
+        val loginHint = uri.getQueryParameter("login_hint")
         assert(loginHint == null)
     }
 
     @Test
-    fun `post_logout_redirect_uri query parameter should contains loginHint query parameter if pass value to generate call`() {
+    fun `should contains loginHint query parameter if pass value to generate call`() {
         val url = authorizeUrlGenerator.generate(loginHint = "loginHint@mail.com")
         val uri = Uri.parse(url.first)
 
-        val postLogoutRedirectUri = uri.getQueryParameter("post_logout_redirect_uri")
-        assert(postLogoutRedirectUri != null)
-
-        val loginHint = Uri.parse(postLogoutRedirectUri!!).getQueryParameter("login_hint")
+        val loginHint = uri.getQueryParameter("login_hint")
         assert(loginHint != null)
         assert(loginHint == "loginHint@mail.com")
     }

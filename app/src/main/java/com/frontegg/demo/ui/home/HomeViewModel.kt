@@ -19,6 +19,16 @@ class HomeViewModel : ViewModel() {
         }
     }
 
+    // LiveData to store the current access token, initially set to null
+    private val _accessToken = MutableLiveData<String?>().apply {
+        FronteggAuth.instance.accessToken.subscribe {
+            Handler(Looper.getMainLooper()).post {
+                value = it.value
+            }
+        }
+    }
+
 
     val user: LiveData<User?> = _user
+    val accessToken: LiveData<String?> = _accessToken
 }
