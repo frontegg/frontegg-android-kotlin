@@ -1,3 +1,7 @@
+## v1.2.45
+
+- Reduce number of full page load when loading login page
+
 ## v1.2.44
 - fixed url handling for oauth
 - Fix e2e trigger ref #151
