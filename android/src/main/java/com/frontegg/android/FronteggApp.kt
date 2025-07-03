@@ -41,6 +41,15 @@ interface FronteggApp {
         }
 
         /**
+         * Checks if the [FronteggApp] was initialized.
+         *
+         * @return `true` if the [FronteggApp] was initialized, `false` otherwise.
+         */
+        fun isInitialized(): Boolean {
+            return instance != null
+        }
+
+        /**
          * Initializes [FronteggApp].
          *
          * @param fronteggDomain The Frontegg domain. Can be found at [portal.frontegg.com].
