@@ -1,3 +1,6 @@
+## v
+- Added `isInitialized` function for `FronteggApp`
+
 ## v1.2.45
 
 - Reduce number of full page load when loading login page
