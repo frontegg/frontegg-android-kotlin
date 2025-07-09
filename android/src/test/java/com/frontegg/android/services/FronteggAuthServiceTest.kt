@@ -535,28 +535,27 @@ class FronteggAuthServiceTest {
         assert(exception != null)
     }
 
-//
-//    @Test
-//    fun `registerPasskeys should call Api_getWebAuthnRegisterChallenge`() {
-//        val request = WebAuthnRegistrationRequest(
-//            cookie = "TestCookie",
-//            jsonChallenge = "TestJsonChallenge"
-//        )
-//        every { apiMock.getWebAuthnRegisterChallenge() }.returns(request)
-//
-//
-//        mockkObject(ScopeProvider)
-//        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
-//
-//        mockkObject(CredentialManagerHandlerProvider)
-//        val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
-//        every { CredentialManagerHandlerProvider.getCredentialManagerHandler(any()) }.returns(
-//            credentialManagerMockHandler
-//        )
-//
-//        auth.registerPasskeys(mockActivity)
-//        verify { apiMock.getWebAuthnRegisterChallenge() }
-//    }
+    @Test
+    fun `registerPasskeys should call Api_getWebAuthnRegisterChallenge`() {
+        val request = WebAuthnRegistrationRequest(
+            cookie = "TestCookie",
+            jsonChallenge = "TestJsonChallenge"
+        )
+        every { apiMock.getWebAuthnRegisterChallenge() }.returns(request)
+
+
+        mockkObject(ScopeProvider)
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+
+        mockkObject(CredentialManagerHandlerProvider)
+        val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
+        every { CredentialManagerHandlerProvider.getCredentialManagerHandler(any()) }.returns(
+            credentialManagerMockHandler
+        )
+
+        auth.registerPasskeys(mockActivity)
+        verify { apiMock.getWebAuthnRegisterChallenge() }
+    }
 
     @Test
     fun `registerPasskeys should call CredentialManagerHandler_createPasskey`() {
