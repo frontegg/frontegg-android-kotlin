@@ -1,4 +1,4 @@
-## v
+## v1.2.46
 - Added `isInitialized` function for `FronteggApp`
 
 ## v1.2.45
