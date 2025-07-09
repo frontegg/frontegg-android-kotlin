@@ -1,8 +1,8 @@
-## v
+## v1.2.47
 - Migrate publish process to central Sonatype
 - Fix sonatype repository url
 
-## v
+## v1.2.46
 - Added `isInitialized` function for `FronteggApp`
 
 ## v1.2.45
