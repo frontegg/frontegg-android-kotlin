@@ -21,13 +21,13 @@ ext {
 
 nexusPublishing {
     repositories {
+        // see https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/#configuration
         sonatype {
             username.set(System.getenv('NEXUS_USERNAME'))
             password.set(System.getenv('NEXUS_PASSWORD'))
             packageGroup = "com.frontegg.android"
-            // auto‐release right after close (optional)
-//                closeAndReleaseSonatypeStagingRepository.set(true)
-            // stagingProfileId.set("YOUR_PROFILE_ID")   // only if you need to force a specific profile
+            nexusUrl.set(uri("https://ossrh-staging-api.central.sonatype.com/service/local/"))
+            snapshotRepositoryUrl.set(uri("https://central.sonatype.com/repository/maven-snapshots/"))
         }
     }
 }
