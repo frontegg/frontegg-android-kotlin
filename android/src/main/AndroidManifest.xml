@@ -25,6 +25,8 @@
                 <data android:scheme="https" />
                 <data android:host="${frontegg_domain}" />
                 <data android:pathPrefix="/oauth/account/activate" />
+                <data android:scheme="http" android:host="${frontegg_domain}"
+                    android:pathPrefix="/oauth/account/activate" />
 
             </intent-filter>
             <intent-filter android:autoVerify="true">
@@ -36,6 +38,8 @@
                 <data android:scheme="https" />
                 <data android:host="${frontegg_domain}" />
                 <data android:pathPrefix="/oauth/account/invitation/accept" />
+                <data android:scheme="http" android:host="${frontegg_domain}"
+                    android:pathPrefix="/oauth/account/invitation/accept" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -46,6 +50,8 @@
                 <data android:scheme="https" />
                 <data android:host="${frontegg_domain}" />
                 <data android:pathPrefix="/oauth/account/reset-password" />
+                <data android:scheme="http" android:host="${frontegg_domain}"
+                    android:pathPrefix="/oauth/account/reset-password" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -56,6 +62,8 @@
                 <data android:scheme="https" />
                 <data android:host="${frontegg_domain}" />
                 <data android:pathPrefix="/oauth/account/login/magic-link" />
+                <data android:scheme="http" android:host="${frontegg_domain}"
+                    android:pathPrefix="/oauth/account/login/magic-link" />
             </intent-filter>
         </activity>
 
@@ -73,6 +81,10 @@
                     android:host="${frontegg_domain}"
                     android:pathPrefix="/frontegg"
                     android:scheme="https" />
+                <data
+                    android:host="${frontegg_domain}"
+                    android:pathPrefix="/frontegg"
+                    android:scheme="http" />
 
             </intent-filter>
             <intent-filter android:autoVerify="true">
@@ -85,6 +97,10 @@
                     android:host="${frontegg_domain}"
                     android:pathPrefix="/oauth"
                     android:scheme="https" />
+                <data
+                    android:host="${frontegg_domain}"
+                    android:pathPrefix="/oauth"
+                    android:scheme="http" />
 
             </intent-filter>
         </activity>
@@ -93,7 +109,7 @@
             android:name="com.frontegg.android.AuthenticationActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            >
+        >
 
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
@@ -106,6 +122,10 @@
                     android:host="${frontegg_domain}"
                     android:pathPrefix="/oauth/account/redirect/android/${package_name}"
                     android:scheme="https" />
+                <data
+                    android:host="${frontegg_domain}"
+                    android:pathPrefix="/oauth/account/redirect/android/${package_name}"
+                    android:scheme="http" />
             </intent-filter>
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
