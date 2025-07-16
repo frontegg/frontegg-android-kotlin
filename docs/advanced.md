@@ -262,17 +262,25 @@ region, you will need to add an `intent-filter`. Replace `${FRONTEGG_DOMAIN_2}` 
             <category android:name="android.intent.category.DEFAULT"/>
             <category android:name="android.intent.category.BROWSABLE"/>
 
-            <data android:scheme="https" android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/activate"/>
-            <data android:scheme="http"  android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/activate"/>
+            <data android:scheme="https" />
+            <data android:scheme="http" />
+            <data android:host="${FRONTEGG_DOMAIN_2}" />
+            <data android:pathPrefix="/oauth/account/activate" />
 
-            <data android:scheme="https" android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/invitation/accept"/>
-            <data android:scheme="http"  android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/invitation/accept"/>
+            <data android:scheme="https" />
+            <data android:scheme="http" />
+            <data android:host="${FRONTEGG_DOMAIN_2}" />
+            <data android:pathPrefix="/oauth/account/invitation/accept" />
 
-            <data android:scheme="https" android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/reset-password"/>
-            <data android:scheme="http"  android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/reset-password"/>
+            <data android:scheme="https" />
+            <data android:scheme="http" />
+            <data android:host="${FRONTEGG_DOMAIN_2}" />
+            <data android:pathPrefix="/oauth/account/reset-password" />
 
-            <data android:scheme="https" android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/login/magic-link"/>
-            <data android:scheme="http"  android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/login/magic-link"/>
+            <data android:scheme="https" />
+            <data android:scheme="http" />
+            <data android:host="${FRONTEGG_DOMAIN_2}" />
+            <data android:pathPrefix="/oauth/account/login/magic-link" />
         </intent-filter>
     </activity>
 
@@ -281,20 +289,21 @@ region, you will need to add an `intent-filter`. Replace `${FRONTEGG_DOMAIN_2}` 
         android:name="com.frontegg.android.AuthenticationActivity"
         tools:node="merge">
         <intent-filter android:autoVerify="true">
-            <action android:name="android.intent.action.VIEW"/>
-            <category android:name="android.intent.category.DEFAULT"/>
-            <category android:name="android.intent.category.BROWSABLE"/>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
 
-            <data android:scheme="https" android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/redirect/android/${package_name}"/>
-            <data android:scheme="http"  android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/redirect/android/${package_name}"/>
+            <data android:scheme="https" />
+            <data android:scheme="http" />
+            <data android:host="${FRONTEGG_DOMAIN_2}" />
+            <data android:pathPrefix="/oauth/account/redirect/android/${package_name}" />
+            <data android:scheme="http" android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/redirect/android/${package_name}" />
         </intent-filter>
         <intent-filter>
-            <action android:name="android.intent.action.VIEW"/>
-
-            <category android:name="android.intent.category.DEFAULT"/>
-            <category android:name="android.intent.category.BROWSABLE"/>
-
-            <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}"/>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <category android:name="android.intent.category.BROWSABLE" />
+            <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}" />
         </intent-filter>
     </activity>
 </application>
