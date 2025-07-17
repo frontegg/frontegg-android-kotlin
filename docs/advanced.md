@@ -252,60 +252,73 @@ region, you will need to add an `intent-filter`. Replace `${FRONTEGG_DOMAIN_2}` 
 ```xml
 
 <application>
-    <activity
-        android:exported="true"
-        android:name="com.frontegg.android.EmbeddedAuthActivity"
-        tools:node="merge">
-        <intent-filter android:autoVerify="true">
-            <action android:name="android.intent.action.VIEW"/>
+  <activity android:exported="true" android:name="com.frontegg.android.EmbeddedAuthActivity"
+          tools:node="merge">
+    <!-- DONT NOT COMBINE THE FOLLOWING INTENT-FILTER INTO ONE-->
+    <intent-filter android:autoVerify="true">
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.DEFAULT" />
+      <category android:name="android.intent.category.BROWSABLE" />
 
-            <category android:name="android.intent.category.DEFAULT"/>
-            <category android:name="android.intent.category.BROWSABLE"/>
+      <data android:scheme="https" />
+      <data android:scheme="http" />
+      <data android:host="${FRONTEGG_DOMAIN_2}" />
+      <data android:pathPrefix="/oauth/account/activate" />
+    </intent-filter>
+    <intent-filter android:autoVerify="true">
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.DEFAULT" />
+      <category android:name="android.intent.category.BROWSABLE" />
 
-            <data android:scheme="https" />
-            <data android:scheme="http" />
-            <data android:host="${FRONTEGG_DOMAIN_2}" />
-            <data android:pathPrefix="/oauth/account/activate" />
+      <data android:scheme="https" />
+      <data android:scheme="http" />
+      <data android:host="${FRONTEGG_DOMAIN_2}" />
+      <data android:pathPrefix="/oauth/account/invitation/accept" />
+    </intent-filter>
+    <intent-filter android:autoVerify="true">
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.DEFAULT" />
+      <category android:name="android.intent.category.BROWSABLE" />
 
-            <data android:scheme="https" />
-            <data android:scheme="http" />
-            <data android:host="${FRONTEGG_DOMAIN_2}" />
-            <data android:pathPrefix="/oauth/account/invitation/accept" />
+      <data android:scheme="https" />
+      <data android:scheme="http" />
+      <data android:host="${FRONTEGG_DOMAIN_2}" />
+      <data android:pathPrefix="/oauth/account/reset-password" />
+    </intent-filter>
+    <intent-filter android:autoVerify="true">
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.DEFAULT" />
+      <category android:name="android.intent.category.BROWSABLE" />
 
-            <data android:scheme="https" />
-            <data android:scheme="http" />
-            <data android:host="${FRONTEGG_DOMAIN_2}" />
-            <data android:pathPrefix="/oauth/account/reset-password" />
+      <data android:scheme="https" />
+      <data android:scheme="http" />
+      <data android:host="${FRONTEGG_DOMAIN_2}" />
+      <data android:pathPrefix="/oauth/account/login/magic-link" />
+    </intent-filter>
+  </activity>
 
-            <data android:scheme="https" />
-            <data android:scheme="http" />
-            <data android:host="${FRONTEGG_DOMAIN_2}" />
-            <data android:pathPrefix="/oauth/account/login/magic-link" />
-        </intent-filter>
-    </activity>
+  <activity android:exported="true" android:name="com.frontegg.android.AuthenticationActivity"
+          tools:node="merge">
 
-    <activity
-        android:exported="true"
-        android:name="com.frontegg.android.AuthenticationActivity"
-        tools:node="merge">
-        <intent-filter android:autoVerify="true">
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
+    <!-- DONT NOT COMBINE THE FOLLOWING INTENT-FILTER INTO ONE-->
+    <intent-filter android:autoVerify="true">
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.DEFAULT" />
+      <category android:name="android.intent.category.BROWSABLE" />
 
-            <data android:scheme="https" />
-            <data android:scheme="http" />
-            <data android:host="${FRONTEGG_DOMAIN_2}" />
-            <data android:pathPrefix="/oauth/account/redirect/android/${package_name}" />
-            <data android:scheme="http" android:host="${FRONTEGG_DOMAIN_2}" android:pathPrefix="/oauth/account/redirect/android/${package_name}" />
-        </intent-filter>
-        <intent-filter>
-            <action android:name="android.intent.action.VIEW" />
-            <category android:name="android.intent.category.DEFAULT" />
-            <category android:name="android.intent.category.BROWSABLE" />
-            <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}" />
-        </intent-filter>
-    </activity>
+      <data android:scheme="https" />
+      <data android:scheme="http" />
+      <data android:host="${FRONTEGG_DOMAIN_2}" />
+      <data android:pathPrefix="/oauth/account/redirect/android/${package_name}" />
+    </intent-filter>
+    <intent-filter>
+      <action android:name="android.intent.action.VIEW" />
+      <category android:name="android.intent.category.DEFAULT" />
+      <category android:name="android.intent.category.BROWSABLE" />
+      
+      <data android:host="${FRONTEGG_DOMAIN_2}" android:scheme="${package_name}" />
+    </intent-filter>
+  </activity>
 </application>
 ```
 

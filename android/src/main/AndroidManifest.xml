@@ -12,8 +12,8 @@
 
         <activity
             android:name="com.frontegg.android.EmbeddedAuthActivity"
-            android:launchMode="singleTop"
-            android:exported="true">
+            android:exported="true"
+            android:launchMode="singleTop">
             <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
 
             <intent-filter android:autoVerify="true">
@@ -21,6 +21,7 @@
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="https" />
                 <data android:scheme="http" />
                 <data android:host="${frontegg_domain}" />
@@ -31,6 +32,7 @@
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="https" />
                 <data android:scheme="http" />
                 <data android:host="${frontegg_domain}" />
@@ -41,6 +43,7 @@
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="https" />
                 <data android:scheme="http" />
                 <data android:host="${frontegg_domain}" />
@@ -51,6 +54,7 @@
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="https" />
                 <data android:scheme="http" />
                 <data android:host="${frontegg_domain}" />
@@ -67,6 +71,7 @@
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="https" />
                 <data android:scheme="http" />
                 <data android:host="${frontegg_domain}" />
@@ -77,6 +82,7 @@
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="https" />
                 <data android:scheme="http" />
                 <data android:host="${frontegg_domain}" />
@@ -87,14 +93,14 @@
         <activity
             android:name="com.frontegg.android.AuthenticationActivity"
             android:exported="true"
-            android:launchMode="singleTop"
-        >
+            android:launchMode="singleTop">
 
             <intent-filter android:autoVerify="true">
                 <action android:name="android.intent.action.VIEW" />
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
+
                 <data android:scheme="https" />
                 <data android:scheme="http" />
                 <data android:host="${frontegg_domain}" />
