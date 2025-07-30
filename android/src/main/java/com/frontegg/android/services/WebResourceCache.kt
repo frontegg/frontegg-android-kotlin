@@ -2,7 +2,7 @@ import android.content.Context
 import android.util.Log
 import android.webkit.WebResourceResponse
 import androidx.collection.LruCache
-import com.frontegg.android.FronteggAuth
+import com.frontegg.android.services.StorageProvider
 import okhttp3.Cache
 import okhttp3.CacheControl
 import okhttp3.OkHttpClient
@@ -24,6 +24,7 @@ class WebResourceCache(
         var lastAccess: Long = System.currentTimeMillis()
     )
 
+    private val storage = StorageProvider.getInnerStorage()
     private val memoryCache = LruCache<String, CacheEntry>(memoryCacheSize)
     private val httpClient: OkHttpClient
 
@@ -143,18 +144,18 @@ class WebResourceCache(
 
     private fun getCorsHeaders(): Map<String, String> {
         return mapOf(
-            "Access-Control-Allow-Origin" to FronteggAuth.instance.baseUrl,
+            "Access-Control-Allow-Origin" to storage.baseUrl,
             "Access-Control-Allow-Methods" to "GET, OPTIONS"
         )
     }
 
     private val staticAssetPattern = Regex(
-        "https://("+
+        "https://(" +
                 "cdn\\.frontegg\\.com/content/hosted-login|" +
                 "cdn\\.us\\.frontegg\\.com/content/hosted-login|" +
-                "assets\\.frontegg\\.com/admin-box|"+
+                "assets\\.frontegg\\.com/admin-box|" +
                 "fonts\\.gstatic\\.com|" +
-                "fonts\\.googleapis\\.com"+
+                "fonts\\.googleapis\\.com" +
                 ")/.*"
     )
 

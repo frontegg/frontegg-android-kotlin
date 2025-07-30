@@ -11,7 +11,6 @@ import androidx.annotation.VisibleForTesting
 import androidx.credentials.PublicKeyCredential
 import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
-import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
@@ -28,7 +27,6 @@ import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -50,10 +48,7 @@ class FronteggAuthService(
 
     companion object {
         private val TAG = FronteggAuth::class.java.simpleName
-        val instance: FronteggAuthService
-            get() {
-                return FronteggApp.getInstance().auth as FronteggAuthService
-            }
+
 
     }
 
@@ -369,9 +364,9 @@ class FronteggAuthService(
         if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
         ) {
-            
+
             Log.d(TAG, "setCredentials, going to get user info")
-    
+
             try {
                 val user = api.me()
                 if (user != null) {
@@ -466,7 +461,8 @@ class FronteggAuthService(
         callback: (() -> Unit)?
     ) {
         if (webView != null) {
-            val authorizeUrl = AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator()
+            val authorizeUrl =
+                AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator(credentialManager.context)
             val url = authorizeUrl.generate()
             withContext(mainDispatcher) {
                 webView.loadUrl(url.first)

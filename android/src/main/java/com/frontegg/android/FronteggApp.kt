@@ -1,16 +1,95 @@
 package com.frontegg.android
 
-import android.annotation.SuppressLint
 import android.content.Context
-import com.frontegg.android.FronteggApp.Companion.init
+import android.util.Log
 import com.frontegg.android.FronteggApp.Companion.initWithRegions
-import com.frontegg.android.exceptions.FronteggException
-import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
 import com.frontegg.android.utils.isActivityEnabled
 import com.frontegg.debug.AndroidDebugConfigurationChecker
+import com.frontegg.flutter.constants
+
+private var instance: FronteggApp? = null
+
+/**
+ * Initializes [FronteggApp].
+ *
+ * @param fronteggDomain The Frontegg domain. Can be found at [portal.frontegg.com].
+ * @param clientId The Frontegg Client ID. Can be found at [portal.frontegg.com].
+ * @param context The application context.
+ * @param applicationId The ID of the Frontegg application. Can be found at [portal.frontegg.com].
+ * @param useAssetsLinks Whether the Frontegg SDK should use asset links (default: `false`).
+ * @param useChromeCustomTabs Whether the Frontegg SDK should use Chrome Custom Tabs (default: `false`).
+ * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
+ * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
+ */
+private fun init(
+    fronteggDomain: String,
+    clientId: String,
+    context: Context,
+    applicationId: String? = null,
+    useAssetsLinks: Boolean = false,
+    useChromeCustomTabs: Boolean = false,
+    mainActivityClass: Class<*>? = null,
+    deepLinkScheme: String? = null,
+    useDiskCacheWebview: Boolean = false,
+) {
+    val baseUrl: String = if (fronteggDomain.startsWith("https")) {
+        fronteggDomain
+    } else {
+        "https://$fronteggDomain"
+    }
+
+    val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
+
+    instance = FronteggAppService(
+        context = context,
+        baseUrl = baseUrl,
+        clientId = clientId,
+        deepLinkScheme = deepLinkScheme,
+        applicationId = applicationId,
+        isEmbeddedMode = isEmbeddedMode,
+        useAssetsLinks = useAssetsLinks,
+        useChromeCustomTabs = useChromeCustomTabs,
+        mainActivityClass = mainActivityClass,
+        useDiskCacheWebview = useDiskCacheWebview
+    )
+
+    val debugChecker = AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
+    debugChecker.runChecks()
+
+}
+
+val Context.fronteggApp: FronteggApp
+    get() {
+        val constants = this.constants
+        Log.d("SAME", constants.toMap().toString())
+        if (instance == null) {
+            init(
+                fronteggDomain = constants.baseUrl,
+                clientId = constants.clientId,
+                context = this,
+                applicationId = constants.applicationId,
+                useAssetsLinks = constants.useAssetsLinks,
+                useChromeCustomTabs = constants.useChromeCustomTabs,
+                mainActivityClass = null,
+                deepLinkScheme = constants.deepLinkScheme,
+                useDiskCacheWebview = constants.useDiskCacheWebview,
+            )
+        }
+
+        return instance!!
+    }
+
+val Context.fronteggAuth: FronteggAuth
+    get() {
+        if (instance == null) {
+            this.fronteggApp
+        }
+
+        return instance!!.auth
+    }
 
 /**
  * An initialization class of Frontegg SDK. Use [init] or [initWithRegions] static methods
@@ -22,82 +101,6 @@ interface FronteggApp {
     val auth: FronteggAuth
 
     companion object {
-
-        @SuppressLint("StaticFieldLeak")
-        private var instance: FronteggApp? = null
-
-        /**
-         * Provide [FronteggApp] instance.
-         * @return [FronteggApp] object if was initialized.
-         * @throws FronteggException with the message `frontegg.error.app_must_be_initialized`
-         * if FronteggApp wasn't initialized before. Use `init` or `initWithRegions` static methods
-         * to initialize the FronteggApp.
-         */
-        fun getInstance(): FronteggApp {
-            if (instance == null) {
-                throw FronteggException(FRONTEGG_APP_MUST_BE_INITIALIZED)
-            }
-            return instance!!
-        }
-
-        /**
-         * Checks if the [FronteggApp] was initialized.
-         *
-         * @return `true` if the [FronteggApp] was initialized, `false` otherwise.
-         */
-        fun isInitialized(): Boolean {
-            return instance != null
-        }
-
-        /**
-         * Initializes [FronteggApp].
-         *
-         * @param fronteggDomain The Frontegg domain. Can be found at [portal.frontegg.com].
-         * @param clientId The Frontegg Client ID. Can be found at [portal.frontegg.com].
-         * @param context The application context.
-         * @param applicationId The ID of the Frontegg application. Can be found at [portal.frontegg.com].
-         * @param useAssetsLinks Whether the Frontegg SDK should use asset links (default: `false`).
-         * @param useChromeCustomTabs Whether the Frontegg SDK should use Chrome Custom Tabs (default: `false`).
-         * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
-         * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
-         */
-        fun init(
-            fronteggDomain: String,
-            clientId: String,
-            context: Context,
-            applicationId: String? = null,
-            useAssetsLinks: Boolean = false,
-            useChromeCustomTabs: Boolean = false,
-            mainActivityClass: Class<*>? = null,
-            deepLinkScheme: String? = null,
-            useDiskCacheWebview: Boolean = false,
-        ) {
-            val baseUrl: String = if (fronteggDomain.startsWith("https")) {
-                fronteggDomain
-            } else {
-                "https://$fronteggDomain"
-            }
-
-            val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
-
-            instance = FronteggAppService(
-                context = context,
-                baseUrl = baseUrl,
-                clientId = clientId,
-                deepLinkScheme = deepLinkScheme,
-                applicationId = applicationId,
-                isEmbeddedMode = isEmbeddedMode,
-                useAssetsLinks = useAssetsLinks,
-                useChromeCustomTabs = useChromeCustomTabs,
-                mainActivityClass = mainActivityClass,
-                useDiskCacheWebview = useDiskCacheWebview
-            )
-            
-            val debugChecker = AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
-            debugChecker.runChecks()
-            
-        }
-
         /**
          * Initialization method of [FronteggApp] for multi-regions.
          * @param regions A list of [RegionConfig]. Could find at [portal.frontegg.com];
@@ -136,8 +139,12 @@ interface FronteggApp {
                         useDiskCacheWebview = useDiskCacheWebview
                     )
                     instance = newInstance
-                    
-                    val debugChecker = AndroidDebugConfigurationChecker(context, regionConfig.baseUrl, regionConfig.clientId)
+
+                    val debugChecker = AndroidDebugConfigurationChecker(
+                        context,
+                        regionConfig.baseUrl,
+                        regionConfig.clientId
+                    )
                     debugChecker.runChecks()
 
                     return newInstance

@@ -9,8 +9,8 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import androidx.browser.customtabs.CustomTabsIntent
 import com.frontegg.android.EmbeddedAuthActivity
-import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.FronteggState
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import org.json.JSONException
 import org.json.JSONObject
@@ -21,7 +21,7 @@ class FronteggNativeBridge(val context: Context) {
     @JavascriptInterface
     fun loginWithSSO(email: String) {
         Log.d("FronteggNativeBridge", "loginWithSSO(${email})")
-        val generatedUrl = AuthorizeUrlGenerator().generate(email)
+        val generatedUrl = AuthorizeUrlGenerator(context).generate(email)
         val authorizationUrl = Uri.parse(generatedUrl.first)
         val browserIntent = Intent(Intent.ACTION_VIEW, authorizationUrl)
         browserIntent.addCategory(Intent.CATEGORY_BROWSABLE)
@@ -44,16 +44,16 @@ class FronteggNativeBridge(val context: Context) {
                 val loginAction = jsonData.toString().toByteArray(Charsets.UTF_8)
 
                 val jsonString = Base64.encodeToString(loginAction, Base64.NO_WRAP)
-                AuthorizeUrlGenerator().generate(null, jsonString, preserveCodeVerifier)
+                AuthorizeUrlGenerator(context).generate(null, jsonString, preserveCodeVerifier)
             } catch (e: JSONException) {
-                AuthorizeUrlGenerator().generate(null, null, preserveCodeVerifier)
+                AuthorizeUrlGenerator(context).generate(null, null, preserveCodeVerifier)
             }
 
             val authorizationUrl = Uri.parse(generatedUrl.first)
 
             if (FronteggInnerStorage().useChromeCustomTabs) {
                 val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(false).build()
-                customTabsIntent.intent.setPackage("com.android.chrome");
+                customTabsIntent.intent.setPackage("com.android.chrome")
                 customTabsIntent.intent.setData(authorizationUrl)
                 (context as Activity).startActivityForResult(
                     customTabsIntent.intent,
@@ -106,7 +106,7 @@ class FronteggNativeBridge(val context: Context) {
     @JavascriptInterface
     fun setLoading(value: Boolean) {
         Log.d("FronteggNativeBridge", "setLoading(${if (value) "true" else "false"})")
-        FronteggAuthService.instance.webLoading.value = value
+        FronteggState.webLoading.value = value
     }
 
     @JavascriptInterface
