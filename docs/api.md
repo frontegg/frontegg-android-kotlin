@@ -2,10 +2,8 @@
 
 | Method | Description |
 |--------|-------------|
-| `init(domain, clientId, context, applicationId, useChromeCustomTabs)` | Initialize Frontegg with the specified configuration |
 | `initWithRegions(regions, context)` | Initialize Frontegg with multiple regions |
 | `initWithRegion(regionKey)` | Switch to a specific region |
-| `getInstance()` | Get the Frontegg instance |
 
 
 ## FronteggAuth methods

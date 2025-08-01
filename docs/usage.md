@@ -10,15 +10,14 @@ Frontegg offers multiple authentication flows to enhance your Android app’s us
 
 To use Chrome Custom Tabs for social login instead of the default Embedded WebView:
 
-1. Update Frontegg Initialization by setting the `useChromeCustomTabs` flag to `true` when initializing `FronteggApp`:
+1. Update `build.gradle`  adding `FRONTEGG_USE_CHROME_CUSTOM_TABS` to buildConfigField:
 
-```kotlin
-FronteggApp.init(
-    BuildConfig.FRONTEGG_DOMAIN,
-    BuildConfig.FRONTEGG_CLIENT_ID,
-    this, // Application Context
-    useChromeCustomTabs = true
-)
+```gradle
+android {
+    defaultConfig {
+        buildConfigField "boolean", "FRONTEGG_USE_CHROME_CUSTOM_TABS", "true"
+    }
+}
 ```
 
 2. Update the manifest by disabling the embedded activity and enable the hosted Chrome tab activity by modifying your `AndroidManifest.xml`:
@@ -48,7 +47,7 @@ FronteggApp.init(
 
 To log in with Frontegg, follow these steps:
 
-1. Call the `FronteggAuth.instance.login()` method.
+1. Call the `requireContext().fronteggAuth.login()` method.
 2. Pass the current activity context (e.g., `requireActivity()`).
 3. The login method will open the Frontegg hosted login page.
 4. After successful authentication, it will return the user data.
@@ -63,7 +62,7 @@ class FirstFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 
         binding.loginButton.setOnClickListener {
-            FronteggAuth.instance.login(requireActivity())
+            requireContext().fronteggAuth.login(requireActivity())
         }
     }
     // ...
@@ -74,7 +73,7 @@ class FirstFragment : Fragment() {
 
 ## Switch account (tenant)
 
-To switch user tenants, call the `FronteggAuth.instance.switchTenant()` method with the desired tenant ID. Make sure to retrieve the list of available tenant IDs from the current user session.
+To switch user tenants, call the `requireContext().fronteggAuth.switchTenant()` method with the desired tenant ID. Make sure to retrieve the list of available tenant IDs from the current user session.
 
 ```kotlin
 
@@ -85,7 +84,7 @@ class FirstFragment : Fragment() {
 
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 
-        val tenantIds = FronteggAuth.instance.user.value?.tenantIds ?: listOf()
+        val tenantIds = requireContext().fronteggAuth.user.value?.tenantIds ?: listOf()
 
         /**
          *  pick one from `tenantIds` list:
@@ -93,7 +92,7 @@ class FirstFragment : Fragment() {
         val tenantToSwitchTo = tenantIds[0]
 
         binding.switchTenant.setOnClickListener {
-            FronteggAuth.instance.switchTenant(tenantToSwitchTo)
+            requireContext().fronteggAuth.switchTenant(tenantToSwitchTo)
         }
     }
     // ...
@@ -103,7 +102,7 @@ class FirstFragment : Fragment() {
 
 ## Logout user
 
-To log out the user, simply call the `FronteggAuth.instance.logout()` method. This will clear all user data from the device.
+To log out the user, simply call the `requireContext().fronteggAuth.logout()` method. This will clear all user data from the device.
 
 ```kotlin
 
@@ -115,7 +114,7 @@ class FirstFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
 
         binding.logoutButton.setOnClickListener {
-            FronteggAuth.instance.logout()
+            requireContext().fronteggAuth.logout()
         }
     }
     // ...

@@ -17,7 +17,7 @@ dependencies {
 **Register Passkey:**
 
 ```kotlin
-FronteggAuth.instance.registerPasskeys(activity!!) { error ->
+requireContext().fronteggAuth.registerPasskeys(activity!!) { error ->
     if (error != null) {
         Log.e("FronteggAuth", "Failed to register passkey: $error")
     } else {
@@ -29,7 +29,7 @@ FronteggAuth.instance.registerPasskeys(activity!!) { error ->
 **Login with passkey:**
 
 ```kotlin
-FronteggAuth.instance.loginWithPasskeys(activity!!) { error ->
+requireContext().fronteggAuth.loginWithPasskeys(activity!!) { error ->
     if (error != null) {
         Log.e("FronteggAuth", "Failed to login with passkey: $error")
     } else {
@@ -69,31 +69,6 @@ android {
 }
 ```
 
-### Modify the app file
-
-Add `BuildConfig`.`FRONTEGG_APPLICATION_ID` to `FronteggApp`.`init`.
-
-Example App.kt code:
-
-```kotlin
-class App : Application() {
-
-    companion object {
-        lateinit var instance: App
-    }
-
-    override fun onCreate() {
-        super.onCreate()
-        instance = this
-        FronteggApp.init(
-            BuildConfig.FRONTEGG_DOMAIN,
-            BuildConfig.FRONTEGG_CLIENT_ID,
-            this,
-            BuildConfig.FRONTEGG_APPLICATION_ID, // here
-        )
-    }
-}
-```
 ## Step-up authentication
 
 Step-up authentication is a security feature that temporarily elevates a user's authentication level to perform sensitive actions, such as accessing personal data, making transactions, or changing security settings.
@@ -107,7 +82,7 @@ Please follow [this guide](https://developers.frontegg.com/guides/step-up/intro)
 Triggers the step-up authentication process. Typically involves MFA or other user verification.
 
 ```
-FronteggAuth.instance.stepUp(
+requireContext().fronteggAuth.stepUp(
     activity = this,
     maxAge = Duration.ofMinutes(5)
 ) { error ->
@@ -132,7 +107,7 @@ FronteggAuth.instance.stepUp(
 This method whether the user has already completed a step-up authentication and is allowed to proceed.
 
 ```
-val isSteppedUp = FronteggAuth.instance.isSteppedUp(maxAge = Duration.ofMinutes(5))
+val isSteppedUp = requireContext().fronteggAuth.isSteppedUp(maxAge = Duration.ofMinutes(5))
 
 if (isSteppedUp) {
 // Proceed with sensitive operation
@@ -145,10 +120,10 @@ if (isSteppedUp) {
 
 ```
 fun onSecureActionClicked() {
-  if (FronteggAuth.instance.isSteppedUp(maxAge = Duration.ofMinutes(5))) {
+  if (requireContext().fronteggAuth.isSteppedUp(maxAge = Duration.ofMinutes(5))) {
     performSecureOperation()
   } else {
-    FronteggAuth.instance.stepUp(this, Duration.ofMinutes(5)) { error ->
+    requireContext().fronteggAuth.stepUp(this, Duration.ofMinutes(5)) { error ->
       if (error == null) {
         performSecureOperation()
       } else {
@@ -362,12 +337,12 @@ class RegionSelectionActivity : AppCompatActivity() {
         val usButton = findViewById<LinearLayout>(R.id.usButton)
 
         euButton.setOnClickListener {
-            FronteggApp.getInstance().initWithRegion("eu")
+            requireContext().fronteggAuth.initWithRegion("eu")
             finish()
         }
 
         usButton.setOnClickListener {
-            FronteggApp.getInstance().initWithRegion("us")
+            requireContext().fronteggAuth.initWithRegion("us")
             finish()
         }
     }
