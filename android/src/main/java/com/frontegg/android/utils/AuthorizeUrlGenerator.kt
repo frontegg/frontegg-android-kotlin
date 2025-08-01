@@ -1,19 +1,24 @@
 package com.frontegg.android.utils
 
+import android.content.Context
 import android.net.Uri
 import android.util.Log
+import com.frontegg.android.fronteggAuth
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.StorageProvider
 import java.security.MessageDigest
 import java.util.Base64
 import kotlin.time.Duration
 
-class AuthorizeUrlGenerator {
+class AuthorizeUrlGenerator(
+    val context: Context
+) {
     companion object {
         private val TAG = AuthorizeUrlGenerator::class.java.simpleName
     }
 
     private var storage = StorageProvider.getInnerStorage()
+    private val credentialManager = (context.fronteggAuth as FronteggAuthService).credentialManager
     private val clientId: String
         get() = storage.clientId
     private val applicationId: String?
@@ -50,8 +55,6 @@ class AuthorizeUrlGenerator {
         maxAge: Duration? = null,
     ): Pair<String, String> {
         val nonce = createRandomString()
-        val credentialManager = FronteggAuthService.instance.credentialManager
-
 
         val codeVerifier: String = if (preserveCodeVerifier == true) {
             credentialManager.getCodeVerifier()!!

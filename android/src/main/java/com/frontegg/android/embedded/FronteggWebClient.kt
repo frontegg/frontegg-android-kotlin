@@ -18,8 +18,10 @@ import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.net.toUri
+import com.frontegg.android.fronteggAuth
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.FronteggState
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
@@ -61,7 +63,7 @@ class FronteggWebClient(
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         Log.d(TAG, "onPageStarted $url")
-        FronteggAuthService.instance.isLoading.value = true
+        FronteggState.isLoading.value = true
 
         passkeyWebListener.onPageStarted()
         view?.evaluateJavascript(PasskeyWebListener.INJECTED_VAL, null)
@@ -80,18 +82,18 @@ class FronteggWebClient(
                 val urlType = getOverrideUrlType(url.toUri())
                 if (urlType == OverrideUrlType.internalRoutes) {
                     lastTimer = Timer().schedule(400) {
-                        FronteggAuthService.instance.isLoading.value = false
+                        FronteggState.isLoading.value = false
                     }
                 } else {
-                    FronteggAuthService.instance.isLoading.value = false
+                    FronteggState.isLoading.value = false
                 }
             }
         } catch (e: Exception) {
-            FronteggAuthService.instance.isLoading.value = false
+            FronteggState.isLoading.value = false
         }
 
         if (url?.startsWith("data:text/html,") == true) {
-            FronteggAuthService.instance.isLoading.value = false
+            FronteggState.isLoading.value = false
             return
         }
 
@@ -150,7 +152,7 @@ class FronteggWebClient(
                 val fallbackToAuthUrl = failedUrl.contains("/identity/resources/auth/") ||
                         failedUrl.contains("/oauth/")
                 val errorRedirectUrl = if (fallbackToAuthUrl) {
-                    AuthorizeUrlGenerator().generate().first
+                    AuthorizeUrlGenerator(context).generate().first
                 } else {
                     failedUrl
                 }
@@ -190,7 +192,7 @@ class FronteggWebClient(
                     "                document.body.appendChild(script)\n" +
                     "            })()"
             view.evaluateJavascript(jsCode, null)
-            FronteggAuthService.instance.isLoading.value = false
+            FronteggState.isLoading.value = false
             return
         }
 
@@ -440,7 +442,7 @@ class FronteggWebClient(
         val oauthRedirectUri = socialLoginRedirectUrl(baseUrl)
         val newUri = setUriParameter(uri, "redirectUri", oauthRedirectUri)
 
-        FronteggAuthService.instance.isLoading.value = true
+        FronteggState.isLoading.value = true
         try {
             bgScope.launch {
                 val requestBuilder = Request.Builder()
@@ -463,7 +465,7 @@ class FronteggWebClient(
                 withContext(mainDispatcher) {
                     val browserIntent = Intent(Intent.ACTION_VIEW, socialLoginUrl)
                     context.startActivity(browserIntent)
-                    FronteggAuthService.instance.isLoading.value = false
+                    FronteggState.isLoading.value = false
                 }
             }
         } catch (e: Exception) {
@@ -499,11 +501,15 @@ class FronteggWebClient(
             return false
         }
 
-        if (FronteggAuthService.instance.handleHostedLoginCallback(code, webView)) {
+        if ((context.fronteggAuth as FronteggAuthService).handleHostedLoginCallback(
+                code,
+                webView
+            )
+        ) {
             return true
         }
 
-        val authorizeUrl = AuthorizeUrlGenerator()
+        val authorizeUrl = AuthorizeUrlGenerator(context)
         val url = authorizeUrl.generate()
         webView.loadUrl(url.first)
         return false

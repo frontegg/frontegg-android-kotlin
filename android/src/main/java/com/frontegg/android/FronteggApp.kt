@@ -1,20 +1,91 @@
 package com.frontegg.android
 
-import android.annotation.SuppressLint
 import android.content.Context
+import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.frontegg.android.FronteggApp.Companion.init
 import com.frontegg.android.FronteggApp.Companion.initWithRegions
-import com.frontegg.android.exceptions.FronteggException
-import com.frontegg.android.exceptions.FronteggException.Companion.FRONTEGG_APP_MUST_BE_INITIALIZED
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
+import com.frontegg.android.utils.FronteggConstantsProvider
 import com.frontegg.android.utils.isActivityEnabled
 import com.frontegg.debug.AndroidDebugConfigurationChecker
 
 /**
+ * Lazily initializes and returns the singleton [FronteggApp] instance for this [Context].
+ *
+ * Initialization parameters are retrieved from the `BuildConfig` class using reflection,
+ * based on the package name and launch activity. This includes configuration such as:
+ * - `FRONTEGG_DOMAIN`
+ * - `FRONTEGG_CLIENT_ID`
+ * - `FRONTEGG_APPLICATION_ID`
+ * - `FRONTEGG_USE_ASSETS_LINKS`
+ * - `FRONTEGG_USE_CHROME_CUSTOM_TABS`
+ * - `FRONTEGG_DEEP_LINK_SCHEME`
+ * - `FRONTEGG_USE_DISK_CACHE_WEBVIEW`
+ * - `FRONTEGG_MAIN_ACTIVITY_CLASS`
+ *
+ * These constants are wrapped in a [FronteggConstants] object and used to initialize
+ * the [FronteggApp] if it has not already been initialized.
+ *
+ * @receiver [Context] used to resolve package and resources.
+ * @return A ready-to-use [FronteggApp] singleton instance.
+ */
+val Context.fronteggApp: FronteggApp
+    get() {
+        if (FronteggApp.instance == null) {
+            val constants = FronteggConstantsProvider.fronteggConstants(this)
+            Log.d(FronteggApp.TAG, "Initializing Frontegg SDK with constants: ${constants.toMap()}")
+            var mainClassActivityClass: Class<*>? = null
+            try {
+                mainClassActivityClass =
+                    if (constants.mainActivityClass != null) Class.forName(constants.mainActivityClass) else null
+            } catch (e: ClassNotFoundException) {
+                Log.e(
+                    FronteggApp.TAG,
+                    "mainActivityClass (${constants.mainActivityClass}) Not Found",
+                    e
+                )
+            }
+
+            init(
+                fronteggDomain = constants.baseUrl,
+                clientId = constants.clientId,
+                context = this,
+                applicationId = constants.applicationId,
+                useAssetsLinks = constants.useAssetsLinks,
+                useChromeCustomTabs = constants.useChromeCustomTabs,
+                mainActivityClass = mainClassActivityClass,
+                deepLinkScheme = constants.deepLinkScheme,
+                useDiskCacheWebview = constants.useDiskCacheWebview,
+            )
+        }
+
+        return FronteggApp.instance!!
+    }
+
+/**
+ * Provides access to the [FronteggAuth] component associated with the [FronteggApp].
+ *
+ * Ensures that the [FronteggApp] is initialized before returning the `auth` module.
+ * Initialization parameters are loaded from the app's `BuildConfig` using reflection.
+ *
+ * @receiver [Context] used to access the [FronteggApp].
+ * @return The [FronteggAuth] instance for authentication flows.
+ */
+val Context.fronteggAuth: FronteggAuth
+    get() {
+        if (FronteggApp.instance == null) {
+            this.fronteggApp
+        }
+
+        return FronteggApp.instance!!.auth
+    }
+
+/**
  * An initialization class of Frontegg SDK. Use [init] or [initWithRegions] static methods
- * to initialize the [FronteggApp]. To get access to an instance use the [getInstance] method.
+ * to initialize the [FronteggApp].
  *
  * @property auth an authentication interface.
  */
@@ -22,32 +93,11 @@ interface FronteggApp {
     val auth: FronteggAuth
 
     companion object {
+        val TAG = FronteggApp::class.java.simpleName
 
-        @SuppressLint("StaticFieldLeak")
-        private var instance: FronteggApp? = null
 
-        /**
-         * Provide [FronteggApp] instance.
-         * @return [FronteggApp] object if was initialized.
-         * @throws FronteggException with the message `frontegg.error.app_must_be_initialized`
-         * if FronteggApp wasn't initialized before. Use `init` or `initWithRegions` static methods
-         * to initialize the FronteggApp.
-         */
-        fun getInstance(): FronteggApp {
-            if (instance == null) {
-                throw FronteggException(FRONTEGG_APP_MUST_BE_INITIALIZED)
-            }
-            return instance!!
-        }
-
-        /**
-         * Checks if the [FronteggApp] was initialized.
-         *
-         * @return `true` if the [FronteggApp] was initialized, `false` otherwise.
-         */
-        fun isInitialized(): Boolean {
-            return instance != null
-        }
+        @VisibleForTesting
+        internal var instance: FronteggApp? = null
 
         /**
          * Initializes [FronteggApp].
@@ -61,7 +111,8 @@ interface FronteggApp {
          * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
          * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
          */
-        fun init(
+        @VisibleForTesting
+        internal fun init(
             fronteggDomain: String,
             clientId: String,
             context: Context,
@@ -92,11 +143,11 @@ interface FronteggApp {
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview
             )
-            
+
             val debugChecker = AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
             debugChecker.runChecks()
-            
         }
+
 
         /**
          * Initialization method of [FronteggApp] for multi-regions.
@@ -136,8 +187,12 @@ interface FronteggApp {
                         useDiskCacheWebview = useDiskCacheWebview
                     )
                     instance = newInstance
-                    
-                    val debugChecker = AndroidDebugConfigurationChecker(context, regionConfig.baseUrl, regionConfig.clientId)
+
+                    val debugChecker = AndroidDebugConfigurationChecker(
+                        context,
+                        regionConfig.baseUrl,
+                        regionConfig.clientId
+                    )
                     debugChecker.runChecks()
 
                     return newInstance

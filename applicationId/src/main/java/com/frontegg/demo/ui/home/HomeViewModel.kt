@@ -5,14 +5,23 @@ import android.os.Looper
 import androidx.lifecycle.LiveData
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
+import androidx.lifecycle.ViewModelProvider
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.models.User
 
-class HomeViewModel : ViewModel() {
+class HomeFragmentFactory(private val fronteggAuth: FronteggAuth) : ViewModelProvider.Factory {
+    override fun <T : ViewModel> create(modelClass: Class<T>): T {
+        return HomeViewModel(fronteggAuth) as T
+    }
+}
+
+class HomeViewModel(
+    private val fronteggAuth: FronteggAuth
+) : ViewModel() {
 
     // LiveData to store the current user object, initially set to null
     private val _user = MutableLiveData<User?>().apply {
-        FronteggAuth.instance.user.subscribe {
+        fronteggAuth.user.subscribe {
             Handler(Looper.getMainLooper()).post {
                 value = it.value
             }
@@ -21,7 +30,7 @@ class HomeViewModel : ViewModel() {
 
     // LiveData to store the current access token, initially set to null
     private val _accessToken = MutableLiveData<String?>().apply {
-        FronteggAuth.instance.accessToken.subscribe {
+        fronteggAuth.accessToken.subscribe {
             Handler(Looper.getMainLooper()).post {
                 value = it.value
             }
@@ -30,5 +39,4 @@ class HomeViewModel : ViewModel() {
 
 
     val user: LiveData<User?> = _user
-    val accessToken: LiveData<String?> = _accessToken
 }

@@ -9,7 +9,7 @@ import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
-import com.frontegg.android.FronteggAuth
+import com.frontegg.android.fronteggAuth
 import com.frontegg.android.utils.NullableObject
 import com.frontegg.demo.databinding.ActivityNavigationBinding
 import io.reactivex.rxjava3.disposables.Disposable
@@ -78,10 +78,10 @@ class NavigationActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         // Subscribe to Frontegg authentication events
-        disposables.add(FronteggAuth.instance.showLoader.subscribe(this.onShowLoaderChange))
-        disposables.add(FronteggAuth.instance.isAuthenticated.subscribe(this.onIsAuthenticatedChange))
+        disposables.add(fronteggAuth.showLoader.subscribe(this.onShowLoaderChange))
+        disposables.add(fronteggAuth.isAuthenticated.subscribe(this.onIsAuthenticatedChange))
 
-        if (FronteggAuth.instance.isMultiRegion && FronteggAuth.instance.selectedRegion == null) {
+        if (fronteggAuth.isMultiRegion && fronteggAuth.selectedRegion == null) {
             startActivity(Intent(this, RegionSelectionActivity::class.java))
         }
     }
@@ -106,7 +106,7 @@ class NavigationActivity : AppCompatActivity() {
     private val onShowLoaderChange: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(
             TAG,
-            "showLoader: ${it.value}, initializing: ${FronteggAuth.instance.initializing.value}"
+            "showLoader: ${it.value}, initializing: ${fronteggAuth.initializing.value}"
         )
 
         runOnUiThread {

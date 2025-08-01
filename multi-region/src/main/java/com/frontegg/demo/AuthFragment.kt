@@ -8,7 +8,7 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import com.frontegg.android.FronteggAuth
+import com.frontegg.android.fronteggAuth
 import com.frontegg.demo.databinding.FragmentAuthBinding
 
 class AuthFragment : Fragment() {
@@ -36,7 +36,7 @@ class AuthFragment : Fragment() {
          * Handles user login via the Embedded Frontegg WebView login dialog.
          */
         binding.loginButton.setOnClickListener {
-            FronteggAuth.instance.login(requireActivity()) {
+            requireContext().fronteggAuth.login(requireActivity()) {
                 Log.d("AuthFragment", "Login callback")
             }
         }

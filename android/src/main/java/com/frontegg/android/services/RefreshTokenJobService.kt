@@ -5,29 +5,29 @@ import android.app.job.JobParameters
 import android.app.job.JobService
 import android.util.Log
 import androidx.annotation.VisibleForTesting
+import com.frontegg.android.FronteggApp
+import com.frontegg.android.fronteggApp
+import com.frontegg.android.fronteggAuth
 import java.net.SocketTimeoutException
 import java.time.Instant
-import com.frontegg.android.FronteggApp
-import com.frontegg.android.exceptions.FronteggException
 
 class RefreshTokenJobService : JobService() {
     companion object {
         private val TAG = RefreshTokenJobService::class.java.simpleName
-    }   
+    }
 
     override fun onStartJob(params: JobParameters?): Boolean {
-        val appInstance: FronteggApp? = try {
-            FronteggApp.getInstance()
-        } catch (e: FronteggException) {
-            null
-        }
-    
-        if (appInstance == null || appInstance !is FronteggAppService || appInstance.isAppInForeground()) {
-            Log.d(TAG, "Either FronteggApp is not initialized, not of type FronteggAppService, or the app is not in the foreground. Skipping token refresh.")
+        val appInstance: FronteggApp = fronteggApp
+
+        if (appInstance !is FronteggAppService || appInstance.isAppInForeground()) {
+            Log.d(
+                TAG,
+                "Either FronteggApp is not initialized, not of type FronteggAppService, or the app is not in the foreground. Skipping token refresh."
+            )
             jobFinished(params, false)
             return false
         }
-        
+
         Log.d(
             TAG,
             "Job started, (${
@@ -36,7 +36,7 @@ class RefreshTokenJobService : JobService() {
         )
         performBackgroundTask(params)
         return true
-    }    
+    }
 
     override fun onStopJob(params: JobParameters?): Boolean {
         Log.d(TAG, "Job stopped before completion")
@@ -49,17 +49,18 @@ class RefreshTokenJobService : JobService() {
         // Simulate a background task with a new thread or coroutine if needed
         Thread {
             var isError = false
+            val service = fronteggAuth as FronteggAuthService
             try {
-                FronteggAuthService.instance.sendRefreshToken()
+                service.sendRefreshToken()
                 Log.d(TAG, "Job finished")
             } catch (e: Exception) {
                 Log.e(TAG, "Job unknown error occurred", e)
                 // Catch unhandled exception
-                FronteggAuthService.instance.accessToken.value = null
-                FronteggAuthService.instance.isLoading.value = true
+                FronteggState.accessToken.value = null
+                FronteggState.isLoading.value = true
                 isError = true
                 if (e is SocketTimeoutException) {
-                    FronteggAuthService.instance.refreshTokenTimer.scheduleTimer(20000)
+                    service.refreshTokenTimer.scheduleTimer(20000)
                 }
             } finally {
                 FronteggRefreshTokenTimer.lastJobStart = Instant.now().toEpochMilli()

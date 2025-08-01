@@ -183,6 +183,7 @@ interface FronteggAuth {
         maxAge: Duration? = null,
         callback: ((error: Exception?) -> Unit)? = null,
     )
+
     /**
      * Sets the access token and refresh token for the current session.
      *
@@ -190,16 +191,5 @@ interface FronteggAuth {
      * @param refreshToken The refresh token to set.
      */
     fun updateCredentials(accessToken: String, refreshToken: String)
-
-    companion object {
-
-        /**
-         * Instance of [FronteggAuth].
-         */
-        val instance: FronteggAuth
-            get() {
-                return FronteggApp.getInstance().auth
-            }
-    }
 }
 

@@ -66,9 +66,9 @@ class AuthenticationActivity : FronteggBaseActivity() {
             val code = intent.data?.getQueryParameter("code")
             if (code != null) {
                 Log.d(TAG, "Got intent with oauth callback")
-                FronteggAuthService.instance.isLoading.value = true
+                FronteggState.isLoading.value = true
 
-                FronteggAuthService.instance.handleHostedLoginCallback(code, null, this)
+                (fronteggAuth as FronteggAuthService).handleHostedLoginCallback(code, null, this)
                 if (storage.useChromeCustomTabs && storage.isEmbeddedMode) {
                     EmbeddedAuthActivity.afterAuthentication(this)
                 } else {
@@ -87,7 +87,7 @@ class AuthenticationActivity : FronteggBaseActivity() {
      * when using external browser login
      */
     private fun invokeAuthFinishedCallback(exception: FronteggException? = null) {
-        if (FronteggAuth.instance.isEmbeddedMode && !FronteggState.isStepUpAuthorization.value) {
+        if (fronteggAuth.isEmbeddedMode && !FronteggState.isStepUpAuthorization.value) {
             return
         }
         onAuthFinishedCallback?.invoke(exception)
@@ -103,7 +103,7 @@ class AuthenticationActivity : FronteggBaseActivity() {
     fun safeFinishActivity(resultCode: Int, exception: FronteggException? = null) {
         invokeAuthFinishedCallback(exception)
         setResult(resultCode)
-        if(isTaskRoot){
+        if (isTaskRoot) {
             val intent = intent
             // 2) …and we didn’t come here via the normal launcher (ACTION_MAIN + CATEGORY_LAUNCHER)
             val isLauncher = intent.action == Intent.ACTION_MAIN &&
@@ -158,7 +158,7 @@ class AuthenticationActivity : FronteggBaseActivity() {
             callback: ((Exception?) -> Unit)? = null
         ) {
             val intent = Intent(activity, AuthenticationActivity::class.java)
-            val authorizeUri = AuthorizeUrlGenerator().generate(loginHint = loginHint)
+            val authorizeUri = AuthorizeUrlGenerator(activity).generate(loginHint = loginHint)
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -172,7 +172,8 @@ class AuthenticationActivity : FronteggBaseActivity() {
             callback: ((Exception?) -> Unit)? = null
         ) {
             val intent = Intent(activity, AuthenticationActivity::class.java)
-            val authorizeUri = AuthorizeUrlGenerator().generate(loginAction = mfaLoginAction)
+            val authorizeUri =
+                AuthorizeUrlGenerator(activity).generate(loginAction = mfaLoginAction)
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
@@ -186,7 +187,7 @@ class AuthenticationActivity : FronteggBaseActivity() {
             callback: ((Exception?) -> Unit)? = null,
         ) {
             val intent = Intent(activity, AuthenticationActivity::class.java)
-            val authorizeUri = AuthorizeUrlGenerator().generate(
+            val authorizeUri = AuthorizeUrlGenerator(activity).generate(
                 stepUp = true,
                 maxAge = maxAge
             )

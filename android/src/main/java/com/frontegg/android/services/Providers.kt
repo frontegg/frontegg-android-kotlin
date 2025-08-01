@@ -1,6 +1,7 @@
 package com.frontegg.android.services
 
 import android.app.Activity
+import android.content.Context
 import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import kotlinx.coroutines.CoroutineScope
@@ -18,8 +19,8 @@ object ScopeProvider {
 }
 
 object AuthorizeUrlGeneratorProvider {
-    fun getAuthorizeUrlGenerator(): AuthorizeUrlGenerator {
-        return AuthorizeUrlGenerator()
+    fun getAuthorizeUrlGenerator(context: Context): AuthorizeUrlGenerator {
+        return AuthorizeUrlGenerator(context)
     }
 }
 

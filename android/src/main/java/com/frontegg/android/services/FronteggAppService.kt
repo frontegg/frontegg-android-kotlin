@@ -2,8 +2,10 @@ package com.frontegg.android.services
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
+import com.frontegg.android.fronteggAuth
 import com.frontegg.android.regions.RegionConfig
 
 class FronteggAppService(
@@ -49,7 +51,8 @@ class FronteggAppService(
         return appLifecycle.appInForeground
     }
 
-    private fun fillStorage() {
+    @VisibleForTesting
+    internal fun fillStorage() {
         storage.fill(
             baseUrl,
             clientId,
@@ -91,7 +94,7 @@ class FronteggAppService(
         this.selectedRegion = config
         fillStorage()
 
-        FronteggAuthService.instance.reinitWithRegion()
+        (context.fronteggAuth as FronteggAuthService).reinitWithRegion()
 
         Log.i(TAG, "Frontegg Initialized successfully (region: ${regionKey})")
     }

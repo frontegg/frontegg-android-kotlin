@@ -12,10 +12,9 @@ import android.view.View
 import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.ViewModelProvider
+import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
-import com.frontegg.android.FronteggApp
-import com.frontegg.android.FronteggAuth
+import com.frontegg.android.fronteggAuth
 import com.frontegg.demo.databinding.FragmentHomeBinding
 import java.util.Timer
 import kotlin.time.DurationUnit
@@ -38,7 +37,7 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         // Initialize the ViewModel associated with this fragment
-        val homeViewModel = ViewModelProvider(this)[HomeViewModel::class.java]
+        val homeViewModel: HomeViewModel by viewModels { HomeFragmentFactory(requireContext().fronteggAuth) }
 
         // Inflate the layout for the fragment using the generated binding class
         _binding = FragmentHomeBinding.inflate(inflater, container, false)
@@ -98,7 +97,7 @@ class HomeFragment : Fragment() {
                         val selectedTenant = user.tenants[position]
                         if (selectedTenant != user.activeTenant) {
                             // Call your tenant switching function
-                            FronteggApp.getInstance().auth.switchTenant(selectedTenant.tenantId)
+                            requireContext().fronteggAuth.switchTenant(selectedTenant.tenantId)
                         }
                     }
                 }
@@ -110,13 +109,13 @@ class HomeFragment : Fragment() {
         binding.sensitiveActionButton.setOnClickListener {
             val maxAge = 60.toDuration(DurationUnit.MINUTES)
 
-            val isSteppedUp = FronteggAuth.instance.isSteppedUp(maxAge)
+            val isSteppedUp = requireContext().fronteggAuth.isSteppedUp(maxAge)
             if (isSteppedUp) {
                 showSuccessMessage("Already stepped up, no need to do it again")
                 return@setOnClickListener
             }
             activity?.let { activity ->
-                FronteggAuth.instance.stepUp(
+                requireContext().fronteggAuth.stepUp(
                     activity,
                     maxAge,
                 )
@@ -136,7 +135,7 @@ class HomeFragment : Fragment() {
         binding.toolbar.btnLogout.visibility = View.VISIBLE
 
         binding.toolbar.btnLogout.setOnClickListener {
-            FronteggAuth.instance.logout {
+            requireContext().fronteggAuth.logout {
                 Log.d(TAG, "Logout successful")
             }
         }
@@ -189,7 +188,8 @@ class HomeFragment : Fragment() {
             startActivity(intent)
         }
 
-        val isDefaultCredentials = FronteggAuth.instance.baseUrl == "https://autheu.davidantoon.me"
+        val isDefaultCredentials =
+            requireContext().fronteggAuth.baseUrl == "https://autheu.davidantoon.me"
         Log.d(TAG, "isDefaultCredentials: $isDefaultCredentials")
 
         if (isDefaultCredentials) {

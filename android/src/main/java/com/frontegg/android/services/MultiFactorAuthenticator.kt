@@ -4,8 +4,8 @@ import android.app.Activity
 import android.util.Base64
 import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
-import com.frontegg.android.FronteggAuth
 import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.fronteggAuth
 import org.json.JSONObject
 
 class MultiFactorAuthenticator {
@@ -34,7 +34,7 @@ class MultiFactorAuthenticator {
     ) {
 
         val authCallback: (error: Exception?) -> Unit = { exception ->
-            if (FronteggAuth.instance.isAuthenticated.value) {
+            if (activity.fronteggAuth.isAuthenticated.value) {
                 callback?.invoke(exception)
             } else {
                 val error = FailedToAuthenticateException(error = "Failed to authenticate with MFA")
