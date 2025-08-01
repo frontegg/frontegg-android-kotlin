@@ -1,6 +1,7 @@
 - [Android SDK](README.md)
 - [Getting Started](getting-started.md)
 - [Setup Guide](setup.md)
+- [Migration Guide](migration-guide.md)
 - [API Reference](api.md)
 - [Usage Examples](usage.md)
 - [Advanced Topics](advanced.md)

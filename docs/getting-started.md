@@ -74,8 +74,6 @@ https://api.frontegg.com/vendors/resources/associated-domains/v1/android/{{confi
 ```
 
 
-
-
 ## Add Frontegg SDK to your project
 
 1. Open your Android project.
@@ -129,9 +127,14 @@ android {
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
+        // Optional
+        buildConfigField "String", "FRONTEGG_APPLICATION_ID", "\"my-app-id\""
+        buildConfigField "boolean", "FRONTEGG_USE_ASSETS_LINKS", "true"
+        buildConfigField "boolean", "FRONTEGG_USE_CHROME_CUSTOM_TABS", "true"
+        buildConfigField "boolean", "FRONTEGG_USE_DISK_CACHE_WEBVIEW", "true"
+        buildConfigField "String", "FRONTEGG_DEEP_LINK_SCHEME", "\"myapp\""
+        buildConfigField "String", "FRONTEGG_MAIN_ACTIVITY_CLASS", "\"com.example.myapp.MainActivity\""
     }
-
-
 }
 ```
 
@@ -150,6 +153,15 @@ android {
 
         buildConfigField("String", "FRONTEGG_DOMAIN", "\"$fronteggDomain\"")
         buildConfigField("String", "FRONTEGG_CLIENT_ID", "\"$fronteggClientId\"")
+
+        // Optional
+        buildConfigField ("String", "FRONTEGG_APPLICATION_ID", "\"my-app-id\"")
+        buildConfigField ("boolean", "FRONTEGG_USE_ASSETS_LINKS", "true")
+        buildConfigField ("boolean", "FRONTEGG_USE_CHROME_CUSTOM_TABS", "true")
+        buildConfigField ("boolean", "FRONTEGG_USE_DISK_CACHE_WEBVIEW", "true")
+        buildConfigField ("String", "FRONTEGG_DEEP_LINK_SCHEME", "\"myapp\"")
+        buildConfigField ("String", "FRONTEGG_MAIN_ACTIVITY_CLASS", "\"com.example.myapp.MainActivity\"")
+
     }
 
 }
@@ -179,38 +191,41 @@ android {
 
 
 
-## Initialize FronteggApp
+## Use the SDK
 
-Create a custom `App` class that extends `android.app.Application` to initialize `FronteggApp`:
+The Frontegg SDK now uses context-based lazy initialization. No manual initialization is required - the SDK automatically initializes when you first access it.
+
+### Basic Usage
 
 ```kotlin
-package com.frontegg.demo
-
-import android.app.Application
-import com.frontegg.android.FronteggApp
-
-class App : Application() {
-
-    override fun onCreate() {
-        super.onCreate()
-
-        FronteggApp.init(
-            BuildConfig.FRONTEGG_DOMAIN,
-            BuildConfig.FRONTEGG_CLIENT_ID,
-            this, // Application Context
-        )
+class MainActivity : AppCompatActivity() {
+    override fun onCreate(savedInstanceState: Bundle?) {
+        super.onCreate(savedInstanceState)
+        setContentView(R.layout.activity_main)
+        
+        // Access authentication via context
+        val auth = this.fronteggAuth
+        
+        // Check authentication status
+        if (auth.isAuthenticated.value) {
+            // User is logged in
+            startActivity(Intent(this, HomeActivity::class.java))
+        } else {
+            // User needs to login
+            findViewById<Button>(R.id.loginButton).setOnClickListener {
+                auth.login(this) { result ->
+                    when (result) {
+                        is Success -> {
+                            startActivity(Intent(this, HomeActivity::class.java))
+                            finish()
+                        }
+                        is Error -> {
+                            Toast.makeText(this, "Login failed", Toast.LENGTH_SHORT).show()
+                        }
+                    }
+                }
+            }
+        }
     }
 }
-```
-
-Register the custom `App` in the app's manifest file.
-
-**AndroidManifest.xml:**
-
-```xml
-
-<application android:name=".App">
-    <!--  ... -->
-</application>
-
 ```
