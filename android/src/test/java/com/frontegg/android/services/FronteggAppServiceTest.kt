@@ -1,19 +1,24 @@
 package com.frontegg.android.services
 
 import android.app.Activity
+import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.frontegg.android.FronteggApp
-import com.frontegg.android.exceptions.FronteggException
+import com.frontegg.android.fronteggApp
+import com.frontegg.android.fronteggAuth
+import com.frontegg.android.models.FronteggConstants
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.testUtils.FakeAndroidKeyStoreProvider
+import com.frontegg.android.utils.FronteggConstantsProvider
 import io.mockk.Runs
+import io.mockk.clearAllMocks
 import io.mockk.every
 import io.mockk.just
 import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkObject
-import io.mockk.unmockkAll
+import io.mockk.unmockkObject
 import io.mockk.verify
 import org.junit.Before
 import org.junit.Test
@@ -30,6 +35,7 @@ class FronteggAppServiceTest {
 
     @Before
     fun setUp() {
+        clearAllMocks()
         FakeAndroidKeyStoreProvider.setup()
 
         mockkObject(StorageProvider)
@@ -43,19 +49,31 @@ class FronteggAppServiceTest {
     }
 
     @Test
-    fun `getInstance should throw FronteggException_FRONTEGG_APP_MUST_BE_INITIALIZED`() {
-        try {
-            FronteggApp.getInstance()
-        } catch (e: FronteggException) {
-            assert(e.message == FronteggException.FRONTEGG_APP_MUST_BE_INITIALIZED)
-        }
-    }
-
-    @Test
     fun `init should setUp instance field`() {
-        mockkObject(FronteggApp)
-        every { FronteggApp.init(any(), any(), any()) } just Runs
-        every { FronteggApp.getInstance() } returns mockk()
+        every {
+            mockStorage.fill(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+            )
+        }.returns(Unit)
+
+        every { mockStorage.clientId }.returns(fronteggClientId)
+        every { mockStorage.applicationId }.returns(applicationId)
+        every { mockStorage.regions }.returns(listOf())
 
         FronteggApp.init(
             fronteggDomain = fronteggDomain,
@@ -63,17 +81,89 @@ class FronteggAppServiceTest {
             context = ApplicationProvider.getApplicationContext(),
         )
 
+        assert(FronteggApp.instance != null)
+    }
+
+    @Test
+    fun `if instance is null getter fronteggApp should call init method`() {
+        val mockContext = mockk<Context>()
+        mockkObject(FronteggApp)
+        mockkObject(FronteggConstantsProvider)
+        val mockConstants = mockk<FronteggConstants>()
+        every { mockConstants.toMap() } returns mapOf()
+        every { mockConstants.baseUrl } returns ""
+        every { mockConstants.clientId } returns ""
+        every { mockConstants.applicationId } returns null
+        every { mockConstants.useAssetsLinks } returns false
+        every { mockConstants.useChromeCustomTabs } returns false
+        every { mockConstants.deepLinkScheme } returns null
+        every { mockConstants.useDiskCacheWebview } returns false
+        every { mockConstants.mainActivityClass } returns null
+        every { FronteggApp.instance } returns null
+        every {
+            FronteggApp.init(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns Unit
+        every { FronteggConstantsProvider.fronteggConstants(any()) } returns mockConstants
+
         try {
-            FronteggApp.getInstance()
-            assert(true)
-        } catch (e: FronteggException) {
-            assert(false)
+            mockContext.fronteggApp
+        } catch (e: Exception) {
+            // ignore
         }
 
-        verify { FronteggApp.init(any(), any(), any()) }
-        verify { FronteggApp.getInstance() }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        unmockkObject(FronteggApp)
+    }
 
-        unmockkAll()
+    @Test
+    fun `if instance is null getter fronteggAuth should call init method`() {
+        val mockContext = mockk<Context>()
+        mockkObject(FronteggApp)
+        mockkObject(FronteggConstantsProvider)
+        val mockConstants = mockk<FronteggConstants>()
+        every { mockConstants.toMap() } returns mapOf()
+        every { mockConstants.baseUrl } returns ""
+        every { mockConstants.clientId } returns ""
+        every { mockConstants.applicationId } returns null
+        every { mockConstants.useAssetsLinks } returns false
+        every { mockConstants.useChromeCustomTabs } returns false
+        every { mockConstants.deepLinkScheme } returns null
+        every { mockConstants.useDiskCacheWebview } returns false
+        every { mockConstants.mainActivityClass } returns null
+        every { FronteggApp.instance } returns null
+        every {
+            FronteggApp.init(
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any(),
+                any()
+            )
+        } returns Unit
+        every { FronteggConstantsProvider.fronteggConstants(any()) } returns mockConstants
+
+        try {
+            mockContext.fronteggAuth
+        } catch (e: Exception) {
+            // ignore
+        }
+
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        unmockkObject(FronteggApp)
     }
 
     @Test
@@ -258,9 +348,9 @@ class FronteggAppServiceTest {
             mainActivityClass = Activity::class.java
         )
 
-        val fronteggApp = FronteggApp.getInstance()
+        val fronteggApp = FronteggApp.instance
 
-        fronteggApp.initWithRegion("key 1")
+        fronteggApp!!.initWithRegion("key 1")
         verify {
             mockStorage.fill(
                 "https://frontegg.test.com 1",
@@ -342,8 +432,8 @@ class FronteggAppServiceTest {
         )
 
         try {
-            val fronteggApp = FronteggApp.getInstance()
-            fronteggApp.initWithRegion("key 1")
+            val fronteggApp = FronteggApp.instance
+            fronteggApp!!.initWithRegion("key 1")
             assert(false)
         } catch (e: RuntimeException) {
             assert(true)
@@ -401,8 +491,8 @@ class FronteggAppServiceTest {
         )
 
         try {
-            val fronteggApp = FronteggApp.getInstance()
-            fronteggApp.initWithRegion("key 3")
+            val fronteggApp = FronteggApp.instance
+            fronteggApp!!.initWithRegion("key 3")
             assert(false)
         } catch (e: RuntimeException) {
             assert(true)

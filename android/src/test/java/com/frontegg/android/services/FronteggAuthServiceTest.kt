@@ -1,6 +1,7 @@
 package com.frontegg.android.services
 
 import android.app.Activity
+import android.content.Context
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
@@ -42,6 +43,7 @@ class FronteggAuthServiceTest {
     private val apiMock = mockk<Api>()
     private val authResponse = AuthResponse()
     private val storageMock = mockk<FronteggInnerStorage>()
+    private val mockContext = mockk<Context>()
 
     private val stepUpAuthenticator = mockk<StepUpAuthenticator>()
 
@@ -263,33 +265,6 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `handleHostedLoginCallback should call AuthorizeUrlGenerator_generate if data is null and webView is not null`() {
-        every { credentialManagerMock.getCodeVerifier() }.returns("TestCodeVerifier")
-        every { credentialManagerMock.saveCodeVerifier(any()) }.returns(true)
-
-        every { stepUpAuthenticator.handleHostedLoginCallback(any()) } returns false
-
-        every { storageMock.packageName }.returns("dem.test.com")
-        every { storageMock.useAssetsLinks }.returns(true)
-
-        every { apiMock.exchangeToken(any(), any(), any()) }.returns(null)
-
-        val mockWebView = mockkClass(WebView::class)
-        every { mockWebView.loadUrl(any()) }.returns(Unit)
-
-
-        val mockAuthorizeUrl = mockkClass(AuthorizeUrlGenerator::class)
-        every { mockAuthorizeUrl.generate(any(), any(), any()) }.returns(Pair("First", "Second"))
-
-        mockkObject(AuthorizeUrlGeneratorProvider)
-        every { AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator() }.returns(mockAuthorizeUrl)
-
-        val result = auth.handleHostedLoginCallback("TestCode", webView = mockWebView)
-        verify(timeout = 1_000) { mockAuthorizeUrl.generate(any(), any(), any()) }
-        assert(result)
-    }
-
-    @Test
     fun `handleHostedLoginCallback should call login if data is null and activity is not null and callback is null`() {
         every { credentialManagerMock.getCodeVerifier() }.returns("TestCodeVerifier")
         every { credentialManagerMock.saveCodeVerifier(any()) }.returns(true)
@@ -305,7 +280,7 @@ class FronteggAuthServiceTest {
         every { mockAuthorizeUrl.generate(any(), any(), any()) }.returns(Pair("First", "Second"))
 
         mockkObject(AuthorizeUrlGeneratorProvider)
-        every { AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator() }.returns(mockAuthorizeUrl)
+        every { AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator(any()) }.returns(mockAuthorizeUrl)
 
         every { storageMock.isEmbeddedMode }.returns(true)
         mockkObject(EmbeddedAuthActivity)

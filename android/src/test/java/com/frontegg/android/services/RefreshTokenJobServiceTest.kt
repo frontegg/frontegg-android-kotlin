@@ -20,18 +20,22 @@ import org.junit.Rule
 import org.junit.Test
 
 class RefreshTokenJobServiceTest {
-
     @get:Rule
     val rule = InstantTaskExecutorRule()
 
     private lateinit var service: RefreshTokenJobService
     private lateinit var tokenTimer: FronteggRefreshTokenTimer
     private lateinit var mockParams: JobParameters
-    private var mockkFronteggAppService = mockk<FronteggAppService>()
+    private lateinit var mockkFronteggAppService: FronteggAppService
+    private lateinit var mockAuthService: FronteggAuthService
 
     @Before
     fun setUp() {
+        mockkFronteggAppService = mockk<FronteggAppService>()
+        mockAuthService = mockk<FronteggAuthService>()
+
         service = spyk(RefreshTokenJobService(), recordPrivateCalls = true)
+
         mockParams = mockk(relaxed = true)
 
         // Mock dependencies
@@ -39,12 +43,8 @@ class RefreshTokenJobServiceTest {
         mockkObject(FronteggRefreshTokenTimer)
         tokenTimer = mockk()
 
-        // Mock FronteggAuthService singleton
-        val mockAuthService = mockk<FronteggAuthService>()
-
         every { mockAuthService.accessToken } returns (ObservableValue(null))
         every { mockAuthService.isLoading } returns (ObservableValue(false))
-        every { FronteggAuthService.instance } returns mockAuthService
 
         // Mock RefreshTokenTimer singleton
         every { tokenTimer.scheduleTimer(any()) } just Runs
@@ -55,7 +55,8 @@ class RefreshTokenJobServiceTest {
         every { Log.e(any(), any(), any()) } returns 0
 
         mockkObject(FronteggApp)
-        every { FronteggApp.getInstance() } returns mockkFronteggAppService
+        every { FronteggApp.instance } returns mockkFronteggAppService
+        every { mockkFronteggAppService.auth } returns mockAuthService
     }
 
     @Test
@@ -78,14 +79,14 @@ class RefreshTokenJobServiceTest {
     @Test
     fun `performBackgroundTask should call sendRefreshToken and finish job successfully`() {
         // Arrange
-        every { FronteggAuthService.instance.sendRefreshToken() } returns true
+        every { mockAuthService.sendRefreshToken() } returns true
         every { service.jobFinished(any(), any()) } just Runs
 
         // Act
         service.performBackgroundTask(mockParams)
 
         // Assert
-        verify { FronteggAuthService.instance.sendRefreshToken() } // Ensure sendRefreshToken is called
+        verify { mockAuthService.sendRefreshToken() } // Ensure sendRefreshToken is called
         verify { service.jobFinished(mockParams, false) } // Ensure job finishes without errors
     }
 }

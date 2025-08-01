@@ -10,7 +10,6 @@ import org.junit.Before
 import org.junit.Test
 
 class ConstantsTest {
-    private lateinit var fronteggApp: FronteggApp
     private lateinit var mockStorage: FronteggInnerStorage
 
     private val host = "base.url.com"
@@ -24,9 +23,6 @@ class ConstantsTest {
     @Before
     fun setUp() {
         mockkObject(Constants.Companion)
-        fronteggApp = mockkClass(FronteggApp::class)
-        mockkObject(FronteggApp.Companion)
-        every { FronteggApp.getInstance() }.returns(fronteggApp)
         mockStorage = mockkClass(FronteggInnerStorage::class)
         mockkObject(StorageProvider)
         every { StorageProvider.getInnerStorage() }.returns(mockStorage)
