@@ -6,9 +6,9 @@ import com.frontegg.android.FronteggApp.Companion.initWithRegions
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
+import com.frontegg.android.utils.constants
 import com.frontegg.android.utils.isActivityEnabled
 import com.frontegg.debug.AndroidDebugConfigurationChecker
-import com.frontegg.flutter.constants
 
 private var instance: FronteggApp? = null
 
@@ -58,9 +58,28 @@ private fun init(
 
     val debugChecker = AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
     debugChecker.runChecks()
-
 }
 
+/**
+ * Lazily initializes and returns the singleton [FronteggApp] instance for this [Context].
+ *
+ * Initialization parameters are retrieved from the `BuildConfig` class using reflection,
+ * based on the package name and launch activity. This includes configuration such as:
+ * - `FRONTEGG_DOMAIN`
+ * - `FRONTEGG_CLIENT_ID`
+ * - `FRONTEGG_APPLICATION_ID`
+ * - `FRONTEGG_USE_ASSETS_LINKS`
+ * - `FRONTEGG_USE_CHROME_CUSTOM_TABS`
+ * - `FRONTEGG_DEEP_LINK_SCHEME`
+ * - `FRONTEGG_USE_DISK_CACHE_WEBVIEW`
+ * - `FRONTEGG_MAIN_ACTIVITY_CLASS`
+ *
+ * These constants are wrapped in a [FronteggConstants] object and used to initialize
+ * the [FronteggApp] if it has not already been initialized.
+ *
+ * @receiver [Context] used to resolve package and resources.
+ * @return A ready-to-use [FronteggApp] singleton instance.
+ */
 val Context.fronteggApp: FronteggApp
     get() {
         val constants = this.constants
@@ -73,7 +92,7 @@ val Context.fronteggApp: FronteggApp
                 applicationId = constants.applicationId,
                 useAssetsLinks = constants.useAssetsLinks,
                 useChromeCustomTabs = constants.useChromeCustomTabs,
-                mainActivityClass = null,
+                mainActivityClass = if (constants.mainActivityClass != null) Class.forName(constants.mainActivityClass) else null,
                 deepLinkScheme = constants.deepLinkScheme,
                 useDiskCacheWebview = constants.useDiskCacheWebview,
             )
@@ -82,6 +101,15 @@ val Context.fronteggApp: FronteggApp
         return instance!!
     }
 
+/**
+ * Provides access to the [FronteggAuth] component associated with the [FronteggApp].
+ *
+ * Ensures that the [FronteggApp] is initialized before returning the `auth` module.
+ * Initialization parameters are loaded from the app's `BuildConfig` using reflection.
+ *
+ * @receiver [Context] used to access the [FronteggApp].
+ * @return The [FronteggAuth] instance for authentication flows.
+ */
 val Context.fronteggAuth: FronteggAuth
     get() {
         if (instance == null) {
@@ -93,7 +121,7 @@ val Context.fronteggAuth: FronteggAuth
 
 /**
  * An initialization class of Frontegg SDK. Use [init] or [initWithRegions] static methods
- * to initialize the [FronteggApp]. To get access to an instance use the [getInstance] method.
+ * to initialize the [FronteggApp].
  *
  * @property auth an authentication interface.
  */
