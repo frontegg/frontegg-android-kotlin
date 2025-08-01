@@ -21,7 +21,7 @@ const val TAG: String = "FronteggUtils"
  * @receiver Context used to resolve the package name and launch activity.
  * @return A [FronteggConstants] object containing configuration values.
  */
-val Context.constants: FronteggConstants
+val Context.fronteggConstants: FronteggConstants
     get() {
         val mainActivity = getLaunchActivityName(this)
         Log.d(TAG, "packageName: ${packageName}, mainActivity: $mainActivity")

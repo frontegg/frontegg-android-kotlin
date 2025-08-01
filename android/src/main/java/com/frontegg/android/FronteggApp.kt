@@ -6,7 +6,7 @@ import com.frontegg.android.FronteggApp.Companion.initWithRegions
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
-import com.frontegg.android.utils.constants
+import com.frontegg.android.utils.fronteggConstants
 import com.frontegg.android.utils.isActivityEnabled
 import com.frontegg.debug.AndroidDebugConfigurationChecker
 
@@ -82,9 +82,9 @@ private fun init(
  */
 val Context.fronteggApp: FronteggApp
     get() {
-        val constants = this.constants
-        Log.d("SAME", constants.toMap().toString())
         if (instance == null) {
+            val constants = this.fronteggConstants
+            Log.d(FronteggApp.TAG, "Initializing Frontegg SDK with constants: ${constants.toMap()}")
             init(
                 fronteggDomain = constants.baseUrl,
                 clientId = constants.clientId,
@@ -129,6 +129,8 @@ interface FronteggApp {
     val auth: FronteggAuth
 
     companion object {
+        val TAG = FronteggApp::class.java.simpleName
+
         /**
          * Initialization method of [FronteggApp] for multi-regions.
          * @param regions A list of [RegionConfig]. Could find at [portal.frontegg.com];
