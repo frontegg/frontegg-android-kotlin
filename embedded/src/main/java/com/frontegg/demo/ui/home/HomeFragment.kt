@@ -23,7 +23,6 @@ import kotlin.time.toDuration
 
 class HomeFragment : Fragment() {
     private var messageTimer = Timer()
-    val homeViewModel: HomeViewModel by viewModels { HomeFragmentFactory(requireContext().fronteggAuth) }
 
     // Binding variable for fragment's views, nullable to handle lifecycle properly
     private var _binding: FragmentHomeBinding? = null
@@ -38,7 +37,7 @@ class HomeFragment : Fragment() {
         savedInstanceState: Bundle?
     ): View {
         // Initialize the ViewModel associated with this fragment
-
+        val homeViewModel: HomeViewModel by viewModels { HomeFragmentFactory(requireContext().fronteggAuth) }
 
         // Inflate the layout for the fragment using the generated binding class
         _binding = FragmentHomeBinding.inflate(inflater, container, false)

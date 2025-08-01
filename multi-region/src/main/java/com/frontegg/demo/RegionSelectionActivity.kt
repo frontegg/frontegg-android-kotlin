@@ -3,7 +3,7 @@ package com.frontegg.demo
 import android.os.Bundle
 import android.widget.LinearLayout
 import androidx.appcompat.app.AppCompatActivity
-import com.frontegg.android.FronteggApp
+import com.frontegg.android.fronteggApp
 
 
 /**
@@ -36,14 +36,14 @@ class RegionSelectionActivity : AppCompatActivity() {
         // Configure EU region selection
         euButton.setOnClickListener {
             // Initialize Frontegg SDK with European region
-            FronteggApp.getInstance().initWithRegion("eu")
+            fronteggApp.initWithRegion("eu")
             finish()
         }
 
         // Configure US region selection
         usButton.setOnClickListener {
             // Initialize Frontegg SDK with United States region
-            FronteggApp.getInstance().initWithRegion("us")
+            fronteggApp.initWithRegion("us")
             finish()
         }
     }
