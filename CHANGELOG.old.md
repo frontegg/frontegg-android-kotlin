@@ -1,3 +1,7 @@
+## v1.2.48
+- added `http` support in Manifest
+- Added support for http and updated docs for multi-region
+
 ## v1.2.47
 - Migrate publish process to central Sonatype
 - Fix sonatype repository url

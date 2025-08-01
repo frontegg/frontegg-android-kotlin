@@ -1,3 +1,6 @@
+## v
+- Updated `FronteggConstants` default values 
+
 ## v1.2.48
 - added `http` support in Manifest
 - Added support for http and updated docs for multi-region
