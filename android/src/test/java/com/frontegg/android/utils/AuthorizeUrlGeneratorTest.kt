@@ -1,5 +1,6 @@
 package com.frontegg.android.utils
 
+import android.content.Context
 import android.net.Uri
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.services.CredentialManager
@@ -23,6 +24,7 @@ class AuthorizeUrlGeneratorTest {
     private lateinit var credentialManager: CredentialManager
     private lateinit var fronteggApp: FronteggApp
     private lateinit var fronteggAuth: FronteggAuthService
+    private val mockContext = mockk<Context>()
     private val mockStorage = mockk<FronteggInnerStorage>()
     private val baseUrl = "https://base.url.com/"
     private val clientId = "Test Client Id"
@@ -34,8 +36,9 @@ class AuthorizeUrlGeneratorTest {
 
         credentialManager = mockkClass(CredentialManager::class)
         mockkObject(FronteggApp.Companion)
+        mockkObject(FronteggApp)
+        every { FronteggApp.instance } returns fronteggApp
 
-        every { FronteggApp.getInstance() }.returns(fronteggApp)
         every { fronteggApp.auth }.returns(fronteggAuth)
         every { fronteggAuth.credentialManager }.returns(credentialManager)
 
@@ -50,7 +53,7 @@ class AuthorizeUrlGeneratorTest {
 
         every { credentialManager.saveCodeVerifier(any()) }.returns(true)
 
-        authorizeUrlGenerator = AuthorizeUrlGenerator()
+        authorizeUrlGenerator = AuthorizeUrlGenerator(mockContext)
     }
 
     @Test
@@ -84,7 +87,7 @@ class AuthorizeUrlGeneratorTest {
     @Test
     fun `client_id query parameter should be applicationId if applicationId not null`() {
         every { mockStorage.applicationId }.returns("Test Application Id")
-        val url = AuthorizeUrlGenerator().generate()
+        val url = AuthorizeUrlGenerator(mockContext).generate()
         every { mockStorage.applicationId }.returns(null)
         val uri = Uri.parse(url.first)
 

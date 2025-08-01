@@ -2,6 +2,7 @@ package com.frontegg.android.services
 
 import android.content.Context
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.fronteggAuth
@@ -50,7 +51,8 @@ class FronteggAppService(
         return appLifecycle.appInForeground
     }
 
-    private fun fillStorage() {
+    @VisibleForTesting
+    internal fun fillStorage() {
         storage.fill(
             baseUrl,
             clientId,

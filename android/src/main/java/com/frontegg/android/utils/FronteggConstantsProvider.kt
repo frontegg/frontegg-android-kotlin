@@ -7,26 +7,26 @@ import com.frontegg.android.models.FronteggConstants
 
 const val TAG: String = "FronteggUtils"
 
-/**
- * Lazily retrieves [FronteggConstants] for the current [Context] by reading values
- * from the app's `BuildConfig` class using reflection.
- *
- * Determines the fully qualified launch activity class name and then resolves the appropriate
- * `BuildConfig` class. Fields like `FRONTEGG_DOMAIN`, `FRONTEGG_CLIENT_ID`, etc., are expected
- * to be present in the `BuildConfig`.
- *
- * This is useful for dynamic module or flavor support where the actual `BuildConfig` class
- * might not be in the base package.
- *
- * @receiver Context used to resolve the package name and launch activity.
- * @return A [FronteggConstants] object containing configuration values.
- */
-val Context.fronteggConstants: FronteggConstants
-    get() {
-        val mainActivity = getLaunchActivityName(this)
-        Log.d(TAG, "packageName: ${packageName}, mainActivity: $mainActivity")
+object FronteggConstantsProvider {
+    /**
+     * Lazily retrieves [FronteggConstants] for the current [Context] by reading values
+     * from the app's `BuildConfig` class using reflection.
+     *
+     * Determines the fully qualified launch activity class name and then resolves the appropriate
+     * `BuildConfig` class. Fields like `FRONTEGG_DOMAIN`, `FRONTEGG_CLIENT_ID`, etc., are expected
+     * to be present in the `BuildConfig`.
+     *
+     * This is useful for dynamic module or flavor support where the actual `BuildConfig` class
+     * might not be in the base package.
+     *
+     * @receiver Context used to resolve the package name and launch activity.
+     * @return A [FronteggConstants] object containing configuration values.
+     */
+    fun fronteggConstants(context: Context): FronteggConstants {
+        val mainActivity = getLaunchActivityName(context)
+        Log.d(TAG, "packageName: ${context.packageName}, mainActivity: $mainActivity")
         val buildConfigClass =
-            getBuildConfigClass(mainActivity?.substringBeforeLast('.') ?: this.packageName)
+            getBuildConfigClass(mainActivity?.substringBeforeLast('.') ?: context.packageName)
 
         val baseUrl = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_DOMAIN", "")
         val clientId = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_CLIENT_ID", "")
@@ -65,6 +65,8 @@ val Context.fronteggConstants: FronteggConstants
             mainActivityClass = mainActivityClass,
         )
     }
+}
+
 
 /**
  * Returns the fully qualified name of the main launch activity of the application.
@@ -157,7 +159,11 @@ inline fun <reified T> safeGetNullableValueFromBuildConfig(
  * @param default A default value to return in case of failure.
  * @return The value of the field, or [default] if not found or invalid.
  */
-inline fun <reified T> safeGetValueFromBuildConfig(buildConfigClass: Class<*>, name: String, default: T): T {
+inline fun <reified T> safeGetValueFromBuildConfig(
+    buildConfigClass: Class<*>,
+    name: String,
+    default: T
+): T {
     return try {
         val field = buildConfigClass.getField(name)
         field.get(default) as T
