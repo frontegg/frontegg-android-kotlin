@@ -35,9 +35,9 @@ object FronteggConstantsProvider {
             safeGetNullableValueFromBuildConfig(buildConfigClass, "FRONTEGG_APPLICATION_ID", "")
 
         val useAssetsLinks =
-            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_USE_ASSETS_LINKS", true)
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_USE_ASSETS_LINKS", false)
         val useChromeCustomTabs = safeGetValueFromBuildConfig(
-            buildConfigClass, "FRONTEGG_USE_CHROME_CUSTOM_TABS", true
+            buildConfigClass, "FRONTEGG_USE_CHROME_CUSTOM_TABS", false
         )
 
         val deepLinkScheme = safeGetNullableValueFromBuildConfig(
