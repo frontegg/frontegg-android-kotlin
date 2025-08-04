@@ -1,6 +1,6 @@
-# Migration Guide (1.0.* → 1.1.*)
+# Migration Guide (1.2.* → 1.3.*)
 
-This guide helps you migrate from Frontegg Android SDK version 1.0.* to 1.1.*. The new version introduces context-based lazy initialization, replacing the old static singleton pattern. The new approach provides automatic configuration discovery and better modularity.
+This guide helps you migrate from Frontegg Android SDK version 1.2.* to 1.3.*. The new version introduces context-based lazy initialization, replacing the old static singleton pattern. The new approach provides automatic configuration discovery and better modularity.
 
 ## Quick Start for New Users
 
@@ -53,7 +53,7 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
-## Migration for Existing Users (1.0.* → 1.1.*)
+## Migration for Existing Users (1.2.* → 1.3.*)
 
 ### Step 1: Update BuildConfig
 
@@ -275,7 +275,7 @@ class MainActivity : AppCompatActivity() {
 }
 ```
 
-## Migration Checklist (1.0.* → 1.1.*)
+## Migration Checklist (1.2.* → 1.3.*)
 
 - [ ] Add required BuildConfig constants to `build.gradle`
 - [ ] Update authentication access from `FronteggAuth.instance` to `context.fronteggAuth`
@@ -286,4 +286,4 @@ class MainActivity : AppCompatActivity() {
 
 ---
 
-**Need Help?** If you encounter any issues during migration from 1.0.* to 1.1.*, please check the troubleshooting section or contact our support team. 
+**Need Help?** If you encounter any issues during migration from 1.2.* to 1.3.*, please check the troubleshooting section or contact our support team. 
