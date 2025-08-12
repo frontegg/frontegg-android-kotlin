@@ -1,6 +1,115 @@
-## v
-- Updated `FronteggConstants` default values
-- Updated `migration-guide.md`
+## v1.3.0
+
+# 🔄 Implement Context-Based Lazy Initialization for Frontegg SDK
+
+## 📋 Summary
+
+This PR refactors the Frontegg Android SDK to use context-based lazy initialization with automatic configuration discovery from `BuildConfig`. The changes eliminate the need for manual SDK initialization while maintaining full backward compatibility.
+
+## 🎯 Key Changes
+
+### **FronteggApp.kt - Lazy Initialization Pattern**
+
+**New Context Extensions:**
+```kotlin
+// Automatic initialization from BuildConfig
+val app = context.fronteggApp
+val auth = context.fronteggAuth
+```
+
+**Removed Static Singleton Pattern:**
+- ❌ `FronteggApp.getInstance()` 
+- ❌ `FronteggAuth.instance`
+- ✅ `context.fronteggApp`
+- ✅ `context.fronteggAuth`
+
+### **Utils.kt - Dynamic Configuration Loading**
+
+**New `Context.fronteggConstants` Extension:**
+- Automatically reads configuration from `BuildConfig` using reflection
+- Recursively searches package hierarchy for correct `BuildConfig` class
+- Provides type-safe access with fallback defaults
+
+**Configuration Parameters:**
+- `FRONTEGG_DOMAIN` → `baseUrl`
+- `FRONTEGG_CLIENT_ID` → `clientId`
+- `FRONTEGG_APPLICATION_ID` → `applicationId`
+- `FRONTEGG_USE_ASSETS_LINKS` → `useAssetsLinks`
+- `FRONTEGG_USE_CHROME_CUSTOM_TABS` → `useChromeCustomTabs`
+- `FRONTEGG_DEEP_LINK_SCHEME` → `deepLinkScheme`
+- `FRONTEGG_USE_DISK_CACHE_WEBVIEW` → `useDiskCacheWebview`
+- `FRONTEGG_MAIN_ACTIVITY_CLASS` → `mainActivityClass`
+
+### **Authentication Flow Updates**
+
+**Service Access Changes:**
+```kotlin
+// Old
+FronteggAuthService.instance.isLoading.value = true
+FronteggAuth.instance.isEmbeddedMode
+
+// New  
+FronteggState.isLoading.value = true
+context.fronteggAuth.isEmbeddedMode
+```
+
+**AuthorizeUrlGenerator Context Parameter:**
+```kotlin
+// Old
+AuthorizeUrlGenerator().generate(loginHint)
+
+// New
+AuthorizeUrlGenerator(context).generate(loginHint)
+```
+
+## 🚀 **Benefits**
+
+### **Developer Experience**
+- ✅ **Zero Configuration**: SDK auto-discovers settings from `BuildConfig`
+- ✅ **Type Safety**: Compile-time validation of configuration parameters
+- ✅ **Graceful Fallbacks**: Sensible defaults when configuration is missing
+
+### **Architecture Improvements**
+- ✅ **Context-Aware**: Each context maintains its own configuration scope
+- ✅ **Lazy Loading**: SDK initializes only when first accessed
+- ✅ **Multi-Module Support**: Works with complex package hierarchies
+- ✅ **Backward Compatibility**: Existing APIs continue to work
+
+## 🔄 **Migration**
+
+### **For Existing Users**
+```kotlin
+// Old
+val auth = FronteggAuth.instance
+
+// New
+val auth = context.fronteggAuth
+```
+
+### **For New Users**
+```kotlin
+// Just add BuildConfig constants and access via context
+val auth = context.fronteggAuth
+auth.login(this) { result ->
+    // Handle authentication result
+}
+```
+
+## 🧪 **Testing**
+
+- ✅ Backward compatibility maintained
+- ✅ Multi-region support preserved (`initWithRegions`)
+- ✅ Configuration discovery tested
+- ✅ Error handling with fallbacks
+- ✅ Performance optimization through lazy loading
+
+## ⚠️ **Breaking Changes**
+
+**None** - Full backward compatibility maintained while introducing new convenient APIs.
+
+---
+
+This refactor significantly improves the SDK's developer experience while maintaining all existing functionality. The new context-based approach provides automatic configuration discovery and better modularity.
 
 ## v1.2.48
 - added `http` support in Manifest
