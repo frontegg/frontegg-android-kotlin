@@ -29,3 +29,6 @@
 
 -keep public class android.net.http.SslError
 -keep public class android.webkit.WebViewClient
+
+# Keep all BuildConfig classes
+-keep class **.BuildConfig { *; }
