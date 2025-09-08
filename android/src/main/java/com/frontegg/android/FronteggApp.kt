@@ -10,6 +10,7 @@ import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
 import com.frontegg.android.utils.FronteggConstantsProvider
 import com.frontegg.android.utils.isActivityEnabled
+import com.frontegg.android.utils.isOnline
 import com.frontegg.debug.AndroidDebugConfigurationChecker
 
 /**
@@ -143,9 +144,13 @@ interface FronteggApp {
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview
             )
-
-            val debugChecker = AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
-            debugChecker.runChecks()
+            if (context.isOnline()) {
+                val debugChecker =
+                    AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
+                debugChecker.runChecks()
+            } else {
+                Log.d(TAG, "Skip debug checks: offline")
+            }
         }
 
 
