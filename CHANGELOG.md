@@ -1,4 +1,8 @@
-## v
+## v1.3.2
+
+- fixed crashes in offline mode
+
+## v1.3.1
 - Added all `BuilldConfig` files to `consumer-rules.pro`
 
 ## v1.3.0
@@ -242,3 +246,4 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
+

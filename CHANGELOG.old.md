@@ -1,3 +1,6 @@
+## v.1.3.1
+- Added all `BuilldConfig` files to `consumer-rules.pro`
+
 ## v1.3.0
 
 # 🔄 Implement Context-Based Lazy Initialization for Frontegg SDK
@@ -239,3 +242,4 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
+
