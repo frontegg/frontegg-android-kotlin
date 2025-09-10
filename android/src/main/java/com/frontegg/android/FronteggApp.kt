@@ -16,9 +16,10 @@ import com.frontegg.android.init.ConfigCache.RegionsInitFlags
 import com.frontegg.android.utils.isActivityEnabled
 import com.frontegg.debug.AndroidDebugConfigurationChecker
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
+import com.frontegg.android.utils.DispatcherProvider
+import com.frontegg.android.utils.DefaultDispatcherProvider
 
 /**
  * Lazily initializes and returns the singleton [FronteggApp] instance for this [Context].
@@ -226,6 +227,13 @@ interface FronteggApp {
             return newInstance
         }
 
+        private var dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider
+
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        fun setDispatcherProviderForTesting(provider: DispatcherProvider) {
+            dispatcherProvider = provider
+        }
+
         private fun runDebugChecksSafe(context: Context, baseUrl: String, clientId: String) {
             // Only run when network is validated; execute in SupervisorJob to isolate failures
             val cm = context.getSystemService(ConnectivityManager::class.java)
@@ -237,7 +245,7 @@ interface FronteggApp {
                 return
             }
 
-            CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
+            CoroutineScope(SupervisorJob() + dispatcherProvider.io).launch {
                 try {
                     AndroidDebugConfigurationChecker(context, baseUrl, clientId).runChecks()
                 } catch (e: java.net.UnknownHostException) {

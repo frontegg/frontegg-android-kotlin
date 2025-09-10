@@ -8,19 +8,22 @@ import com.frontegg.android.FronteggApp
 import com.frontegg.android.fronteggAuth
 import com.frontegg.android.init.ConfigCache
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import androidx.annotation.VisibleForTesting
+import com.frontegg.android.utils.DispatcherProvider
+import com.frontegg.android.utils.DefaultDispatcherProvider
 import java.io.IOException
 import java.net.UnknownHostException
 
 object FronteggReconnector {
     private const val TAG = "FronteggReconnect"
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider
+    private val scope = CoroutineScope(SupervisorJob() + dispatcherProvider.io)
     private val mutex = Mutex()
     @Volatile private var offline: Boolean = false
     @Volatile private var debounceMs: Int = 500
@@ -28,6 +31,11 @@ object FronteggReconnector {
 
     fun setDebounceMs(value: Int) {
         debounceMs = value
+    }
+
+    @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+    fun setDispatcherProviderForTesting(provider: DispatcherProvider) {
+        dispatcherProvider = provider
     }
 
     fun onNetworkLost() {
