@@ -34,13 +34,26 @@ open class Api(
     private var httpClient: OkHttpClient = OkHttpClient()
     private val storage = StorageProvider.getInnerStorage()
     private val baseUrl: String
-        get() = storage.baseUrl
+        get() {
+            val direct = storage.baseUrl
+            if (direct.isNotBlank()) return direct
+            val fromSelected = storage.selectedRegion?.baseUrl
+            if (!fromSelected.isNullOrBlank()) return fromSelected
+            return storage.regions.firstOrNull()?.baseUrl ?: ""
+        }
     private val clientId: String
-        get() = storage.clientId
+        get() {
+            val direct = storage.clientId
+            if (direct.isNotBlank()) return direct
+            val fromSelected = storage.selectedRegion?.clientId
+            if (!fromSelected.isNullOrBlank()) return fromSelected
+            return storage.regions.firstOrNull()?.clientId ?: ""
+        }
     private val applicationId: String?
         get() = storage.applicationId
 
-    private val cookieName: String = "fe_refresh_$clientId".replaceFirst("-", "")
+    private fun refreshCookieName(): String = "fe_refresh_${clientId}".replace("-", "")
+    private fun deviceCookieName(): String = "fe_device_${clientId}".replace("-", "")
 
     companion object {
         val TAG: String = Api::class.java.simpleName
@@ -194,11 +207,12 @@ open class Api(
         deviceTokenCookie: String?,
     ): AuthResponse {
         // Format refresh token cookie
-        val refreshTokenCookie = "$cookieName=$refreshToken"
+        val refreshTokenCookie = "${refreshCookieName()}=$refreshToken"
+        val deviceCookieFormatted = if (!deviceTokenCookie.isNullOrBlank()) "${deviceCookieName()}=$deviceTokenCookie" else ""
 
         try {
             // Call silentHostedLoginRefreshToken
-            return silentHostedLoginRefreshToken(refreshTokenCookie, deviceTokenCookie ?: "")
+            return silentHostedLoginRefreshToken(refreshTokenCookie, deviceCookieFormatted)
         } catch (e: FailedToAuthenticateException) {
             // Log and rethrow for handling at a higher level
             Log.e(TAG, "Failed to authorize with tokens: ${e.message}")
