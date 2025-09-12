@@ -2,6 +2,8 @@ package com.frontegg.android
 
 import android.content.Context
 import android.util.Log
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import androidx.annotation.VisibleForTesting
 import com.frontegg.android.FronteggApp.Companion.init
 import com.frontegg.android.FronteggApp.Companion.initWithRegions
@@ -9,9 +11,15 @@ import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
 import com.frontegg.android.utils.FronteggConstantsProvider
+import com.frontegg.android.init.ConfigCache
+import com.frontegg.android.init.ConfigCache.RegionsInitFlags
 import com.frontegg.android.utils.isActivityEnabled
-import com.frontegg.android.utils.isOnline
 import com.frontegg.debug.AndroidDebugConfigurationChecker
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
+import com.frontegg.android.utils.DispatcherProvider
+import com.frontegg.android.utils.DefaultDispatcherProvider
 
 /**
  * Lazily initializes and returns the singleton [FronteggApp] instance for this [Context].
@@ -144,13 +152,7 @@ interface FronteggApp {
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview
             )
-            if (context.isOnline()) {
-                val debugChecker =
-                    AndroidDebugConfigurationChecker(context, fronteggDomain, clientId)
-                debugChecker.runChecks()
-            } else {
-                Log.d(TAG, "Skip debug checks: offline")
-            }
+            runDebugChecksSafe(context, fronteggDomain, clientId)
         }
 
 
@@ -193,12 +195,7 @@ interface FronteggApp {
                     )
                     instance = newInstance
 
-                    val debugChecker = AndroidDebugConfigurationChecker(
-                        context,
-                        regionConfig.baseUrl,
-                        regionConfig.clientId
-                    )
-                    debugChecker.runChecks()
+                    runDebugChecksSafe(context, regionConfig.baseUrl, regionConfig.clientId)
 
                     return newInstance
                 }
@@ -216,7 +213,49 @@ interface FronteggApp {
                 useDiskCacheWebview = useDiskCacheWebview
             )
             instance = newInstance
+            // Persist parameters to allow retry when network becomes available
+            ConfigCache.saveLastRegionsInit(
+                context = context,
+                regions = regions,
+                flags = RegionsInitFlags(
+                    useAssetsLinks = useAssetsLinks,
+                    useChromeCustomTabs = useChromeCustomTabs,
+                    mainActivityClassName = mainActivityClass?.name,
+                    useDiskCacheWebview = useDiskCacheWebview
+                )
+            )
             return newInstance
+        }
+
+        private var dispatcherProvider: DispatcherProvider = DefaultDispatcherProvider
+
+        @VisibleForTesting(otherwise = VisibleForTesting.PRIVATE)
+        fun setDispatcherProviderForTesting(provider: DispatcherProvider) {
+            dispatcherProvider = provider
+        }
+
+        private fun runDebugChecksSafe(context: Context, baseUrl: String, clientId: String) {
+            // Only run when network is validated; execute in SupervisorJob to isolate failures
+            val cm = context.getSystemService(ConnectivityManager::class.java)
+            val n = cm.activeNetwork
+            val caps = if (n != null) cm.getNetworkCapabilities(n) else null
+            val validated = caps?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) == true
+            if (!validated) {
+                Log.d(TAG, "Skip debug checks: network not validated")
+                return
+            }
+
+            CoroutineScope(SupervisorJob() + dispatcherProvider.io).launch {
+                try {
+                    AndroidDebugConfigurationChecker(context, baseUrl, clientId).runChecks()
+                } catch (e: java.net.UnknownHostException) {
+                    Log.d(TAG, "Debug checks offline: ${e.message}")
+                } catch (e: java.io.IOException) {
+                    Log.d(TAG, "Debug checks transient IO: ${e.message}")
+                } catch (t: Throwable) {
+                    Log.d(TAG, "Debug checks error ignored: ${t.message}")
+                }
+            }
         }
     }
 

@@ -9,6 +9,19 @@
 
     <application>
 
+        <provider
+            android:name="com.frontegg.android.init.FronteggInitProvider"
+            android:authorities="${applicationId}.frontegg-init"
+            android:exported="false"
+            android:initOrder="1999">
+            <meta-data
+                android:name="frontegg.autoreconnect.enabled"
+                android:value="true" />
+            <meta-data
+                android:name="frontegg.autoreconnect.debounceMs"
+                android:value="500" />
+        </provider>
+
 
         <activity
             android:name="com.frontegg.android.EmbeddedAuthActivity"

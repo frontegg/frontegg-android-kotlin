@@ -201,7 +201,9 @@ class FronteggAuthService(
 
     override fun refreshTokenIfNeeded(): Boolean {
 
-        Log.d(TAG, "refreshTokenIfNeeded()")
+        val rt = this.refreshToken.value
+        val at = this.accessToken.value
+        Log.d(TAG, "refreshTokenIfNeeded() currentTokens access='${maskToken(at)}' refresh='${maskToken(rt)}'")
 
         return try {
             this.sendRefreshToken()
@@ -364,8 +366,7 @@ class FronteggAuthService(
         if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
         ) {
-
-            Log.d(TAG, "setCredentials, going to get user info")
+            Log.d(TAG, "setCredentials() saved tokens access='${maskToken(accessToken)}' refresh='${maskToken(refreshToken)}', going to get user info")
 
             try {
                 val user = api.me()
@@ -412,6 +413,7 @@ class FronteggAuthService(
     }
 
     private fun clearCredentials() {
+        Log.d(TAG, "clearCredentials()")
         this.refreshToken.value = null
         this.accessToken.value = null
         this.user.value = null
@@ -495,14 +497,17 @@ class FronteggAuthService(
 
             val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
             val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)
+            Log.d(TAG, "initializeSubscriptions() saved tokens access='${maskToken(accessTokenSaved)}' refresh='${maskToken(refreshTokenSaved)}'")
 
             if (accessTokenSaved != null && refreshTokenSaved != null) {
                 accessToken.value = accessTokenSaved
                 refreshToken.value = refreshTokenSaved
 
                 if (!refreshTokenIfNeeded()) {
+                    // Offline-safe: keep saved refresh token to allow later reconnect
+                    Log.d(TAG, "initializeSubscriptions(): refresh failed; preserving saved refresh token")
                     accessToken.value = null
-                    refreshToken.value = null
+                    // keep refreshToken.value as is
                     initializing.value = false
                     isLoading.value = false
                 }
@@ -525,7 +530,7 @@ class FronteggAuthService(
         val refreshToken = this.refreshToken.value ?: return false
         this.refreshingToken.value = true
         try {
-
+            Log.d(TAG, "sendRefreshToken() with refresh='${maskToken(refreshToken)}'")
             val data = api.refreshToken(refreshToken)
             return if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
@@ -537,6 +542,13 @@ class FronteggAuthService(
         } finally {
             this.refreshingToken.value = false
         }
+    }
+
+    private fun maskToken(token: String?): String {
+        if (token.isNullOrBlank()) return "<null>"
+        val head = token.take(6)
+        val tail = token.takeLast(4)
+        return "$head…$tail"
     }
 
     @VisibleForTesting
