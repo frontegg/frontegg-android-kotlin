@@ -1,4 +1,8 @@
-## v.1.3.1
+## v1.3.2
+
+- fixed crashes in offline mode
+
+## v1.3.1
 - Added all `BuilldConfig` files to `consumer-rules.pro`
 
 ## v1.3.0
