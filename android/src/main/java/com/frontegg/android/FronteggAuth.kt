@@ -1,6 +1,7 @@
 package com.frontegg.android
 
 import android.app.Activity
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.ReadOnlyObservableValue
@@ -91,6 +92,18 @@ interface FronteggAuth {
         activity: Activity,
         type: String,
         data: String,
+        callback: ((Exception?) -> Unit)? = null
+    )
+
+    /**
+     * Login using social login provider.
+     * @param activity is the activity of application;
+     * @param provider is the social login provider from SocialLoginProvider enum;
+     * @param callback call after the social login process is finished.
+     */
+    fun loginWithSocialProvider(
+        activity: Activity,
+        provider: SocialLoginProvider,
         callback: ((Exception?) -> Unit)? = null
     )
 

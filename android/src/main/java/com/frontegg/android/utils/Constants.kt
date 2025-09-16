@@ -21,6 +21,11 @@ class ApiConstants {
          * used to get oauth accessToken/refreshToken without webview
          */
         const val silentRefreshToken: String = "oauth/authorize/silent"
+        
+        /**
+         * used for social login post-login
+         */
+        const val socialLoginPostLogin: String = "identity/resources/auth/v1/user/sso/{provider}/postlogin"
 
     }
 }
@@ -37,6 +42,9 @@ class Constants {
     companion object {
         val successLoginRoutes = listOf(
             "/oauth/account/social/success",
+        )
+        val socialLoginCallbackRoutes = listOf(
+            "/oauth/account/redirect/android/",
         )
         val loginRoutes = listOf(
             "/oauth/account/",

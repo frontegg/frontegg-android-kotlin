@@ -25,6 +25,7 @@ import com.frontegg.android.services.FronteggState
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
+import com.frontegg.android.utils.Constants.Companion.socialLoginCallbackRoutes
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
 import com.frontegg.android.utils.generateErrorPage
@@ -275,6 +276,7 @@ class FronteggWebClient(
     enum class OverrideUrlType {
         HostedLoginCallback,
         SocialOauthPreLogin,
+        SocialLoginCallback,
         loginRoutes,
         internalRoutes,
         Unknown
@@ -307,6 +309,11 @@ class FronteggWebClient(
 
             if (isSocialLoginPath(urlPath)) {
                 return OverrideUrlType.SocialOauthPreLogin
+            }
+
+            // Check for Android social login callback routes
+            if (socialLoginCallbackRoutes.find { u -> urlPath.startsWith(u) } != null) {
+                return OverrideUrlType.SocialLoginCallback
             }
 
             return if (successLoginRoutes.find { u -> urlPath.startsWith(u) } != null) {
@@ -359,6 +366,10 @@ class FronteggWebClient(
                         return true
                     }
                     return super.shouldOverrideUrlLoading(view, request)
+                }
+
+                OverrideUrlType.SocialLoginCallback -> {
+                    return handleSocialLoginCallback(view, url.toString())
                 }
 //                OverrideUrlType.Unknown -> {
 //                    openExternalBrowser(request.url)
@@ -416,6 +427,13 @@ class FronteggWebClient(
 
             OverrideUrlType.SocialOauthPreLogin -> {
                 if (setSocialLoginRedirectUri(view, uri)) {
+                    return
+                }
+                super.onLoadResource(view, url)
+            }
+
+            OverrideUrlType.SocialLoginCallback -> {
+                if (handleSocialLoginCallback(view, url)) {
                     return
                 }
                 super.onLoadResource(view, url)
@@ -512,6 +530,30 @@ class FronteggWebClient(
         val authorizeUrl = AuthorizeUrlGenerator(context)
         val url = authorizeUrl.generate()
         webView.loadUrl(url.first)
+        return false
+    }
+
+    private fun handleSocialLoginCallback(webView: WebView?, url: String?): Boolean {
+        Log.d(TAG, "handleSocialLoginCallback received url: $url")
+        if (url == null || webView == null) {
+            Log.d(
+                TAG,
+                "handleSocialLoginCallback failed of nullable value, url: $url, webView: $webView"
+            )
+            return false
+        }
+
+        if ((context.fronteggAuth as FronteggAuthService).handleSocialLoginCallback(
+                url,
+                webView
+            )
+        ) {
+            return true
+        }
+
+        val authorizeUrl = AuthorizeUrlGenerator(context)
+        val authUrl = authorizeUrl.generate()
+        webView.loadUrl(authUrl.first)
         return false
     }
 

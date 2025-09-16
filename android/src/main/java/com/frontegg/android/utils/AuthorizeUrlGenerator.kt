@@ -46,6 +46,21 @@ class AuthorizeUrlGenerator(
 
     }
 
+    private fun createSocialLoginState(provider: String): String {
+        val storage = StorageProvider.getInnerStorage()
+        val socialLoginState = mapOf(
+            "action" to "login",
+            "provider" to provider,
+            "appId" to (applicationId ?: clientId),
+            "bundleId" to storage.packageName,
+            "platform" to "android"
+        )
+        
+        val gson = com.google.gson.Gson()
+        val stateJson = gson.toJson(socialLoginState)
+        return android.util.Base64.encodeToString(stateJson.toByteArray(), android.util.Base64.DEFAULT)
+    }
+
 
     fun generate(
         loginHint: String? = null,
@@ -53,6 +68,7 @@ class AuthorizeUrlGenerator(
         preserveCodeVerifier: Boolean? = false,
         stepUp: Boolean? = null,
         maxAge: Duration? = null,
+        socialLoginProvider: String? = null,
     ): Pair<String, String> {
         val nonce = createRandomString()
 
@@ -78,6 +94,12 @@ class AuthorizeUrlGenerator(
             .appendQueryParameter("code_challenge", codeChallenge)
             .appendQueryParameter("code_challenge_method", "S256")
             .appendQueryParameter("nonce", nonce)
+
+        // Add social login state if provider is specified
+        if (socialLoginProvider != null) {
+            val socialLoginState = createSocialLoginState(socialLoginProvider)
+            authorizeUrlBuilder.appendQueryParameter("state", socialLoginState)
+        }
 
 
         if (stepUp == true) {

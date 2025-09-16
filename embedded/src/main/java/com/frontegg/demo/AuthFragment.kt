@@ -44,6 +44,9 @@ class AuthFragment : Fragment() {
         /**
          * Handles login via Google using Frontegg's direct social login.
          * Opens a WebView login dialog for Google authentication.
+         * 
+         * Note: For new implementations, consider using loginWithSocialProvider() instead:
+         * fronteggAuth.loginWithSocialProvider(requireActivity(), SocialLoginProvider.GOOGLE, callback)
          */
         binding.googleLoginButton.setOnClickListener {
             requireContext().fronteggAuth.directLoginAction(

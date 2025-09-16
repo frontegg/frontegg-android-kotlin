@@ -9,6 +9,7 @@ import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
 import com.frontegg.android.exceptions.CanceledByUserException
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
 import com.frontegg.android.services.StepUpAuthenticator
@@ -278,6 +279,21 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
              * intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
              * activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
              */
+        }
+
+        fun loginWithSocialProvider(
+            activity: Activity,
+            provider: SocialLoginProvider,
+            callback: ((error: Exception?) -> Unit)? = null
+        ) {
+            Log.d(TAG, "loginWithSocialProvider with provider: ${provider.value}")
+            val intent = Intent(activity, EmbeddedAuthActivity::class.java)
+
+            val authorizeUri = AuthorizeUrlGenerator(activity).generate(socialLoginProvider = provider.value)
+            intent.putExtra(AUTH_LAUNCHED, true)
+            intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
+            onAuthFinishedCallback = callback
+            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
         }
 
         fun authenticateWithMultiFactor(

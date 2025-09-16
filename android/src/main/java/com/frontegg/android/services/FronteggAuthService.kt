@@ -16,6 +16,9 @@ import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
+import com.frontegg.android.models.SocialLoginCallback
+import com.frontegg.android.models.SocialLoginPostLoginRequest
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.Constants
@@ -166,6 +169,18 @@ class FronteggAuthService(
             EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)
         } else {
             Log.w(TAG, "Direct login action is not supported in non-embedded mode")
+        }
+    }
+
+    override fun loginWithSocialProvider(
+        activity: Activity,
+        provider: SocialLoginProvider,
+        callback: ((Exception?) -> Unit)?
+    ) {
+        if (isEmbeddedMode) {
+            EmbeddedAuthActivity.loginWithSocialProvider(activity, provider, callback)
+        } else {
+            Log.w(TAG, "Social login is not supported in non-embedded mode")
         }
     }
 
@@ -455,6 +470,117 @@ class FronteggAuthService(
         }
 
         return true
+    }
+
+    fun handleSocialLoginCallback(
+        url: String,
+        webView: WebView? = null,
+        activity: Activity? = null,
+        callback: (() -> Unit)? = null,
+    ): Boolean {
+        Log.d(TAG, "handleSocialLoginCallback received url: $url")
+        
+        try {
+            val uri = android.net.Uri.parse(url)
+            val stateParam = uri.getQueryParameter("state")
+            val codeParam = uri.getQueryParameter("code")
+            val idTokenParam = uri.getQueryParameter("id_token")
+            val scopeParam = uri.getQueryParameter("scope")
+            val authuserParam = uri.getQueryParameter("authuser")
+            val hdParam = uri.getQueryParameter("hd")
+            val promptParam = uri.getQueryParameter("prompt")
+            val socialLoginCallbackParam = uri.getQueryParameter("social-login-callback")
+            
+            if (stateParam == null || codeParam == null) {
+                Log.e(TAG, "handleSocialLoginCallback failed: missing required parameters")
+                return false
+            }
+            
+            // Parse the state parameter to extract provider and platform info
+            val stateJson = android.util.Base64.decode(stateParam, android.util.Base64.DEFAULT)
+            val stateString = String(stateJson)
+            val gson = com.google.gson.Gson()
+            val socialLoginCallback = gson.fromJson(stateString, SocialLoginCallback::class.java)
+            
+            Log.d(TAG, "handleSocialLoginCallback parsed state: $socialLoginCallback")
+            
+            // Check if this is an Android platform callback
+            if (socialLoginCallback.platform == "android") {
+                // Handle Android social login callback
+                handleAndroidSocialLoginCallback(
+                    socialLoginCallback,
+                    codeParam,
+                    idTokenParam,
+                    scopeParam,
+                    authuserParam,
+                    hdParam,
+                    promptParam,
+                    socialLoginCallbackParam,
+                    webView,
+                    activity,
+                    callback
+                )
+                
+                return true
+            }
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "handleSocialLoginCallback failed to parse state", e)
+        }
+        
+        return false
+    }
+    
+    private fun handleAndroidSocialLoginCallback(
+        socialLoginCallback: SocialLoginCallback,
+        code: String?,
+        idToken: String?,
+        scope: String?,
+        authuser: String?,
+        hd: String?,
+        prompt: String?,
+        socialLoginCallbackParam: String?,
+        webView: WebView?,
+        activity: Activity?,
+        callback: (() -> Unit)?
+    ) {
+        Log.d(TAG, "handleAndroidSocialLoginCallback for provider: ${socialLoginCallback.provider}")
+        
+        bgScope.launch {
+            try {
+                val request = SocialLoginPostLoginRequest(
+                    code = code,
+                    idToken = idToken,
+                    redirectUri = Constants.oauthCallbackUrl(baseUrl),
+                    codeVerifier = credentialManager.getCodeVerifier(),
+                    codeVerifierPkce = credentialManager.getCodeVerifier(),
+                    state = android.util.Base64.encodeToString(
+                        com.google.gson.Gson().toJson(socialLoginCallback).toByteArray(),
+                        android.util.Base64.DEFAULT
+                    ),
+                    metadata = mapOf(
+                        "scope" to (scope ?: ""),
+                        "authuser" to (authuser ?: ""),
+                        "hd" to (hd ?: ""),
+                        "prompt" to (prompt ?: ""),
+                        "social-login-callback" to (socialLoginCallbackParam ?: "")
+                    )
+                )
+                
+                val authResponse = api.socialLoginPostLogin(socialLoginCallback.provider, request)
+                setCredentials(authResponse.access_token, authResponse.refresh_token)
+                
+                withContext(mainDispatcher) {
+                    callback?.invoke()
+                }
+                
+            } catch (e: Exception) {
+                Log.e(TAG, "handleMobileSocialLoginCallback failed", e)
+                withContext(mainDispatcher) {
+                    handleFailedTokenExchange(webView, activity, callback)
+                }
+            }
+        }
     }
 
     private suspend fun handleFailedTokenExchange(
