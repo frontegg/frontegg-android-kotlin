@@ -56,3 +56,4 @@ class SocialLoginProviderTest {
         assertTrue(values.contains(SocialLoginProvider.APPLE))
     }
 }
+

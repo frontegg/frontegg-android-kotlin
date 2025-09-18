@@ -7,8 +7,10 @@ import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.Toast
 import androidx.fragment.app.Fragment
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.demo.databinding.FragmentAuthBinding
 
 class AuthFragment : Fragment() {
@@ -116,6 +118,69 @@ class AuthFragment : Fragment() {
                 callback = {
                     Log.d("AuthFragment", "Passkeys Login Callback")
                 },
+            )
+        }
+
+        /**
+         * Test Google social login using the new loginWithSocialProvider method.
+         * This demonstrates the new social login API with Google provider.
+         */
+        binding.socialLoginGoogleButton.setOnClickListener {
+            Log.d("AuthFragment", "Starting Google social login test with new API")
+            requireContext().fronteggAuth.loginWithSocialProvider(
+                requireActivity(),
+                SocialLoginProvider.GOOGLE,
+                callback = { error ->
+                    if (error == null) {
+                        Log.d("AuthFragment", "Google social login test successful")
+                        Toast.makeText(requireContext(), "Google login successful!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Log.e("AuthFragment", "Google social login test failed: ${error.message}")
+                        Toast.makeText(requireContext(), "Google login failed: ${error.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            )
+        }
+
+        /**
+         * Test GitHub social login using the new loginWithSocialProvider method.
+         * This demonstrates the new social login API with GitHub provider.
+         */
+        binding.socialLoginGithubButton.setOnClickListener {
+            Log.d("AuthFragment", "Starting GitHub social login test with new API")
+            requireContext().fronteggAuth.loginWithSocialProvider(
+                requireActivity(),
+                SocialLoginProvider.GITHUB,
+                callback = { error ->
+                    if (error == null) {
+                        Log.d("AuthFragment", "GitHub social login test successful")
+                        Toast.makeText(requireContext(), "GitHub login successful!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Log.e("AuthFragment", "GitHub social login test failed: ${error.message}")
+                        Toast.makeText(requireContext(), "GitHub login failed: ${error.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            )
+        }
+
+        /**
+         * Test Facebook social login using the new loginWithSocialProvider method.
+         * This demonstrates the new social login API with Facebook provider.
+         */
+        binding.socialLoginFacebookButton.setOnClickListener {
+            Log.d("AuthFragment", "Starting Facebook social login test with new API")
+            requireContext().fronteggAuth.loginWithSocialProvider(
+                requireActivity(),
+                SocialLoginProvider.FACEBOOK,
+                callback = { error ->
+                    if (error == null) {
+                        Log.d("AuthFragment", "Facebook social login test successful")
+                        Toast.makeText(requireContext(), "Facebook login successful!", Toast.LENGTH_SHORT).show()
+                    } else {
+                        Log.e("AuthFragment", "Facebook social login test failed: ${error.message}")
+                        Toast.makeText(requireContext(), "Facebook login failed: ${error.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
             )
         }
 

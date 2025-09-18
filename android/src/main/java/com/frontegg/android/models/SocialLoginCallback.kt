@@ -39,3 +39,4 @@ data class SocialLoginPostLoginRequest(
     @SerializedName("invitationToken")
     val invitationToken: String? = null
 )
+

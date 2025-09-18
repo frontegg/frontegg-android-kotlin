@@ -147,6 +147,40 @@
                         android:layout_height="wrap_content"
                         android:text="Login with Passkeys" />
 
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp" />
+
+                    <!-- New Social Login Test Buttons -->
+                    <Button
+                        android:id="@+id/social_login_google_button"
+                        style="@style/CustomButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Test Google Login (New API)" />
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp" />
+
+                    <Button
+                        android:id="@+id/social_login_github_button"
+                        style="@style/CustomButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Test GitHub Login (New API)" />
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp" />
+
+                    <Button
+                        android:id="@+id/social_login_facebook_button"
+                        style="@style/CustomButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Test Facebook Login (New API)" />
+
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 
