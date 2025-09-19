@@ -1,3 +1,6 @@
+## v1.3.3
+Add auto-reconnect when exiting offline mode
+
 ## v1.3.2
 
 - fixed crashes in offline mode

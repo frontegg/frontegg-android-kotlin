@@ -2,6 +2,17 @@ plugins {
     id 'org.jetbrains.kotlin.jvm'
 }
 
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+
+compileKotlin {
+    kotlinOptions {
+        jvmTarget = "11"
+    }
+}
+
 dependencies {
     // for writing a Detekt plugin
     compileOnly "io.gitlab.arturbosch.detekt:detekt-api:1.23.8"
