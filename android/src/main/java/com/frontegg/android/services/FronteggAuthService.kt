@@ -608,7 +608,7 @@ class FronteggAuthService(
             val provider = stateJson.get("provider")?.asString
             val action = stateJson.get("action")?.asString
 
-            if (provider == null || action != "login") {
+            if (provider == null || (action != "login" && action != "signup")) {
                 Log.e(TAG, "Invalid state: provider=$provider, action=$action")
                 return false
             }
@@ -638,6 +638,14 @@ class FronteggAuthService(
                         )
                         
                         Log.d(TAG, "Social login successful for provider: $provider")
+                    }
+                } catch (e: MfaRequiredException) {
+                    Log.d(TAG, "MFA required for social login with provider: $provider")
+                    // Note: MFA handling would need activity context, which we don't have here
+                    // This should be handled at a higher level in the calling code
+                    withContext(mainDispatcher) {
+                        // Re-throw to be handled by the calling activity
+                        throw e
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "Social login post-login failed for provider: $provider", e)

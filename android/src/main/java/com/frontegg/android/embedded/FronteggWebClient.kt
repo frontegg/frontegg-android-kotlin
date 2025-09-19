@@ -565,7 +565,7 @@ class FronteggWebClient(
             val provider = stateJson.get("provider")?.asString
             val action = stateJson.get("action")?.asString
 
-            if (provider == null || action != "login") {
+            if (provider == null || (action != "login" && action != "signup")) {
                 Log.d(TAG, "handleSocialLoginCallback failed: invalid state - provider: $provider, action: $action")
                 return false
             }
