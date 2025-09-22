@@ -82,7 +82,12 @@ class SocialLoginUrlGenerator private constructor() {
     suspend fun reloadConfigs(context: Context): Boolean {
         return try {
             val authService = context.fronteggAuth as FronteggAuthService
-            val config = authService.getSocialLoginConfig()
+            val config = try {
+                authService.getSocialLoginConfig()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to get social login config from API: ${e.message}", e)
+                return false
+            }
             this.socialLoginConfig = config
             Log.i(TAG, "Loaded social login configs: $config")
             true
