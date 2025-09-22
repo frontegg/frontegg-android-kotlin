@@ -9,14 +9,23 @@ import android.util.Log
 import android.webkit.JavascriptInterface
 import androidx.browser.customtabs.CustomTabsIntent
 import com.frontegg.android.EmbeddedAuthActivity
+import com.frontegg.android.fronteggAuth
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
 import com.frontegg.android.utils.AuthorizeUrlGenerator
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import org.json.JSONException
 import org.json.JSONObject
 
 
-class FronteggNativeBridge(val context: Context) {
+class FronteggNativeBridge(val context: Context, private val webClient: FronteggWebClient? = null) {
+
+    private fun getFormAction(): String {
+        // Get form action from web client if available, otherwise use default
+        return webClient?.getFormAction() ?: "login"
+    }
 
     @JavascriptInterface
     fun loginWithSSO(email: String) {
@@ -44,9 +53,11 @@ class FronteggNativeBridge(val context: Context) {
                 val loginAction = jsonData.toString().toByteArray(Charsets.UTF_8)
 
                 val jsonString = Base64.encodeToString(loginAction, Base64.NO_WRAP)
-                AuthorizeUrlGenerator(context).generate(null, jsonString, preserveCodeVerifier)
+                val formAction = directLogin["action"] as? String
+                AuthorizeUrlGenerator(context).generate(null, jsonString, preserveCodeVerifier, null, null, formAction)
             } catch (e: JSONException) {
-                AuthorizeUrlGenerator(context).generate(null, null, preserveCodeVerifier)
+                val formAction = directLogin["action"] as? String
+                AuthorizeUrlGenerator(context).generate(null, null, preserveCodeVerifier, null, null, formAction)
             }
 
             val authorizationUrl = Uri.parse(generatedUrl.first)
@@ -68,6 +79,7 @@ class FronteggNativeBridge(val context: Context) {
     }
 
     @JavascriptInterface
+    @Suppress("UNUSED")
     fun loginWithSocialLogin(socialLoginUrl: String) {
         Log.d("FronteggNativeBridge", "loginWithSocialLogin(${socialLoginUrl})")
 
@@ -80,24 +92,54 @@ class FronteggNativeBridge(val context: Context) {
     }
 
     @JavascriptInterface
+    @Suppress("UNUSED")
     fun loginWithSocialLoginProvider(provider: String) {
         Log.d("FronteggNativeBridge", "loginWithSocialLoginProvider(${provider})")
 
-        val directLogin: Map<String, Any> = mapOf(
-            "type" to "social-login",
-            "data" to provider
-        )
+        val socialLoginProvider = com.frontegg.android.models.SocialLoginProvider.fromString(provider)
 
-        directLoginWithContext(context, directLogin, true)
+        if (socialLoginProvider != null) {
+            // Use new social login implementation
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                try {
+                    // Get form action on main thread
+                    val formAction = getFormAction()
+                    val socialLoginAction = com.frontegg.android.models.SocialLoginAction.fromString(formAction) ?: com.frontegg.android.models.SocialLoginAction.LOGIN
+                    
+                    val authService = context.fronteggAuth as com.frontegg.android.services.FronteggAuthService
+                    authService.loginWithSocialLoginProvider(context as android.app.Activity, socialLoginProvider, socialLoginAction)
+                } catch (e: Exception) {
+                    Log.e("FronteggNativeBridge", "Failed to start social login", e)
+                }
+            }
+        } else {
+            // Fallback to old implementation - get form action on main thread
+            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                try {
+                    val formAction = getFormAction()
+                    val directLogin: Map<String, Any> = mapOf(
+                        "type" to "social-login",
+                        "data" to provider,
+                        "action" to formAction
+                    )
+                    directLoginWithContext(context, directLogin, true)
+                } catch (e: Exception) {
+                    Log.e("FronteggNativeBridge", "Failed to get form action", e)
+                }
+            }
+        }
     }
 
     @JavascriptInterface
+    @Suppress("UNUSED")
     fun loginWithCustomSocialLoginProvider(provider: String) {
         Log.d("FronteggNativeBridge", "loginWithCustomSocialLoginProvider(${provider})")
 
+        val formAction = getFormAction()
         val directLogin: Map<String, Any> = mapOf(
             "type" to "custom-social-login",
-            "data" to provider
+            "data" to provider,
+            "action" to formAction
         )
 
         directLoginWithContext(context, directLogin, true)

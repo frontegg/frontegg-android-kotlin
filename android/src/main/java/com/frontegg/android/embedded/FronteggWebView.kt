@@ -8,6 +8,7 @@ import android.util.AttributeSet
 import android.webkit.CookieManager
 import android.webkit.WebView
 import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.fronteggAuth
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import kotlinx.coroutines.MainScope
@@ -66,10 +67,14 @@ open class FronteggWebView : WebView {
         val credentialManagerHandler = CredentialManagerHandler(context as Activity)
         val passkeyWebListener = PasskeyWebListener(context, scope, credentialManagerHandler)
 
-        webViewClient = FronteggWebClient(context, passkeyWebListener)
+        val webClient = FronteggWebClient(context, passkeyWebListener)
+        webViewClient = webClient
+
+        // Set webview reference in FronteggAuth (similar to iOS implementation)
+        (context.fronteggAuth as com.frontegg.android.services.FronteggAuthService).webview = this
 
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
-        this.addJavascriptInterface(FronteggNativeBridge(context), "FronteggNativeBridge")
+        this.addJavascriptInterface(FronteggNativeBridge(context, webClient), "FronteggNativeBridge")
         val rules = setOf("*")
         if (WebViewFeature.isFeatureSupported(WebViewFeature.WEB_MESSAGE_LISTENER)) {
             WebViewCompat.addWebMessageListener(

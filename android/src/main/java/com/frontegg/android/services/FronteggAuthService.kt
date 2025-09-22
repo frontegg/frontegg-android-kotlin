@@ -2,6 +2,7 @@ package com.frontegg.android.services
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
@@ -92,6 +93,8 @@ class FronteggAuthService(
         get() = storage.useChromeCustomTabs
     override val mainActivityClass: Class<*>?
         get() = storage.mainActivityClass
+    
+    override var webview: WebView? = null
 
 
     init {
@@ -588,74 +591,150 @@ class FronteggAuthService(
 
     /**
      * Handle social login callback from custom scheme or redirect URL
+     * Matches iOS handleSocialLoginCallback implementation
      * @param url The callback URL
-     * @param code Authorization code from OAuth provider
-     * @param idToken ID token from OAuth provider (optional)
-     * @param state State parameter containing provider information
-     * @return true if callback was handled successfully
+     * @return URL to redirect to after successful callback processing, or null if failed
      */
-    fun handleSocialLoginCallback(
-        url: String,
-        code: String?,
-        idToken: String?,
-        state: String
-    ): Boolean {
-        Log.d(TAG, "handleSocialLoginCallback called with url: $url, code: $code, state: $state")
+    fun handleSocialLoginCallback(url: String): String? {
+        Log.d(TAG, "handleSocialLoginCallback called with url: $url")
         
         return try {
-            // Parse state to get provider information
-            val stateJson = JsonParser.parseString(state).asJsonObject
-            val provider = stateJson.get("provider")?.asString
-            val action = stateJson.get("action")?.asString
-
-            if (provider == null || (action != "login" && action != "signup")) {
-                Log.e(TAG, "Invalid state: provider=$provider, action=$action")
-                return false
+            val uri = Uri.parse(url)
+            val host = uri.host
+            val path = uri.path ?: ""
+            
+            // 1) Host must match Frontegg base URL host
+            val baseUrl = storage.baseUrl
+            val allowedHost = Uri.parse(baseUrl).host
+            if (host != allowedHost) {
+                Log.e(TAG, "Host mismatch: $host != $allowedHost")
+                return null
             }
-
-            Log.d(TAG, "Processing social login for provider: $provider")
-
-            // Create post-login request
-            val postLoginRequest = SocialLoginPostLoginRequest(
-                code = code,
-                idToken = idToken,
-                redirectUri = url,
-                state = state,
-                codeVerifier = credentialManager.getCodeVerifier(),
-                codeVerifierPkce = credentialManager.getCodeVerifier()
-            )
-
-            // Make API call to exchange callback for Frontegg tokens
-            bgScope.launch {
-                try {
-                    val authResponse = api.socialLoginPostLogin(provider, postLoginRequest)
-                    
-                    withContext(mainDispatcher) {
-                        // Store credentials and update state
-                        setCredentials(
-                            authResponse.access_token,
-                            authResponse.refresh_token
-                        )
-                        
-                        Log.d(TAG, "Social login successful for provider: $provider")
-                    }
-                } catch (e: MfaRequiredException) {
-                    Log.d(TAG, "MFA required for social login with provider: $provider")
-                    // Note: MFA handling would need activity context, which we don't have here
-                    // This should be handled at a higher level in the calling code
-                    withContext(mainDispatcher) {
-                        // Re-throw to be handled by the calling activity
-                        throw e
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Social login post-login failed for provider: $provider", e)
+            
+            // 2) Path: /oauth/account/redirect/android/{packageName}/{provider} or /android/oauth/callback
+            val packageName = storage.packageName
+            val expectedPrefix = "/oauth/account/redirect/android/"
+            val expectedPrefix2 = "/android/oauth/callback"
+            
+            if (!path.startsWith(expectedPrefix) && !path.startsWith(expectedPrefix2)) {
+                Log.e(TAG, "Invalid callback path: $path")
+                return null
+            }
+            
+            if (packageName.isEmpty()) {
+                Log.e(TAG, "Package name is empty")
+                return null
+            }
+            
+            // Extract query parameters
+            val queryParams = mutableMapOf<String, String>()
+            uri.queryParameterNames.forEach { key: String ->
+                uri.getQueryParameter(key)?.let { value: String ->
+                    queryParams[key] = value
                 }
             }
-
-            true
+            
+            // Extract supported params
+            val code = queryParams["code"]
+            val idToken = queryParams["id_token"]
+            val state = queryParams["state"]
+            
+            if (code.isNullOrEmpty() && idToken.isNullOrEmpty()) {
+                Log.e(TAG, "No code or id_token in callback")
+                return null
+            }
+            
+            // Process state
+            val processedState = if (!state.isNullOrEmpty()) {
+                try {
+                    val stateJson = JsonParser.parseString(state).asJsonObject
+                    stateJson.remove("platform")
+                    stateJson.remove("bundleId")
+                    stateJson.toString()
+                } catch (e: Exception) {
+                    state // fallback if state is not valid JSON
+                }
+            } else {
+                state
+            }
+            
+            // Cancel current session if exists
+            com.frontegg.android.utils.WebAuthenticator.getInstance().cancel()
+            
+            // Build redirect URL
+            val redirectUrl = "$baseUrl/oauth/account/social/success"
+            val redirectUri = Uri.parse(redirectUrl).buildUpon()
+            
+            if (!code.isNullOrEmpty()) {
+                redirectUri.appendQueryParameter("code", code)
+            }
+            if (!idToken.isNullOrEmpty()) {
+                redirectUri.appendQueryParameter("id_token", idToken)
+            }
+            if (!processedState.isNullOrEmpty()) {
+                redirectUri.appendQueryParameter("state", processedState)
+            }
+            
+            val finalUrl = redirectUri.build().toString()
+            Log.d(TAG, "Social login callback processed successfully, redirecting to: $finalUrl")
+            finalUrl
+            
         } catch (e: Exception) {
             Log.e(TAG, "Failed to handle social login callback", e)
-            false
+            null
         }
+    }
+
+    /**
+     * Login with social login provider
+     * Matches iOS loginWithSocialLoginProvider implementation
+     */
+    suspend fun loginWithSocialLoginProvider(
+        activity: Activity,
+        provider: com.frontegg.android.models.SocialLoginProvider,
+        action: com.frontegg.android.models.SocialLoginAction = com.frontegg.android.models.SocialLoginAction.LOGIN,
+        ephemeralSession: Boolean? = true
+    ) {
+        Log.d(TAG, "loginWithSocialLoginProvider: ${provider.value}, action: ${action.value}")
+        
+        try {
+            val urlGenerator = com.frontegg.android.utils.SocialLoginUrlGenerator.getInstance()
+            val authURL = urlGenerator.authorizeURL(activity, provider, action)
+            
+            if (authURL == null) {
+                Log.e(TAG, "Failed to generate auth URL for provider: ${provider.value}")
+                return
+            }
+            
+            Log.d(TAG, "Generated auth URL: $authURL")
+            
+            val webAuthenticator = com.frontegg.android.utils.WebAuthenticator.getInstance()
+            webAuthenticator.start(activity, authURL, ephemeralSession ?: true) { callbackURL, error ->
+                if (error != null) {
+                    Log.e(TAG, "Social login error: ${error.message}")
+                } else if (callbackURL != null) {
+                    Log.d(TAG, "Social login callback URL: $callbackURL")
+                    
+                    // Handle the callback
+                    val redirectURL = handleSocialLoginCallback(callbackURL)
+                    if (redirectURL != null && webview != null) {
+                        // Load the redirect URL in the webview
+                        webview?.loadUrl(redirectURL)
+                    }
+                } else {
+                    Log.i(TAG, "Social login callback invoked with no URL and no error")
+                }
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to start social login for provider: ${provider.value}", e)
+        }
+    }
+
+    /**
+     * Get social login configuration
+     * Matches iOS getSocialLoginConfig method
+     */
+    suspend fun getSocialLoginConfig(): com.frontegg.android.models.SocialLoginConfig {
+        return api.getSocialLoginConfig()
     }
 }

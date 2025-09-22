@@ -1,6 +1,7 @@
 package com.frontegg.android
 
 import android.app.Activity
+import android.webkit.WebView
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.ReadOnlyObservableValue
@@ -53,6 +54,8 @@ interface FronteggAuth {
     val useAssetsLinks: Boolean
     val useChromeCustomTabs: Boolean
     val mainActivityClass: Class<*>?
+    
+    var webview: WebView?
 
     /**
      * Login user. Launch a user login process. Start [EmbeddedAuthActivity] or

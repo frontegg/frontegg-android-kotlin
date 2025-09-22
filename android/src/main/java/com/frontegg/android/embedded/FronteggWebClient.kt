@@ -60,11 +60,32 @@ class FronteggWebClient(
     private var webViewStatusCode: Int = 200
     private var lastErrorResponse: WebResourceResponse? = null
     private val storage = FronteggInnerStorage()
+    private var currentWebView: WebView? = null
+
+    fun getFormAction(): String {
+        // Check if current URL contains "/oauth/account/sign-up" to determine form action
+        // This matches the iOS implementation of getFromAction()
+        return try {
+            currentWebView?.url?.let { url ->
+                if (url.contains("/oauth/account/sign-up")) {
+                    "signUp"
+                } else {
+                    "login"
+                }
+            } ?: "login"
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get formAction from URL, using default", e)
+            "login"
+        }
+    }
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         Log.d(TAG, "onPageStarted $url")
         FronteggState.isLoading.value = true
+
+        // Store reference to current WebView
+        currentWebView = view
 
         passkeyWebListener.onPageStarted()
         view?.evaluateJavascript(PasskeyWebListener.INJECTED_VAL, null)
@@ -551,7 +572,9 @@ class FronteggWebClient(
         querySanitizer.parseQuery(query)
 
         val state = querySanitizer.getValue("state")
+        @Suppress("UNUSED_VARIABLE")
         val code = querySanitizer.getValue("code")
+        @Suppress("UNUSED_VARIABLE")
         val idToken = querySanitizer.getValue("id_token")
 
         if (state == null) {
@@ -573,13 +596,10 @@ class FronteggWebClient(
             Log.d(TAG, "handleSocialLoginCallback processing for provider: $provider")
 
             // Call FronteggAuthService to handle the social login callback
-            if ((context.fronteggAuth as FronteggAuthService).handleSocialLoginCallback(
-                    url.toString(),
-                    code,
-                    idToken,
-                    state
-                )
-            ) {
+            val redirectUrl = (context.fronteggAuth as FronteggAuthService).handleSocialLoginCallback(url.toString())
+            if (redirectUrl != null) {
+                // Load the redirect URL in the webview
+                currentWebView?.loadUrl(redirectUrl)
                 return true
             }
 
