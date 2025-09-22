@@ -64,7 +64,6 @@ class FronteggWebClient(
 
     fun getFormAction(): String {
         // Check if current URL contains "/oauth/account/sign-up" to determine form action
-        // This matches the iOS implementation of getFromAction()
         return try {
             currentWebView?.url?.let { url ->
                 if (url.contains("/oauth/account/sign-up")) {

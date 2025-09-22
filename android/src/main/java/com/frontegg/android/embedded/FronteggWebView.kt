@@ -70,7 +70,7 @@ open class FronteggWebView : WebView {
         val webClient = FronteggWebClient(context, passkeyWebListener)
         webViewClient = webClient
 
-        // Set webview reference in FronteggAuth (similar to iOS implementation)
+        // Set webview reference in FronteggAuth
         (context.fronteggAuth as com.frontegg.android.services.FronteggAuthService).webview = this
 
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)

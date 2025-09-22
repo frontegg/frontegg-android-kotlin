@@ -4,7 +4,6 @@ import com.google.gson.annotations.SerializedName
 
 /**
  * Social login configuration model
- * Matches iOS SocialLoginConfig implementation
  */
 data class SocialLoginConfig(
     @SerializedName("facebook")
@@ -25,7 +24,6 @@ data class SocialLoginConfig(
 
 /**
  * Social login option for specific provider
- * Matches iOS SocialLoginOption implementation
  */
 data class SocialLoginOption(
     @SerializedName("active")
@@ -40,7 +38,6 @@ data class SocialLoginOption(
 
 /**
  * Provider details for OAuth configuration
- * Matches iOS ProviderDetails implementation
  */
 data class ProviderDetails(
     val authorizeEndpoint: String,

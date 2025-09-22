@@ -95,6 +95,7 @@ class FronteggAuthService(
         get() = storage.mainActivityClass
     
     override var webview: WebView? = null
+    override val featureFlags: com.frontegg.android.services.FeatureFlags = com.frontegg.android.services.FeatureFlags.getInstance()
 
 
     init {
@@ -112,6 +113,15 @@ class FronteggAuthService(
 
         refreshTokenTimer.refreshTokenIfNeeded.addCallback {
             refreshTokenIfNeeded()
+        }
+
+        // Load feature flags on initialization
+        bgScope.launch {
+            try {
+                featureFlags.loadFlags(credentialManager.context)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load feature flags during initialization", e)
+            }
         }
     }
 
@@ -591,7 +601,6 @@ class FronteggAuthService(
 
     /**
      * Handle social login callback from custom scheme or redirect URL
-     * Matches iOS handleSocialLoginCallback implementation
      * @param url The callback URL
      * @return URL to redirect to after successful callback processing, or null if failed
      */
@@ -687,7 +696,6 @@ class FronteggAuthService(
 
     /**
      * Login with social login provider
-     * Matches iOS loginWithSocialLoginProvider implementation
      */
     suspend fun loginWithSocialLoginProvider(
         activity: Activity,
@@ -732,9 +740,48 @@ class FronteggAuthService(
 
     /**
      * Get social login configuration
-     * Matches iOS getSocialLoginConfig method
      */
     suspend fun getSocialLoginConfig(): com.frontegg.android.models.SocialLoginConfig {
-        return api.getSocialLoginConfig()
+        return try {
+            api.getSocialLoginConfig()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get social login config", e)
+            throw e
+        }
+    }
+
+    /**
+     * Get feature flags
+     */
+    suspend fun getFeatureFlags(): String {
+        return try {
+            api.getFeatureFlags()
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to get feature flags", e)
+            throw e
+        }
+    }
+
+    /**
+     * Generate custom social login URL
+     * @param activity Android activity
+     * @param provider Social login provider
+     * @param action Social login action (login or signup)
+     * @return Generated social login URL or null if failed
+     */
+    suspend fun generateCustomSocialLoginUrl(
+        activity: Activity,
+        provider: com.frontegg.android.models.SocialLoginProvider,
+        action: com.frontegg.android.models.SocialLoginAction = com.frontegg.android.models.SocialLoginAction.LOGIN
+    ): String? {
+        Log.d(TAG, "generateCustomSocialLoginUrl: ${provider.value}, action: ${action.value}")
+        
+        return try {
+            val urlGenerator = com.frontegg.android.utils.SocialLoginUrlGenerator.getInstance()
+            urlGenerator.authorizeURL(activity, provider, action)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to generate custom social login URL for provider: ${provider.value}", e)
+            null
+        }
     }
 }

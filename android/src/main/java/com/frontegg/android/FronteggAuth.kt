@@ -56,6 +56,7 @@ interface FronteggAuth {
     val mainActivityClass: Class<*>?
     
     var webview: WebView?
+    val featureFlags: com.frontegg.android.services.FeatureFlags
 
     /**
      * Login user. Launch a user login process. Start [EmbeddedAuthActivity] or

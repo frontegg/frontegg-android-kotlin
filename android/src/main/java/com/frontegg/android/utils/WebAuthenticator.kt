@@ -9,7 +9,6 @@ import com.frontegg.android.services.FronteggInnerStorage
 
 /**
  * Web authenticator for OAuth flows
- * Matches iOS WebAuthenticator implementation
  */
 class WebAuthenticator private constructor() {
     companion object {
@@ -29,7 +28,6 @@ class WebAuthenticator private constructor() {
 
     /**
      * Start OAuth authentication flow
-     * Matches iOS start method
      */
     suspend fun start(
         context: Context,
@@ -50,7 +48,6 @@ class WebAuthenticator private constructor() {
 
     /**
      * Cancel current session
-     * Matches iOS session cancel
      */
     fun cancel() {
         currentSession?.cancel()
@@ -59,7 +56,6 @@ class WebAuthenticator private constructor() {
 
     /**
      * Get current session
-     * Matches iOS session property
      */
     val session: WebAuthSession?
         get() = currentSession

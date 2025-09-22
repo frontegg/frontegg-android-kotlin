@@ -2,7 +2,6 @@ package com.frontegg.android.models
 
 /**
  * Social login provider enumeration
- * Matches iOS SocialLoginProvider implementation
  */
 enum class SocialLoginProvider(val value: String) {
     FACEBOOK("facebook"),
@@ -22,7 +21,6 @@ enum class SocialLoginProvider(val value: String) {
 
 /**
  * Social login action enumeration
- * Matches iOS SocialLoginAction implementation
  */
 enum class SocialLoginAction(val value: String) {
     LOGIN("login"),
