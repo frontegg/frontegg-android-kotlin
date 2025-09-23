@@ -61,7 +61,12 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             intent.extras?.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, false) ?: false
 
 
-        if (directLoginLaunchedDone || intent.extras == null) {
+        if (directLoginLaunchedDone) {
+            return
+        }
+        
+        // If no extras but we have data (social login redirect), continue processing
+        if (intent.extras == null && intent.data == null) {
             return
         }
         if (intentLaunched) {
@@ -103,17 +108,29 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             webViewUrl = intentUrl.toString()
         }
 
+        Log.d(TAG, "webViewUrl: $webViewUrl")
+        
         if (webViewUrl == null) {
+            Log.d(TAG, "webViewUrl is null, returning")
             return
         }
 
-        if ((fronteggAuth.isStepUpAuthorization.value ||
+        Log.d(TAG, "Checking load conditions: isStepUpAuthorization=${fronteggAuth.isStepUpAuthorization.value}, initializing=${fronteggAuth.initializing.value}, isAuthenticated=${fronteggAuth.isAuthenticated.value}")
+        
+        // Always load URL for social login redirects (oauth/account/social/success)
+        val isSocialLoginRedirect = webViewUrl?.contains("/oauth/account/social/success") == true
+        Log.d(TAG, "isSocialLoginRedirect: $isSocialLoginRedirect")
+        
+        if (isSocialLoginRedirect || 
+            (fronteggAuth.isStepUpAuthorization.value ||
                     (!fronteggAuth.initializing.value &&
                             !fronteggAuth.isAuthenticated.value))
         ) {
             Log.d(TAG, "loadUrl $webViewUrl")
             webView.loadUrl(webViewUrl!!)
             webViewUrl = null
+        } else {
+            Log.d(TAG, "URL not loaded due to conditions not met")
         }
     }
 
@@ -194,6 +211,11 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
 
         if (directLoginLaunched) {
             directLoginLaunchedDone = true
+        }
+
+        // Consume intent data if available (for social login redirects)
+        if (intent.data != null && webViewUrl == null) {
+            consumeIntent(intent)
         }
 
     }

@@ -60,11 +60,31 @@ class FronteggWebClient(
     private var webViewStatusCode: Int = 200
     private var lastErrorResponse: WebResourceResponse? = null
     private val storage = FronteggInnerStorage()
+    private var currentWebView: WebView? = null
+
+    fun getFormAction(): String {
+        // Check if current URL contains "/oauth/account/sign-up" to determine form action
+        return try {
+            currentWebView?.url?.let { url ->
+                if (url.contains("/oauth/account/sign-up")) {
+                    "signUp"
+                } else {
+                    "login"
+                }
+            } ?: "login"
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to get formAction from URL, using default", e)
+            "login"
+        }
+    }
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         Log.d(TAG, "onPageStarted $url")
         FronteggState.isLoading.value = true
+
+        // Store reference to current WebView
+        currentWebView = view
 
         passkeyWebListener.onPageStarted()
         view?.evaluateJavascript(PasskeyWebListener.INJECTED_VAL, null)
@@ -97,6 +117,13 @@ class FronteggWebClient(
             FronteggState.isLoading.value = false
             return
         }
+
+        // Handle social login success redirect (like iOS)
+        if (url?.contains("/oauth/account/social/success") == true) {
+            handleSocialLoginSuccessRedirect(view, url)
+            return
+        }
+
 
 
         if (webViewStatusCode >= 400) {
@@ -551,7 +578,9 @@ class FronteggWebClient(
         querySanitizer.parseQuery(query)
 
         val state = querySanitizer.getValue("state")
+        @Suppress("UNUSED_VARIABLE")
         val code = querySanitizer.getValue("code")
+        @Suppress("UNUSED_VARIABLE")
         val idToken = querySanitizer.getValue("id_token")
 
         if (state == null) {
@@ -565,7 +594,7 @@ class FronteggWebClient(
             val provider = stateJson.get("provider")?.asString
             val action = stateJson.get("action")?.asString
 
-            if (provider == null || action != "login") {
+            if (provider == null || (action != "login" && action != "signup")) {
                 Log.d(TAG, "handleSocialLoginCallback failed: invalid state - provider: $provider, action: $action")
                 return false
             }
@@ -573,13 +602,10 @@ class FronteggWebClient(
             Log.d(TAG, "handleSocialLoginCallback processing for provider: $provider")
 
             // Call FronteggAuthService to handle the social login callback
-            if ((context.fronteggAuth as FronteggAuthService).handleSocialLoginCallback(
-                    url.toString(),
-                    code,
-                    idToken,
-                    state
-                )
-            ) {
+            val redirectUrl = (context.fronteggAuth as FronteggAuthService).handleSocialLoginCallback(url.toString())
+            if (redirectUrl != null) {
+                // Load the redirect URL in the webview
+                currentWebView?.loadUrl(redirectUrl)
                 return true
             }
 
@@ -588,6 +614,33 @@ class FronteggWebClient(
         }
 
         return false
+    }
+
+    /**
+     * Handle social login success redirect by extracting redirectUri parameter and redirecting to it (like iOS)
+     */
+    private fun handleSocialLoginSuccessRedirect(view: WebView?, url: String) {
+        try {
+            Log.d(TAG, "Handling social login success redirect for URL: $url")
+            
+            val uri = Uri.parse(url)
+            val redirectUri = uri.getQueryParameter("redirectUri")
+            
+            if (!redirectUri.isNullOrEmpty()) {
+                Log.d(TAG, "Found redirectUri parameter: $redirectUri")
+                
+                // Decode the redirect URI
+                val decodedRedirectUri = Uri.decode(redirectUri)
+                Log.d(TAG, "Decoded redirectUri: $decodedRedirectUri")
+                
+                // Redirect to the decoded URI
+                view?.loadUrl(decodedRedirectUri)
+            } else {
+                Log.w(TAG, "No redirectUri parameter found in social login success URL")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to handle social login success redirect", e)
+        }
     }
 
 }

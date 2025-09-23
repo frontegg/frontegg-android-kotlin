@@ -68,11 +68,29 @@ class AuthenticationActivity : FronteggBaseActivity() {
                 Log.d(TAG, "Got intent with oauth callback")
                 FronteggState.isLoading.value = true
 
-                (fronteggAuth as FronteggAuthService).handleHostedLoginCallback(code, null, this)
-                if (storage.useChromeCustomTabs && storage.isEmbeddedMode) {
-                    EmbeddedAuthActivity.afterAuthentication(this)
+                // Check if this is a social login callback
+                val intentUrl = intent.data?.toString()
+                if (intentUrl != null && intentUrl.contains("/oauth/account/redirect/android/")) {
+                    Log.d(TAG, "Detected social login callback")
+                    val redirectUrl = (fronteggAuth as FronteggAuthService).handleSocialLoginCallback(intentUrl)
+                    if (redirectUrl != null && storage.isEmbeddedMode) {
+                        // Load the redirect URL in EmbeddedAuthActivity WebView
+                        val embeddedIntent = Intent(this, EmbeddedAuthActivity::class.java).apply {
+                            data = android.net.Uri.parse(redirectUrl)
+                        }
+                        startActivity(embeddedIntent)
+                        finish()
+                    } else {
+                        safeFinishActivity(RESULT_OK)
+                    }
                 } else {
-                    safeFinishActivity(RESULT_OK)
+                    // Regular OAuth callback
+                    (fronteggAuth as FronteggAuthService).handleHostedLoginCallback(code, null, this)
+                    if (storage.useChromeCustomTabs && storage.isEmbeddedMode) {
+                        EmbeddedAuthActivity.afterAuthentication(this)
+                    } else {
+                        safeFinishActivity(RESULT_OK)
+                    }
                 }
                 return
             }
