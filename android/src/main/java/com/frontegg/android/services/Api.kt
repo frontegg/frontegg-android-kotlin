@@ -140,6 +140,7 @@ open class Api(
         return this.httpClient.newCall(request)
     }
 
+
     @Throws(IllegalArgumentException::class, IOException::class)
     fun me(): User? {
         val meCall = buildGetRequest(ApiConstants.me)

@@ -118,6 +118,13 @@ class FronteggWebClient(
             return
         }
 
+        // Handle social login success redirect (like iOS)
+        if (url?.contains("/oauth/account/social/success") == true) {
+            handleSocialLoginSuccessRedirect(view, url)
+            return
+        }
+
+
 
         if (webViewStatusCode >= 400) {
             checkIfFronteggError(view, url, lastErrorResponse)
@@ -607,6 +614,33 @@ class FronteggWebClient(
         }
 
         return false
+    }
+
+    /**
+     * Handle social login success redirect by extracting redirectUri parameter and redirecting to it (like iOS)
+     */
+    private fun handleSocialLoginSuccessRedirect(view: WebView?, url: String) {
+        try {
+            Log.d(TAG, "Handling social login success redirect for URL: $url")
+            
+            val uri = Uri.parse(url)
+            val redirectUri = uri.getQueryParameter("redirectUri")
+            
+            if (!redirectUri.isNullOrEmpty()) {
+                Log.d(TAG, "Found redirectUri parameter: $redirectUri")
+                
+                // Decode the redirect URI
+                val decodedRedirectUri = Uri.decode(redirectUri)
+                Log.d(TAG, "Decoded redirectUri: $decodedRedirectUri")
+                
+                // Redirect to the decoded URI
+                view?.loadUrl(decodedRedirectUri)
+            } else {
+                Log.w(TAG, "No redirectUri parameter found in social login success URL")
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to handle social login success redirect", e)
+        }
     }
 
 }

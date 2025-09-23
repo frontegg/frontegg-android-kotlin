@@ -96,27 +96,24 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
     fun loginWithSocialLoginProvider(provider: String) {
         Log.d("FronteggNativeBridge", "loginWithSocialLoginProvider(${provider})")
 
-        val socialLoginProvider = com.frontegg.android.models.SocialLoginProvider.fromString(provider)
+        val formAction = getFormAction()
+        
+        // Check if legacy social login flow is enabled
+        val useLegacySocialLoginFlow = try {
+            val configCache = com.frontegg.android.init.ConfigCache.loadLastRegionsInit(context)
+            val flag = configCache?.second?.useLegacySocialLoginFlow ?: false
+            Log.d("FronteggNativeBridge", "useLegacySocialLoginFlow = $flag")
+            flag
+        } catch (e: Exception) {
+            Log.w("FronteggNativeBridge", "Failed to check legacy social login flow flag", e)
+            false
+        }
 
-        if (socialLoginProvider != null) {
-            // Use new social login implementation
+        if (useLegacySocialLoginFlow) {
+            // Use legacy implementation
+            Log.d("FronteggNativeBridge", "Using legacy social login flow for $provider")
             kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
                 try {
-                    // Get form action on main thread
-                    val formAction = getFormAction()
-                    val socialLoginAction = com.frontegg.android.models.SocialLoginAction.fromString(formAction) ?: com.frontegg.android.models.SocialLoginAction.LOGIN
-                    
-                    val authService = context.fronteggAuth as com.frontegg.android.services.FronteggAuthService
-                    authService.loginWithSocialLoginProvider(context as android.app.Activity, socialLoginProvider, socialLoginAction)
-                } catch (e: Exception) {
-                    Log.e("FronteggNativeBridge", "Failed to start social login", e)
-                }
-            }
-        } else {
-            // Fallback to old implementation - get form action on main thread
-            kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
-                try {
-                    val formAction = getFormAction()
                     val directLogin: Map<String, Any> = mapOf(
                         "type" to "social-login",
                         "data" to provider,
@@ -125,6 +122,39 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
                     directLoginWithContext(context, directLogin, true)
                 } catch (e: Exception) {
                     Log.e("FronteggNativeBridge", "Failed to get form action", e)
+                }
+            }
+        } else {
+            // Use new social login implementation
+            Log.d("FronteggNativeBridge", "Using new social login flow for $provider")
+            val socialLoginProvider = com.frontegg.android.models.SocialLoginProvider.fromString(provider)
+            Log.d("FronteggNativeBridge", "Parsed provider: $socialLoginProvider")
+            if (socialLoginProvider != null) {
+                kotlinx.coroutines.CoroutineScope(com.frontegg.android.utils.DefaultDispatcherProvider.io).launch {
+                    try {
+                        val socialLoginAction = com.frontegg.android.models.SocialLoginAction.fromString(formAction) ?: com.frontegg.android.models.SocialLoginAction.LOGIN
+                        Log.d("FronteggNativeBridge", "Social login action: $socialLoginAction")
+                        
+                        val authService = context.fronteggAuth as com.frontegg.android.services.FronteggAuthService
+                        authService.loginWithSocialLoginProvider(context as android.app.Activity, socialLoginProvider, socialLoginAction)
+                    } catch (e: Exception) {
+                        Log.e("FronteggNativeBridge", "Failed to start social login", e)
+                    }
+                }
+            } else {
+                Log.w("FronteggNativeBridge", "Unknown social login provider: $provider, falling back to legacy")
+                // Fallback to legacy implementation
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.Main).launch {
+                    try {
+                        val directLogin: Map<String, Any> = mapOf(
+                            "type" to "social-login",
+                            "data" to provider,
+                            "action" to formAction
+                        )
+                        directLoginWithContext(context, directLogin, true)
+                    } catch (e: Exception) {
+                        Log.e("FronteggNativeBridge", "Failed to get form action", e)
+                    }
                 }
             }
         }

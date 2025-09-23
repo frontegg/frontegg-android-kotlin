@@ -40,38 +40,65 @@ class SocialLoginUrlGenerator private constructor() {
     suspend fun authorizeURL(
         context: Context,
         provider: SocialLoginProvider,
-        action: SocialLoginAction = SocialLoginAction.LOGIN
+        @Suppress("UNUSED_PARAMETER") action: SocialLoginAction = SocialLoginAction.LOGIN
     ): String? {
         return try {
-            val option = configuration(context, provider)
+            // Generate Frontegg OAuth URL with login_direct_action parameter (like iOS)
+            val storage = StorageProvider.getInnerStorage()
+            val baseUrl = storage.baseUrl
             
-            // If no config available, create a default option for the provider
-            val finalOption = option ?: SocialLoginOption(
-                active = true,
-                clientId = null,
-                authorizationUrl = null,
-                additionalScopes = emptyList()
+            // Create login_direct_action JSON
+            val loginDirectAction = mapOf(
+                "type" to "social-login",
+                "data" to provider.value,
+                "additionalQueryParams" to mapOf(
+                    "prompt" to "consent"
+                )
             )
             
-            if (!finalOption.active) {
-                Log.d(TAG, "Provider inactive: ${provider.value}")
-                return null
+            val jsonString = com.google.gson.Gson().toJson(loginDirectAction)
+            val encodedAction = android.util.Base64.encodeToString(
+                jsonString.toByteArray(Charsets.UTF_8),
+                android.util.Base64.NO_WRAP
+            )
+            
+            // Build Frontegg OAuth URL
+            val authService = context.fronteggAuth as FronteggAuthService
+            val redirectUri = authService.defaultRedirectUri()
+            
+            // Get Frontegg client_id from storage
+            val clientId = storage.clientId.ifBlank { 
+                storage.selectedRegion?.clientId ?: storage.regions.firstOrNull()?.clientId ?: ""
             }
-
-            // Handle tenant-specific authorization URL if available
-            if (!finalOption.authorizationUrl.isNullOrEmpty()) {
-                val url = Uri.parse(finalOption.authorizationUrl)
-                val builder = url.buildUpon()
-                
-                val details = ProviderDetails.forProvider(provider)
-                if (details.promptValueForConsent != null) {
-                    builder.appendQueryParameter("prompt", details.promptValueForConsent)
+            Log.d(TAG, "Using Frontegg client_id: $clientId")
+            Log.d(TAG, "Using OAuth redirect_uri: $redirectUri")
+            
+            val builder = Uri.parse("$baseUrl/oauth/authorize").buildUpon()
+                .appendQueryParameter("redirect_uri", redirectUri)
+                .appendQueryParameter("response_type", "code")
+                .appendQueryParameter("client_id", clientId)
+                .appendQueryParameter("scope", "openid email profile")
+                .appendQueryParameter("prompt", "login")
+                .appendQueryParameter("login_direct_action", encodedAction)
+            
+            // Add PKCE if enabled
+            try {
+                if (authService.featureFlags.isOnSync("identity-sso-force-pkce")) {
+                    val codeVerifier = PKCEUtils.getCodeVerifierFromWebview(context)
+                    val codeChallenge = PKCEUtils.generateCodeChallenge(codeVerifier)
+                    
+                    builder.appendQueryParameter("code_challenge", codeChallenge)
+                    builder.appendQueryParameter("code_challenge_method", "S256")
+                    
+                    Log.d(TAG, "Added PKCE parameters for ${provider.value}")
                 }
-                
-                return builder.build().toString()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to add PKCE parameters for ${provider.value}", e)
             }
-
-            buildProviderURL(context, provider, finalOption, action)
+            
+            val url = builder.build().toString()
+            Log.v(TAG, "Generated Frontegg OAuth URL for ${provider.value}: $url")
+            url
         } catch (e: Exception) {
             Log.e(TAG, "Failed to generate authorization URL for ${provider.value}", e)
             null
@@ -99,12 +126,18 @@ class SocialLoginUrlGenerator private constructor() {
         }
     }
 
+
     /**
      * Get configuration for specific provider
      */
     suspend fun configuration(context: Context, provider: SocialLoginProvider): SocialLoginOption? {
         if (socialLoginConfig == null) {
-            reloadConfigs(context)
+            try {
+                reloadConfigs(context)
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to load social login config, using defaults: ${e.message}")
+                // Continue with null config - will use defaults
+            }
         }
         
         return when (provider) {
@@ -118,28 +151,6 @@ class SocialLoginUrlGenerator private constructor() {
         }
     }
 
-    /**
-     * Get default redirect URI
-     */
-    @Suppress("UNUSED_PARAMETER")
-    fun defaultRedirectUri(context: Context): String {
-        return try {
-            val storage = StorageProvider.getInnerStorage()
-            val baseUrl = storage.baseUrl
-            val baseRedirectUri = "$baseUrl/oauth/account/social/success"
-            
-            Uri.parse(baseRedirectUri)
-                .buildUpon()
-                .build()
-                .toString()
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to build redirect URI", e)
-            // Fallback to basic URL
-            val storage = StorageProvider.getInnerStorage()
-            val baseUrl = storage.baseUrl
-            "$baseUrl/oauth/account/social/success"
-        }
-    }
 
     /**
      * Build provider URL with all required parameters
@@ -156,8 +167,11 @@ class SocialLoginUrlGenerator private constructor() {
             
             val builder = baseUri.buildUpon()
             
-            // 1. Client ID - use default if not provided
-            val clientId = option.clientId ?: "default_client_id"
+            // 1. Client ID - use from option or generate fallback
+            val clientId = option.clientId ?: run {
+                val storage = StorageProvider.getInnerStorage()
+                "${storage.packageName}.client"
+            }
             builder.appendQueryParameter("client_id", clientId)
             
             // 2. Response Type & Mode
@@ -167,7 +181,8 @@ class SocialLoginUrlGenerator private constructor() {
             }
             
             // 3. Redirect URI and State
-            val redirectUri = defaultRedirectUri(context)
+            val authService = context.fronteggAuth as com.frontegg.android.services.FronteggAuthService
+            val redirectUri = authService.defaultSocialLoginRedirectUri()
             val state = createState(provider, action, context)
             
             builder.appendQueryParameter("redirect_uri", redirectUri)

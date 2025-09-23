@@ -2,6 +2,7 @@ package com.frontegg.android.services
 
 import android.annotation.SuppressLint
 import android.app.Activity
+import android.content.Context
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
@@ -670,23 +671,32 @@ class FronteggAuthService(
             // Cancel current session if exists
             com.frontegg.android.utils.WebAuthenticator.getInstance().cancel()
             
-            // Build redirect URL
-            val redirectUrl = "$baseUrl/oauth/account/social/success"
-            val redirectUri = Uri.parse(redirectUrl).buildUpon()
+            // Build query parameters (like Swift)
+            val successQueryParams = mutableMapOf<String, String>()
             
             if (!code.isNullOrEmpty()) {
-                redirectUri.appendQueryParameter("code", code)
-            }
-            if (!idToken.isNullOrEmpty()) {
-                redirectUri.appendQueryParameter("id_token", idToken)
-            }
-            if (!processedState.isNullOrEmpty()) {
-                redirectUri.appendQueryParameter("state", processedState)
+                successQueryParams["code"] = code
             }
             
-            val finalUrl = redirectUri.build().toString()
+            if (!idToken.isNullOrEmpty()) {
+                successQueryParams["id_token"] = idToken
+            }
+            
+            val redirectUri = defaultRedirectUri()
+            successQueryParams["redirectUri"] = android.net.Uri.encode(redirectUri, ":/?#[]@!$&'()*+,;=")
+            
+            if (!processedState.isNullOrEmpty()) {
+                successQueryParams["state"] = android.net.Uri.encode(processedState, ":/?#[]@!$&'()*+,;=")
+            }
+            
+            // Build query string safely (like Swift)
+            val queryString = successQueryParams.entries.joinToString("&") { (key, value) ->
+                "$key=$value"
+            }
+            
+            val finalUrl = "${storage.baseUrl}/oauth/account/social/success?$queryString"
             Log.d(TAG, "Social login callback processed successfully, redirecting to: $finalUrl")
-            finalUrl
+            return finalUrl
             
         } catch (e: Exception) {
             Log.e(TAG, "Failed to handle social login callback", e)
@@ -763,25 +773,36 @@ class FronteggAuthService(
     }
 
     /**
-     * Generate custom social login URL
-     * @param activity Android activity
-     * @param provider Social login provider
-     * @param action Social login action (login or signup)
-     * @return Generated social login URL or null if failed
+     * Get default redirect URI for social logins
+     * @return Social login redirect URI: /oauth/account/social/success
      */
-    suspend fun generateCustomSocialLoginUrl(
-        activity: Activity,
-        provider: com.frontegg.android.models.SocialLoginProvider,
-        action: com.frontegg.android.models.SocialLoginAction = com.frontegg.android.models.SocialLoginAction.LOGIN
-    ): String? {
-        Log.d(TAG, "generateCustomSocialLoginUrl: ${provider.value}, action: ${action.value}")
+    fun defaultSocialLoginRedirectUri(): String {
+        val baseUrl = storage.baseUrl
+        val baseRedirectUri = "$baseUrl/oauth/account/social/success"
         
         return try {
-            val urlGenerator = com.frontegg.android.utils.SocialLoginUrlGenerator.getInstance()
-            urlGenerator.authorizeURL(activity, provider, action)
+            android.net.Uri.encode(baseRedirectUri, ":/?#[]@!$&'()*+,;=")
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to generate custom social login URL for provider: ${provider.value}", e)
-            null
+            Log.e(TAG, "Failed to encode social login redirect URI", e)
+            baseRedirectUri
         }
     }
+
+    /**
+     * Get default redirect URI for OAuth flows
+     * @return OAuth redirect URI: /oauth/account/redirect/android/{packageName}
+     */
+    fun defaultRedirectUri(): String {
+        val baseUrl = storage.baseUrl
+        val packageName = storage.packageName
+        val baseRedirectUri = "$baseUrl/oauth/account/redirect/android/$packageName"
+        
+        return try {
+            android.net.Uri.encode(baseRedirectUri, ":/?#[]@!$&'()*+,;=")
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to encode redirect URI", e)
+            baseRedirectUri
+        }
+    }
+
 }
