@@ -349,7 +349,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `loginWithPasskeys should call CredentialManagerHandler_getPasskey`() {
+    fun `loginWithPasskeys should call CredentialManagerHandler_getPasskey`() = runBlocking {
         val request = WebAuthnAssertionRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -374,6 +374,10 @@ class FronteggAuthServiceTest {
         coEvery { credentialManagerMockHandler.getPasskey(any()) }.returns(response)
 
         auth.loginWithPasskeys(mockActivity)
+        
+        // Wait a bit for the coroutine to complete
+        delay(100)
+        
         coVerify { credentialManagerMockHandler.getPasskey(any()) }
     }
 
