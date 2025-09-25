@@ -164,8 +164,8 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `sendRefreshToken should not call CredentialManager_save if Api_refreshToken returns null`() {
-        every { apiMock.refreshToken(any()) }.returns(null)
+    fun `sendRefreshToken should not call CredentialManager_save if Api_refreshToken throws exception`() {
+        every { apiMock.refreshToken(any()) }.throws(Exception("Refresh token failed"))
         every { credentialManagerMock.save(any(), any()) }.returns(true)
 
         val result = auth.sendRefreshToken()
