@@ -31,6 +31,8 @@ import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
 import kotlin.time.DurationUnit
@@ -559,7 +561,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `registerPasskeys should call Api_verifyWebAuthnDevice`() {
+    fun `registerPasskeys should call Api_verifyWebAuthnDevice`() = runBlocking {
         val request = WebAuthnRegistrationRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -582,6 +584,10 @@ class FronteggAuthServiceTest {
         coEvery { credentialManagerMockHandler.createPasskey(any()) }.returns(response)
 
         auth.registerPasskeys(mockActivity)
+        
+        // Wait a bit for the coroutine to complete
+        delay(100)
+        
         verify { apiMock.verifyWebAuthnDevice(any(), any()) }
     }
 
