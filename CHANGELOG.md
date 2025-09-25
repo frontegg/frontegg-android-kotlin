@@ -1,3 +1,8 @@
+## v
+Revert merge
+Fixed bug with unauthorized exceptions for weak network connections
+Added auto reconnect when connection was established.
+
 ## v1.3.3
 Add auto-reconnect when exiting offline mode
 
