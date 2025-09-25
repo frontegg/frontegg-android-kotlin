@@ -35,6 +35,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
+import org.junit.jupiter.api.assertThrows
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -167,13 +168,15 @@ class FronteggAuthServiceTest {
 
     @Test
     fun `sendRefreshToken should not call CredentialManager_save if Api_refreshToken throws exception`() {
+        auth.refreshToken.value = "TestRefreshToken"  // Set refresh token first
         every { apiMock.refreshToken(any()) }.throws(Exception("Refresh token failed"))
         every { credentialManagerMock.save(any(), any()) }.returns(true)
 
-        val result = auth.sendRefreshToken()
+        assertThrows<Exception> {
+            auth.sendRefreshToken()
+        }
 
         verify(exactly = 0) { credentialManagerMock.save(any(), any()) }
-        assert(!result)
     }
 
     @Test
