@@ -91,13 +91,11 @@ object FronteggReconnector {
 
                 // Always try to refresh if possible, swallow network errors
                 try {
-                    val refreshed = try {
+                    try {
                         context.fronteggAuth.refreshTokenIfNeeded()
                     } catch (_: Throwable) {
                         // If FronteggApp not initialized, skip refresh
-                        false
                     }
-                    Log.d(TAG, "refreshTokenIfNeeded() => $refreshed")
                 } catch (t: Throwable) {
                     when (t) {
                         is UnknownHostException -> Log.i(TAG, "Still offline during refresh: ${t.message}")

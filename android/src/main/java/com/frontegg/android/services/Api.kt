@@ -167,8 +167,8 @@ open class Api(
         return null
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class)
-    fun refreshToken(refreshToken: String): AuthResponse? {
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun refreshToken(refreshToken: String): AuthResponse {
         val body = JsonObject()
         body.addProperty("grant_type", "refresh_token")
         body.addProperty("refresh_token", refreshToken)
@@ -178,7 +178,13 @@ open class Api(
         if (response.isSuccessful) {
             return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
         }
-        return null
+        
+        // Throw exception for auth errors (401, 403, etc.)
+        val errorBody = response.body?.string() ?: "Unknown error occurred"
+        throw FailedToAuthenticateException(
+            response.headers,
+            "Refresh token failed: ${response.code} - $errorBody"
+        )
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)

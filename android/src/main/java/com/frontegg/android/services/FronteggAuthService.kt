@@ -374,17 +374,19 @@ class FronteggAuthService(
                     updateStateWithCredentials(accessToken, refreshToken, user)
                 } else {
                     Log.e(TAG, "Failed to fetch user info via api.me(), user is null")
-                    clearCredentials()
+                    // Don't clear credentials on network errors - keep tokens for retry
+                    this.isLoading.value = false
+                    this.initializing.value = false
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to fetch user info via api.me()", e)
-                clearCredentials()
+                // Don't clear credentials on network errors - keep tokens for retry
+                this.isLoading.value = false
+                this.initializing.value = false
             }
         } else {
             clearCredentials()
         }
-        this.isLoading.value = false
-        this.initializing.value = false
     }
 
     private fun updateStateWithCredentials(accessToken: String, refreshToken: String, user: User) {
@@ -504,10 +506,15 @@ class FronteggAuthService(
                 refreshToken.value = refreshTokenSaved
 
                 if (!refreshTokenIfNeeded()) {
-                    // Offline-safe: keep saved refresh token to allow later reconnect
-                    Log.d(TAG, "initializeSubscriptions(): refresh failed; preserving saved refresh token")
-                    accessToken.value = null
-                    // keep refreshToken.value as is
+                    // Check if this is a network error or auth error
+                    if (isNetworkError()) {
+                        // Offline-safe: keep saved refresh token to allow later reconnect
+                        accessToken.value = null
+                        // keep refreshToken.value as is
+                    } else {
+                        // Auth error: clear tokens as refresh token is invalid
+                        clearCredentials()
+                    }
                     initializing.value = false
                     isLoading.value = false
                 }
@@ -530,15 +537,13 @@ class FronteggAuthService(
         val refreshToken = this.refreshToken.value ?: return false
         this.refreshingToken.value = true
         try {
-            Log.d(TAG, "sendRefreshToken() with refresh='${maskToken(refreshToken)}'")
             val data = api.refreshToken(refreshToken)
-            return if (data != null) {
-                setCredentials(data.access_token, data.refresh_token)
-                true
-            } else {
-                Log.e(TAG, "Failed to refresh token, data = null")
-                false
-            }
+            lastRefreshError = null // Clear error on success
+            setCredentials(data.access_token, data.refresh_token)
+            return true
+        } catch (e: Exception) {
+            lastRefreshError = e
+            throw e
         } finally {
             this.refreshingToken.value = false
         }
@@ -549,6 +554,19 @@ class FronteggAuthService(
         val head = token.take(6)
         val tail = token.takeLast(4)
         return "$head…$tail"
+    }
+
+    private var lastRefreshError: Exception? = null
+
+    private fun isNetworkError(): Boolean {
+        return when (lastRefreshError) {
+            is java.net.SocketTimeoutException,
+            is java.net.ConnectException,
+            is java.net.UnknownHostException,
+            is IOException -> true
+            is FailedToAuthenticateException -> false
+            else -> false
+        }
     }
 
     @VisibleForTesting
