@@ -25,7 +25,6 @@ import com.frontegg.android.services.FronteggState
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
-import com.frontegg.android.utils.Constants.Companion.socialLoginCallbackRoutes
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
 import com.frontegg.android.utils.generateErrorPage
@@ -276,7 +275,6 @@ class FronteggWebClient(
     enum class OverrideUrlType {
         HostedLoginCallback,
         SocialOauthPreLogin,
-        SocialLoginCallback,
         loginRoutes,
         internalRoutes,
         Unknown
@@ -300,27 +298,15 @@ class FronteggWebClient(
 
     private fun getOverrideUrlType(url: Uri): OverrideUrlType {
         val urlPath = url.path
-        val urlString = url.toString()
         val hostedLoginCallback = Constants.oauthCallbackUrl(storage.baseUrl)
 
-        if (urlString.startsWith(hostedLoginCallback)) {
+        if (url.toString().startsWith(hostedLoginCallback)) {
             return OverrideUrlType.HostedLoginCallback
         }
-        
-        // Check for custom scheme social login callback
-        if (Constants.isSocialLoginCallbackUrl(urlString)) {
-            return OverrideUrlType.SocialLoginCallback
-        }
-        
-        if (urlPath != null && urlString.startsWith(storage.baseUrl)) {
+        if (urlPath != null && url.toString().startsWith(storage.baseUrl)) {
 
             if (isSocialLoginPath(urlPath)) {
                 return OverrideUrlType.SocialOauthPreLogin
-            }
-
-            // Check for Android social login callback routes
-            if (socialLoginCallbackRoutes.find { u -> urlPath.startsWith(u) } != null) {
-                return OverrideUrlType.SocialLoginCallback
             }
 
             return if (successLoginRoutes.find { u -> urlPath.startsWith(u) } != null) {
@@ -373,10 +359,6 @@ class FronteggWebClient(
                         return true
                     }
                     return super.shouldOverrideUrlLoading(view, request)
-                }
-
-                OverrideUrlType.SocialLoginCallback -> {
-                    return handleSocialLoginCallback(view, url)
                 }
 //                OverrideUrlType.Unknown -> {
 //                    openExternalBrowser(request.url)
@@ -530,63 +512,6 @@ class FronteggWebClient(
         val authorizeUrl = AuthorizeUrlGenerator(context)
         val url = authorizeUrl.generate()
         webView.loadUrl(url.first)
-        return false
-    }
-
-    private fun handleSocialLoginCallback(webView: WebView?, url: Uri): Boolean {
-        Log.d(TAG, "handleSocialLoginCallback received url: $url")
-        if (webView == null) {
-            Log.d(TAG, "handleSocialLoginCallback failed: webView is null")
-            return false
-        }
-
-        val query = url.query
-        if (query == null) {
-            Log.d(TAG, "handleSocialLoginCallback failed: query is null")
-            return false
-        }
-
-        val querySanitizer = UrlQuerySanitizer()
-        querySanitizer.allowUnregisteredParamaters = true
-        querySanitizer.parseQuery(query)
-
-        val state = querySanitizer.getValue("state")
-        val code = querySanitizer.getValue("code")
-        val idToken = querySanitizer.getValue("id_token")
-
-        if (state == null) {
-            Log.d(TAG, "handleSocialLoginCallback failed: state is null")
-            return false
-        }
-
-        // Parse state to get provider information
-        try {
-            val stateJson = JsonParser.parseString(state).asJsonObject
-            val provider = stateJson.get("provider")?.asString
-            val action = stateJson.get("action")?.asString
-
-            if (provider == null || action != "login") {
-                Log.d(TAG, "handleSocialLoginCallback failed: invalid state - provider: $provider, action: $action")
-                return false
-            }
-
-            Log.d(TAG, "handleSocialLoginCallback processing for provider: $provider")
-
-            // Call FronteggAuthService to handle the social login callback
-            if ((context.fronteggAuth as FronteggAuthService).handleSocialLoginCallback(
-                    url.toString(),
-                    code,
-                    idToken,
-                    state
-                )
-            ) {
-                return true
-            }
-
-        } catch (e: Exception) {
-            Log.e(TAG, "handleSocialLoginCallback failed to parse state: $state", e)
-        }
-
         return false
     }
 

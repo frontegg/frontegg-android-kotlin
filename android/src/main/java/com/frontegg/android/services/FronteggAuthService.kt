@@ -16,14 +16,12 @@ import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
-import com.frontegg.android.models.SocialLoginPostLoginRequest
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.calculateTimerOffset
-import com.google.gson.JsonParser
 import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -601,71 +599,6 @@ class FronteggAuthService(
                 Log.d(TAG, "Schedule Refreshing Token for $offset")
                 refreshTokenTimer.scheduleTimer(offset)
             }
-        }
-    }
-
-    /**
-     * Handle social login callback from custom scheme or redirect URL
-     * @param url The callback URL
-     * @param code Authorization code from OAuth provider
-     * @param idToken ID token from OAuth provider (optional)
-     * @param state State parameter containing provider information
-     * @return true if callback was handled successfully
-     */
-    fun handleSocialLoginCallback(
-        url: String,
-        code: String?,
-        idToken: String?,
-        state: String
-    ): Boolean {
-        Log.d(TAG, "handleSocialLoginCallback called with url: $url, code: $code, state: $state")
-        
-        return try {
-            // Parse state to get provider information
-            val stateJson = JsonParser.parseString(state).asJsonObject
-            val provider = stateJson.get("provider")?.asString
-            val action = stateJson.get("action")?.asString
-
-            if (provider == null || action != "login") {
-                Log.e(TAG, "Invalid state: provider=$provider, action=$action")
-                return false
-            }
-
-            Log.d(TAG, "Processing social login for provider: $provider")
-
-            // Create post-login request
-            val postLoginRequest = SocialLoginPostLoginRequest(
-                code = code,
-                idToken = idToken,
-                redirectUri = url,
-                state = state,
-                codeVerifier = credentialManager.getCodeVerifier(),
-                codeVerifierPkce = credentialManager.getCodeVerifier()
-            )
-
-            // Make API call to exchange callback for Frontegg tokens
-            bgScope.launch {
-                try {
-                    val authResponse = api.socialLoginPostLogin(provider, postLoginRequest)
-                    
-                    withContext(mainDispatcher) {
-                        // Store credentials and update state
-                        setCredentials(
-                            authResponse.access_token,
-                            authResponse.refresh_token
-                        )
-                        
-                        Log.d(TAG, "Social login successful for provider: $provider")
-                    }
-                } catch (e: Exception) {
-                    Log.e(TAG, "Social login post-login failed for provider: $provider", e)
-                }
-            }
-
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to handle social login callback", e)
-            false
         }
     }
 }

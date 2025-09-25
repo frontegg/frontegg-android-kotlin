@@ -9,7 +9,6 @@ import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
-import com.frontegg.android.models.SocialLoginPostLoginRequest
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
@@ -398,28 +397,6 @@ open class Api(
                 "cookie" to "${refreshTokenCookie};${deviceIdCookie}"
             )
         )
-        val response = call.execute()
-
-        val body = response.body
-        if (!response.isSuccessful || body == null) {
-            throw FailedToAuthenticateException(
-                response.headers,
-                body?.string() ?: "Unknown error occurred"
-            )
-        }
-        return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
-    }
-
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
-    fun socialLoginPostLogin(
-        provider: String,
-        request: SocialLoginPostLoginRequest
-    ): AuthResponse {
-        val gson = Gson()
-        val jsonObject = gson.toJsonTree(request).asJsonObject
-
-        val endpoint = ApiConstants.socialLoginPostLogin.replace("{provider}", provider)
-        val call = buildPostRequest(endpoint, jsonObject)
         val response = call.execute()
 
         val body = response.body
