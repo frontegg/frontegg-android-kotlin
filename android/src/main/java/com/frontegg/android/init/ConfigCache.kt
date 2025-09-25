@@ -67,7 +67,7 @@ internal object ConfigCache {
             val flags = RegionsInitFlags(
                 useAssetsLinks = fj.optBoolean("useAssetsLinks", false),
                 useChromeCustomTabs = fj.optBoolean("useChromeCustomTabs", false),
-                mainActivityClassName = fj.optString("mainActivityClassName", null).takeIf { !it.isNullOrEmpty() },
+                mainActivityClassName = fj.optString("mainActivityClassName", null).takeIf { it.isNotEmpty() },
                 useDiskCacheWebview = fj.optBoolean("useDiskCacheWebview", false),
             )
             regions to flags

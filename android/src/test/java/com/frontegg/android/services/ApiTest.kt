@@ -3,6 +3,7 @@ package com.frontegg.android.services
 import android.util.Log
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
+import org.junit.jupiter.api.assertThrows
 import com.frontegg.android.fixtures.authResponseJson
 import com.frontegg.android.fixtures.getAuthResponse
 import com.frontegg.android.fixtures.getUser
@@ -98,12 +99,12 @@ class ApiTest {
     }
 
     @Test
-    fun `refreshToken should return null if response not success`() {
+    fun `refreshToken should throw exception if response not success`() {
         mockWebServer.enqueue(MockResponse().setResponseCode(400))
 
-        val user = api.refreshToken("Test Token")
-
-        assert(user == null)
+        assertThrows<FailedToAuthenticateException> {
+            api.refreshToken("Test Token")
+        }
     }
 
     @Test
