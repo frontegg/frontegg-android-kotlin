@@ -520,7 +520,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `registerPasskeys should call Api_getWebAuthnRegisterChallenge`() {
+    fun `registerPasskeys should call Api_getWebAuthnRegisterChallenge`() = runBlocking {
         val request = WebAuthnRegistrationRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -538,11 +538,15 @@ class FronteggAuthServiceTest {
         )
 
         auth.registerPasskeys(mockActivity)
+        
+        // Wait a bit for the coroutine to complete
+        delay(100)
+        
         verify { apiMock.getWebAuthnRegisterChallenge() }
     }
 
     @Test
-    fun `registerPasskeys should call CredentialManagerHandler_createPasskey`() {
+    fun `registerPasskeys should call CredentialManagerHandler_createPasskey`() = runBlocking {
         val request = WebAuthnRegistrationRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -564,6 +568,10 @@ class FronteggAuthServiceTest {
         coEvery { credentialManagerMockHandler.createPasskey(any()) }.returns(response)
 
         auth.registerPasskeys(mockActivity)
+        
+        // Wait a bit for the coroutine to complete
+        delay(100)
+        
         coVerify { credentialManagerMockHandler.createPasskey(any()) }
     }
 
@@ -599,7 +607,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `registerPasskeys should call call callback with null Exception`() {
+    fun `registerPasskeys should call call callback with null Exception`() = runBlocking {
         val request = WebAuthnRegistrationRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -628,13 +636,14 @@ class FronteggAuthServiceTest {
             exception = it
         })
 
-        Thread.sleep(1_000)
+        // Wait for the coroutine to complete
+        delay(1000)
         assert(called)
         assert(exception == null)
     }
 
     @Test
-    fun `registerPasskeys should call call callback with Exception if some error occurred`() {
+    fun `registerPasskeys should call call callback with Exception if some error occurred`() = runBlocking {
         every { apiMock.getWebAuthnRegisterChallenge() }.throws(Exception())
 
         mockkObject(ScopeProvider)
@@ -653,7 +662,8 @@ class FronteggAuthServiceTest {
             exception = it
         })
 
-        Thread.sleep(1_000)
+        // Wait for the coroutine to complete
+        delay(1000)
         assert(called)
         assert(exception != null)
     }
