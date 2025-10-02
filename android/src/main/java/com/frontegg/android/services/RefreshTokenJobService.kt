@@ -28,18 +28,11 @@ class RefreshTokenJobService : JobService() {
             return false
         }
 
-        Log.d(
-            TAG,
-            "Job started, (${
-                Instant.now().toEpochMilli() - FronteggRefreshTokenTimer.lastJobStart
-            } ms)"
-        )
         performBackgroundTask(params)
         return true
     }
 
     override fun onStopJob(params: JobParameters?): Boolean {
-        Log.d(TAG, "Job stopped before completion")
         return false
     }
 
@@ -52,15 +45,23 @@ class RefreshTokenJobService : JobService() {
             val service = fronteggAuth as FronteggAuthService
             try {
                 service.sendRefreshToken()
-                Log.d(TAG, "Job finished")
             } catch (e: Exception) {
-                Log.e(TAG, "Job unknown error occurred", e)
-                // Catch unhandled exception
-                FronteggState.accessToken.value = null
-                FronteggState.isLoading.value = true
                 isError = true
-                if (e is SocketTimeoutException) {
-                    service.refreshTokenTimer.scheduleTimer(20000)
+                
+                when (e) {
+                    is com.frontegg.android.exceptions.FailedToAuthenticateException -> {
+                        // Refresh token is invalid, clear all credentials
+                        service.clearCredentials()
+                    }
+                    is SocketTimeoutException -> {
+                        // Network timeout, retry later
+                        service.refreshTokenTimer.scheduleTimer(10000)
+                    }
+                    else -> {
+                        // Other errors, clear access token but keep refresh token for retry
+                        FronteggState.accessToken.value = null
+                        FronteggState.isLoading.value = true
+                    }
                 }
             } finally {
                 FronteggRefreshTokenTimer.lastJobStart = Instant.now().toEpochMilli()
