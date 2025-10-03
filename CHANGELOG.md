@@ -1,3 +1,7 @@
+## v
+Fixed long-text exception when receiving timeout exception
+Fixed logout issue after 30m inactive state
+
 ## v1.3.4
 Fixed bug with unauthorized exceptions for weak network connections
 Added auto reconnect when connection was established.
