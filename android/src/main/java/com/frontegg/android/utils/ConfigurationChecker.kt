@@ -36,7 +36,11 @@ class AndroidDebugConfigurationChecker(
                 Log.d(TAG, "✅ All debug checks completed.")
             } catch (e: DebugCheckException) {
                 Log.e(TAG, "❌ ERROR: ${e.message}")
-                throw e
+                // Don't rethrow DebugCheckException to prevent crashes
+                // Debug checks are not critical for app functionality
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ ERROR: Unexpected error during debug checks - ${e.localizedMessage}")
+                // Don't rethrow any exceptions to prevent crashes
             }
         }
     }
@@ -46,6 +50,12 @@ class AndroidDebugConfigurationChecker(
      */
     private suspend fun validateAssetLinks() {
         val response = makeHttpRequest(assetLinksUrl)
+        
+        // If HTTP request failed (empty response), skip validation
+        if (response.isEmpty()) {
+            Log.w(TAG, "⚠️ WARNING: Could not validate asset links due to network issues")
+            return
+        }
 
         try {
             val jsonArray = JSONArray(response)
@@ -119,6 +129,10 @@ class AndroidDebugConfigurationChecker(
         val finalUrl = buildUrlWithParams(oauthPreloginEndpoint, queryParams)
 
         val responseCode = makeHttpRequestForStatus(finalUrl)
+        if (responseCode == -1) {
+            Log.w(TAG, "⚠️ WARNING: Could not validate redirect URI due to network issues")
+            return
+        }
         if (responseCode != 200) {
             throw DebugCheckException("❌ ERROR: Redirect URI is invalid. Status: $responseCode")
         }
@@ -132,6 +146,8 @@ class AndroidDebugConfigurationChecker(
                 val url = URL(urlString)
                 val connection = url.openConnection() as HttpURLConnection
                 connection.requestMethod = "GET"
+                connection.connectTimeout = 10000 // 10 seconds timeout
+                connection.readTimeout = 10000 // 10 seconds timeout
 
                 try {
                     connection.inputStream.bufferedReader().use { it.readText() }
@@ -140,21 +156,31 @@ class AndroidDebugConfigurationChecker(
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "❌ ERROR: Failed to make HTTP request - ${e.localizedMessage}")
-                throw e
+                // Don't rethrow the exception to prevent crashes during debug checks
+                // Return empty string instead to indicate failure
+                ""
             }
         }
     }
 
     private suspend fun makeHttpRequestForStatus(urlString: String): Int {
         return withContext(ioDispatcher) {
-            val url = URL(urlString)
-            val connection = url.openConnection() as HttpURLConnection
-            connection.requestMethod = "GET"
-
             try {
-                connection.responseCode
-            } finally {
-                connection.disconnect()
+                val url = URL(urlString)
+                val connection = url.openConnection() as HttpURLConnection
+                connection.requestMethod = "GET"
+                connection.connectTimeout = 10000 // 10 seconds timeout
+                connection.readTimeout = 10000 // 10 seconds timeout
+
+                try {
+                    connection.responseCode
+                } finally {
+                    connection.disconnect()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "❌ ERROR: Failed to make HTTP request for status - ${e.localizedMessage}")
+                // Return error status code instead of throwing exception
+                -1
             }
         }
     }

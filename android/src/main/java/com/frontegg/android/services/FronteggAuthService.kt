@@ -199,17 +199,28 @@ class FronteggAuthService(
         }
     }
 
-    override fun refreshTokenIfNeeded(): Boolean {
+    @Volatile
+    private var refreshingInProgress = false
 
-        val rt = this.refreshToken.value
-        val at = this.accessToken.value
-        Log.d(TAG, "refreshTokenIfNeeded() currentTokens access='${maskToken(at)}' refresh='${maskToken(rt)}'")
+    override fun refreshTokenIfNeeded(): Boolean {
+        // Prevent multiple simultaneous refresh attempts
+        if (refreshingInProgress) {
+            return false
+        }
 
         return try {
+            refreshingInProgress = true
             this.sendRefreshToken()
+        } catch (e: FailedToAuthenticateException) {
+            Log.e(TAG, "Refresh token is invalid, clearing credentials", e)
+            // Clear credentials when refresh token is invalid
+            clearCredentials()
+            false
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send refresh token request", e)
             false
+        } finally {
+            refreshingInProgress = false
         }
     }
 
@@ -295,7 +306,6 @@ class FronteggAuthService(
     ): User {
         isLoading.value = true
         try {
-            Log.d(TAG, "Requesting silent authorization with refresh and device tokens")
 
             // Call API to authorize with tokens
             val authResponse = withContext(ioDispatcher) {
@@ -310,7 +320,6 @@ class FronteggAuthService(
 
             throw FailedToAuthenticateException(error = "Failed to authenticate")
         } catch (e: Exception) {
-            Log.e(TAG, "Authorization request failed: ${e.message}", e)
             isLoading.value = false
             throw e
         }
@@ -328,7 +337,6 @@ class FronteggAuthService(
                     callback(Result.success(user))
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to authenticate: ${e.message}", e)
                 withContext(mainDispatcher) {
                     callback(Result.failure(e))
                 }
@@ -361,31 +369,32 @@ class FronteggAuthService(
     }
 
 
-    private fun setCredentials(accessToken: String, refreshToken: String) {
+    private fun setCredentials(accessToken: String, refreshToken: String): Boolean {
 
         if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
         ) {
-            Log.d(TAG, "setCredentials() saved tokens access='${maskToken(accessToken)}' refresh='${maskToken(refreshToken)}', going to get user info")
 
             try {
                 val user = api.me()
                 if (user != null) {
                     updateStateWithCredentials(accessToken, refreshToken, user)
+                    return true
                 } else {
-                    Log.e(TAG, "Failed to fetch user info via api.me(), user is null")
                     // Don't clear credentials on network errors - keep tokens for retry
                     this.isLoading.value = false
                     this.initializing.value = false
+                    return false
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to fetch user info via api.me()", e)
                 // Don't clear credentials on network errors - keep tokens for retry
                 this.isLoading.value = false
                 this.initializing.value = false
+                return false
             }
         } else {
             clearCredentials()
+            return false
         }
     }
 
@@ -401,7 +410,6 @@ class FronteggAuthService(
         val decoded = JWTHelper.decode(accessToken)
         if (decoded.exp > 0) {
             val offset = decoded.exp.calculateTimerOffset()
-            Log.d(TAG, "setCredentials, schedule for $offset")
 
             refreshTokenTimer.scheduleTimer(offset)
         }
@@ -414,8 +422,7 @@ class FronteggAuthService(
         setCredentials(accessToken, refreshToken)
     }
 
-    private fun clearCredentials() {
-        Log.d(TAG, "clearCredentials()")
+    fun clearCredentials() {
         this.refreshToken.value = null
         this.accessToken.value = null
         this.user.value = null
@@ -484,7 +491,6 @@ class FronteggAuthService(
 
     @VisibleForTesting
     internal fun initializeSubscriptions() {
-        Log.d(TAG, "initializeSubscriptions")
         Observable.merge(
             isLoading.observable,
             isAuthenticated.observable,
@@ -499,7 +505,6 @@ class FronteggAuthService(
 
             val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
             val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)
-            Log.d(TAG, "initializeSubscriptions() saved tokens access='${maskToken(accessTokenSaved)}' refresh='${maskToken(refreshTokenSaved)}'")
 
             if (accessTokenSaved != null && refreshTokenSaved != null) {
                 accessToken.value = accessTokenSaved
@@ -509,7 +514,9 @@ class FronteggAuthService(
                     // Check if this is a network error or auth error
                     if (isNetworkError()) {
                         // Offline-safe: keep saved refresh token to allow later reconnect
+                        // But mark as not authenticated until we can refresh
                         accessToken.value = null
+                        isAuthenticated.value = false
                         // keep refreshToken.value as is
                     } else {
                         // Auth error: clear tokens as refresh token is invalid
@@ -539,8 +546,8 @@ class FronteggAuthService(
         try {
             val data = api.refreshToken(refreshToken)
             lastRefreshError = null // Clear error on success
-            setCredentials(data.access_token, data.refresh_token)
-            return true
+            val success = setCredentials(data.access_token, data.refresh_token)
+            return success
         } catch (e: Exception) {
             lastRefreshError = e
             throw e
@@ -591,12 +598,10 @@ class FronteggAuthService(
         if (decoded.exp > 0) {
             val offset = decoded.exp.calculateTimerOffset()
             if (offset <= 0) {
-                Log.d(TAG, "Refreshing Token...")
                 bgScope.launch {
                     refreshTokenIfNeeded()
                 }
             } else {
-                Log.d(TAG, "Schedule Refreshing Token for $offset")
                 refreshTokenTimer.scheduleTimer(offset)
             }
         }
