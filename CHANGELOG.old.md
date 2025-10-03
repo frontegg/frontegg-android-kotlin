@@ -1,3 +1,7 @@
+## v1.3.4
+Fixed bug with unauthorized exceptions for weak network connections
+Added auto reconnect when connection was established.
+
 ## v1.3.3
 Add auto-reconnect when exiting offline mode
 
@@ -249,5 +253,6 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
+
 
 
