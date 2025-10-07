@@ -70,8 +70,7 @@ class SocialLoginUrlGenerator private constructor() {
             val clientId = storage.clientId.ifBlank { 
                 storage.selectedRegion?.clientId ?: storage.regions.firstOrNull()?.clientId ?: ""
             }
-            Log.d(TAG, "Using Frontegg client_id: $clientId")
-            Log.d(TAG, "Using OAuth redirect_uri: $redirectUri")
+            
             
             val builder = Uri.parse("$baseUrl/oauth/authorize").buildUpon()
                 .appendQueryParameter("redirect_uri", redirectUri)
@@ -81,23 +80,24 @@ class SocialLoginUrlGenerator private constructor() {
                 .appendQueryParameter("prompt", "login")
                 .appendQueryParameter("login_direct_action", encodedAction)
             
-            // Add PKCE if enabled
+            // Always add PKCE like iOS
             try {
-                if (authService.featureFlags.isOnSync("identity-sso-force-pkce")) {
-                    val codeVerifier = PKCEUtils.getCodeVerifierFromWebview(context)
-                    val codeChallenge = PKCEUtils.generateCodeChallenge(codeVerifier)
-                    
-                    builder.appendQueryParameter("code_challenge", codeChallenge)
-                    builder.appendQueryParameter("code_challenge_method", "S256")
-                    
-                    Log.d(TAG, "Added PKCE parameters for ${provider.value}")
-                }
+                val codeVerifier = PKCEUtils.getCodeVerifierFromWebview(context)
+                val codeChallenge = PKCEUtils.generateCodeChallenge(codeVerifier)
+
+                // Persist verifier to ensure exchangeToken uses the same value (parity with iOS)
+                (context.fronteggAuth as FronteggAuthService).credentialManager.saveCodeVerifier(codeVerifier)
+
+                builder.appendQueryParameter("code_challenge", codeChallenge)
+                builder.appendQueryParameter("code_challenge_method", "S256")
+                
+                Log.d(TAG, "Added PKCE parameters for ${provider.value}")
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to add PKCE parameters for ${provider.value}", e)
             }
             
             val url = builder.build().toString()
-            Log.v(TAG, "Generated Frontegg OAuth URL for ${provider.value}: $url")
+            
             url
         } catch (e: Exception) {
             Log.e(TAG, "Failed to generate authorization URL for ${provider.value}", e)
@@ -118,7 +118,7 @@ class SocialLoginUrlGenerator private constructor() {
                 return false
             }
             this.socialLoginConfig = config
-            Log.i(TAG, "Loaded social login configs: $config")
+            
             true
         } catch (e: Exception) {
             Log.e(TAG, "Failed to load social login configs: ${e.message}", e)
@@ -135,7 +135,7 @@ class SocialLoginUrlGenerator private constructor() {
             try {
                 reloadConfigs(context)
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to load social login config, using defaults: ${e.message}")
+                
                 // Continue with null config - will use defaults
             }
         }
@@ -203,8 +203,7 @@ class SocialLoginUrlGenerator private constructor() {
             // 5. PKCE Challenge
             if (details.requiresPKCE) {
                 try {
-                    val authService = context.fronteggAuth as com.frontegg.android.services.FronteggAuthService
-                    if (authService.featureFlags.isOnSync("identity-sso-force-pkce")) {
+                    if ((context.fronteggAuth as com.frontegg.android.services.FronteggAuthService).featureFlags.isOnSync("identity-sso-force-pkce")) {
                         val codeVerifier = com.frontegg.android.utils.PKCEUtils.getCodeVerifierFromWebview(context)
                         val codeChallenge = com.frontegg.android.utils.PKCEUtils.generateCodeChallenge(codeVerifier)
                         
@@ -230,7 +229,7 @@ class SocialLoginUrlGenerator private constructor() {
             }
             
             val url = builder.build().toString()
-            Log.v(TAG, "Built URL for ${provider.value}: $url")
+            
             url
         } catch (e: Exception) {
             Log.e(TAG, "Failed to build provider URL for ${provider.value}", e)
@@ -262,7 +261,7 @@ class SocialLoginUrlGenerator private constructor() {
             
             gson.toJson(stateObject)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to create state for ${provider.value}", e)
+            
             // Return minimal state as fallback
             JsonObject().apply {
                 addProperty("provider", provider.value)

@@ -197,10 +197,15 @@ open class Api(
 
         val call = buildPostRequest(ApiConstants.exchangeToken, body)
         val response = call.execute()
-        if (response.isSuccessful) {
-            return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+        response.use { // Ensure body is closed to avoid connection leaks
+            if (it.isSuccessful) {
+                return Gson().fromJson(it.body!!.string(), AuthResponse::class.java)
+            } else {
+                val errorBody = it.body?.string()
+                Log.e(TAG, "exchangeToken failed: code=${it.code}, body=$errorBody")
+                return null
+            }
         }
-        return null
     }
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)

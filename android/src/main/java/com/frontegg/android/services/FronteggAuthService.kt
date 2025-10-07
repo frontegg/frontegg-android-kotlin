@@ -190,7 +190,7 @@ class FronteggAuthService(
         tenantId: String,
         callback: (Boolean) -> Unit,
     ) {
-        Log.d(TAG, "switchTenant()")
+        
         bgScope.launch {
             val handler = Handler(Looper.getMainLooper())
 
@@ -216,15 +216,12 @@ class FronteggAuthService(
     }
 
     override fun refreshTokenIfNeeded(): Boolean {
-
-        val rt = this.refreshToken.value
-        val at = this.accessToken.value
-        Log.d(TAG, "refreshTokenIfNeeded() currentTokens access='${maskToken(at)}' refresh='${maskToken(rt)}'")
+        
 
         return try {
             this.sendRefreshToken()
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send refresh token request", e)
+                Log.e(TAG, "Failed to send refresh token request", e)
             false
         }
     }
@@ -252,7 +249,7 @@ class FronteggAuthService(
                     api.webAuthnPostlogin(webAuthnPreloginRequest.cookie, challengeResponse)
                 }
 
-                Log.i(TAG, "Login with Passkeys succeeded, exchanging oauth token")
+                
                 withContext(ioDispatcher) {
                     setCredentials(
                         webAuthnPostLoginResponse.access_token,
@@ -296,6 +293,7 @@ class FronteggAuthService(
                 callback?.invoke(null)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to login with passkeys", e)
+                Log.e(TAG, "Failed to login with passkeys", e)
                 if (isWebAuthnRegisteredBeforeException(e)) {
                     callback?.invoke(WebAuthnAlreadyRegisteredInLocalDeviceException())
                 } else {
@@ -311,7 +309,7 @@ class FronteggAuthService(
     ): User {
         isLoading.value = true
         try {
-            Log.d(TAG, "Requesting silent authorization with refresh and device tokens")
+            
 
             // Call API to authorize with tokens
             val authResponse = withContext(ioDispatcher) {
@@ -382,7 +380,7 @@ class FronteggAuthService(
         if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
             && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
         ) {
-            Log.d(TAG, "setCredentials() saved tokens access='${maskToken(accessToken)}' refresh='${maskToken(refreshToken)}', going to get user info")
+        
 
             try {
                 val user = api.me()
@@ -429,7 +427,7 @@ class FronteggAuthService(
     }
 
     private fun clearCredentials() {
-        Log.d(TAG, "clearCredentials()")
+        
         this.refreshToken.value = null
         this.accessToken.value = null
         this.user.value = null
@@ -441,13 +439,14 @@ class FronteggAuthService(
         webView: WebView? = null,
         activity: Activity? = null,
         callback: (() -> Unit)? = null,
+        redirectUrlOverride: String? = null,
     ): Boolean {
         if (stepUpAuthenticator.handleHostedLoginCallback(activity)) {
             return false
         }
 
         val codeVerifier = credentialManager.getCodeVerifier()
-        val redirectUrl = Constants.oauthCallbackUrl(baseUrl)
+        val redirectUrl = redirectUrlOverride ?: Constants.oauthCallbackUrl(baseUrl)
 
         if (codeVerifier == null) {
             return false
@@ -498,7 +497,7 @@ class FronteggAuthService(
 
     @VisibleForTesting
     internal fun initializeSubscriptions() {
-        Log.d(TAG, "initializeSubscriptions")
+        
         Observable.merge(
             isLoading.observable,
             isAuthenticated.observable,
@@ -513,7 +512,7 @@ class FronteggAuthService(
 
             val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
             val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)
-            Log.d(TAG, "initializeSubscriptions() saved tokens access='${maskToken(accessTokenSaved)}' refresh='${maskToken(refreshTokenSaved)}'")
+            
 
             if (accessTokenSaved != null && refreshTokenSaved != null) {
                 accessToken.value = accessTokenSaved
@@ -521,7 +520,7 @@ class FronteggAuthService(
 
                 if (!refreshTokenIfNeeded()) {
                     // Offline-safe: keep saved refresh token to allow later reconnect
-                    Log.d(TAG, "initializeSubscriptions(): refresh failed; preserving saved refresh token")
+                    
                     accessToken.value = null
                     // keep refreshToken.value as is
                     initializing.value = false
@@ -546,7 +545,7 @@ class FronteggAuthService(
         val refreshToken = this.refreshToken.value ?: return false
         this.refreshingToken.value = true
         try {
-            Log.d(TAG, "sendRefreshToken() with refresh='${maskToken(refreshToken)}'")
+            
             val data = api.refreshToken(refreshToken)
             return if (data != null) {
                 setCredentials(data.access_token, data.refresh_token)
@@ -589,12 +588,12 @@ class FronteggAuthService(
         if (decoded.exp > 0) {
             val offset = decoded.exp.calculateTimerOffset()
             if (offset <= 0) {
-                Log.d(TAG, "Refreshing Token...")
+                
                 bgScope.launch {
                     refreshTokenIfNeeded()
                 }
             } else {
-                Log.d(TAG, "Schedule Refreshing Token for $offset")
+                
                 refreshTokenTimer.scheduleTimer(offset)
             }
         }
@@ -606,7 +605,7 @@ class FronteggAuthService(
      * @return URL to redirect to after successful callback processing, or null if failed
      */
     fun handleSocialLoginCallback(url: String): String? {
-        Log.d(TAG, "handleSocialLoginCallback called with url: $url")
+        
         
         return try {
             val uri = Uri.parse(url)
@@ -683,10 +682,13 @@ class FronteggAuthService(
             }
             
             val redirectUri = defaultRedirectUri()
-            successQueryParams["redirectUri"] = android.net.Uri.encode(redirectUri, ":/?#[]@!$&'()*+,;=")
+            // Encode redirectUri like iOS: allow only alphanumerics
+            val alphaNum = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+            successQueryParams["redirectUri"] = android.net.Uri.encode(redirectUri, alphaNum)
             
             if (!processedState.isNullOrEmpty()) {
-                successQueryParams["state"] = android.net.Uri.encode(processedState, ":/?#[]@!$&'()*+,;=")
+                val alphaNumState = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+                successQueryParams["state"] = android.net.Uri.encode(processedState, alphaNumState)
             }
             
             // Build query string safely (like Swift)
@@ -695,7 +697,7 @@ class FronteggAuthService(
             }
             
             val finalUrl = "${storage.baseUrl}/oauth/account/social/success?$queryString"
-            Log.d(TAG, "Social login callback processed successfully, redirecting to: $finalUrl")
+            
             return finalUrl
             
         } catch (e: Exception) {
@@ -713,7 +715,7 @@ class FronteggAuthService(
         action: com.frontegg.android.models.SocialLoginAction = com.frontegg.android.models.SocialLoginAction.LOGIN,
         ephemeralSession: Boolean? = true
     ) {
-        Log.d(TAG, "loginWithSocialLoginProvider: ${provider.value}, action: ${action.value}")
+        
         
         try {
             val urlGenerator = com.frontegg.android.utils.SocialLoginUrlGenerator.getInstance()
@@ -724,14 +726,14 @@ class FronteggAuthService(
                 return
             }
             
-            Log.d(TAG, "Generated auth URL: $authURL")
+            
             
             val webAuthenticator = com.frontegg.android.utils.WebAuthenticator.getInstance()
             webAuthenticator.start(activity, authURL, ephemeralSession ?: true) { callbackURL, error ->
                 if (error != null) {
                     Log.e(TAG, "Social login error: ${error.message}")
                 } else if (callbackURL != null) {
-                    Log.d(TAG, "Social login callback URL: $callbackURL")
+                    
                     
                     // Handle the callback
                     val redirectURL = handleSocialLoginCallback(callbackURL)
@@ -779,13 +781,8 @@ class FronteggAuthService(
     fun defaultSocialLoginRedirectUri(): String {
         val baseUrl = storage.baseUrl
         val baseRedirectUri = "$baseUrl/oauth/account/social/success"
-        
-        return try {
-            android.net.Uri.encode(baseRedirectUri, ":/?#[]@!$&'()*+,;=")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to encode social login redirect URI", e)
-            baseRedirectUri
-        }
+        // Return raw; encoding is applied where used as query param
+        return baseRedirectUri
     }
 
     /**
@@ -796,13 +793,8 @@ class FronteggAuthService(
         val baseUrl = storage.baseUrl
         val packageName = storage.packageName
         val baseRedirectUri = "$baseUrl/oauth/account/redirect/android/$packageName"
-        
-        return try {
-            android.net.Uri.encode(baseRedirectUri, ":/?#[]@!$&'()*+,;=")
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to encode redirect URI", e)
-            baseRedirectUri
-        }
+        // Return raw; encoding is applied where used as query param
+        return baseRedirectUri
     }
 
 }

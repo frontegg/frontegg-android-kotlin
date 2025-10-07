@@ -63,15 +63,27 @@ class FronteggWebClient(
     private var currentWebView: WebView? = null
 
     fun getFormAction(): String {
-        // Check if current URL contains "/oauth/account/sign-up" to determine form action
+        // Ensure WebView access on main thread
         return try {
-            currentWebView?.url?.let { url ->
-                if (url.contains("/oauth/account/sign-up")) {
-                    "signUp"
-                } else {
-                    "login"
+            var result = "login"
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                val url = currentWebView?.url
+                result = if (url?.contains("/oauth/account/sign-up") == true) "signUp" else "login"
+            } else {
+                val latch = java.util.concurrent.CountDownLatch(1)
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        val url = currentWebView?.url
+                        result = if (url?.contains("/oauth/account/sign-up") == true) "signUp" else "login"
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "Failed to get formAction from URL on main thread, using default", t)
+                    } finally {
+                        latch.countDown()
+                    }
                 }
-            } ?: "login"
+                latch.await(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+            }
+            result
         } catch (e: Exception) {
             Log.w(TAG, "Failed to get formAction from URL, using default", e)
             "login"
@@ -80,7 +92,7 @@ class FronteggWebClient(
 
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
-        Log.d(TAG, "onPageStarted $url")
+        
         FronteggState.isLoading.value = true
 
         // Store reference to current WebView
@@ -93,7 +105,7 @@ class FronteggWebClient(
     private var lastTimer: TimerTask? = null
     override fun onPageFinished(view: WebView?, url: String?) {
         super.onPageFinished(view, url)
-        Log.d(TAG, "onPageFinished $url")
+        
 
         try {
             if (url != null) {
@@ -172,7 +184,7 @@ class FronteggWebClient(
         // Check if the error code matches the no network error code.
         if (error.errorCode == ERROR_HOST_LOOKUP || error.errorCode == ERROR_CONNECT || error.errorCode == ERROR_TIMEOUT) {
             // Handle the no network connection error
-            Log.d(TAG, "No network connection: ${error.description}")
+            
             try {
                 val errorMessage = "Check your internet connection and try again."
                 val htmlError = Html.escapeHtml(errorMessage)
@@ -272,12 +284,10 @@ class FronteggWebClient(
         if (view.url == requestUrl.toString()
             || requestUrl.toString().startsWith(authorizeUrlPrefix)
         ) {
-            Log.d(TAG, "onReceivedHttpError: Direct load url, ${requestUrl.path}")
+            
             webViewStatusCode = errorResponse?.statusCode ?: 200
             lastErrorResponse = errorResponse
-        } else {
-            Log.d(TAG, "onReceivedHttpError: HTTP api call, ${request.url?.path}")
-        }
+        } 
 
         super.onReceivedHttpError(view, request, errorResponse)
     }
@@ -477,10 +487,10 @@ class FronteggWebClient(
         @Suppress("UNUSED_PARAMETER") webView: WebView,
         uri: Uri
     ): Boolean {
-        Log.d(TAG, "setSocialLoginRedirectUri setting redirect uri for social login")
+        
 
         if (uri.getQueryParameter("redirectUri") != null) {
-            Log.d(TAG, "redirectUri exist, forward navigation to webView")
+            
             return false
         }
         val baseUrl = storage.baseUrl
@@ -527,12 +537,9 @@ class FronteggWebClient(
 
 
     private fun handleHostedLoginCallback(webView: WebView?, query: String?): Boolean {
-        Log.d(TAG, "handleHostedLoginCallback received query: $query")
+        
         if (query == null || webView == null) {
-            Log.d(
-                TAG,
-                "handleHostedLoginCallback failed of nullable value, query: $query, webView: $webView"
-            )
+            
             return false
         }
 
@@ -542,7 +549,7 @@ class FronteggWebClient(
         val code = querySanitizer.getValue("code")
 
         if (code == null) {
-            Log.d(TAG, "handleHostedLoginCallback failed of nullable code value, query: $query")
+            
             return false
         }
 
@@ -561,15 +568,15 @@ class FronteggWebClient(
     }
 
     private fun handleSocialLoginCallback(webView: WebView?, url: Uri): Boolean {
-        Log.d(TAG, "handleSocialLoginCallback received url: $url")
+        
         if (webView == null) {
-            Log.d(TAG, "handleSocialLoginCallback failed: webView is null")
+            
             return false
         }
 
         val query = url.query
         if (query == null) {
-            Log.d(TAG, "handleSocialLoginCallback failed: query is null")
+            
             return false
         }
 
@@ -584,7 +591,7 @@ class FronteggWebClient(
         val idToken = querySanitizer.getValue("id_token")
 
         if (state == null) {
-            Log.d(TAG, "handleSocialLoginCallback failed: state is null")
+            
             return false
         }
 
@@ -599,7 +606,7 @@ class FronteggWebClient(
                 return false
             }
 
-            Log.d(TAG, "handleSocialLoginCallback processing for provider: $provider")
+            
 
             // Call FronteggAuthService to handle the social login callback
             val redirectUrl = (context.fronteggAuth as FronteggAuthService).handleSocialLoginCallback(url.toString())
@@ -621,19 +628,36 @@ class FronteggWebClient(
      */
     private fun handleSocialLoginSuccessRedirect(view: WebView?, url: String) {
         try {
-            Log.d(TAG, "Handling social login success redirect for URL: $url")
+            
             
             val uri = Uri.parse(url)
             val redirectUri = uri.getQueryParameter("redirectUri")
+            val code = uri.getQueryParameter("code")
             
             if (!redirectUri.isNullOrEmpty()) {
-                Log.d(TAG, "Found redirectUri parameter: $redirectUri")
+                
                 
                 // Decode the redirect URI
                 val decodedRedirectUri = Uri.decode(redirectUri)
-                Log.d(TAG, "Decoded redirectUri: $decodedRedirectUri")
                 
-                // Redirect to the decoded URI
+                
+                // If code present – exchange immediately (parity with iOS flow)
+                if (!code.isNullOrEmpty()) {
+                    
+                    val auth = context.fronteggAuth as FronteggAuthService
+                    Handler(Looper.getMainLooper()).post {
+                        auth.handleHostedLoginCallback(
+                            code = code,
+                            webView = view,
+                            activity = null,
+                            callback = null,
+                            redirectUrlOverride = decodedRedirectUri
+                        )
+                    }
+                    return
+                }
+
+                // Otherwise, follow redirect
                 view?.loadUrl(decodedRedirectUri)
             } else {
                 Log.w(TAG, "No redirectUri parameter found in social login success URL")
