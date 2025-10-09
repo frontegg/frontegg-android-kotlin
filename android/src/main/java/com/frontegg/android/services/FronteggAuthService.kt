@@ -72,9 +72,6 @@ class FronteggAuthService(
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
     private val stepUpAuthenticator =
         StepUpAuthenticatorProvider.getStepUpAuthenticator(credentialManager)
-    
-    @Volatile
-    private var refreshingInProgress = false
 
     override val isMultiRegion: Boolean
         get() = regions.isNotEmpty()
