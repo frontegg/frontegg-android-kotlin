@@ -21,6 +21,7 @@ class ApiConstants {
          * used to get oauth accessToken/refreshToken without webview
          */
         const val silentRefreshToken: String = "oauth/authorize/silent"
+        const val socialLoginPostLogin: String = "oauth/account/social/{provider}/post-login"
 
     }
 }

@@ -9,6 +9,7 @@ import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
+import com.frontegg.android.models.SocialLoginPostLoginRequest
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest

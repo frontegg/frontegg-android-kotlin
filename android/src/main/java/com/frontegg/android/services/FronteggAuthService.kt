@@ -24,6 +24,7 @@ import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.calculateTimerOffset
+import com.google.gson.JsonParser
 import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
@@ -71,6 +72,9 @@ class FronteggAuthService(
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
     private val stepUpAuthenticator =
         StepUpAuthenticatorProvider.getStepUpAuthenticator(credentialManager)
+    
+    @Volatile
+    private var refreshingInProgress = false
 
     override val isMultiRegion: Boolean
         get() = regions.isNotEmpty()
@@ -427,7 +431,7 @@ class FronteggAuthService(
         setCredentials(accessToken, refreshToken)
     }
 
-    private fun clearCredentials() { 
+    fun clearCredentials() { 
         this.refreshToken.value = null
         this.accessToken.value = null
         this.user.value = null
