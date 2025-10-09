@@ -31,7 +31,11 @@ import java.io.IOException
 open class Api(
     private var credentialManager: CredentialManager
 ) {
-    private var httpClient: OkHttpClient = OkHttpClient()
+    private var httpClient: OkHttpClient = OkHttpClient.Builder()
+        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS) // For slow networks (EDGE)
+        .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)   // For slow networks (EDGE)
+        .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
     private val storage = StorageProvider.getInnerStorage()
     private val baseUrl: String
         get() {

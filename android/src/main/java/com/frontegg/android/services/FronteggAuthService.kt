@@ -201,6 +201,9 @@ class FronteggAuthService(
 
     @Volatile
     private var refreshingInProgress = false
+    private var refreshRetryCount = 0
+    private val maxRetries = 2
+    private val baseRetryDelayMs = 3000L
 
     override fun refreshTokenIfNeeded(): Boolean {
         // Prevent multiple simultaneous refresh attempts
@@ -210,15 +213,33 @@ class FronteggAuthService(
 
         return try {
             refreshingInProgress = true
-            this.sendRefreshToken()
+            val success = this.sendRefreshToken()
+            if (success) {
+                refreshRetryCount = 0 // Reset on success
+            }
+            success
         } catch (e: FailedToAuthenticateException) {
             Log.e(TAG, "Refresh token is invalid, clearing credentials", e)
+            refreshRetryCount = 0
             // Clear credentials when refresh token is invalid
             clearCredentials()
             false
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to send refresh token request", e)
-            false
+            Log.e(TAG, "Failed to send refresh token request (attempt ${refreshRetryCount + 1})", e)
+            
+            // Retry on network errors only
+            if (isNetworkError() && refreshRetryCount < maxRetries) {
+                refreshRetryCount++
+                val delayMs = baseRetryDelayMs * refreshRetryCount // 3s, 6s
+                Log.d(TAG, "Scheduling retry in ${delayMs}ms (attempt ${refreshRetryCount}/$maxRetries)")
+                
+                // Schedule retry using the timer
+                refreshTokenTimer.scheduleTimer(delayMs)
+                return false
+            } else {
+                refreshRetryCount = 0
+                return false
+            }
         } finally {
             refreshingInProgress = false
         }
@@ -517,13 +538,13 @@ class FronteggAuthService(
                         // But mark as not authenticated until we can refresh
                         accessToken.value = null
                         isAuthenticated.value = false
+                        isLoading.value = true // Keep loading state for retry
                         // keep refreshToken.value as is
                     } else {
                         // Auth error: clear tokens as refresh token is invalid
                         clearCredentials()
                     }
                     initializing.value = false
-                    isLoading.value = false
                 }
 
             } else {
@@ -546,8 +567,41 @@ class FronteggAuthService(
         try {
             val data = api.refreshToken(refreshToken)
             lastRefreshError = null // Clear error on success
-            val success = setCredentials(data.access_token, data.refresh_token)
-            return success
+            
+            // Save new tokens immediately to prevent rotation issues
+            credentialManager.save(CredentialKeys.REFRESH_TOKEN, data.refresh_token)
+            credentialManager.save(CredentialKeys.ACCESS_TOKEN, data.access_token)
+            
+            // Update state with new tokens
+            this.refreshToken.value = data.refresh_token
+            this.accessToken.value = data.access_token
+            
+            // Try to get user info, but don't fail if network is slow
+            try {
+                val user = api.me()
+                if (user != null) {
+                    this.user.value = user
+                    this.isAuthenticated.value = true
+                    
+                    // Schedule next refresh timer
+                    refreshTokenTimer.cancelLastTimer()
+                    val decoded = JWTHelper.decode(data.access_token)
+                    if (decoded.exp > 0) {
+                        val offset = decoded.exp.calculateTimerOffset()
+                        refreshTokenTimer.scheduleTimer(offset)
+                    }
+                }
+            } catch (e: Exception) {
+                // If me() fails due to network, keep tokens but mark as loading
+                Log.w(TAG, "Failed to fetch user info after token refresh, keeping tokens", e)
+                this.isLoading.value = true
+            }
+            
+            // Always set initializing to false after successful token refresh
+            this.initializing.value = false
+            this.isLoading.value = false
+            
+            return true
         } catch (e: Exception) {
             lastRefreshError = e
             throw e
