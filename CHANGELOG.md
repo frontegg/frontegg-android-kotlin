@@ -1,3 +1,6 @@
+## v
+to social login redirecting added support MFA and Sign Up
+
 ## v1.3.5
 Fixed long-text exception when receiving timeout exception
 Fixed logout issue after 30m inactive state
