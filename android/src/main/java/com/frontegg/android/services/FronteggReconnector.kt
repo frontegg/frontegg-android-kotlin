@@ -78,8 +78,7 @@ object FronteggReconnector {
                         delay(50)
                     }
                 } catch (t: Throwable) {
-                    when (t) {
-                    }
+                    Log.e(TAG, "Failed to handle network reconnect", t)
                 }
 
                 // Always try to refresh if possible, swallow network errors
@@ -92,8 +91,7 @@ object FronteggReconnector {
                         // If FronteggApp not initialized, skip refresh
                     }
                 } catch (t: Throwable) {
-                    when (t) {
-                    }
+                    Log.e(TAG, "Failed to handle network reconnect", t)
                 }
             }
         }

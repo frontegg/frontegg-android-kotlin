@@ -527,7 +527,6 @@ class FronteggAuthServiceTest {
         )
         every { apiMock.getWebAuthnRegisterChallenge() }.returns(request)
 
-
         mockkObject(ScopeProvider)
         every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
 
@@ -538,11 +537,7 @@ class FronteggAuthServiceTest {
         )
 
         auth.registerPasskeys(mockActivity)
-        
-        // Wait a bit for the coroutine to complete
-        delay(100)
-        
-        verify { apiMock.getWebAuthnRegisterChallenge() }
+        verify(timeout = 1_000) { apiMock.getWebAuthnRegisterChallenge() }
     }
 
     @Test
@@ -599,11 +594,7 @@ class FronteggAuthServiceTest {
         coEvery { credentialManagerMockHandler.createPasskey(any()) }.returns(response)
 
         auth.registerPasskeys(mockActivity)
-        
-        // Wait a bit for the coroutine to complete
-        delay(100)
-        
-        verify { apiMock.verifyWebAuthnDevice(any(), any()) }
+        verify(timeout = 1_000) { apiMock.verifyWebAuthnDevice(any(), any()) }
     }
 
     @Test

@@ -9,6 +9,7 @@ import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
+import com.frontegg.android.models.SocialLoginPostLoginRequest
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
@@ -139,6 +140,7 @@ open class Api(
         return this.httpClient.newCall(request)
     }
 
+
     @Throws(IllegalArgumentException::class, IOException::class)
     fun me(): User? {
         val meCall = buildGetRequest(ApiConstants.me)
@@ -201,10 +203,15 @@ open class Api(
 
         val call = buildPostRequest(ApiConstants.exchangeToken, body)
         val response = call.execute()
-        if (response.isSuccessful) {
-            return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+        response.use { // Ensure body is closed to avoid connection leaks
+            if (it.isSuccessful) {
+                return Gson().fromJson(it.body!!.string(), AuthResponse::class.java)
+            } else {
+                val errorBody = it.body?.string()
+                Log.e(TAG, "exchangeToken failed: code=${it.code}, body=$errorBody")
+                return null
+            }
         }
-        return null
     }
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
@@ -407,5 +414,57 @@ open class Api(
             )
         }
         return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun socialLoginPostLogin(
+        provider: String,
+        request: SocialLoginPostLoginRequest
+    ): AuthResponse {
+        val gson = Gson()
+        val jsonObject = gson.toJsonTree(request).asJsonObject
+
+        val endpoint = ApiConstants.socialLoginPostLogin.replace("{provider}", provider)
+        val call = buildPostRequest(endpoint, jsonObject)
+        val response = call.execute()
+
+        val body = response.body
+        if (!response.isSuccessful || body == null) {
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
+        }
+        return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun getSocialLoginConfig(): com.frontegg.android.models.SocialLoginConfig {
+        val call = buildGetRequest("identity/resources/auth/v1/sso/config")
+        val response = call.execute()
+
+        val body = response.body
+        if (!response.isSuccessful || body == null) {
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
+        }
+        return Gson().fromJson(response.body!!.string(), com.frontegg.android.models.SocialLoginConfig::class.java)
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun getFeatureFlags(): String {
+        val call = buildGetRequest("identity/resources/auth/v1/feature-flags")
+        val response = call.execute()
+
+        val body = response.body
+        if (!response.isSuccessful || body == null) {
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
+        }
+        return response.body!!.string()
     }
 }
