@@ -69,10 +69,10 @@ class AuthenticationActivity : FronteggBaseActivity() {
                 FronteggState.isLoading.value = true
 
                 // Check if this is a social login callback
-                val intentUrl = intent.data?.toString()
-                if (intentUrl != null && intentUrl.contains("/oauth/account/redirect/android/")) {
+                val intentUrlString = intent.data?.toString()
+                if (intentUrlString != null && intentUrlString.contains("/oauth/account/redirect/android/")) {
                     Log.d(TAG, "Detected social login callback")
-                    val redirectUrl = (fronteggAuth as FronteggAuthService).handleSocialLoginCallback(intentUrl)
+                    val redirectUrl = (fronteggAuth as FronteggAuthService).handleSocialLoginCallback(intentUrlString)
                     if (redirectUrl != null && storage.isEmbeddedMode) {
                         // Load the redirect URL in EmbeddedAuthActivity WebView
                         val embeddedIntent = Intent(this, EmbeddedAuthActivity::class.java).apply {

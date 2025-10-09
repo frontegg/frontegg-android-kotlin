@@ -581,7 +581,7 @@ class FronteggAuthServiceTest {
         coEvery { credentialManagerMockHandler.createPasskey(any()) }.returns(response)
 
         auth.registerPasskeys(mockActivity)
-        verify { apiMock.verifyWebAuthnDevice(any(), any()) }
+        verify(timeout = 1_000) { apiMock.verifyWebAuthnDevice(any(), any()) }
     }
 
     @Test
