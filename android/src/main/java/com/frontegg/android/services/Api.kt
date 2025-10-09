@@ -9,7 +9,6 @@ import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
-import com.frontegg.android.models.SocialLoginPostLoginRequest
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
@@ -169,8 +168,8 @@ open class Api(
         return null
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class)
-    fun refreshToken(refreshToken: String): AuthResponse? {
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun refreshToken(refreshToken: String): AuthResponse {
         val body = JsonObject()
         body.addProperty("grant_type", "refresh_token")
         body.addProperty("refresh_token", refreshToken)
@@ -180,7 +179,13 @@ open class Api(
         if (response.isSuccessful) {
             return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
         }
-        return null
+        
+        // Throw exception for auth errors (401, 403, etc.)
+        val errorBody = response.body?.string() ?: "Unknown error occurred"
+        throw FailedToAuthenticateException(
+            response.headers,
+            "Refresh token failed: ${response.code} - $errorBody"
+        )
     }
 
     @Throws(IllegalArgumentException::class, IOException::class)

@@ -31,8 +31,11 @@ import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.verify
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.runBlocking
 import org.junit.Before
 import org.junit.Test
+import org.junit.jupiter.api.assertThrows
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
 
@@ -164,14 +167,16 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `sendRefreshToken should not call CredentialManager_save if Api_refreshToken returns null`() {
-        every { apiMock.refreshToken(any()) }.returns(null)
+    fun `sendRefreshToken should not call CredentialManager_save if Api_refreshToken throws exception`() {
+        auth.refreshToken.value = "TestRefreshToken"  // Set refresh token first
+        every { apiMock.refreshToken(any()) }.throws(Exception("Refresh token failed"))
         every { credentialManagerMock.save(any(), any()) }.returns(true)
 
-        val result = auth.sendRefreshToken()
+        assertThrows<Exception> {
+            auth.sendRefreshToken()
+        }
 
         verify(exactly = 0) { credentialManagerMock.save(any(), any()) }
-        assert(!result)
     }
 
     @Test
@@ -185,7 +190,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `logout should refresh FronteggAuth`() {
+    fun `logout should refresh FronteggAuth`() = runBlocking {
         val mockCookieManager = mockkClass(CookieManager::class)
         mockkStatic(CookieManager::class)
         every { CookieManager.getInstance() }.returns(mockCookieManager)
@@ -193,7 +198,7 @@ class FronteggAuthServiceTest {
         every { credentialManagerMock.clear() }.returns(Unit)
 
         auth.logout()
-        Thread.sleep(1_000)
+        delay(100)
         assert(auth.accessToken.value == null)
         assert(auth.refreshToken.value == null)
         assert(auth.user.value == null)
@@ -201,7 +206,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `logout should call Api_logout if isEmbeddedMode and cookies is not empty`() {
+    fun `logout should call Api_logout if isEmbeddedMode and cookies is not empty`() = runBlocking {
         val mockCookieManager = mockkClass(CookieManager::class)
         mockkStatic(CookieManager::class)
         every { CookieManager.getInstance() }.returns(mockCookieManager)
@@ -215,7 +220,7 @@ class FronteggAuthServiceTest {
 
         auth.logout()
 
-        Thread.sleep(1_000)
+        delay(100)
         verify { apiMock.logout(any(), any()) }
     }
 
@@ -246,7 +251,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `handleHostedLoginCallback should call callback if data is not null`() {
+    fun `handleHostedLoginCallback should call callback if data is not null`() = runBlocking {
         every { credentialManagerMock.getCodeVerifier() }.returns("TestCodeVerifier")
         every { storageMock.packageName }.returns("dem.test.com")
         every { storageMock.useAssetsLinks }.returns(true)
@@ -259,7 +264,7 @@ class FronteggAuthServiceTest {
         every { credentialManagerMock.save(any(), any()) }.returns(false)
 
         val result = auth.handleHostedLoginCallback("TestCode", callback = { called = true })
-        Thread.sleep(1_000)
+        delay(100)
         assert(result)
         assert(called)
     }
@@ -344,7 +349,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `loginWithPasskeys should call CredentialManagerHandler_getPasskey`() {
+    fun `loginWithPasskeys should call CredentialManagerHandler_getPasskey`() = runBlocking {
         val request = WebAuthnAssertionRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -369,6 +374,10 @@ class FronteggAuthServiceTest {
         coEvery { credentialManagerMockHandler.getPasskey(any()) }.returns(response)
 
         auth.loginWithPasskeys(mockActivity)
+        
+        // Wait a bit for the coroutine to complete
+        delay(100)
+        
         coVerify { credentialManagerMockHandler.getPasskey(any()) }
     }
 
@@ -447,7 +456,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `loginWithPasskeys should call callback with null Exception`() {
+    fun `loginWithPasskeys should call callback with null Exception`() = runBlocking {
         val request = WebAuthnAssertionRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -480,13 +489,13 @@ class FronteggAuthServiceTest {
             exception = it
         })
 
-        Thread.sleep(1_000)
+        delay(1000)
         assert(called)
         assert(exception == null)
     }
 
     @Test
-    fun `loginWithPasskeys should call callback with Exception if some error occurred`() {
+    fun `loginWithPasskeys should call callback with Exception if some error occurred`() = runBlocking {
         every { apiMock.webAuthnPostlogin(any(), any()) }.throws(Exception())
 
         mockkObject(ScopeProvider)
@@ -505,13 +514,13 @@ class FronteggAuthServiceTest {
             exception = it
         })
 
-        Thread.sleep(1_000)
+        delay(1000)
         assert(called)
         assert(exception != null)
     }
 
     @Test
-    fun `registerPasskeys should call Api_getWebAuthnRegisterChallenge`() {
+    fun `registerPasskeys should call Api_getWebAuthnRegisterChallenge`() = runBlocking {
         val request = WebAuthnRegistrationRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -532,7 +541,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `registerPasskeys should call CredentialManagerHandler_createPasskey`() {
+    fun `registerPasskeys should call CredentialManagerHandler_createPasskey`() = runBlocking {
         val request = WebAuthnRegistrationRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -554,11 +563,15 @@ class FronteggAuthServiceTest {
         coEvery { credentialManagerMockHandler.createPasskey(any()) }.returns(response)
 
         auth.registerPasskeys(mockActivity)
+        
+        // Wait a bit for the coroutine to complete
+        delay(100)
+        
         coVerify { credentialManagerMockHandler.createPasskey(any()) }
     }
 
     @Test
-    fun `registerPasskeys should call Api_verifyWebAuthnDevice`() {
+    fun `registerPasskeys should call Api_verifyWebAuthnDevice`() = runBlocking {
         val request = WebAuthnRegistrationRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -585,7 +598,7 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `registerPasskeys should call call callback with null Exception`() {
+    fun `registerPasskeys should call call callback with null Exception`() = runBlocking {
         val request = WebAuthnRegistrationRequest(
             cookie = "TestCookie",
             jsonChallenge = "TestJsonChallenge"
@@ -614,13 +627,14 @@ class FronteggAuthServiceTest {
             exception = it
         })
 
-        Thread.sleep(1_000)
+        // Wait for the coroutine to complete
+        delay(1000)
         assert(called)
         assert(exception == null)
     }
 
     @Test
-    fun `registerPasskeys should call call callback with Exception if some error occurred`() {
+    fun `registerPasskeys should call call callback with Exception if some error occurred`() = runBlocking {
         every { apiMock.getWebAuthnRegisterChallenge() }.throws(Exception())
 
         mockkObject(ScopeProvider)
@@ -639,7 +653,8 @@ class FronteggAuthServiceTest {
             exception = it
         })
 
-        Thread.sleep(1_000)
+        // Wait for the coroutine to complete
+        delay(1000)
         assert(called)
         assert(exception != null)
     }

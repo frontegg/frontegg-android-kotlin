@@ -40,13 +40,11 @@ object FronteggReconnector {
 
     fun onNetworkLost() {
         offline = true
-        Log.d(TAG, "Network lost")
     }
 
     fun onNetworkAvailable(context: Context) {
         val now = System.currentTimeMillis()
         if (now - lastAttemptAt < debounceMs) {
-            Log.d(TAG, "Debounced network available event")
             return
         }
         lastAttemptAt = now
@@ -54,7 +52,6 @@ object FronteggReconnector {
         scope.launch {
             mutex.withLock {
                 if (!isValidated(context)) {
-                    Log.d(TAG, "Network not validated; skipping")
                     return@withLock
                 }
                 offline = false
@@ -69,7 +66,6 @@ object FronteggReconnector {
                         val mainCls = flags.mainActivityClassName?.let {
                             try { Class.forName(it) } catch (_: Throwable) { null }
                         }
-                        Log.d(TAG, "Retrying initWithRegions from cache (${regions.size} regions)")
                         FronteggApp.initWithRegions(
                             regions = regions,
                             context = context,
@@ -83,26 +79,20 @@ object FronteggReconnector {
                     }
                 } catch (t: Throwable) {
                     when (t) {
-                        is UnknownHostException -> Log.i(TAG, "Still offline during init: ${t.message}")
-                        is IOException -> Log.w(TAG, "Transient IO during init: ${t.message}")
-                        else -> Log.w(TAG, "initWithRegions retry failed: ${t.message}")
                     }
                 }
 
                 // Always try to refresh if possible, swallow network errors
                 try {
-                    val refreshed = try {
-                        context.fronteggAuth.refreshTokenIfNeeded()
+                    try {
+                        val refreshSuccess = context.fronteggAuth.refreshTokenIfNeeded()
+                        if (refreshSuccess) {
+                        }
                     } catch (_: Throwable) {
                         // If FronteggApp not initialized, skip refresh
-                        false
                     }
-                    Log.d(TAG, "refreshTokenIfNeeded() => $refreshed")
                 } catch (t: Throwable) {
                     when (t) {
-                        is UnknownHostException -> Log.i(TAG, "Still offline during refresh: ${t.message}")
-                        is IOException -> Log.w(TAG, "Transient IO during refresh: ${t.message}")
-                        else -> Log.w(TAG, "Refresh failed: ${t.message}")
                     }
                 }
             }

@@ -25,7 +25,6 @@ import com.frontegg.android.services.FronteggState
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
-import com.frontegg.android.utils.Constants.Companion.socialLoginCallbackRoutes
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
 import com.frontegg.android.utils.generateErrorPage
@@ -313,7 +312,6 @@ class FronteggWebClient(
     enum class OverrideUrlType {
         HostedLoginCallback,
         SocialOauthPreLogin,
-        SocialLoginCallback,
         loginRoutes,
         internalRoutes,
         Unknown
@@ -337,27 +335,15 @@ class FronteggWebClient(
 
     private fun getOverrideUrlType(url: Uri): OverrideUrlType {
         val urlPath = url.path
-        val urlString = url.toString()
         val hostedLoginCallback = Constants.oauthCallbackUrl(storage.baseUrl)
 
-        if (urlString.startsWith(hostedLoginCallback)) {
+        if (url.toString().startsWith(hostedLoginCallback)) {
             return OverrideUrlType.HostedLoginCallback
         }
-        
-        // Check for custom scheme social login callback
-        if (Constants.isSocialLoginCallbackUrl(urlString)) {
-            return OverrideUrlType.SocialLoginCallback
-        }
-        
-        if (urlPath != null && urlString.startsWith(storage.baseUrl)) {
+        if (urlPath != null && url.toString().startsWith(storage.baseUrl)) {
 
             if (isSocialLoginPath(urlPath)) {
                 return OverrideUrlType.SocialOauthPreLogin
-            }
-
-            // Check for Android social login callback routes
-            if (socialLoginCallbackRoutes.find { u -> urlPath.startsWith(u) } != null) {
-                return OverrideUrlType.SocialLoginCallback
             }
 
             return if (successLoginRoutes.find { u -> urlPath.startsWith(u) } != null) {
@@ -410,10 +396,6 @@ class FronteggWebClient(
                         return true
                     }
                     return super.shouldOverrideUrlLoading(view, request)
-                }
-
-                OverrideUrlType.SocialLoginCallback -> {
-                    return handleSocialLoginCallback(view, url)
                 }
 //                OverrideUrlType.Unknown -> {
 //                    openExternalBrowser(request.url)

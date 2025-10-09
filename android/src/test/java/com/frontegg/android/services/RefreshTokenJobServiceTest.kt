@@ -85,6 +85,9 @@ class RefreshTokenJobServiceTest {
         // Act
         service.performBackgroundTask(mockParams)
 
+        // Wait for the background thread to complete
+        Thread.sleep(100)
+
         // Assert
         verify { mockAuthService.sendRefreshToken() } // Ensure sendRefreshToken is called
         verify { service.jobFinished(mockParams, false) } // Ensure job finishes without errors

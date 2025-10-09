@@ -50,6 +50,8 @@ open class FronteggWebView : WebView {
         settings.domStorageEnabled = true
         settings.safeBrowsingEnabled = true
 
+        setWebContentsDebuggingEnabled(false)
+
         if (!storage.handleLoginWithSocialLogin) {
             // Note: Using a custom User-Agent to facilitate Google authentication within an
             //       in-app WebView is not generally recommended.
