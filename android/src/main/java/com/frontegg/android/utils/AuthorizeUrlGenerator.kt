@@ -53,6 +53,7 @@ class AuthorizeUrlGenerator(
         preserveCodeVerifier: Boolean? = false,
         stepUp: Boolean? = null,
         maxAge: Duration? = null,
+        formAction: String? = null,
     ): Pair<String, String> {
         val nonce = createRandomString()
 
@@ -101,6 +102,12 @@ class AuthorizeUrlGenerator(
 
         if (loginAction != null) {
             authorizeUrlBuilder.appendQueryParameter("login_direct_action", loginAction)
+            
+            // Add form action if provided
+            if (formAction != null) {
+                authorizeUrlBuilder.appendQueryParameter("form_action", formAction)
+            }
+            
             return Pair(authorizeUrlBuilder.build().toString(), codeVerifier)
         }
 

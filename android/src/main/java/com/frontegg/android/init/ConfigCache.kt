@@ -16,6 +16,7 @@ internal object ConfigCache {
         val useChromeCustomTabs: Boolean,
         val mainActivityClassName: String?,
         val useDiskCacheWebview: Boolean,
+        val useLegacySocialLoginFlow: Boolean = false,
     )
 
     fun saveLastRegionsInit(
@@ -38,6 +39,7 @@ internal object ConfigCache {
             .put("useChromeCustomTabs", flags.useChromeCustomTabs)
             .put("mainActivityClassName", flags.mainActivityClassName)
             .put("useDiskCacheWebview", flags.useDiskCacheWebview)
+            .put("useLegacySocialLoginFlow", flags.useLegacySocialLoginFlow)
 
         prefs.edit()
             .putString(KEY_REGIONS_JSON, arr.toString())
@@ -67,8 +69,9 @@ internal object ConfigCache {
             val flags = RegionsInitFlags(
                 useAssetsLinks = fj.optBoolean("useAssetsLinks", false),
                 useChromeCustomTabs = fj.optBoolean("useChromeCustomTabs", false),
-                mainActivityClassName = fj.optString("mainActivityClassName", null).takeIf { it.isNotEmpty() },
+                mainActivityClassName = fj.optString("mainActivityClassName", "").takeIf { it.isNotEmpty() },
                 useDiskCacheWebview = fj.optBoolean("useDiskCacheWebview", false),
+                useLegacySocialLoginFlow = fj.optBoolean("useLegacySocialLoginFlow", false),
             )
             regions to flags
         } catch (_: Throwable) {
