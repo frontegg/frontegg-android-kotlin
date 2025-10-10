@@ -1,3 +1,6 @@
+## v.1.3.7
+Fixes for FR-22063
+
 ## v1.3.6
 Added new redirecting flow for social logins.
 
@@ -260,6 +263,7 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
+
 
 
 
