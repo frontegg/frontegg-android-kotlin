@@ -78,20 +78,22 @@ object FronteggReconnector {
                         delay(50)
                     }
                 } catch (t: Throwable) {
-                    Log.e(TAG, "Failed to handle network reconnect", t)
+                    Log.e(TAG, "Failed to retry SDK initialization", t)
                 }
 
                 // Always try to refresh if possible, swallow network errors
                 try {
-                    try {
+                    if (FronteggApp.instance != null) {
+                        Log.d(TAG, "Attempting token refresh on network reconnect")
                         val refreshSuccess = context.fronteggAuth.refreshTokenIfNeeded()
                         if (refreshSuccess) {
+                            Log.d(TAG, "Token refresh successful on network reconnect")
+                        } else {
+                            Log.d(TAG, "Token refresh failed on network reconnect, will retry later")
                         }
-                    } catch (_: Throwable) {
-                        // If FronteggApp not initialized, skip refresh
                     }
                 } catch (t: Throwable) {
-                    Log.e(TAG, "Failed to handle network reconnect", t)
+                    Log.e(TAG, "Failed to refresh token on network reconnect", t)
                 }
             }
         }
