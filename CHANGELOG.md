@@ -1,3 +1,6 @@
+## v
+Fixes for FR-22063
+
 ## v1.3.6
 Added new redirecting flow for social logins.
 

@@ -1,3 +1,6 @@
+## v1.3.6
+Added new redirecting flow for social logins.
+
 ## v1.3.5
 Fixed long-text exception when receiving timeout exception
 Fixed logout issue after 30m inactive state
@@ -257,6 +260,7 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
+
 
 
 
