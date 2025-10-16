@@ -23,6 +23,7 @@ import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
+import com.frontegg.android.utils.SessionTracker
 import com.frontegg.android.utils.calculateTimerOffset
 import com.google.gson.JsonParser
 import io.reactivex.rxjava3.core.Observable
@@ -68,6 +69,7 @@ class FronteggAuthService(
 
     private val api = ApiProvider.getApi(credentialManager)
     private val storage = StorageProvider.getInnerStorage()
+    private val sessionTracker = SessionTracker(credentialManager.context)
     private val multiFactorAuthenticator =
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
     private val stepUpAuthenticator =
@@ -223,6 +225,7 @@ class FronteggAuthService(
     override fun refreshTokenIfNeeded(): Boolean {
         return try {
             refreshingInProgress = true
+            
             val success = this.sendRefreshToken()
             if (success) {
                 refreshRetryCount = 0 // Reset on success
@@ -237,7 +240,7 @@ class FronteggAuthService(
         } catch (e: Exception) {
             Log.e(TAG, "Failed to send refresh token request (attempt ${refreshRetryCount + 1})", e)
             
-            // Retry on network errors only
+            // Enhanced retry logic
             if (isNetworkError() && refreshRetryCount < maxRetries) {
                 refreshRetryCount++
                 val delayMs = baseRetryDelayMs * refreshRetryCount // 3s, 6s
@@ -428,11 +431,68 @@ class FronteggAuthService(
         }
     }
 
+    private fun setCredentials(authResponse: com.frontegg.android.models.AuthResponse): Boolean {
+        val accessToken = authResponse.access_token
+        val refreshToken = authResponse.refresh_token
+
+        if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
+            && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
+        ) {
+            try {
+                val user = api.me()
+                if (user != null) {
+                    updateStateWithCredentials(accessToken, refreshToken, user, authResponse)
+                    return true
+                } else {
+                    // Don't clear credentials on network errors - keep tokens for retry
+                    this.isLoading.value = false
+                    this.initializing.value = false
+                    return false
+                }
+            } catch (e: Exception) {
+                // Don't clear credentials on network errors - keep tokens for retry
+                this.isLoading.value = false
+                this.initializing.value = false
+                return false
+            }
+        } else {
+            clearCredentials()
+            return false
+        }
+    }
+
     private fun updateStateWithCredentials(accessToken: String, refreshToken: String, user: User) {
         this.refreshToken.value = refreshToken
         this.accessToken.value = accessToken
         this.user.value = user
         this.isAuthenticated.value = true
+
+        // Track session start if this is a new session
+        if (sessionTracker.getSessionStartTime() == 0L) {
+            sessionTracker.trackSessionStart()
+        }
+
+        // Cancel previous job if it exists
+        refreshTokenTimer.cancelLastTimer()
+
+        val decoded = JWTHelper.decode(accessToken)
+        if (decoded.exp > 0) {
+            val offset = decoded.exp.calculateTimerOffset()
+
+            refreshTokenTimer.scheduleTimer(offset)
+        }
+    }
+
+    private fun updateStateWithCredentials(accessToken: String, refreshToken: String, user: User, authResponse: com.frontegg.android.models.AuthResponse) {
+        this.refreshToken.value = refreshToken
+        this.accessToken.value = accessToken
+        this.user.value = user
+        this.isAuthenticated.value = true
+
+        // Track session start if this is a new session with lifetime info from API
+        if (sessionTracker.getSessionStartTime() == 0L) {
+            sessionTracker.trackSessionStart()
+        }
 
         // Cancel previous job if it exists
         refreshTokenTimer.cancelLastTimer()
@@ -452,11 +512,26 @@ class FronteggAuthService(
         setCredentials(accessToken, refreshToken)
     }
 
+    override fun getSessionStartTime(): Long {
+        return sessionTracker.getSessionStartTime()
+    }
+
+    override fun getSessionDuration(): Long {
+        return sessionTracker.getSessionDuration()
+    }
+
+    override fun hasSessionData(): Boolean {
+        return sessionTracker.hasSessionData()
+    }
+
     fun clearCredentials() { 
         this.refreshToken.value = null
         this.accessToken.value = null
         this.user.value = null
         this.isAuthenticated.value = false
+        
+        // Clear session tracking data
+        sessionTracker.clearSessionData()
     }
 
     fun handleHostedLoginCallback(
@@ -538,26 +613,75 @@ class FronteggAuthService(
             val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)            
 
             if (accessTokenSaved != null && refreshTokenSaved != null) {
+                // We have tokens, let's validate them
                 accessToken.value = accessTokenSaved
                 refreshToken.value = refreshTokenSaved
-
-                if (!refreshTokenIfNeeded()) {
-                    // Check if this is a network error or auth error
+                
+                // First, try to use the existing access token
+                try {
+                    val user = api.me()
+                    if (user != null) {
+                        // Access token is valid, user is authenticated
+                        this@FronteggAuthService.user.value = user
+                        this@FronteggAuthService.isAuthenticated.value = true
+                        Log.d(TAG, "Access token is valid, user authenticated")
+                        initializing.value = false
+                        isLoading.value = false
+                        return@launch
+                    }
+                } catch (e: FailedToAuthenticateException) {
+                    // Access token is invalid (401), try to refresh
+                    Log.d(TAG, "Access token invalid (401), attempting refresh")
+                } catch (e: Exception) {
+                    // Network error, keep tokens for later retry
+                    Log.w(TAG, "Network error during token validation, keeping tokens", e)
                     if (isNetworkError()) {
-                        // Offline-safe: keep saved refresh token to allow later reconnect
-                        // But mark as not authenticated until we can refresh
-                        accessToken.value = null
-                        isAuthenticated.value = false
-                        isLoading.value = true // Keep loading state for retry
-                        // keep refreshToken.value as is
+                        // Offline mode, assume authenticated until network returns
+                        this@FronteggAuthService.isAuthenticated.value = true
+                        this@FronteggAuthService.isLoading.value = true
+                        initializing.value = false
+                        return@launch
+                    }
+                }
+                
+                // Try to refresh the token
+                try {
+                    val success = sendRefreshToken()
+                    if (success) {
+                        // Refresh successful, user is authenticated
+                        Log.d(TAG, "Token refresh successful during initialization")
+                        initializing.value = false
+                        isLoading.value = false
                     } else {
-                        // Auth error: clear tokens as refresh token is invalid
+                        // Refresh failed, logout
+                        Log.d(TAG, "Token refresh failed during initialization")
+                        clearCredentials()
+                        initializing.value = false
+                        isLoading.value = false
+                    }
+                } catch (e: FailedToAuthenticateException) {
+                    // Refresh token is also invalid, logout
+                    Log.e(TAG, "Refresh token is invalid during initialization, clearing credentials", e)
+                    clearCredentials()
+                    initializing.value = false
+                    isLoading.value = false
+                } catch (e: Exception) {
+                    // Network error during refresh
+                    Log.e(TAG, "Failed to refresh token during initialization", e)
+                    if (isNetworkError()) {
+                        // Offline mode, assume authenticated until network returns
+                        this@FronteggAuthService.isAuthenticated.value = true
+                        this@FronteggAuthService.isLoading.value = true
+                    } else {
+                        // Other error, logout
                         clearCredentials()
                     }
                     initializing.value = false
                 }
 
             } else {
+                // No tokens, show login screen
+                Log.d(TAG, "No tokens found, showing login screen")
                 initializing.value = false
                 isLoading.value = false
             }
@@ -586,12 +710,15 @@ class FronteggAuthService(
             this.refreshToken.value = data.refresh_token
             this.accessToken.value = data.access_token
             
-            // Try to get user info, but don't fail if network is slow
+            // Try to get user info to validate the new access token
             try {
                 val user = api.me()
                 if (user != null) {
                     this.user.value = user
                     this.isAuthenticated.value = true
+                    
+                    // Track successful token refresh
+                    sessionTracker.trackTokenRefresh()
                     
                     // Schedule next refresh timer
                     refreshTokenTimer.cancelLastTimer()
@@ -600,10 +727,15 @@ class FronteggAuthService(
                         val offset = decoded.exp.calculateTimerOffset()
                         refreshTokenTimer.scheduleTimer(offset)
                     }
+                } else {
+                    // User is null, but we have tokens - this shouldn't happen
+                    Log.w(TAG, "User is null after successful token refresh")
+                    this.isAuthenticated.value = false
                 }
             } catch (e: Exception) {
-                // If me() fails due to network, keep tokens but mark as loading
-                Log.w(TAG, "Failed to fetch user info after token refresh, keeping tokens", e)
+                // If me() fails, the tokens might be invalid
+                Log.w(TAG, "Failed to fetch user info after token refresh", e)
+                this.isAuthenticated.value = false
                 this.isLoading.value = true
             }
             

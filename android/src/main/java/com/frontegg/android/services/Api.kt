@@ -28,6 +28,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 
 open class Api(
     private var credentialManager: CredentialManager
@@ -86,6 +88,33 @@ open class Api(
             headers["Authorization"] = "Bearer $accessToken"
         }
         return headers.toHeaders()
+    }
+
+    private fun buildPostRequestWithTimeout(
+        path: String,
+        data: JsonObject?,
+        timeoutMs: Int,
+        additionalHeaders: Map<String, String> = mapOf()
+    ): Call {
+        val url = "${this.baseUrl}/$path".toHttpUrl()
+        val requestBuilder = Request.Builder()
+        val bodyRequest =
+            data?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
+        val headers = this.prepareHeaders(additionalHeaders)
+
+        requestBuilder.method("POST", bodyRequest)
+        requestBuilder.headers(headers)
+        requestBuilder.url(url)
+
+        // Create client with custom timeout like Swift version
+        val client = OkHttpClient.Builder()
+            .connectTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            .readTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            .writeTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            .build()
+
+        val request = requestBuilder.build()
+        return client.newCall(request)
     }
 
     private fun buildPostRequest(
@@ -179,14 +208,29 @@ open class Api(
         body.addProperty("grant_type", "refresh_token")
         body.addProperty("refresh_token", refreshToken)
 
-        val call = buildPostRequest(ApiConstants.refreshToken, body)
+        // Use shorter timeout like Swift version (5 seconds)
+        val call = buildPostRequestWithTimeout(ApiConstants.refreshToken, body, 5000)
+
         val response = call.execute()
+        
         if (response.isSuccessful) {
-            return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+            val responseBody = response.body!!.string()
+            return Gson().fromJson(responseBody, AuthResponse::class.java)
         }
         
-        // Throw exception for auth errors (401, 403, etc.)
+        // Handle 401 specifically like Swift version
+        if (response.code == 401) {
+            val errorBody = response.body?.string() ?: "unknown error"
+            Log.e(TAG, "failed to refresh token, error: $errorBody")
+            throw FailedToAuthenticateException(
+                response.headers,
+                "Refresh token failed: 401 - $errorBody"
+            )
+        }
+        
+        // Handle other errors
         val errorBody = response.body?.string() ?: "Unknown error occurred"
+        Log.e(TAG, "Refresh token failed: code=${response.code}, body=$errorBody")
         throw FailedToAuthenticateException(
             response.headers,
             "Refresh token failed: ${response.code} - $errorBody"
