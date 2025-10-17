@@ -653,11 +653,19 @@ class FronteggAuthService(
                         initializing.value = false
                         isLoading.value = false
                     } else {
-                        // Refresh failed, logout
+                        // Refresh failed - check if it's a network error
                         Log.d(TAG, "Token refresh failed during initialization")
-                        clearCredentials()
+                        if (isNetworkError()) {
+                            // Network error, keep tokens and assume authenticated until network returns
+                            Log.w(TAG, "Network error during token refresh, keeping tokens for retry")
+                            this@FronteggAuthService.isAuthenticated.value = true
+                            this@FronteggAuthService.isLoading.value = true
+                        } else {
+                            // Non-network error, logout
+                            Log.e(TAG, "Non-network error during token refresh, clearing credentials")
+                            clearCredentials()
+                        }
                         initializing.value = false
-                        isLoading.value = false
                     }
                 } catch (e: FailedToAuthenticateException) {
                     // Refresh token is also invalid, logout
