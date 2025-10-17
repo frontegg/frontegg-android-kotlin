@@ -98,6 +98,14 @@ object FronteggReconnector {
                         } else {
                             Log.d(TAG, "Token refresh failed on network reconnect, will retry later")
                         }
+                        
+                        // Also try to process request queue
+                        try {
+                            Log.d(TAG, "Processing queued requests after network reconnect")
+                            context.fronteggAuth.processQueuedRequests()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to process queued requests", e)
+                        }
                     }
                 } catch (t: Throwable) {
                     Log.e(TAG, "Failed to refresh token on network reconnect", t)

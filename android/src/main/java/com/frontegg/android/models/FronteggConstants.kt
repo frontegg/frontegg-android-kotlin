@@ -9,6 +9,7 @@ data class FronteggConstants(
     val deepLinkScheme: String?,
     val useDiskCacheWebview: Boolean,
     val mainActivityClass: String?,
+    val disableAutoRefresh: Boolean,
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -20,6 +21,7 @@ data class FronteggConstants(
             Pair("deepLinkScheme", deepLinkScheme),
             Pair("useDiskCacheWebview", useDiskCacheWebview),
             Pair("mainActivityClass", mainActivityClass),
+            Pair("disableAutoRefresh", disableAutoRefresh),
         )
     }
 }

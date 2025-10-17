@@ -3,12 +3,15 @@ package com.frontegg.android.services
 import android.annotation.SuppressLint
 import android.app.Activity
 import android.content.Context
+import android.net.ConnectivityManager
+import android.net.NetworkCapabilities
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.webkit.CookieManager
 import android.webkit.WebView
+import androidx.lifecycle.MutableLiveData
 import androidx.annotation.VisibleForTesting
 import androidx.credentials.PublicKeyCredential
 import com.frontegg.android.AuthenticationActivity
@@ -21,8 +24,11 @@ import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.Constants
+import com.frontegg.android.utils.NetworkGate
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
+import com.frontegg.android.utils.RequestQueue
+import com.frontegg.android.utils.RequestPriority
 import com.frontegg.android.utils.SessionTracker
 import com.frontegg.android.utils.calculateTimerOffset
 import com.google.gson.JsonParser
@@ -32,6 +38,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -44,10 +51,23 @@ class FronteggAuthService(
     appLifecycle: FronteggAppLifecycle,
     val refreshTokenTimer: FronteggRefreshTokenTimer,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main
+    private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
+    private val disableAutoRefresh: Boolean = false
 ) : FronteggAuth {
     // use a dedicated scope instead of GlobalScope
     private val bgScope = CoroutineScope(ioDispatcher + SupervisorJob())
+    
+    // Network quality gate for refresh token operations
+    private val networkGate = NetworkGate
+    
+    // Request queue for poor network conditions
+    private val requestQueue = RequestQueue()
+    
+    // Reconnecting state
+    val isReconnecting = MutableLiveData<Boolean>()
+    
+    // Maximum wait time for network recovery (3 minutes)
+    private val maxWaitTimeMs = 3 * 60 * 1000L
 
 
     companion object {
@@ -70,6 +90,11 @@ class FronteggAuthService(
     private val api = ApiProvider.getApi(credentialManager)
     private val storage = StorageProvider.getInnerStorage()
     private val sessionTracker = SessionTracker(credentialManager.context)
+    
+    init {
+        networkGate.setFronteggBaseUrl(api.getServerUrl())
+    }
+    
     private val multiFactorAuthenticator =
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
     private val stepUpAuthenticator =
@@ -221,47 +246,159 @@ class FronteggAuthService(
     private var refreshRetryCount = 0
     private val maxRetries = 2
     private val baseRetryDelayMs = 3000L
-
-    override fun refreshTokenIfNeeded(): Boolean {
-        return try {
-            refreshingInProgress = true
-            
-            val success = this.sendRefreshToken()
-            if (success) {
-                refreshRetryCount = 0 // Reset on success
-            }
-            success
-        } catch (e: FailedToAuthenticateException) {
-            Log.e(TAG, "Refresh token is invalid, clearing credentials", e)
-            refreshRetryCount = 0
-            // Clear credentials when refresh token is invalid
-            clearCredentials()
-            false
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to send refresh token request (attempt ${refreshRetryCount + 1})", e)
-            
-            // Enhanced retry logic
-            if (isNetworkError() && refreshRetryCount < maxRetries) {
-                refreshRetryCount++
-                val delayMs = baseRetryDelayMs * refreshRetryCount // 3s, 6s
-                Log.d(TAG, "Scheduling retry in ${delayMs}ms (attempt ${refreshRetryCount}/$maxRetries)")
-                
-                // Schedule retry using the timer
-                refreshTokenTimer.scheduleTimer(delayMs)
+    private val refreshMutex = Any()
+    /**
+     * Idempotent refresh token with network quality check
+     * Ensures only one refresh execution when network recovers
+     */
+    private suspend fun refreshIdempotent(): Boolean {
+        val shouldProceed = synchronized(refreshMutex) {
+            if (refreshingInProgress) {
                 return false
-            } else {
-                refreshRetryCount = 0
-                // For network errors after max retries, don't consider it a failure
-                // Keep user authenticated and let the system retry later
-                if (isNetworkError()) {
-                    Log.w(TAG, "Max retries reached for network error, keeping user authenticated")
-                    return true // Return true to indicate "success" (user stays logged in)
+            }
+            refreshingInProgress = true
+            true
+        }
+        
+        if (!shouldProceed) return true
+
+        try {
+            isReconnecting.postValue(true)
+            
+            val startTime = System.currentTimeMillis()
+            var networkOk = false
+            
+            while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
+                networkOk = networkGate.isNetworkLikelyGood(credentialManager.context)
+                if (networkOk) {
+                    break
+                }
+                
+                delay(2000)
+            }
+            
+            if (!networkOk) {
+                Log.w(TAG, "Network quality check timeout after ${maxWaitTimeMs}ms, clearing credentials")
+                clearCredentials()
+                return false
+            }
+            
+            isReconnecting.postValue(false)
+            
+            val success = sendRefreshToken()
+            if (success) {
+                val processedCount = requestQueue.processAll()
+                Log.d(TAG, "Processed $processedCount queued requests")
+            }
+            
+            return success
+            
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to perform idempotent refresh", e)
+            isReconnecting.postValue(false)
+            return false
+        } finally {
+            synchronized(refreshMutex) {
+                refreshingInProgress = false
+            }
+        }
+    }
+
+    override fun processQueuedRequests() {
+        bgScope.launch {
+            try {
+                val processedCount = requestQueue.processAll()
+                Log.d(TAG, "Processed $processedCount queued requests")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to process queued requests", e)
+            }
+        }
+    }
+    
+    private fun startNetworkMonitoring() {
+        bgScope.launch {
+            while (requestQueue.hasQueuedRequests()) {
+                if (isNetworkGood()) {
+                    val processedCount = requestQueue.processAll()
+                    Log.d(TAG, "Processed $processedCount queued requests")
+                    break
                 } else {
-                    return false // Non-network errors are real failures
+                    delay(5000)
                 }
             }
-        } finally {
-            refreshingInProgress = false
+        }
+    }
+    
+    private fun startUserDataMonitoring() {
+        bgScope.launch {
+            while (user.value == null && isAuthenticated.value == true) {
+                if (isNetworkGood()) {
+                    try {
+                        val userData = api.me()
+                        if (userData != null) {
+                            this@FronteggAuthService.user.value = userData
+                            this@FronteggAuthService.isLoading.value = false
+                            break
+                        }
+                    } catch (e: FailedToAuthenticateException) {
+                        try {
+                            val refreshSuccess = sendRefreshToken()
+                            if (refreshSuccess) {
+                                val userData = api.me()
+                                if (userData != null) {
+                                    this@FronteggAuthService.user.value = userData
+                                    this@FronteggAuthService.isLoading.value = false
+                                    break
+                                }
+                            } else {
+                                break
+                            }
+                        } catch (refreshException: Exception) {
+                            Log.e(TAG, "Failed to refresh token during user data monitoring", refreshException)
+                            break
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to load user data after network improvement", e)
+                    }
+                } else {
+                    delay(5000)
+                }
+            }
+        }
+    }
+
+    override fun refreshTokenIfNeeded(): Boolean {
+        return synchronized(refreshMutex) {
+            // Check if auto refresh is disabled
+            if (disableAutoRefresh) {
+                return false
+            }
+            
+            // Check network quality before attempting refresh token
+            if (!isNetworkGoodSync()) {
+                bgScope.launch {
+                    requestQueue.enqueue(
+                        requestId = "refresh_token_${System.currentTimeMillis()}",
+                        request = { refreshIdempotent() },
+                        priority = RequestPriority.HIGH
+                    )
+                    startNetworkMonitoring()
+                }
+                
+                return true
+            }
+            
+            // Prevent multiple simultaneous refresh attempts
+            if (refreshingInProgress) {
+                return true
+            }
+            
+            // Network is good, perform refresh immediately
+            bgScope.launch {
+                refreshIdempotent()
+            }
+            
+            return true
         }
     }
 
@@ -531,14 +668,30 @@ class FronteggAuthService(
         return sessionTracker.hasSessionData()
     }
 
-    fun clearCredentials() { 
+    fun clearCredentials() {
         this.refreshToken.value = null
         this.accessToken.value = null
         this.user.value = null
         this.isAuthenticated.value = false
-        
+
         // Clear session tracking data
         sessionTracker.clearSessionData()
+
+        // Clear all credentials from SharedPreferences
+        credentialManager.clear()
+
+        // Cancel any pending refresh token timers
+        refreshTokenTimer.cancelLastTimer()
+
+        // Clear request queue
+        bgScope.launch {
+            requestQueue.clear()
+        }
+
+        // Reset reconnecting state
+        isReconnecting.postValue(false)
+
+        Log.d(TAG, "All credentials cleared from memory and storage")
     }
 
     fun handleHostedLoginCallback(
@@ -623,6 +776,17 @@ class FronteggAuthService(
                 // We have tokens, let's validate them
                 accessToken.value = accessTokenSaved
                 refreshToken.value = refreshTokenSaved
+                
+                // Check network quality before attempting any network operations
+                if (!isNetworkGoodSync()) {
+                    Log.w(TAG, "Network quality is poor during initialization, keeping tokens")
+                    this@FronteggAuthService.isAuthenticated.value = true
+                    this@FronteggAuthService.isLoading.value = true
+                    initializing.value = false
+
+                    startUserDataMonitoring()
+                    return@launch
+                }
                 
                 // First, try to use the existing access token
                 try {
@@ -711,47 +875,47 @@ class FronteggAuthService(
      */
     @Throws(IllegalArgumentException::class, IOException::class)
     fun sendRefreshToken(): Boolean {
+        if (disableAutoRefresh) {
+            return false
+        }
+        
         val refreshToken = this.refreshToken.value ?: return false
         this.refreshingToken.value = true
         try {
             val data = api.refreshToken(refreshToken)
-            lastRefreshError = null // Clear error on success
+            lastRefreshError = null
             
-            // Save new tokens immediately to prevent rotation issues
             credentialManager.save(CredentialKeys.REFRESH_TOKEN, data.refresh_token)
             credentialManager.save(CredentialKeys.ACCESS_TOKEN, data.access_token)
             
-            // Update state with new tokens
             this.refreshToken.value = data.refresh_token
             this.accessToken.value = data.access_token
             
-            // Try to get user info to validate the new access token
             try {
                 val user = api.me()
                 if (user != null) {
                     this.user.value = user
                     this.isAuthenticated.value = true
-                    
-                    // Track successful token refresh
                     sessionTracker.trackTokenRefresh()
-                    
-                    // Schedule next refresh timer
-                    refreshTokenTimer.cancelLastTimer()
-                    val decoded = JWTHelper.decode(data.access_token)
-                    if (decoded.exp > 0) {
-                        val offset = decoded.exp.calculateTimerOffset()
-                        refreshTokenTimer.scheduleTimer(offset)
-                    }
                 } else {
-                    // User is null, but we have tokens - this shouldn't happen
                     Log.w(TAG, "User is null after successful token refresh")
                     this.isAuthenticated.value = false
                 }
             } catch (e: Exception) {
-                // If me() fails, the tokens might be invalid
                 Log.w(TAG, "Failed to fetch user info after token refresh", e)
                 this.isAuthenticated.value = false
                 this.isLoading.value = true
+            }
+            
+            try {
+                refreshTokenTimer.cancelLastTimer()
+                val decoded = JWTHelper.decode(data.access_token)
+                if (decoded.exp > 0) {
+                    val offset = decoded.exp.calculateTimerOffset()
+                    refreshTokenTimer.scheduleTimer(offset)
+                }
+            } catch (e: Exception) {
+                Log.w(TAG, "Failed to reschedule timer after refresh", e)
             }
             
             // Always set initializing to false after successful token refresh
@@ -787,8 +951,41 @@ class FronteggAuthService(
         }
     }
 
+    /**
+     * Checks if the current network quality is good enough for refresh token requests.
+     * Uses NetworkGate to perform actual network quality testing.
+     */
+    private suspend fun isNetworkGood(): Boolean {
+        return try {
+            val isGood = networkGate.isNetworkLikelyGood(credentialManager.context)
+            Log.d(TAG, "Network quality check: $isGood")
+            isGood
+        } catch (e: Exception) {
+            Log.w(TAG, "Network quality check failed, assuming poor network", e)
+            false
+        }
+    }
+    
+    /**
+     * Synchronous version for compatibility
+     */
+    private fun isNetworkGoodSync(): Boolean {
+        return try {
+            val isGood = networkGate.isNetworkLikelyGood(credentialManager.context)
+            Log.d(TAG, "Network quality check (sync): $isGood")
+            isGood
+        } catch (e: Exception) {
+            Log.w(TAG, "Network quality check (sync) failed, assuming poor network", e)
+            false
+        }
+    }
+
     @VisibleForTesting
     internal fun refreshTokenWhenNeeded() {
+        if (disableAutoRefresh) {
+            return
+        }
+        
         val accessToken = this.accessToken.value
 
         if (this.refreshToken.value == null) {
@@ -798,9 +995,20 @@ class FronteggAuthService(
         refreshTokenTimer.cancelLastTimer()
 
         if (accessToken == null) {
-            // when we have valid refreshToken without accessToken => failed to refresh in background
+            // Check network quality before attempting refresh
             bgScope.launch {
-                refreshTokenIfNeeded()
+                if (!isNetworkGood()) {
+                    Log.w(TAG, "Network quality is poor, queuing refresh token request")
+                    requestQueue.enqueue(
+                        requestId = "refresh_token_no_access_${System.currentTimeMillis()}",
+                        request = { refreshIdempotent() },
+                        priority = RequestPriority.HIGH
+                    )
+                    return@launch
+                }
+                
+                // when we have valid refreshToken without accessToken => failed to refresh in background
+                refreshIdempotent()
             }
             return
         }
@@ -809,8 +1017,19 @@ class FronteggAuthService(
         if (decoded.exp > 0) {
             val offset = decoded.exp.calculateTimerOffset()
             if (offset <= 0) {
+                // Check network quality before attempting refresh
                 bgScope.launch {
-                    refreshTokenIfNeeded()
+                    if (!isNetworkGood()) {
+                        Log.w(TAG, "Network quality is poor, queuing refresh token request")
+                        requestQueue.enqueue(
+                            requestId = "refresh_token_expired_${System.currentTimeMillis()}",
+                            request = { refreshIdempotent() },
+                            priority = RequestPriority.HIGH
+                        )
+                        return@launch
+                    }
+                    
+                    refreshIdempotent()
                 }
             } else {
                 refreshTokenTimer.scheduleTimer(offset)

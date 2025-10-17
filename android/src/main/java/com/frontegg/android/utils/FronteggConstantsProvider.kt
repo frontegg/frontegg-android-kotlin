@@ -54,6 +54,9 @@ object FronteggConstantsProvider {
                 ""
             )
 
+        val disableAutoRefresh =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_DISABLE_AUTO_REFRESH", false)
+
         return FronteggConstants(
             baseUrl = baseUrl,
             clientId = clientId,
@@ -63,6 +66,7 @@ object FronteggConstantsProvider {
             deepLinkScheme = deepLinkScheme,
             useDiskCacheWebview = useDiskCacheWebview,
             mainActivityClass = mainActivityClass,
+            disableAutoRefresh = disableAutoRefresh,
         )
     }
 }

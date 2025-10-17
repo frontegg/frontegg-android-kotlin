@@ -17,6 +17,7 @@ if (fronteggPropsFile.exists()) {
 }
 def fronteggDomain = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN", "").toString()
 def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "").toString()
+def fronteggDisableAutoRefresh = fronteggProperties.getOrDefault("FRONTEGG_DISABLE_AUTO_REFRESH", "false").toString()
 
 def fronteggDomain2 = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN_2", "").toString()
 
@@ -40,6 +41,11 @@ android {
                 "frontegg_client_id": fronteggClientId,
                 "frontegg_domain_2" : fronteggDomain2,
         ]
+        
+        buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
+        buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
+        buildConfigField "boolean", 'FRONTEGG_DISABLE_AUTO_REFRESH', "$fronteggDisableAutoRefresh"
+        
         vectorDrawables {
             useSupportLibrary true
         }

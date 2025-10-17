@@ -48,6 +48,11 @@ open class Api(
             if (!fromSelected.isNullOrBlank()) return fromSelected
             return storage.regions.firstOrNull()?.baseUrl ?: ""
         }
+
+    /**
+     * Get the base URL for network probing
+     */
+    fun getServerUrl(): String = baseUrl
     private val clientId: String
         get() {
             val direct = storage.clientId
@@ -173,12 +178,37 @@ open class Api(
         return this.httpClient.newCall(request)
     }
 
+    private fun buildGetRequestWithTimeout(path: String, timeoutMs: Long): Call {
+        val url = if (path.startsWith("http")) {
+            path.toHttpUrl()
+        } else {
+            "$baseUrl/$path".toHttpUrl()
+        }
+        val requestBuilder = Request.Builder()
+        val headers = prepareHeaders()
+
+        requestBuilder.method("GET", null)
+        requestBuilder.headers(headers)
+        requestBuilder.url(url)
+
+        val request = requestBuilder.build()
+        
+        // Create client with increased timeout
+        val clientWithTimeout = httpClient.newBuilder()
+            .connectTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .readTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .writeTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .build()
+            
+        return clientWithTimeout.newCall(request)
+    }
+
 
     @Throws(IllegalArgumentException::class, IOException::class)
     fun me(): User? {
-        val meCall = buildGetRequest(ApiConstants.me)
+        val meCall = buildGetRequestWithTimeout(ApiConstants.me, 120000)
         val meResponse = meCall.execute()
-        val tenantsCall = buildGetRequest(ApiConstants.tenants)
+        val tenantsCall = buildGetRequestWithTimeout(ApiConstants.tenants, 120000)
         val tenantsResponse = tenantsCall.execute()
 
         if (meResponse.isSuccessful && tenantsResponse.isSuccessful) {
@@ -189,6 +219,8 @@ open class Api(
             val meJsonStr = meResponse.body!!.string()
             val tenantsJsonStr = tenantsResponse.body!!.string()
 
+            Log.d(TAG, "api.me() successful - me length: ${meJsonStr.length}, tenants length: ${tenantsJsonStr.length}")
+
             val meJson: MutableMap<String, Any> = gson.fromJson(meJsonStr, mapType)
             val tenantsJson: MutableMap<String, Any> = gson.fromJson(tenantsJsonStr, mapType)
 
@@ -196,7 +228,11 @@ open class Api(
             meJson["activeTenant"] = tenantsJson["activeTenant"] as Any
 
             val merged = Gson().toJson(meJson)
-            return Gson().fromJson(merged, User::class.java)
+            val user = Gson().fromJson(merged, User::class.java)
+            Log.d(TAG, "api.me() returning user: ${user != null}")
+            return user
+        } else {
+            Log.w(TAG, "api.me() failed - me: ${meResponse.code} ${meResponse.message}, tenants: ${tenantsResponse.code} ${tenantsResponse.message}")
         }
 
         return null
@@ -204,17 +240,21 @@ open class Api(
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
     fun refreshToken(refreshToken: String): AuthResponse {
+        Log.d(TAG, "Starting refresh token request")
         val body = JsonObject()
         body.addProperty("grant_type", "refresh_token")
         body.addProperty("refresh_token", refreshToken)
 
-        // Use shorter timeout like Swift version (5 seconds)
-        val call = buildPostRequestWithTimeout(ApiConstants.refreshToken, body, 5000)
+        // Use reasonable timeout for refresh token (30 seconds)
+        val call = buildPostRequestWithTimeout(ApiConstants.refreshToken, body, 30000)
 
+        Log.d(TAG, "Executing refresh token request...")
         val response = call.execute()
+        Log.d(TAG, "Refresh token response received: code=${response.code}")
         
         if (response.isSuccessful) {
             val responseBody = response.body!!.string()
+            Log.d(TAG, "Refresh token successful, parsing response")
             return Gson().fromJson(responseBody, AuthResponse::class.java)
         }
         

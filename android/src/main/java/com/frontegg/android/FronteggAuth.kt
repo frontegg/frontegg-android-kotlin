@@ -115,6 +115,11 @@ interface FronteggAuth {
     fun refreshTokenIfNeeded(): Boolean
 
     /**
+     * Process queued requests when network becomes available.
+     */
+    fun processQueuedRequests()
+
+    /**
      * Login with passkeys
      * @param activity is the activity of application;
      * @param callback call after the registration is finished or was intercepted by Exception.
