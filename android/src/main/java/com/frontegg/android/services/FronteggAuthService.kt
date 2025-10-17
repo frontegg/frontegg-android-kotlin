@@ -251,7 +251,14 @@ class FronteggAuthService(
                 return false
             } else {
                 refreshRetryCount = 0
-                return false
+                // For network errors after max retries, don't consider it a failure
+                // Keep user authenticated and let the system retry later
+                if (isNetworkError()) {
+                    Log.w(TAG, "Max retries reached for network error, keeping user authenticated")
+                    return true // Return true to indicate "success" (user stays logged in)
+                } else {
+                    return false // Non-network errors are real failures
+                }
             }
         } finally {
             refreshingInProgress = false
