@@ -40,12 +40,14 @@ class FronteggAppServiceTest {
 
         mockkObject(StorageProvider)
         every { StorageProvider.getInnerStorage() }.returns(mockStorage)
+        every { mockStorage.baseUrl }.returns("https://test.frontegg.com")
 
         mockkConstructor(FronteggAuthService::class)
 
         every { anyConstructed<FronteggAuthService>().initializeSubscriptions() } just Runs
         every { anyConstructed<FronteggAuthService>().refreshTokenWhenNeeded() } just Runs
         every { anyConstructed<FronteggAuthService>().refreshTokenIfNeeded() }.returns(true)
+        every { anyConstructed<FronteggAuthService>().processQueuedRequests() } just Runs
     }
 
     @Test
@@ -68,6 +70,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any()
             )
         }.returns(Unit)
 
@@ -99,9 +103,11 @@ class FronteggAppServiceTest {
         every { mockConstants.deepLinkScheme } returns null
         every { mockConstants.useDiskCacheWebview } returns false
         every { mockConstants.mainActivityClass } returns null
+        every { mockConstants.disableAutoRefresh } returns false
         every { FronteggApp.instance } returns null
         every {
             FronteggApp.init(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -121,7 +127,7 @@ class FronteggAppServiceTest {
             // ignore
         }
 
-        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
     }
 
@@ -140,9 +146,11 @@ class FronteggAppServiceTest {
         every { mockConstants.deepLinkScheme } returns null
         every { mockConstants.useDiskCacheWebview } returns false
         every { mockConstants.mainActivityClass } returns null
+        every { mockConstants.disableAutoRefresh } returns false
         every { FronteggApp.instance } returns null
         every {
             FronteggApp.init(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -162,7 +170,7 @@ class FronteggAppServiceTest {
             // ignore
         }
 
-        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
     }
 
@@ -186,6 +194,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any()
             )
         }.returns(Unit)
 
@@ -220,7 +230,9 @@ class FronteggAppServiceTest {
                 useAssetsLinks = true,
                 useChromeCustomTabs = true,
                 mainActivityClass = mainActivityClass,
-                packageName = "com.frontegg.android.test"
+                packageName = "com.frontegg.android.test",
+                deepLinkScheme = null,
+                useDiskCacheWebview = false
             )
         }
     }
@@ -259,6 +271,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any()
             )
         }.returns(Unit)
 
@@ -292,7 +306,9 @@ class FronteggAppServiceTest {
                 useAssetsLinks = true,
                 useChromeCustomTabs = true,
                 mainActivityClass = mainActivityClass,
-                packageName = "com.frontegg.android.test"
+                packageName = "com.frontegg.android.test",
+                deepLinkScheme = null,
+                useDiskCacheWebview = false
             )
         }
     }
@@ -331,6 +347,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any()
             )
         }.returns(Unit)
 
@@ -369,6 +387,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any()
             )
         }
 
@@ -391,6 +411,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any()
             )
         }
     }
@@ -415,6 +437,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any()
             )
         }.returns(Unit)
 
@@ -474,6 +498,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any()
             )
         }.returns(Unit)
 
