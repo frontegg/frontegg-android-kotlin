@@ -28,6 +28,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.IOException
+import java.net.HttpURLConnection
+import java.net.URL
 
 open class Api(
     private var credentialManager: CredentialManager
@@ -46,6 +48,11 @@ open class Api(
             if (!fromSelected.isNullOrBlank()) return fromSelected
             return storage.regions.firstOrNull()?.baseUrl ?: ""
         }
+
+    /**
+     * Get the base URL for network probing
+     */
+    fun getServerUrl(): String = baseUrl
     private val clientId: String
         get() {
             val direct = storage.clientId
@@ -86,6 +93,33 @@ open class Api(
             headers["Authorization"] = "Bearer $accessToken"
         }
         return headers.toHeaders()
+    }
+
+    private fun buildPostRequestWithTimeout(
+        path: String,
+        data: JsonObject?,
+        timeoutMs: Int,
+        additionalHeaders: Map<String, String> = mapOf()
+    ): Call {
+        val url = "${this.baseUrl}/$path".toHttpUrl()
+        val requestBuilder = Request.Builder()
+        val bodyRequest =
+            data?.toString()?.toRequestBody("application/json; charset=utf-8".toMediaType())
+        val headers = this.prepareHeaders(additionalHeaders)
+
+        requestBuilder.method("POST", bodyRequest)
+        requestBuilder.headers(headers)
+        requestBuilder.url(url)
+
+        // Create client with custom timeout like Swift version
+        val client = OkHttpClient.Builder()
+            .connectTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            .readTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            .writeTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            .build()
+
+        val request = requestBuilder.build()
+        return client.newCall(request)
     }
 
     private fun buildPostRequest(
@@ -144,12 +178,37 @@ open class Api(
         return this.httpClient.newCall(request)
     }
 
+    private fun buildGetRequestWithTimeout(path: String, timeoutMs: Long): Call {
+        val url = if (path.startsWith("http")) {
+            path.toHttpUrl()
+        } else {
+            "$baseUrl/$path".toHttpUrl()
+        }
+        val requestBuilder = Request.Builder()
+        val headers = prepareHeaders()
+
+        requestBuilder.method("GET", null)
+        requestBuilder.headers(headers)
+        requestBuilder.url(url)
+
+        val request = requestBuilder.build()
+        
+        // Create client with increased timeout
+        val clientWithTimeout = httpClient.newBuilder()
+            .connectTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .readTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .writeTimeout(timeoutMs, java.util.concurrent.TimeUnit.MILLISECONDS)
+            .build()
+            
+        return clientWithTimeout.newCall(request)
+    }
+
 
     @Throws(IllegalArgumentException::class, IOException::class)
     fun me(): User? {
-        val meCall = buildGetRequest(ApiConstants.me)
+        val meCall = buildGetRequestWithTimeout(ApiConstants.me, 120000)
         val meResponse = meCall.execute()
-        val tenantsCall = buildGetRequest(ApiConstants.tenants)
+        val tenantsCall = buildGetRequestWithTimeout(ApiConstants.tenants, 120000)
         val tenantsResponse = tenantsCall.execute()
 
         if (meResponse.isSuccessful && tenantsResponse.isSuccessful) {
@@ -160,6 +219,8 @@ open class Api(
             val meJsonStr = meResponse.body!!.string()
             val tenantsJsonStr = tenantsResponse.body!!.string()
 
+            Log.d(TAG, "api.me() successful - me length: ${meJsonStr.length}, tenants length: ${tenantsJsonStr.length}")
+
             val meJson: MutableMap<String, Any> = gson.fromJson(meJsonStr, mapType)
             val tenantsJson: MutableMap<String, Any> = gson.fromJson(tenantsJsonStr, mapType)
 
@@ -167,7 +228,11 @@ open class Api(
             meJson["activeTenant"] = tenantsJson["activeTenant"] as Any
 
             val merged = Gson().toJson(meJson)
-            return Gson().fromJson(merged, User::class.java)
+            val user = Gson().fromJson(merged, User::class.java)
+            Log.d(TAG, "api.me() returning user: ${user != null}")
+            return user
+        } else {
+            Log.w(TAG, "api.me() failed - me: ${meResponse.code} ${meResponse.message}, tenants: ${tenantsResponse.code} ${tenantsResponse.message}")
         }
 
         return null
@@ -175,18 +240,37 @@ open class Api(
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
     fun refreshToken(refreshToken: String): AuthResponse {
+        Log.d(TAG, "Starting refresh token request")
         val body = JsonObject()
         body.addProperty("grant_type", "refresh_token")
         body.addProperty("refresh_token", refreshToken)
 
-        val call = buildPostRequest(ApiConstants.refreshToken, body)
+        // Use reasonable timeout for refresh token (30 seconds)
+        val call = buildPostRequestWithTimeout(ApiConstants.refreshToken, body, 30000)
+
+        Log.d(TAG, "Executing refresh token request...")
         val response = call.execute()
+        Log.d(TAG, "Refresh token response received: code=${response.code}")
+        
         if (response.isSuccessful) {
-            return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+            val responseBody = response.body!!.string()
+            Log.d(TAG, "Refresh token successful, parsing response")
+            return Gson().fromJson(responseBody, AuthResponse::class.java)
         }
         
-        // Throw exception for auth errors (401, 403, etc.)
+        // Handle 401 specifically like Swift version
+        if (response.code == 401) {
+            val errorBody = response.body?.string() ?: "unknown error"
+            Log.e(TAG, "failed to refresh token, error: $errorBody")
+            throw FailedToAuthenticateException(
+                response.headers,
+                "Refresh token failed: 401 - $errorBody"
+            )
+        }
+        
+        // Handle other errors
         val errorBody = response.body?.string() ?: "Unknown error occurred"
+        Log.e(TAG, "Refresh token failed: code=${response.code}, body=$errorBody")
         throw FailedToAuthenticateException(
             response.headers,
             "Refresh token failed: ${response.code} - $errorBody"

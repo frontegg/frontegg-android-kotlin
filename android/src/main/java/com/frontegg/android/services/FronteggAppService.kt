@@ -26,7 +26,8 @@ class FronteggAppService(
     private var useChromeCustomTabs: Boolean = false,
     private var mainActivityClass: Class<*>? = null,
     private var deepLinkScheme: String? = null,
-    private var useDiskCacheWebview: Boolean = false
+    private var useDiskCacheWebview: Boolean = false,
+    private var disableAutoRefresh: Boolean = false
 ) : FronteggApp {
 
     private val storage = StorageProvider.getInnerStorage()
@@ -43,7 +44,8 @@ class FronteggAppService(
             FronteggAuthService(
                 credentialManager,
                 appLifecycle,
-                refreshTokenManager
+                refreshTokenManager,
+                disableAutoRefresh = disableAutoRefresh
             )
     }
 

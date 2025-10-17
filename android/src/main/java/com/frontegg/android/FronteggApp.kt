@@ -68,6 +68,7 @@ val Context.fronteggApp: FronteggApp
                 mainActivityClass = mainClassActivityClass,
                 deepLinkScheme = constants.deepLinkScheme,
                 useDiskCacheWebview = constants.useDiskCacheWebview,
+                disableAutoRefresh = constants.disableAutoRefresh,
             )
         }
 
@@ -119,6 +120,7 @@ interface FronteggApp {
          * @param useChromeCustomTabs Whether the Frontegg SDK should use Chrome Custom Tabs (default: `false`).
          * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
          * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
+         * @param disableAutoRefresh Whether to disable automatic token refresh (default: `false`).
          */
         @VisibleForTesting
         internal fun init(
@@ -131,6 +133,7 @@ interface FronteggApp {
             mainActivityClass: Class<*>? = null,
             deepLinkScheme: String? = null,
             useDiskCacheWebview: Boolean = false,
+            disableAutoRefresh: Boolean = false,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
@@ -150,7 +153,8 @@ interface FronteggApp {
                 useAssetsLinks = useAssetsLinks,
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass,
-                useDiskCacheWebview = useDiskCacheWebview
+                useDiskCacheWebview = useDiskCacheWebview,
+                disableAutoRefresh = disableAutoRefresh
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
         }
@@ -164,6 +168,7 @@ interface FronteggApp {
          * @param useChromeCustomTabs Whether the Frontegg SDK should use Chrome Custom Tabs (default: `false`).
          * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
          * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
+         * @param disableAutoRefresh Whether to disable automatic token refresh (default: `false`).
          */
         fun initWithRegions(
             regions: List<RegionConfig>,
@@ -172,6 +177,7 @@ interface FronteggApp {
             useChromeCustomTabs: Boolean = false,
             mainActivityClass: Class<*>? = null,
             useDiskCacheWebview: Boolean = false,
+            disableAutoRefresh: Boolean = false,
         ): FronteggApp {
 
             val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
@@ -191,7 +197,8 @@ interface FronteggApp {
                         useAssetsLinks = useAssetsLinks,
                         useChromeCustomTabs = useChromeCustomTabs,
                         mainActivityClass = mainActivityClass,
-                        useDiskCacheWebview = useDiskCacheWebview
+                        useDiskCacheWebview = useDiskCacheWebview,
+                        disableAutoRefresh = disableAutoRefresh
                     )
                     instance = newInstance
 
@@ -210,7 +217,8 @@ interface FronteggApp {
                 useAssetsLinks = useAssetsLinks,
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass,
-                useDiskCacheWebview = useDiskCacheWebview
+                useDiskCacheWebview = useDiskCacheWebview,
+                disableAutoRefresh = disableAutoRefresh
             )
             instance = newInstance
             // Persist parameters to allow retry when network becomes available

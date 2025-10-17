@@ -5,6 +5,10 @@ class AuthResponse {
     lateinit var refresh_token: String
     lateinit var access_token: String
     lateinit var id_token: String
+    
+    // Optional fields for token lifetimes (in seconds)
+    var expires_in: Int? = null
+    var refresh_expires_in: Int? = null
 
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
@@ -16,6 +20,8 @@ class AuthResponse {
         if (refresh_token != other.refresh_token) return false
         if (access_token != other.access_token) return false
         if (id_token != other.id_token) return false
+        if (expires_in != other.expires_in) return false
+        if (refresh_expires_in != other.refresh_expires_in) return false
 
         return true
     }
@@ -25,6 +31,8 @@ class AuthResponse {
         result = 31 * result + refresh_token.hashCode()
         result = 31 * result + access_token.hashCode()
         result = 31 * result + id_token.hashCode()
+        result = 31 * result + (expires_in ?: 0)
+        result = 31 * result + (refresh_expires_in ?: 0)
         return result
     }
 }

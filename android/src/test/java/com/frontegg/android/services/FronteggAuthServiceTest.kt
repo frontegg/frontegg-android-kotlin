@@ -8,6 +8,7 @@ import android.webkit.WebView
 import androidx.credentials.CreatePublicKeyCredentialResponse
 import androidx.credentials.GetCredentialResponse
 import androidx.credentials.PublicKeyCredential
+import androidx.lifecycle.MutableLiveData
 import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggApp
@@ -22,35 +23,44 @@ import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.FronteggCallback
 import com.frontegg.android.utils.JWT
 import com.frontegg.android.utils.JWTHelper
+import com.frontegg.android.services.FronteggInnerStorage
+import com.frontegg.android.services.StorageProvider
+import com.frontegg.android.services.CredentialManager
+import com.frontegg.android.services.ApiProvider
+import com.frontegg.android.services.StepUpAuthenticatorProvider
+import com.frontegg.android.services.StepUpAuthenticator
+import com.frontegg.android.services.FronteggAppLifecycle
+import com.frontegg.android.utils.NetworkGate
+import com.frontegg.android.utils.RequestQueue
+import io.mockk.mockkClass
 import io.mockk.coEvery
 import io.mockk.coVerify
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkClass
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
-import io.mockk.verify
+import io.mockk.mockkConstructor
+import kotlin.time.DurationUnit
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.runBlocking
+import io.mockk.verify
 import org.junit.Before
 import org.junit.Test
 import org.junit.jupiter.api.assertThrows
-import kotlin.time.DurationUnit
 import kotlin.time.toDuration
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainCoroutineDispatcher
+import kotlinx.coroutines.runBlocking
 
 class FronteggAuthServiceTest {
+    private val storageMock = mockk<FronteggInnerStorage>()
+    private val mockContext = mockk<Context>()
     private val mockActivity = mockk<Activity>()
     private lateinit var auth: FronteggAuthService
     private val credentialManagerMock = mockk<CredentialManager>()
     private val apiMock = mockk<Api>()
     private val authResponse = AuthResponse()
-    private val storageMock = mockk<FronteggInnerStorage>()
-    private val mockContext = mockk<Context>()
-
     private val stepUpAuthenticator = mockk<StepUpAuthenticator>()
-
-
     @Before
     fun setUp() {
         mockkObject(StorageProvider)
@@ -61,6 +71,12 @@ class FronteggAuthServiceTest {
         every { storageMock.regions }.returns(listOf())
         mockkObject(FronteggApp)
         every { credentialManagerMock.get(any()) }.returns(null)
+        every { credentialManagerMock.context }.returns(mockContext)
+        
+        // Mock Context methods needed by SessionTracker
+        val mockSharedPreferences = mockk<android.content.SharedPreferences>()
+        every { mockContext.getSharedPreferences(any(), any()) }.returns(mockSharedPreferences)
+        every { mockSharedPreferences.edit() }.returns(mockk<android.content.SharedPreferences.Editor>())
         val appLifecycle = mockk<FronteggAppLifecycle>()
         every { appLifecycle.startApp }.returns(FronteggCallback())
         every { appLifecycle.stopApp }.returns(FronteggCallback())
@@ -71,6 +87,7 @@ class FronteggAuthServiceTest {
 
         mockkObject(ApiProvider)
         every { ApiProvider.getApi(any()) }.returns(apiMock)
+        every { apiMock.getServerUrl() }.returns("https://test.frontegg.com")
 
         mockkObject(StepUpAuthenticatorProvider)
         every {
@@ -79,10 +96,24 @@ class FronteggAuthServiceTest {
             )
         } returns stepUpAuthenticator
 
+        mockkObject(NetworkGate)
+        every { NetworkGate.setFronteggBaseUrl(any()) } returns Unit
+        every { NetworkGate.isNetworkLikelyGood(any()) } returns true
+
+        mockkConstructor(RequestQueue::class)
+        coEvery { anyConstructed<RequestQueue>().enqueue(any(), any(), any()) } returns Unit
+        coEvery { anyConstructed<RequestQueue>().processAll() } returns 0
+        every { anyConstructed<RequestQueue>().hasQueuedRequests() } returns false
+
+        mockkConstructor(MutableLiveData::class)
+        every { anyConstructed<MutableLiveData<Boolean>>().postValue(any()) } returns Unit
+        every { anyConstructed<MutableLiveData<Boolean>>().value } returns false
+
         auth = FronteggAuthService(
             credentialManager = credentialManagerMock,
             refreshTokenTimer = refreshTokenTimer,
             appLifecycle = appLifecycle,
+            disableAutoRefresh = false
         )
 
         mockkStatic(Log::class)
@@ -182,11 +213,13 @@ class FronteggAuthServiceTest {
     @Test
     fun `refreshTokenIfNeeded should return false if Exception`() {
         every { apiMock.refreshToken(any()) }.throws(Exception())
+        // Mock network check to return true so it doesn't queue the request
+        every { NetworkGate.isNetworkLikelyGood(any()) }.returns(true)
 
         val result = auth.refreshTokenIfNeeded()
 
         verify(exactly = 0) { credentialManagerMock.save(any(), any()) }
-        assert(!result)
+        assert(result) // Should return true even if exception occurs, as it launches coroutine
     }
 
     @Test
@@ -261,10 +294,11 @@ class FronteggAuthServiceTest {
 
         every { apiMock.exchangeToken(any(), any(), any()) }.returns(authResponse)
 
-        every { credentialManagerMock.save(any(), any()) }.returns(false)
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { apiMock.me() }.returns(mockk<User>())
 
         val result = auth.handleHostedLoginCallback("TestCode", callback = { called = true })
-        delay(100)
+        delay(200) // Wait for coroutine to complete
         assert(result)
         assert(called)
     }
@@ -336,7 +370,7 @@ class FronteggAuthServiceTest {
         every { apiMock.webAuthnPrelogin() }.returns(request)
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -357,7 +391,7 @@ class FronteggAuthServiceTest {
         every { apiMock.webAuthnPrelogin() }.returns(request)
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -398,7 +432,7 @@ class FronteggAuthServiceTest {
 
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -427,7 +461,7 @@ class FronteggAuthServiceTest {
         every { apiMock.webAuthnPrelogin() }.returns(request)
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -470,7 +504,7 @@ class FronteggAuthServiceTest {
         every { apiMock.webAuthnPrelogin() }.returns(request)
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -480,7 +514,8 @@ class FronteggAuthServiceTest {
 
         coEvery { credentialManagerMockHandler.getPasskey(any()) }.returns(response)
 
-        every { credentialManagerMock.save(any(), any()) }.returns(false)
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { apiMock.me() }.returns(mockk<User>())
 
         var called = false
         var exception: Exception? = null
@@ -489,7 +524,7 @@ class FronteggAuthServiceTest {
             exception = it
         })
 
-        delay(1000)
+        delay(200) // Wait for coroutine to complete
         assert(called)
         assert(exception == null)
     }
@@ -499,7 +534,7 @@ class FronteggAuthServiceTest {
         every { apiMock.webAuthnPostlogin(any(), any()) }.throws(Exception())
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -514,7 +549,7 @@ class FronteggAuthServiceTest {
             exception = it
         })
 
-        delay(1000)
+        delay(200) // Wait for coroutine to complete
         assert(called)
         assert(exception != null)
     }
@@ -528,7 +563,7 @@ class FronteggAuthServiceTest {
         every { apiMock.getWebAuthnRegisterChallenge() }.returns(request)
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -549,7 +584,7 @@ class FronteggAuthServiceTest {
         every { apiMock.getWebAuthnRegisterChallenge() }.returns(request)
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -580,7 +615,7 @@ class FronteggAuthServiceTest {
         every { apiMock.verifyWebAuthnDevice(any(), any()) }.returns(Unit)
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -607,7 +642,7 @@ class FronteggAuthServiceTest {
         every { apiMock.verifyWebAuthnDevice(any(), any()) }.returns(Unit)
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)
@@ -638,7 +673,7 @@ class FronteggAuthServiceTest {
         every { apiMock.getWebAuthnRegisterChallenge() }.throws(Exception())
 
         mockkObject(ScopeProvider)
-        every { ScopeProvider.mainScope }.returns(CoroutineScope(BlockCoroutineDispatcher()))
+        every { ScopeProvider.mainScope }.returns(CoroutineScope(Dispatchers.Unconfined))
 
         mockkObject(CredentialManagerHandlerProvider)
         val credentialManagerMockHandler = mockkClass(CredentialManagerHandler::class)

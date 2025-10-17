@@ -115,6 +115,11 @@ interface FronteggAuth {
     fun refreshTokenIfNeeded(): Boolean
 
     /**
+     * Process queued requests when network becomes available.
+     */
+    fun processQueuedRequests()
+
+    /**
      * Login with passkeys
      * @param activity is the activity of application;
      * @param callback call after the registration is finished or was intercepted by Exception.
@@ -195,5 +200,23 @@ interface FronteggAuth {
      * @param refreshToken The refresh token to set.
      */
     fun updateCredentials(accessToken: String, refreshToken: String)
+
+    /**
+     * Get session start time.
+     * @return Session start time in milliseconds since epoch, or 0 if not tracked
+     */
+    fun getSessionStartTime(): Long
+
+    /**
+     * Get session duration.
+     * @return Session duration in milliseconds, or 0 if session not started
+     */
+    fun getSessionDuration(): Long
+
+    /**
+     * Check if we have session data.
+     * @return true if we have session start time
+     */
+    fun hasSessionData(): Boolean
 }
 

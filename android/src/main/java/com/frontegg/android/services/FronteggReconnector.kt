@@ -54,6 +54,10 @@ object FronteggReconnector {
                 if (!isValidated(context)) {
                     return@withLock
                 }
+
+                // Before resetting the "offline" variable, save the previous value.
+                val wasOffline = offline
+
                 offline = false
 
                 // If SDK is not fully initialized (no instance OR empty client/base) and we have cached regions init, retry it
@@ -61,7 +65,10 @@ object FronteggReconnector {
                     val cache = ConfigCache.loadLastRegionsInit(context)
                     val storage = StorageProvider.getInnerStorage()
                     val notConfigured = storage.clientId.isBlank() || storage.baseUrl.isBlank()
-                    if ((FronteggApp.instance == null || notConfigured) && cache != null) {
+
+                    // Use "wasOffline" to determine if we were offline on App start and now we gain connectivity.
+                    // Only in this case run the initialization here. Otherwise, leave it to the Application class.
+                    if ((FronteggApp.instance == null || notConfigured) && cache != null && wasOffline) {
                         val (regions, flags) = cache
                         val mainCls = flags.mainActivityClassName?.let {
                             try { Class.forName(it) } catch (_: Throwable) { null }
@@ -90,6 +97,14 @@ object FronteggReconnector {
                             Log.d(TAG, "Token refresh successful on network reconnect")
                         } else {
                             Log.d(TAG, "Token refresh failed on network reconnect, will retry later")
+                        }
+                        
+                        // Also try to process request queue
+                        try {
+                            Log.d(TAG, "Processing queued requests after network reconnect")
+                            context.fronteggAuth.processQueuedRequests()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Failed to process queued requests", e)
                         }
                     }
                 } catch (t: Throwable) {
