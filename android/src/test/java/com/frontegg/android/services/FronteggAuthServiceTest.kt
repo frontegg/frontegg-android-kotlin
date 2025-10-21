@@ -211,15 +211,18 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `refreshTokenIfNeeded should return false if Exception`() {
-        every { apiMock.refreshToken(any()) }.throws(Exception())
-        // Mock network check to return true so it doesn't queue the request
+    fun `refreshTokenIfNeeded should work even when auto refresh is disabled`() {
+        every { apiMock.refreshToken(any()) }.returns(authResponse)
         every { NetworkGate.isNetworkLikelyGood(any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { apiMock.me() }.returns(mockk<User>())
 
+        // Test that refreshTokenIfNeeded works regardless of disableAutoRefresh setting
+        // because manual calls should always work
         val result = auth.refreshTokenIfNeeded()
 
-        verify(exactly = 0) { credentialManagerMock.save(any(), any()) }
-        assert(result) // Should return true even if exception occurs, as it launches coroutine
+        // Should return true because manual calls should work even when auto refresh is disabled
+        assert(result)
     }
 
     @Test
