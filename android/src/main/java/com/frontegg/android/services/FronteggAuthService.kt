@@ -66,8 +66,8 @@ class FronteggAuthService(
     // Reconnecting state
     val isReconnecting = MutableLiveData<Boolean>()
     
-    // Maximum wait time for network recovery (3 minutes)
-    private val maxWaitTimeMs = 3 * 60 * 1000L
+    // No timeout for network recovery - wait indefinitely
+    private val maxWaitTimeMs = Long.MAX_VALUE
 
 
     companion object {
@@ -278,14 +278,14 @@ class FronteggAuthService(
             }
             
             if (!networkOk) {
-                Log.w(TAG, "Network quality check timeout after ${maxWaitTimeMs}ms, clearing credentials")
+                Log.w(TAG, "Network quality check timeout, clearing credentials")
                 clearCredentials()
                 return false
             }
             
             isReconnecting.postValue(false)
             
-            val success = sendRefreshToken()
+            val success = sendRefreshToken(isManualCall = true)
             if (success) {
                 val processedCount = requestQueue.processAll()
                 Log.d(TAG, "Processed $processedCount queued requests")
@@ -369,10 +369,8 @@ class FronteggAuthService(
 
     override fun refreshTokenIfNeeded(): Boolean {
         return synchronized(refreshMutex) {
-            // Check if auto refresh is disabled
-            if (disableAutoRefresh) {
-                return false
-            }
+            // Manual refresh token calls should always work, regardless of disableAutoRefresh
+            // disableAutoRefresh only blocks automatic refresh operations
             
             // Check network quality before attempting refresh token
             if (!isNetworkGoodSync()) {
@@ -874,8 +872,9 @@ class FronteggAuthService(
      * @throws Exception if an error occurs during the process.
      */
     @Throws(IllegalArgumentException::class, IOException::class)
-    fun sendRefreshToken(): Boolean {
-        if (disableAutoRefresh) {
+    fun sendRefreshToken(isManualCall: Boolean = false): Boolean {
+        // Only block automatic refresh operations, not manual calls
+        if (!isManualCall && disableAutoRefresh) {
             return false
         }
         
