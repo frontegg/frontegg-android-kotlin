@@ -1,3 +1,7 @@
+## v
+Disabled session alive-time for offline mode.
+Improvement for autorefresh token.
+
 ## v1.3.8
 Added ability to disable token refresing in SDK - side with "FRONTEGG_DISABLE_AUTO_REFRESH" gradle parameter.
 A service has been added to monitor internet connection quality. If the connection is weak (for example, Edge), when the token expires, the refresh token will be added to a queue and executed once the connection is restored.
