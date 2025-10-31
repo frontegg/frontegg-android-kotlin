@@ -1,3 +1,6 @@
+## v
+Access Token retrieval examples update.
+
 ## v1.3.9
 Disabled session alive-time for offline mode.
 Improvement for autorefresh token.
