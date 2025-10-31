@@ -38,4 +38,5 @@ class HomeViewModel(private val fronteggAuth: FronteggAuth) : ViewModel() {
 
 
     val user: LiveData<User?> = _user
+    val accessToken: LiveData<String?> = _accessToken
 }

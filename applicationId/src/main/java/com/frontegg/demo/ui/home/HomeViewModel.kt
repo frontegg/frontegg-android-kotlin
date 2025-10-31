@@ -39,4 +39,5 @@ class HomeViewModel(
 
 
     val user: LiveData<User?> = _user
+    val accessToken: LiveData<String?> = _accessToken
 }

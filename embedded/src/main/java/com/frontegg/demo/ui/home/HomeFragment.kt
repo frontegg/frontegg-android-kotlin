@@ -140,6 +140,27 @@ class HomeFragment : Fragment() {
             }
         }
 
+        binding.receiveTokenButton.setOnClickListener {
+            val token = requireContext().fronteggAuth.accessToken.value
+            if (token.isNullOrEmpty()) {
+                Toast.makeText(
+                    requireContext(),
+                    "Access token is not available yet",
+                    Toast.LENGTH_SHORT
+                ).show()
+            } else {
+                val clipboard =
+                    requireContext().getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                val clip = ClipData.newPlainText("Access Token", token)
+                clipboard.setPrimaryClip(clip)
+                Toast.makeText(
+                    requireContext(),
+                    "Access token was copied to clipboard",
+                    Toast.LENGTH_SHORT
+                ).show()
+            }
+        }
+
         /**
          * Opens the Frontegg Android Kotlin documentation in the default browser.
          * This button is part of the footer and provides quick access to the official documentation.
