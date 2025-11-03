@@ -115,16 +115,36 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             return
         }
 
-        Log.d(TAG, "Checking load conditions: isStepUpAuthorization=${fronteggAuth.isStepUpAuthorization.value}, initializing=${fronteggAuth.initializing.value}, isAuthenticated=${fronteggAuth.isAuthenticated.value}")
+        // Always load URL for password reset and other account actions that don't require authentication
+        // These URLs should be accessible regardless of auth state (initializing/authenticated)
+        // This is especially important for Flutter apps where initialization may complete after activity starts
+        // Check this FIRST before accessing fronteggAuth properties to avoid initialization issues
+        val isPasswordResetOrAccountAction = webViewUrl?.contains("/oauth/account/reset-password") == true ||
+                webViewUrl?.contains("/oauth/account/verify-email") == true ||
+                webViewUrl?.contains("/oauth/account/verify-phone") == true ||
+                webViewUrl?.contains("/oauth/account/accept-invitation") == true ||
+                webViewUrl?.contains("/oauth/account/activate") == true ||
+                webViewUrl?.contains("/oauth/account/invitation/accept") == true
         
         // Always load URL for social login redirects (oauth/account/social/success)
         val isSocialLoginRedirect = webViewUrl?.contains("/oauth/account/social/success") == true
-        Log.d(TAG, "isSocialLoginRedirect: $isSocialLoginRedirect")
         
-        if (isSocialLoginRedirect || 
-            (fronteggAuth.isStepUpAuthorization.value ||
-                    (!fronteggAuth.initializing.value &&
-                            !fronteggAuth.isAuthenticated.value))
+        Log.d(TAG, "isPasswordResetOrAccountAction: $isPasswordResetOrAccountAction, isSocialLoginRedirect: $isSocialLoginRedirect")
+        
+        // If it's an account action URL (reset-password, etc.), load immediately without checking auth state
+        if (isPasswordResetOrAccountAction || isSocialLoginRedirect) {
+            Log.d(TAG, "loadUrl (account action/social redirect): $webViewUrl")
+            webView.loadUrl(webViewUrl!!)
+            webViewUrl = null
+            return
+        }
+        
+        // For other URLs, check auth state
+        Log.d(TAG, "Checking load conditions: isStepUpAuthorization=${fronteggAuth.isStepUpAuthorization.value}, initializing=${fronteggAuth.initializing.value}, isAuthenticated=${fronteggAuth.isAuthenticated.value}")
+        
+        if (fronteggAuth.isStepUpAuthorization.value ||
+                (!fronteggAuth.initializing.value &&
+                        !fronteggAuth.isAuthenticated.value)
         ) {
             Log.d(TAG, "loadUrl $webViewUrl")
             webView.loadUrl(webViewUrl!!)
@@ -216,6 +236,28 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         // Consume intent data if available (for social login redirects)
         if (intent.data != null && webViewUrl == null) {
             consumeIntent(intent)
+        }
+        
+        // Fallback: Retry loading URL if it wasn't loaded in onCreate due to initialization state
+        // This can happen when app is opened from terminated state in Flutter
+        // Even though reset-password URLs should load immediately, this ensures they load once initialization completes
+        if (webViewUrl != null) {
+            val isPasswordResetOrAccountAction = webViewUrl?.contains("/oauth/account/reset-password") == true ||
+                    webViewUrl?.contains("/oauth/account/verify-email") == true ||
+                    webViewUrl?.contains("/oauth/account/verify-phone") == true ||
+                    webViewUrl?.contains("/oauth/account/accept-invitation") == true ||
+                    webViewUrl?.contains("/oauth/account/activate") == true ||
+                    webViewUrl?.contains("/oauth/account/invitation/accept") == true ||
+                    webViewUrl?.contains("/oauth/account/social/success") == true
+            
+            // Always load account action URLs regardless of auth state
+            if (isPasswordResetOrAccountAction || 
+                fronteggAuth.isStepUpAuthorization.value ||
+                (!fronteggAuth.initializing.value && !fronteggAuth.isAuthenticated.value)) {
+                Log.d(TAG, "Retrying loadUrl in onResume: $webViewUrl")
+                webView.loadUrl(webViewUrl!!)
+                webViewUrl = null
+            }
         }
 
     }
