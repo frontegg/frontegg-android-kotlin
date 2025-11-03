@@ -1,4 +1,7 @@
 ## v
+Fixed error when reset password method redirects sometimes to blank screen.
+
+## v
 Access Token retrieval examples update.
 
 ## v1.3.9
