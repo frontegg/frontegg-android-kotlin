@@ -86,16 +86,35 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
                 return
             }
 
-            val authorizeUri = AuthorizeUrlGenerator(this).generate()
-            FronteggNativeBridge.directLoginWithContext(
-                this, mapOf(
-                    "type" to type,
-                    "data" to data,
-                    "additionalQueryParams" to mapOf(
-                        "prompt" to "consent"
-                    )
-                ), true
+            // Generate URL with directLogin parameters
+            val directLoginData = mapOf(
+                "type" to type,
+                "data" to data,
+                "additionalQueryParams" to mapOf(
+                    "prompt" to "consent"
+                )
             )
+            
+            val authorizeUri = try {
+                val jsonData = org.json.JSONObject(directLoginData)
+                val additionalQueryParams = org.json.JSONObject()
+                additionalQueryParams.put("prompt", "consent")
+                jsonData.put("additionalQueryParams", additionalQueryParams)
+                val loginAction = jsonData.toString().toByteArray(Charsets.UTF_8)
+                val jsonString = android.util.Base64.encodeToString(loginAction, android.util.Base64.NO_WRAP)
+                val formAction = directLoginData["action"] as? String
+                AuthorizeUrlGenerator(this).generate(null, jsonString, true, null, null, formAction)
+            } catch (e: org.json.JSONException) {
+                val formAction = directLoginData["action"] as? String
+                AuthorizeUrlGenerator(this).generate(null, null, true, null, null, formAction)
+            }
+            
+            // Call directLoginWithContext - it will detect EmbeddedAuthActivity and skip browser launch
+            FronteggNativeBridge.directLoginWithContext(
+                this, directLoginData, true
+            )
+            
+            // Use the generated URL with directLogin parameters
             webViewUrl = authorizeUri.first
         } else {
             val intentUrl = intent.data

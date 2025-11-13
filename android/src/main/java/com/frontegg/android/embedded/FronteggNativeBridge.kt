@@ -62,7 +62,20 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
 
             val authorizationUrl = Uri.parse(generatedUrl.first)
 
-            if (FronteggInnerStorage().useChromeCustomTabs) {
+            // If context is EmbeddedAuthActivity, don't open browser - let the Activity load URL in WebView
+            // This ensures passkey support works correctly
+            val isEmbeddedAuthActivity = context is Activity && 
+                context.javaClass.simpleName == "EmbeddedAuthActivity"
+
+            if (isEmbeddedAuthActivity) {
+                // Don't open browser - EmbeddedAuthActivity will load the URL in its WebView
+                Log.d("FronteggNativeBridge", "Context is EmbeddedAuthActivity, skipping browser launch - URL will be loaded in WebView")
+                return
+            }
+
+            // For other contexts, use existing logic (Chrome Custom Tabs or browser)
+            val storage = FronteggInnerStorage()
+            if (storage.useChromeCustomTabs) {
                 val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(false).build()
                 customTabsIntent.intent.setPackage("com.android.chrome")
                 customTabsIntent.intent.setData(authorizationUrl)
