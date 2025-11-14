@@ -1,3 +1,6 @@
+## v1.3.11
+Fixed error when reset password method redirects sometimes to blank screen.
+
 ## v1.3.10
 Access Token retrieval examples update.
 

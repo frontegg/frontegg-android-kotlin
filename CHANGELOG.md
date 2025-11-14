@@ -1,3 +1,6 @@
+## v
+Fixed bug with directLogin in embedded mode.
+
 ## v1.3.11
 Fixed error when reset password method redirects sometimes to blank screen.
 
