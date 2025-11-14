@@ -1,4 +1,4 @@
-## v
+## v1.3.12
 Fixed bug with directLogin in embedded mode.
 
 ## v1.3.11
@@ -281,6 +281,7 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
+
 
 
 
