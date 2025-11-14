@@ -86,16 +86,37 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
                 return
             }
 
-            val authorizeUri = AuthorizeUrlGenerator(this).generate()
-            FronteggNativeBridge.directLoginWithContext(
-                this, mapOf(
-                    "type" to type,
-                    "data" to data,
-                    "additionalQueryParams" to mapOf(
-                        "prompt" to "consent"
-                    )
-                ), true
+            // Generate URL with directLogin parameters (same logic as in directLoginWithContext)
+            val directLoginData = mapOf(
+                "type" to type,
+                "data" to data,
+                "additionalQueryParams" to mapOf(
+                    "prompt" to "consent"
+                )
             )
+            
+            val authorizeUri = try {
+                val jsonData = org.json.JSONObject(directLoginData)
+                val additionalQueryParams = org.json.JSONObject()
+                additionalQueryParams.put("prompt", "consent")
+                jsonData.put("additionalQueryParams", additionalQueryParams)
+                val loginAction = jsonData.toString().toByteArray(Charsets.UTF_8)
+                val jsonString = android.util.Base64.encodeToString(loginAction, android.util.Base64.NO_WRAP)
+                // formAction is not in directLoginData, so pass null
+                // Use preserveCodeVerifier = false for first call to avoid NPE if codeVerifier doesn't exist
+                AuthorizeUrlGenerator(this).generate(null, jsonString, false, null, null, null)
+            } catch (e: org.json.JSONException) {
+                // If JSON parsing fails, generate URL without loginAction
+                AuthorizeUrlGenerator(this).generate(null, null, false, null, null, null)
+            }
+            
+            // Call directLoginWithContext - it will detect EmbeddedAuthActivity and skip browser launch
+            // Use preserveCodeVerifier = false for first call to avoid NPE if codeVerifier doesn't exist
+            FronteggNativeBridge.directLoginWithContext(
+                this, directLoginData, false
+            )
+            
+            // Use the generated URL with directLogin parameters
             webViewUrl = authorizeUri.first
         } else {
             val intentUrl = intent.data
