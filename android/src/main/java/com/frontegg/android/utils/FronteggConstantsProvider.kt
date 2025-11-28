@@ -57,6 +57,9 @@ object FronteggConstantsProvider {
         val disableAutoRefresh =
             safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_DISABLE_AUTO_REFRESH", false)
 
+        val enableSessionPerTenant =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_SESSION_PER_TENANT", false)
+
         return FronteggConstants(
             baseUrl = baseUrl,
             clientId = clientId,
@@ -67,6 +70,7 @@ object FronteggConstantsProvider {
             useDiskCacheWebview = useDiskCacheWebview,
             mainActivityClass = mainActivityClass,
             disableAutoRefresh = disableAutoRefresh,
+            enableSessionPerTenant = enableSessionPerTenant,
         )
     }
 }

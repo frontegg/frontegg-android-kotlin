@@ -78,6 +78,14 @@ class HomeFragment : Fragment() {
                     tenantIdText.text = user.activeTenant.id
                     tenantWebsiteText.text = user.activeTenant.website ?: "No website"
                     tenantCreatorText.text = user.activeTenant.creatorName ?: "Unknown"
+                    
+                    val auth = requireContext().fronteggAuth
+                    Log.d(TAG, "Per-tenant session isolation enabled: ${auth.hasSessionData()}")
+                    if (auth.hasSessionData()) {
+                        val sessionStartTime = auth.getSessionStartTime()
+                        val sessionDuration = auth.getSessionDuration()
+                        Log.d(TAG, "Current tenant (${user.activeTenant.name}) session - Start: $sessionStartTime, Duration: ${sessionDuration}ms")
+                    }
 
                     // Set up copy button
                     copyTenantIdButton.setOnClickListener {
@@ -96,8 +104,29 @@ class HomeFragment : Fragment() {
                     tenantDropdownText.setOnItemClickListener { _, _, position, _ ->
                         val selectedTenant = user.tenants[position]
                         if (selectedTenant != user.activeTenant) {
+                            Log.d(TAG, "Switching tenant from ${user.activeTenant.name} (${user.activeTenant.tenantId}) to ${selectedTenant.name} (${selectedTenant.tenantId})")
+                            
+                            // Show loading message
+                            showSuccessMessage("Switching to tenant: ${selectedTenant.name}...")
+                            
                             // Call your tenant switching function
-                            requireContext().fronteggAuth.switchTenant(selectedTenant.tenantId)
+                            requireContext().fronteggAuth.switchTenant(selectedTenant.tenantId) { success ->
+                                if (success) {
+                                    Log.d(TAG, "Successfully switched to tenant: ${selectedTenant.name}")
+                                    showSuccessMessage("Successfully switched to tenant: ${selectedTenant.name}")
+                                    
+                                    // Log session info if per-tenant sessions are enabled
+                                    val auth = requireContext().fronteggAuth
+                                    if (auth.hasSessionData()) {
+                                        val sessionStartTime = auth.getSessionStartTime()
+                                        val sessionDuration = auth.getSessionDuration()
+                                        Log.d(TAG, "Tenant session info - Start: $sessionStartTime, Duration: ${sessionDuration}ms")
+                                    }
+                                } else {
+                                    Log.e(TAG, "Failed to switch to tenant: ${selectedTenant.name}")
+                                    showErrorMessage("Failed to switch to tenant: ${selectedTenant.name}")
+                                }
+                            }
                         }
                     }
                 }
@@ -219,6 +248,9 @@ class HomeFragment : Fragment() {
             Log.d(TAG, "hiding signUpBanner")
             binding.footer.signUpBanner.visibility = View.GONE
         }
+        
+        // Log per-tenant session isolation feature status on fragment creation
+        Log.d(TAG, "HomeFragment created - Per-tenant session isolation feature is enabled via BuildConfig")
 
         return root
     }
