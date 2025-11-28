@@ -5,5 +5,6 @@ public enum class CredentialKeys(key: String) {
     ACCESS_TOKEN("access_token"),
     REFRESH_TOKEN("refresh_token"),
     CODE_VERIFIER("code_verifier"),
-    SELECTED_REGION("selected_region")
+    SELECTED_REGION("selected_region"),
+    CURRENT_TENANT_ID("current_tenant_id")
 }

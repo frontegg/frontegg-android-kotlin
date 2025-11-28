@@ -22,6 +22,7 @@ open class CredentialManager(val context: Context) {
     }
 
     private var sp: SharedPreferences;
+    private var enableSessionPerTenant: Boolean = false
 
     private fun createKeyStore(): KeyStore {
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
@@ -113,44 +114,81 @@ open class CredentialManager(val context: Context) {
             .build()
     }
 
-    /**
-     * Save value for key into the shared preference
-     */
-    fun save(key: CredentialKeys, value: String): Boolean {
-        Log.d(TAG, "Saving Frontegg $key in shared preference")
+    fun setEnableSessionPerTenant(enabled: Boolean) {
+        this.enableSessionPerTenant = enabled
+    }
+
+    fun getCurrentTenantId(): String? {
+        return sp.getString(CredentialKeys.CURRENT_TENANT_ID.toString(), null)
+    }
+
+    fun setCurrentTenantId(tenantId: String?): Boolean {
+        if (tenantId == null) {
+            with(sp.edit()) {
+                remove(CredentialKeys.CURRENT_TENANT_ID.toString())
+                apply()
+                return commit()
+            }
+        } else {
+            return save(CredentialKeys.CURRENT_TENANT_ID, tenantId)
+        }
+    }
+
+    private fun getTenantScopedKey(key: CredentialKeys, tenantId: String?): String {
+        if (!enableSessionPerTenant || tenantId == null) {
+            return key.toString()
+        }
+        return "${key}_tenant_$tenantId"
+    }
+
+    fun save(key: CredentialKeys, value: String, tenantId: String? = null): Boolean {
+        if (key == CredentialKeys.CURRENT_TENANT_ID || key == CredentialKeys.CODE_VERIFIER) {
+            with(sp.edit()) {
+                putString(key.toString(), value)
+                apply()
+                return commit()
+            }
+        }
+        
+        val effectiveTenantId = tenantId ?: getCurrentTenantId()
+        val scopedKey = getTenantScopedKey(key, effectiveTenantId)
 
         with(sp.edit()) {
-            putString(key.toString(), value)
+            putString(scopedKey, value)
             apply()
             return commit()
         }
     }
 
 
-    /**
-     * Get value by key from the shared preference
-     */
-    fun get(key: CredentialKeys): String? {
-        Log.d(TAG, "get Frontegg $key in shared preference ")
+    fun get(key: CredentialKeys, tenantId: String? = null): String? {
+        if (key == CredentialKeys.CURRENT_TENANT_ID || key == CredentialKeys.CODE_VERIFIER) {
+            return sp.getString(key.toString(), null)
+        }
+        
+        val effectiveTenantId = tenantId ?: getCurrentTenantId()
+        val scopedKey = getTenantScopedKey(key, effectiveTenantId)
         with(sp) {
-            return getString(key.toString(), null)
+            return getString(scopedKey, null)
         }
     }
 
 
-    /**
-     * Remove all keys from shared preferences
-     */
     @SuppressLint("ApplySharedPref")
-    fun clear() {
-        Log.d(TAG, "clear Frontegg shared preference ")
-
+    fun clear(tenantId: String? = null) {
         val selectedRegion: String? = getSelectedRegion()
+        val effectiveTenantId = tenantId ?: getCurrentTenantId()
 
         with(sp.edit()) {
-            remove(CredentialKeys.CODE_VERIFIER.toString())
-            remove(CredentialKeys.ACCESS_TOKEN.toString())
-            remove(CredentialKeys.REFRESH_TOKEN.toString())
+            if (enableSessionPerTenant && effectiveTenantId != null) {
+                remove(getTenantScopedKey(CredentialKeys.ACCESS_TOKEN, effectiveTenantId))
+                remove(getTenantScopedKey(CredentialKeys.REFRESH_TOKEN, effectiveTenantId))
+            } else {
+                remove(CredentialKeys.CODE_VERIFIER.toString())
+                remove(CredentialKeys.ACCESS_TOKEN.toString())
+                remove(CredentialKeys.REFRESH_TOKEN.toString())
+                remove(CredentialKeys.CURRENT_TENANT_ID.toString())
+            }
             if (selectedRegion != null) {
                 putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
             }

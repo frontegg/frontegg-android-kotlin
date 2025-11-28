@@ -93,6 +93,10 @@ class FronteggAuthService(
     
     init {
         networkGate.setFronteggBaseUrl(api.getServerUrl())
+        
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        credentialManager.setEnableSessionPerTenant(enableSessionPerTenant)
+        sessionTracker.setEnableSessionPerTenant(enableSessionPerTenant)
     }
     
     private val multiFactorAuthenticator =
@@ -172,6 +176,12 @@ class FronteggAuthService(
         refreshTokenTimer.cancelLastTimer()
 
         bgScope.launch {
+            val enableSessionPerTenant = storage.enableSessionPerTenant
+            val tenantId = if (enableSessionPerTenant) {
+                user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+            } else {
+                null
+            }
 
             val logoutCookies = getDomainCookie(baseUrl)
             val logoutAccessToken = accessToken.value
@@ -187,7 +197,12 @@ class FronteggAuthService(
             accessToken.value = null
             refreshToken.value = null
             user.value = null
-            credentialManager.clear()
+            
+            credentialManager.clear(tenantId)
+            
+            if (enableSessionPerTenant) {
+                credentialManager.setCurrentTenantId(null)
+            }
 
             withContext(mainDispatcher) {
                 isLoading.value = false
@@ -221,6 +236,21 @@ class FronteggAuthService(
             val handler = Handler(Looper.getMainLooper())
 
             isLoading.value = true
+            
+            val enableSessionPerTenant = storage.enableSessionPerTenant
+            val currentUser = user.value
+            if (enableSessionPerTenant && currentUser != null) {
+                val currentTenantId = currentUser.activeTenant.tenantId
+                if (currentTenantId != tenantId) {
+                    val currentAccessToken = accessToken.value
+                    val currentRefreshToken = refreshToken.value
+                    if (currentAccessToken != null && currentRefreshToken != null) {
+                        credentialManager.save(CredentialKeys.ACCESS_TOKEN, currentAccessToken, currentTenantId)
+                        credentialManager.save(CredentialKeys.REFRESH_TOKEN, currentRefreshToken, currentTenantId)
+                    }
+                }
+            }
+            
             try {
                 api.switchTenant(tenantId)
             } catch (e: Exception) {
@@ -230,6 +260,48 @@ class FronteggAuthService(
                     callback(false)
                 }
                 return@launch
+            }
+
+            if (enableSessionPerTenant) {
+                credentialManager.setCurrentTenantId(tenantId)
+                
+                val tenantAccessToken = credentialManager.get(CredentialKeys.ACCESS_TOKEN, tenantId)
+                val tenantRefreshToken = credentialManager.get(CredentialKeys.REFRESH_TOKEN, tenantId)
+                
+                if (tenantAccessToken != null && tenantRefreshToken != null) {
+                    accessToken.value = tenantAccessToken
+                    refreshToken.value = tenantRefreshToken
+                    
+                    try {
+                        val user = api.me()
+                        if (user != null) {
+                            val storedTenant = user.tenants.find { it.tenantId == tenantId }
+                            if (storedTenant != null) {
+                                user.activeTenant = storedTenant
+                            }
+                            
+                            this@FronteggAuthService.user.value = user
+                            this@FronteggAuthService.isAuthenticated.value = true
+                            sessionTracker.trackSessionStart(tenantId)
+                            
+                            refreshTokenTimer.cancelLastTimer()
+                            
+                            val decoded = JWTHelper.decode(tenantAccessToken)
+                            if (decoded.exp > 0) {
+                                val offset = decoded.exp.calculateTimerOffset()
+                                refreshTokenTimer.scheduleTimer(offset)
+                            }
+                            
+                            handler.post {
+                                isLoading.value = false
+                                callback(true)
+                            }
+                            return@launch
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "Failed to load user with tenant credentials, refreshing token", e)
+                    }
+                }
             }
 
             val success = refreshTokenIfNeeded()
@@ -331,11 +403,24 @@ class FronteggAuthService(
     
     private fun startUserDataMonitoring() {
         bgScope.launch {
+            val enableSessionPerTenant = storage.enableSessionPerTenant
+            val storedTenantId = if (enableSessionPerTenant) {
+                credentialManager.getCurrentTenantId()
+            } else {
+                null
+            }
+            
             while (user.value == null && isAuthenticated.value == true) {
                 if (isNetworkGood()) {
                     try {
                         val userData = api.me()
                         if (userData != null) {
+                            if (enableSessionPerTenant && storedTenantId != null) {
+                                val storedTenant = userData.tenants.find { it.tenantId == storedTenantId }
+                                if (storedTenant != null) {
+                                    userData.activeTenant = storedTenant
+                                }
+                            }
                             this@FronteggAuthService.user.value = userData
                             this@FronteggAuthService.isLoading.value = false
                             break
@@ -346,6 +431,12 @@ class FronteggAuthService(
                             if (refreshSuccess) {
                                 val userData = api.me()
                                 if (userData != null) {
+                                    if (enableSessionPerTenant && storedTenantId != null) {
+                                        val storedTenant = userData.tenants.find { it.tenantId == storedTenantId }
+                                        if (storedTenant != null) {
+                                            userData.activeTenant = storedTenant
+                                        }
+                                    }
                                     this@FronteggAuthService.user.value = userData
                                     this@FronteggAuthService.isLoading.value = false
                                     break
@@ -546,23 +637,46 @@ class FronteggAuthService(
 
 
     private fun setCredentials(accessToken: String, refreshToken: String): Boolean {
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        val initialTenantId = if (enableSessionPerTenant) {
+            user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+        } else {
+            null
+        }
 
-        if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
-            && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
+        if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken, initialTenantId)
+            && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken, initialTenantId)
         ) {
+            this.accessToken.value = accessToken
+            this.refreshToken.value = refreshToken
+            
             try {
                 val user = api.me()
                 if (user != null) {
+                    if (enableSessionPerTenant) {
+                        val storedTenantId = credentialManager.getCurrentTenantId()
+                        val tenantId = if (storedTenantId != null) {
+                            storedTenantId
+                        } else {
+                            user.activeTenant.tenantId
+                        }
+                        credentialManager.setCurrentTenantId(tenantId)
+                        credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken, tenantId)
+                        credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken, tenantId)
+                        
+                        val storedTenant = user.tenants.find { it.tenantId == tenantId }
+                        if (storedTenant != null) {
+                            user.activeTenant = storedTenant
+                        }
+                    }
                     updateStateWithCredentials(accessToken, refreshToken, user)
                     return true
                 } else {
-                    // Don't clear credentials on network errors - keep tokens for retry
                     this.isLoading.value = false
                     this.initializing.value = false
                     return false
                 }
             } catch (e: Exception) {
-                // Don't clear credentials on network errors - keep tokens for retry
                 this.isLoading.value = false
                 this.initializing.value = false
                 return false
@@ -576,23 +690,46 @@ class FronteggAuthService(
     private fun setCredentials(authResponse: com.frontegg.android.models.AuthResponse): Boolean {
         val accessToken = authResponse.access_token
         val refreshToken = authResponse.refresh_token
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        val initialTenantId = if (enableSessionPerTenant) {
+            user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+        } else {
+            null
+        }
 
-        if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken)
-            && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken)
+        if (credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken, initialTenantId)
+            && credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken, initialTenantId)
         ) {
+            this.accessToken.value = accessToken
+            this.refreshToken.value = refreshToken
+            
             try {
                 val user = api.me()
                 if (user != null) {
+                    if (enableSessionPerTenant) {
+                        val storedTenantId = credentialManager.getCurrentTenantId()
+                        val tenantId = if (storedTenantId != null) {
+                            storedTenantId
+                        } else {
+                            user.activeTenant.tenantId
+                        }
+                        credentialManager.setCurrentTenantId(tenantId)
+                        credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken, tenantId)
+                        credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken, tenantId)
+                        
+                        val storedTenant = user.tenants.find { it.tenantId == tenantId }
+                        if (storedTenant != null) {
+                            user.activeTenant = storedTenant
+                        }
+                    }
                     updateStateWithCredentials(accessToken, refreshToken, user, authResponse)
                     return true
                 } else {
-                    // Don't clear credentials on network errors - keep tokens for retry
                     this.isLoading.value = false
                     this.initializing.value = false
                     return false
                 }
             } catch (e: Exception) {
-                // Don't clear credentials on network errors - keep tokens for retry
                 this.isLoading.value = false
                 this.initializing.value = false
                 return false
@@ -609,9 +746,16 @@ class FronteggAuthService(
         this.user.value = user
         this.isAuthenticated.value = true
 
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        val tenantId = if (enableSessionPerTenant) {
+            credentialManager.getCurrentTenantId() ?: user.activeTenant.tenantId
+        } else {
+            null
+        }
+
         // Track session start if this is a new session
-        if (sessionTracker.getSessionStartTime() == 0L) {
-            sessionTracker.trackSessionStart()
+        if (sessionTracker.getSessionStartTime(tenantId) == 0L) {
+            sessionTracker.trackSessionStart(tenantId)
         }
 
         // Cancel previous job if it exists
@@ -631,9 +775,16 @@ class FronteggAuthService(
         this.user.value = user
         this.isAuthenticated.value = true
 
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        val tenantId = if (enableSessionPerTenant) {
+            credentialManager.getCurrentTenantId() ?: user.activeTenant.tenantId
+        } else {
+            null
+        }
+
         // Track session start if this is a new session with lifetime info from API
-        if (sessionTracker.getSessionStartTime() == 0L) {
-            sessionTracker.trackSessionStart()
+        if (sessionTracker.getSessionStartTime(tenantId) == 0L) {
+            sessionTracker.trackSessionStart(tenantId)
         }
 
         // Cancel previous job if it exists
@@ -655,41 +806,57 @@ class FronteggAuthService(
     }
 
     override fun getSessionStartTime(): Long {
-        return sessionTracker.getSessionStartTime()
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        val tenantId = if (enableSessionPerTenant) {
+            user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+        } else {
+            null
+        }
+        return sessionTracker.getSessionStartTime(tenantId)
     }
 
     override fun getSessionDuration(): Long {
-        return sessionTracker.getSessionDuration()
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        val tenantId = if (enableSessionPerTenant) {
+            user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+        } else {
+            null
+        }
+        return sessionTracker.getSessionDuration(tenantId)
     }
 
     override fun hasSessionData(): Boolean {
-        return sessionTracker.hasSessionData()
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        val tenantId = if (enableSessionPerTenant) {
+            user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+        } else {
+            null
+        }
+        return sessionTracker.hasSessionData(tenantId)
     }
 
     fun clearCredentials() {
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        val tenantId = if (enableSessionPerTenant) {
+            user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+        } else {
+            null
+        }
+
         this.refreshToken.value = null
         this.accessToken.value = null
         this.user.value = null
         this.isAuthenticated.value = false
 
-        // Clear session tracking data
-        sessionTracker.clearSessionData()
-
-        // Clear all credentials from SharedPreferences
-        credentialManager.clear()
-
-        // Cancel any pending refresh token timers
+        sessionTracker.clearSessionData(tenantId)
+        credentialManager.clear(tenantId)
         refreshTokenTimer.cancelLastTimer()
 
-        // Clear request queue
         bgScope.launch {
             requestQueue.clear()
         }
 
-        // Reset reconnecting state
         isReconnecting.postValue(false)
-
-        Log.d(TAG, "All credentials cleared from memory and storage")
     }
 
     fun handleHostedLoginCallback(
@@ -766,9 +933,15 @@ class FronteggAuthService(
         }
 
         bgScope.launch {
+            val enableSessionPerTenant = storage.enableSessionPerTenant
+            val tenantId = if (enableSessionPerTenant) {
+                credentialManager.getCurrentTenantId()
+            } else {
+                null
+            }
 
-            val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
-            val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN)            
+            val accessTokenSaved = credentialManager.get(CredentialKeys.ACCESS_TOKEN, tenantId)
+            val refreshTokenSaved = credentialManager.get(CredentialKeys.REFRESH_TOKEN, tenantId)            
 
             if (accessTokenSaved != null && refreshTokenSaved != null) {
                 // We have tokens, let's validate them
@@ -790,6 +963,25 @@ class FronteggAuthService(
                 try {
                     val user = api.me()
                     if (user != null) {
+                        if (enableSessionPerTenant) {
+                            val storedTenantId = credentialManager.getCurrentTenantId()
+                            if (storedTenantId != null) {
+                                credentialManager.setCurrentTenantId(storedTenantId)
+                                val storedAccessToken = credentialManager.get(CredentialKeys.ACCESS_TOKEN, storedTenantId)
+                                val storedRefreshToken = credentialManager.get(CredentialKeys.REFRESH_TOKEN, storedTenantId)
+                                if (storedAccessToken != null && storedRefreshToken != null) {
+                                    accessToken.value = storedAccessToken
+                                    refreshToken.value = storedRefreshToken
+                                }
+                                val storedTenant = user.tenants.find { it.tenantId == storedTenantId }
+                                if (storedTenant != null) {
+                                    user.activeTenant = storedTenant
+                                }
+                            } else {
+                                val apiTenantId = user.activeTenant.tenantId
+                                credentialManager.setCurrentTenantId(apiTenantId)
+                            }
+                        }
                         // Access token is valid, user is authenticated
                         this@FronteggAuthService.user.value = user
                         this@FronteggAuthService.isAuthenticated.value = true
@@ -815,10 +1007,18 @@ class FronteggAuthService(
                 
                 // Try to refresh the token
                 try {
+                    if (enableSessionPerTenant && tenantId != null) {
+                        val storedRefreshToken = credentialManager.get(CredentialKeys.REFRESH_TOKEN, tenantId)
+                        if (storedRefreshToken != null && storedRefreshToken != refreshToken.value) {
+                            refreshToken.value = storedRefreshToken
+                        }
+                    }
+                    
                     val success = sendRefreshToken()
                     if (success) {
-                        // Refresh successful, user is authenticated
-                        Log.d(TAG, "Token refresh successful during initialization")
+                        if (enableSessionPerTenant && tenantId != null) {
+                            credentialManager.setCurrentTenantId(tenantId)
+                        }
                         initializing.value = false
                         isLoading.value = false
                     } else {
@@ -884,8 +1084,15 @@ class FronteggAuthService(
             val data = api.refreshToken(refreshToken)
             lastRefreshError = null
             
-            credentialManager.save(CredentialKeys.REFRESH_TOKEN, data.refresh_token)
-            credentialManager.save(CredentialKeys.ACCESS_TOKEN, data.access_token)
+            val enableSessionPerTenant = storage.enableSessionPerTenant
+            val tenantId = if (enableSessionPerTenant) {
+                user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+            } else {
+                null
+            }
+            
+            credentialManager.save(CredentialKeys.REFRESH_TOKEN, data.refresh_token, tenantId)
+            credentialManager.save(CredentialKeys.ACCESS_TOKEN, data.access_token, tenantId)
             
             this.refreshToken.value = data.refresh_token
             this.accessToken.value = data.access_token
@@ -893,9 +1100,30 @@ class FronteggAuthService(
             try {
                 val user = api.me()
                 if (user != null) {
+                    if (enableSessionPerTenant) {
+                        val currentStoredTenantId = credentialManager.getCurrentTenantId()
+                        if (currentStoredTenantId != null) {
+                            credentialManager.setCurrentTenantId(currentStoredTenantId)
+                            credentialManager.save(CredentialKeys.REFRESH_TOKEN, data.refresh_token, currentStoredTenantId)
+                            credentialManager.save(CredentialKeys.ACCESS_TOKEN, data.access_token, currentStoredTenantId)
+                            sessionTracker.trackTokenRefresh(currentStoredTenantId)
+                            
+                            val storedTenant = user.tenants.find { it.tenantId == currentStoredTenantId }
+                            if (storedTenant != null) {
+                                user.activeTenant = storedTenant
+                            }
+                        } else {
+                            val apiTenantId = user.activeTenant.tenantId
+                            credentialManager.setCurrentTenantId(apiTenantId)
+                            credentialManager.save(CredentialKeys.REFRESH_TOKEN, data.refresh_token, apiTenantId)
+                            credentialManager.save(CredentialKeys.ACCESS_TOKEN, data.access_token, apiTenantId)
+                            sessionTracker.trackTokenRefresh(apiTenantId)
+                        }
+                    } else {
+                        sessionTracker.trackTokenRefresh(null)
+                    }
                     this.user.value = user
                     this.isAuthenticated.value = true
-                    sessionTracker.trackTokenRefresh()
                 } else {
                     Log.w(TAG, "User is null after successful token refresh")
                     this.isAuthenticated.value = false

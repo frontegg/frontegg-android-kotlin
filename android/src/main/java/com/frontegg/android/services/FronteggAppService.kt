@@ -27,7 +27,8 @@ class FronteggAppService(
     private var mainActivityClass: Class<*>? = null,
     private var deepLinkScheme: String? = null,
     private var useDiskCacheWebview: Boolean = false,
-    private var disableAutoRefresh: Boolean = false
+    private var disableAutoRefresh: Boolean = false,
+    private var enableSessionPerTenant: Boolean = false
 ) : FronteggApp {
 
     private val storage = StorageProvider.getInnerStorage()
@@ -74,6 +75,7 @@ class FronteggAppService(
             context.packageName,
             deepLinkScheme,
             useDiskCacheWebview,
+            enableSessionPerTenant,
         )
     }
 
