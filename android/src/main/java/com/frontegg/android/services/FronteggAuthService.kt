@@ -650,17 +650,13 @@ class FronteggAuthService(
             this.accessToken.value = accessToken
             this.refreshToken.value = refreshToken
             
-            if (enableSessionPerTenant && initialTenantId != null) {
-                credentialManager.setCurrentTenantId(initialTenantId)
-            }
-            
             try {
                 val user = api.me()
                 if (user != null) {
                     if (enableSessionPerTenant) {
-                        val storedTenantId = credentialManager.getCurrentTenantId()
-                        val tenantId = if (storedTenantId != null) {
-                            storedTenantId
+    
+                        val tenantId = if (initialTenantId != null) {
+                            initialTenantId
                         } else {
                             user.activeTenant.tenantId
                         }
@@ -707,18 +703,20 @@ class FronteggAuthService(
             this.accessToken.value = accessToken
             this.refreshToken.value = refreshToken
             
-            if (enableSessionPerTenant && initialTenantId != null) {
-                credentialManager.setCurrentTenantId(initialTenantId)
-            }
+            // Note: We don't set currentTenantId here if initialTenantId is null (e.g., after logout).
+            // The token is saved with non-tenant-scoped key when initialTenantId is null,
+            // so api.me() should be able to find it. We'll set the tenant ID after getting the user.
             
             try {
                 val user = api.me()
                 if (user != null) {
                     if (enableSessionPerTenant) {
-                        val storedTenantId = credentialManager.getCurrentTenantId()
-                        val tenantId = if (storedTenantId != null) {
-                            storedTenantId
+                        // After getting user, determine the correct tenant ID
+                        val tenantId = if (initialTenantId != null) {
+                            // Use the initial tenant ID if it was set
+                            initialTenantId
                         } else {
+                            // Otherwise use the user's active tenant ID (e.g., after logout/login)
                             user.activeTenant.tenantId
                         }
                         credentialManager.setCurrentTenantId(tenantId)
