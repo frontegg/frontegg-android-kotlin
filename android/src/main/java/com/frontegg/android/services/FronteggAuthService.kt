@@ -1092,7 +1092,9 @@ class FronteggAuthService(
             
             val enableSessionPerTenant = storage.enableSessionPerTenant
             val tenantId = if (enableSessionPerTenant) {
-                user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
+                // Prioritize getCurrentTenantId() as it's the source of truth for the current tenant context
+                // (especially important during tenant switching when user.value might be stale)
+                credentialManager.getCurrentTenantId() ?: user.value?.activeTenant?.tenantId
             } else {
                 null
             }
