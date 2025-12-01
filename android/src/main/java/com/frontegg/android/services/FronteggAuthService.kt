@@ -650,6 +650,10 @@ class FronteggAuthService(
             this.accessToken.value = accessToken
             this.refreshToken.value = refreshToken
             
+            if (enableSessionPerTenant && initialTenantId != null) {
+                credentialManager.setCurrentTenantId(initialTenantId)
+            }
+            
             try {
                 val user = api.me()
                 if (user != null) {
@@ -702,6 +706,10 @@ class FronteggAuthService(
         ) {
             this.accessToken.value = accessToken
             this.refreshToken.value = refreshToken
+            
+            if (enableSessionPerTenant && initialTenantId != null) {
+                credentialManager.setCurrentTenantId(initialTenantId)
+            }
             
             try {
                 val user = api.me()
@@ -1096,6 +1104,10 @@ class FronteggAuthService(
             
             this.refreshToken.value = data.refresh_token
             this.accessToken.value = data.access_token
+            
+            if (enableSessionPerTenant && tenantId != null) {
+                credentialManager.setCurrentTenantId(tenantId)
+            }
             
             try {
                 val user = api.me()
