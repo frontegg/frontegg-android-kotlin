@@ -1,3 +1,6 @@
+## v
+https://frontegg.atlassian.net/browse/FR-22800
+
 ## v1.3.12
 Fixed bug with directLogin in embedded mode.
 
