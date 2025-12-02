@@ -18,40 +18,46 @@ class SessionTracker(private val context: Context) {
     }
     
     private val prefs: SharedPreferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    private var enableSessionPerTenant: Boolean = false
     
-    /**
-     * Track the start of a new session (call this on successful login)
-     */
-    fun trackSessionStart() {
-        val currentTime = System.currentTimeMillis()
-        
-        prefs.edit()
-            .putLong(KEY_SESSION_START_TIME, currentTime)
-            .putLong(KEY_LAST_REFRESH_TIME, currentTime)
-            .apply()
-        
-        Log.d(TAG, "Session started at: $currentTime")
+    fun setEnableSessionPerTenant(enabled: Boolean) {
+        this.enableSessionPerTenant = enabled
     }
     
-    /**
-     * Track a successful token refresh
-     */
-    fun trackTokenRefresh() {
+    private fun getTenantScopedKey(key: String, tenantId: String?): String {
+        if (!enableSessionPerTenant || tenantId == null) {
+            return key
+        }
+        return "${key}_tenant_$tenantId"
+    }
+    
+    fun trackSessionStart(tenantId: String? = null) {
         val currentTime = System.currentTimeMillis()
+        val sessionStartKey = getTenantScopedKey(KEY_SESSION_START_TIME, tenantId)
+        val lastRefreshKey = getTenantScopedKey(KEY_LAST_REFRESH_TIME, tenantId)
         
         prefs.edit()
-            .putLong(KEY_LAST_REFRESH_TIME, currentTime)
+            .putLong(sessionStartKey, currentTime)
+            .putLong(lastRefreshKey, currentTime)
             .apply()
+    }
+    
+    fun trackTokenRefresh(tenantId: String? = null) {
+        val currentTime = System.currentTimeMillis()
+        val lastRefreshKey = getTenantScopedKey(KEY_LAST_REFRESH_TIME, tenantId)
         
-        Log.d(TAG, "Token refreshed at: $currentTime")
+        prefs.edit()
+            .putLong(lastRefreshKey, currentTime)
+            .apply()
     }
     
     /**
      * Check if we have session data
      * @return true if we have session start time
      */
-    fun hasSessionData(): Boolean {
-        val sessionStartTime = prefs.getLong(KEY_SESSION_START_TIME, 0L)
+    fun hasSessionData(tenantId: String? = null): Boolean {
+        val sessionStartKey = getTenantScopedKey(KEY_SESSION_START_TIME, tenantId)
+        val sessionStartTime = prefs.getLong(sessionStartKey, 0L)
         return sessionStartTime != 0L
     }
 
@@ -59,36 +65,36 @@ class SessionTracker(private val context: Context) {
      * Get session start time
      * @return Session start time in milliseconds since epoch, or 0 if not tracked
      */
-    fun getSessionStartTime(): Long {
-        return prefs.getLong(KEY_SESSION_START_TIME, 0L)
+    fun getSessionStartTime(tenantId: String? = null): Long {
+        val sessionStartKey = getTenantScopedKey(KEY_SESSION_START_TIME, tenantId)
+        return prefs.getLong(sessionStartKey, 0L)
     }
     
     /**
      * Get last refresh time
      * @return Last refresh time in milliseconds since epoch, or 0 if not tracked
      */
-    fun getLastRefreshTime(): Long {
-        return prefs.getLong(KEY_LAST_REFRESH_TIME, 0L)
+    fun getLastRefreshTime(tenantId: String? = null): Long {
+        val lastRefreshKey = getTenantScopedKey(KEY_LAST_REFRESH_TIME, tenantId)
+        return prefs.getLong(lastRefreshKey, 0L)
     }
     
-    /**
-     * Clear session tracking data (call this on logout)
-     */
-    fun clearSessionData() {
-        prefs.edit()
-            .remove(KEY_SESSION_START_TIME)
-            .remove(KEY_LAST_REFRESH_TIME)
-            .apply()
+    fun clearSessionData(tenantId: String? = null) {
+        val sessionStartKey = getTenantScopedKey(KEY_SESSION_START_TIME, tenantId)
+        val lastRefreshKey = getTenantScopedKey(KEY_LAST_REFRESH_TIME, tenantId)
         
-        Log.d(TAG, "Session data cleared")
+        prefs.edit()
+            .remove(sessionStartKey)
+            .remove(lastRefreshKey)
+            .apply()
     }
     
     /**
      * Get session duration in milliseconds
      * @return Session duration in milliseconds, or 0 if session not started
      */
-    fun getSessionDuration(): Long {
-        val sessionStartTime = prefs.getLong(KEY_SESSION_START_TIME, 0L)
+    fun getSessionDuration(tenantId: String? = null): Long {
+        val sessionStartTime = getSessionStartTime(tenantId)
         if (sessionStartTime == 0L) {
             return 0L
         }
@@ -101,7 +107,7 @@ class SessionTracker(private val context: Context) {
      * @param minimumDurationMs Minimum duration in milliseconds
      * @return true if session has been active for at least the minimum duration
      */
-    fun hasMinimumSessionDuration(minimumDurationMs: Long): Boolean {
-        return getSessionDuration() >= minimumDurationMs
+    fun hasMinimumSessionDuration(minimumDurationMs: Long, tenantId: String? = null): Boolean {
+        return getSessionDuration(tenantId) >= minimumDurationMs
     }
 }

@@ -10,6 +10,7 @@ data class FronteggConstants(
     val useDiskCacheWebview: Boolean,
     val mainActivityClass: String?,
     val disableAutoRefresh: Boolean,
+    val enableSessionPerTenant: Boolean,
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -22,6 +23,7 @@ data class FronteggConstants(
             Pair("useDiskCacheWebview", useDiskCacheWebview),
             Pair("mainActivityClass", mainActivityClass),
             Pair("disableAutoRefresh", disableAutoRefresh),
+            Pair("enableSessionPerTenant", enableSessionPerTenant),
         )
     }
 }

@@ -69,6 +69,7 @@ val Context.fronteggApp: FronteggApp
                 deepLinkScheme = constants.deepLinkScheme,
                 useDiskCacheWebview = constants.useDiskCacheWebview,
                 disableAutoRefresh = constants.disableAutoRefresh,
+                enableSessionPerTenant = constants.enableSessionPerTenant,
             )
         }
 
@@ -134,6 +135,7 @@ interface FronteggApp {
             deepLinkScheme: String? = null,
             useDiskCacheWebview: Boolean = false,
             disableAutoRefresh: Boolean = false,
+            enableSessionPerTenant: Boolean = false,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
@@ -154,7 +156,8 @@ interface FronteggApp {
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview,
-                disableAutoRefresh = disableAutoRefresh
+                disableAutoRefresh = disableAutoRefresh,
+                enableSessionPerTenant = enableSessionPerTenant
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
         }
@@ -178,35 +181,37 @@ interface FronteggApp {
             mainActivityClass: Class<*>? = null,
             useDiskCacheWebview: Boolean = false,
             disableAutoRefresh: Boolean = false,
+            enableSessionPerTenant: Boolean = false,
         ): FronteggApp {
 
             val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
-            val selectedRegion = CredentialManager(context).getSelectedRegion()
-            if (selectedRegion != null) {
-                val regionConfig = regions.find { it.key == selectedRegion }
+           val selectedRegion = CredentialManager(context).getSelectedRegion()
+           if (selectedRegion != null) {
+               val regionConfig = regions.find { it.key == selectedRegion }
 
-                if (regionConfig != null) {
-                    val newInstance = FronteggAppService(
-                        context = context,
-                        baseUrl = regionConfig.baseUrl,
-                        clientId = regionConfig.clientId,
-                        applicationId = regionConfig.applicationId,
-                        isEmbeddedMode = isEmbeddedMode,
-                        regions = regions,
-                        selectedRegion = regionConfig,
-                        useAssetsLinks = useAssetsLinks,
-                        useChromeCustomTabs = useChromeCustomTabs,
-                        mainActivityClass = mainActivityClass,
-                        useDiskCacheWebview = useDiskCacheWebview,
-                        disableAutoRefresh = disableAutoRefresh
-                    )
-                    instance = newInstance
+               if (regionConfig != null) {
+                   val newInstance = FronteggAppService(
+                       context = context,
+                       baseUrl = regionConfig.baseUrl,
+                       clientId = regionConfig.clientId,
+                       applicationId = regionConfig.applicationId,
+                       isEmbeddedMode = isEmbeddedMode,
+                       regions = regions,
+                       selectedRegion = regionConfig,
+                       useAssetsLinks = useAssetsLinks,
+                       useChromeCustomTabs = useChromeCustomTabs,
+                       mainActivityClass = mainActivityClass,
+                       useDiskCacheWebview = useDiskCacheWebview,
+                       disableAutoRefresh = disableAutoRefresh,
+                       enableSessionPerTenant = enableSessionPerTenant
+                   )
+                   instance = newInstance
 
-                    runDebugChecksSafe(context, regionConfig.baseUrl, regionConfig.clientId)
+                   runDebugChecksSafe(context, regionConfig.baseUrl, regionConfig.clientId)
 
-                    return newInstance
-                }
-            }
+                   return newInstance
+               }
+           }
             val newInstance = FronteggAppService(
                 context = context,
                 baseUrl = "",
@@ -218,7 +223,8 @@ interface FronteggApp {
                 useChromeCustomTabs = useChromeCustomTabs,
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview,
-                disableAutoRefresh = disableAutoRefresh
+                disableAutoRefresh = disableAutoRefresh,
+                enableSessionPerTenant = enableSessionPerTenant
             )
             instance = newInstance
             // Persist parameters to allow retry when network becomes available

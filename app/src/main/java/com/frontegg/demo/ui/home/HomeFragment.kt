@@ -96,8 +96,15 @@ class HomeFragment : Fragment() {
                     tenantDropdownText.setOnItemClickListener { _, _, position, _ ->
                         val selectedTenant = user.tenants[position]
                         if (selectedTenant != user.activeTenant) {
-                            // Call your tenant switching function
-                            requireContext().fronteggAuth.switchTenant(selectedTenant.tenantId)
+                            showSuccessMessage("Switching to tenant: ${selectedTenant.name}...")
+                            
+                            requireContext().fronteggAuth.switchTenant(selectedTenant.tenantId) { success ->
+                                if (success) {
+                                    showSuccessMessage("Successfully switched to tenant: ${selectedTenant.name}")
+                                } else {
+                                    showErrorMessage("Failed to switch to tenant: ${selectedTenant.name}")
+                                }
+                            }
                         }
                     }
                 }
@@ -216,7 +223,6 @@ class HomeFragment : Fragment() {
         if (isDefaultCredentials) {
             binding.footer.signUpBanner.visibility = View.VISIBLE
         } else {
-            Log.d(TAG, "hiding signUpBanner")
             binding.footer.signUpBanner.visibility = View.GONE
         }
 
