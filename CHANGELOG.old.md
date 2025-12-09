@@ -1,3 +1,6 @@
+## v
+Added tenant per session support
+
 ## v1.3.12
 Fixed bug with directLogin in embedded mode.
 
