@@ -691,8 +691,7 @@ class FronteggAuthService(
         }
 
         // Reset reconnecting state
-            isReconnecting.value = false
-        isReconnecting.value = false
+        isReconnecting.postValue(false)
 
         Log.d(TAG, "All credentials cleared from memory and storage")
     }
