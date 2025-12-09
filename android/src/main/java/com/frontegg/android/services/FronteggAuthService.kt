@@ -131,6 +131,7 @@ class FronteggAuthService(
         }
 
         appLifecycle.startApp.addCallback {
+            recoverTokensFromStorageIfNeeded()
             refreshTokenWhenNeeded()
         }
 
@@ -263,7 +264,7 @@ class FronteggAuthService(
         if (!shouldProceed) return true
 
         try {
-            isReconnecting.postValue(true)
+            isReconnecting.value = true
             
             val startTime = System.currentTimeMillis()
             var networkOk = false
@@ -278,12 +279,15 @@ class FronteggAuthService(
             }
             
             if (!networkOk) {
-                Log.w(TAG, "Network quality check timeout, clearing credentials")
-                clearCredentials()
+                // Network is bad/offline - do NOT clear credentials; keep tokens for retry
+                // when network recovers. This supports offline mode and prevents logouts
+                // during temporary network issues.
+                Log.w(TAG, "Network quality check timeout (offline/bad network), keeping tokens for retry")
+                isReconnecting.value = false
                 return false
             }
             
-            isReconnecting.postValue(false)
+            isReconnecting.value = false
             
             val success = sendRefreshToken(isManualCall = true)
             if (success) {
@@ -295,7 +299,7 @@ class FronteggAuthService(
             
         } catch (e: Exception) {
             Log.e(TAG, "Failed to perform idempotent refresh", e)
-            isReconnecting.postValue(false)
+            isReconnecting.value = false
             return false
         } finally {
             synchronized(refreshMutex) {
@@ -687,9 +691,69 @@ class FronteggAuthService(
         }
 
         // Reset reconnecting state
-        isReconnecting.postValue(false)
+            isReconnecting.value = false
+        isReconnecting.value = false
 
         Log.d(TAG, "All credentials cleared from memory and storage")
+    }
+
+    /**
+     * Recovery on app wake / cold start:
+     * If tokens are present in storage but missing from in-memory state, restore them and
+     * validate with a lightweight check instead of immediately logging the user out.
+     */
+    private fun recoverTokensFromStorageIfNeeded() {
+        bgScope.launch {
+            val memoryAccess = accessToken.value
+            val memoryRefresh = refreshToken.value
+
+            if (memoryAccess != null && memoryRefresh != null) {
+                // Already consistent in memory
+                return@launch
+            }
+
+            val storedAccess = credentialManager.get(CredentialKeys.ACCESS_TOKEN)
+            val storedRefresh = credentialManager.get(CredentialKeys.REFRESH_TOKEN)
+
+            if (storedAccess == null || storedRefresh == null) {
+                // Nothing to restore
+                return@launch
+            }
+
+            Log.d(TAG, "Recovering tokens from storage on app wake")
+
+            accessToken.value = storedAccess
+            refreshToken.value = storedRefresh
+
+            // Try to verify with a lightweight /me call; if it fails, we handle gracefully:
+            // - Network errors (offline/bad connection): assume authenticated, keep tokens
+            // - Auth errors (401): let normal flow handle (don't clear eagerly)
+            // This supports offline mode - user stays logged in even when offline
+            try {
+                val userData = api.me()
+                if (userData != null) {
+                    user.value = userData
+                    isAuthenticated.value = true
+                    isLoading.value = false
+                    Log.d(TAG, "Recovered tokens validated successfully")
+                }
+            } catch (e: com.frontegg.android.exceptions.FailedToAuthenticateException) {
+                // Auth error (401) - don't clear tokens here; let normal initialization
+                // or explicit refresh determine if session is truly invalid
+                Log.w(TAG, "Recovered tokens failed auth check (401), deferring to normal flow")
+            } catch (e: Exception) {
+                // Network error (offline/bad connection) - assume authenticated and keep tokens
+                // This ensures offline mode works: user stays logged in when offline
+                if (isNetworkError()) {
+                    Log.d(TAG, "Recovered tokens - network error (offline mode), keeping tokens and assuming authenticated")
+                    isAuthenticated.value = true
+                    isLoading.value = true // Still loading until network recovers
+                } else {
+                    // Other errors - don't clear tokens, let normal flow handle
+                    Log.w(TAG, "Recovered tokens - non-network error, deferring to normal flow: ${e.message}", e)
+                }
+            }
+        }
     }
 
     fun handleHostedLoginCallback(
