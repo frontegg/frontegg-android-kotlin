@@ -50,15 +50,22 @@ class RefreshTokenJobService : JobService() {
                 
                 when (e) {
                     is com.frontegg.android.exceptions.FailedToAuthenticateException -> {
-                        // Refresh token is invalid, clear all credentials
+                        // 401 / invalid refresh token – clear credentials
                         service.clearCredentials()
                     }
-                    is SocketTimeoutException -> {
-                        // Network timeout, retry later
+                    is SocketTimeoutException,
+                    is java.net.ConnectException,
+                    is java.net.UnknownHostException,
+                    is java.io.IOException -> {
+                        // Network errors (timeout, no connection, offline) – do NOT clear tokens;
+                        // keep them for retry when network recovers. Supports offline mode.
+                        Log.w(TAG, "Network error during JobService refresh, keeping tokens for retry")
+                        // Reschedule for retry when network might be available
                         service.refreshTokenTimer.scheduleTimer(10000)
                     }
                     else -> {
-                        // Other errors, clear access token but keep refresh token for retry
+                        // Other non-network errors – clear only access token, keep refresh token for retry
+                        Log.w(TAG, "Non-network error during JobService refresh, clearing access token only")
                         FronteggState.accessToken.value = null
                         FronteggState.isLoading.value = true
                     }

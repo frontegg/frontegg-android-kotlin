@@ -133,12 +133,18 @@
 
         <service
             android:name="com.frontegg.android.services.RefreshTokenJobService"
-            android:exported="true"
+            android:exported="false"
             android:permission="android.permission.BIND_JOB_SERVICE">
             <intent-filter>
                 <action android:name="android.app.job.JobService" />
             </intent-filter>
         </service>
+
+        <!-- Alarm-based fallback for refresh token in Doze / idle -->
+        <receiver
+            android:name="com.frontegg.android.services.RefreshTokenAlarmReceiver"
+            android:enabled="true"
+            android:exported="false" />
     </application>
 
     <queries>
