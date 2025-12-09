@@ -264,7 +264,7 @@ class FronteggAuthService(
         if (!shouldProceed) return true
 
         try {
-            isReconnecting.value = true
+            isReconnecting.postValue(true)
             
             val startTime = System.currentTimeMillis()
             var networkOk = false
@@ -283,11 +283,11 @@ class FronteggAuthService(
                 // when network recovers. This supports offline mode and prevents logouts
                 // during temporary network issues.
                 Log.w(TAG, "Network quality check timeout (offline/bad network), keeping tokens for retry")
-                isReconnecting.value = false
+                isReconnecting.postValue(false)
                 return false
             }
             
-            isReconnecting.value = false
+            isReconnecting.postValue(false)
             
             val success = sendRefreshToken(isManualCall = true)
             if (success) {
@@ -299,7 +299,7 @@ class FronteggAuthService(
             
         } catch (e: Exception) {
             Log.e(TAG, "Failed to perform idempotent refresh", e)
-            isReconnecting.value = false
+            isReconnecting.postValue(false)
             return false
         } finally {
             synchronized(refreshMutex) {
