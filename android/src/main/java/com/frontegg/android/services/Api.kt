@@ -64,7 +64,10 @@ open class Api(
     private val applicationId: String?
         get() = storage.applicationId
 
-    private fun refreshCookieName(): String = "fe_refresh_${clientId}".replace("-", "")
+    private fun refreshCookieName(): String {
+        val clientIdWithoutFirstDash = clientId.replaceFirst("-", "")
+        return "fe_refresh_$clientIdWithoutFirstDash"
+    }
     private fun deviceCookieName(): String = "fe_device_${clientId}".replace("-", "")
 
     companion object {
@@ -321,13 +324,16 @@ open class Api(
         }
     }
 
-    fun logout(cookies: String, accessToken: String) {
+    fun logout(refreshToken: String) {
         try {
+            val cookieName = refreshCookieName()
+            val cookieValue = "$cookieName=$refreshToken"
+            
+            Log.d(TAG, "Logging out with cookie: $cookieName=***")
 
             val call = buildPostRequest(
                 ApiConstants.logout, JsonObject(), mapOf(
-                    Pair("authorization", "Bearer $accessToken"),
-                    Pair("cookie", cookies),
+                    Pair("cookie", cookieValue),
                     Pair("accept", "*/*"),
                     Pair("content-type", "application/json"),
                     Pair("origin", baseUrl),
@@ -335,7 +341,6 @@ open class Api(
                 )
             )
             val res = call.execute()
-
 
             Log.d(TAG, "logged out, ${res.body?.string()}")
         } catch (e: Exception) {
