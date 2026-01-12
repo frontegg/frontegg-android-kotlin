@@ -184,14 +184,10 @@ class FronteggAuthService(
                 null
             }
 
-            val logoutCookies = getDomainCookie(baseUrl)
-            val logoutAccessToken = accessToken.value
+            val logoutRefreshToken = refreshToken.value
 
-            if (logoutCookies != null &&
-                logoutAccessToken != null &&
-                isEmbeddedMode
-            ) {
-                api.logout(logoutCookies, logoutAccessToken)
+            if (logoutRefreshToken != null) {
+                api.logout(logoutRefreshToken)
             }
 
             isAuthenticated.value = false
