@@ -197,6 +197,34 @@ open class CredentialManager(val context: Context) {
         }
     }
 
+    @SuppressLint("ApplySharedPref")
+    fun clearAllTokens() {
+        val selectedRegion: String? = getSelectedRegion()
+        val accessTokenKey = CredentialKeys.ACCESS_TOKEN.toString()
+        val refreshTokenKey = CredentialKeys.REFRESH_TOKEN.toString()
+        
+        with(sp.edit()) {
+            val allKeys = sp.all.keys
+            for (key in allKeys) {
+                if (key == accessTokenKey || key == refreshTokenKey) {
+                    remove(key)
+                } else if (key.startsWith("${accessTokenKey}_tenant_") || 
+                         key.startsWith("${refreshTokenKey}_tenant_")) {
+                    remove(key)
+                }
+            }
+            
+            remove(CredentialKeys.CODE_VERIFIER.toString())
+            remove(CredentialKeys.CURRENT_TENANT_ID.toString())
+            
+            if (selectedRegion != null) {
+                putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
+            }
+            apply()
+            commit()
+        }
+    }
+
     fun getCodeVerifier(): String? {
         return this.get(CredentialKeys.CODE_VERIFIER)
     }

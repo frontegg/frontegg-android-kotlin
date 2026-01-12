@@ -1,4 +1,4 @@
-## v
+## v1.3.13
 Added tenant per session support
 
 ## v1.3.12

@@ -177,13 +177,6 @@ class FronteggAuthService(
         refreshTokenTimer.cancelLastTimer()
 
         bgScope.launch {
-            val enableSessionPerTenant = storage.enableSessionPerTenant
-            val tenantId = if (enableSessionPerTenant) {
-                user.value?.activeTenant?.tenantId ?: credentialManager.getCurrentTenantId()
-            } else {
-                null
-            }
-
             val logoutCookies = getDomainCookie(baseUrl)
             val logoutAccessToken = accessToken.value
 
@@ -199,11 +192,8 @@ class FronteggAuthService(
             refreshToken.value = null
             user.value = null
             
-            credentialManager.clear(tenantId)
-            
-            if (enableSessionPerTenant) {
-                credentialManager.setCurrentTenantId(null)
-            }
+            credentialManager.clearAllTokens()
+            credentialManager.setCurrentTenantId(null)
 
             withContext(mainDispatcher) {
                 isLoading.value = false
@@ -305,7 +295,12 @@ class FronteggAuthService(
                 }
             }
 
-            val success = refreshTokenIfNeeded()
+            val success = try {
+                refreshIdempotent()
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to refresh token during tenant switch", e)
+                false
+            }
 
             handler.post {
                 isLoading.value = false
