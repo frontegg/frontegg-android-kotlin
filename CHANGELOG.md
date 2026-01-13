@@ -1,4 +1,7 @@
 ## v
+- updated logout api
+
+## v
 - doze mode support
 
 ## v

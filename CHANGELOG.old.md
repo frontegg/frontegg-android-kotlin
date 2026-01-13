@@ -1,4 +1,7 @@
 ## v
+- doze mode support
+
+## v
 Added tenant per session support
 
 ## v1.3.12
