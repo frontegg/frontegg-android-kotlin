@@ -177,14 +177,9 @@ class FronteggAuthService(
         refreshTokenTimer.cancelLastTimer()
 
         bgScope.launch {
-            val logoutCookies = getDomainCookie(baseUrl)
-            val logoutAccessToken = accessToken.value
-
-            if (logoutCookies != null &&
-                logoutAccessToken != null &&
-                isEmbeddedMode
-            ) {
-                api.logout(logoutCookies, logoutAccessToken)
+            val logoutRefreshToken = refreshToken.value
+            if (isEmbeddedMode && logoutRefreshToken != null) {
+                api.logout(logoutRefreshToken)
             }
 
             isAuthenticated.value = false
