@@ -38,6 +38,12 @@ class CredentialManagerTest {
         every { mockSharedPreferencesEditor.commit() }.returns(true)
 
         every { mockSharedPreferences.edit() }.returns(mockSharedPreferencesEditor)
+        every {
+            mockSharedPreferences.getString(
+                CredentialKeys.CURRENT_TENANT_ID.toString(),
+                null
+            )
+        }.returns(null)
 
         every {
             EncryptedSharedPreferences.create(
@@ -203,7 +209,7 @@ class CredentialManagerTest {
         every {
             mockSharedPreferences.getString(
                 CredentialKeys.SELECTED_REGION.toString(),
-                any()
+                null
             )
         }.returns(null)
 
@@ -217,7 +223,7 @@ class CredentialManagerTest {
         every {
             mockSharedPreferences.getString(
                 CredentialKeys.SELECTED_REGION.toString(),
-                any()
+                null
             )
         }.returns("")
 
@@ -231,7 +237,7 @@ class CredentialManagerTest {
         every {
             mockSharedPreferences.getString(
                 CredentialKeys.SELECTED_REGION.toString(),
-                any()
+                null
             )
         }.returns("")
 
@@ -240,7 +246,7 @@ class CredentialManagerTest {
         verify {
             mockSharedPreferences.getString(
                 CredentialKeys.SELECTED_REGION.toString(),
-                any()
+                null
             )
         }
     }
