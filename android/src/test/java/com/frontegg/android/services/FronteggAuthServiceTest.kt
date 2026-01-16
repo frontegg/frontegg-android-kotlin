@@ -250,14 +250,14 @@ class FronteggAuthServiceTest {
         every { credentialManagerMock.clear() }.returns(Unit)
         every { storageMock.isEmbeddedMode }.returns(true)
 
-        auth.accessToken.value = "TestRefreshToken"
+        auth.refreshToken.value = "TestRefreshToken"
 
-        every { apiMock.logout(any(), any()) }.returns(Unit)
+        every { apiMock.logout(any<String>()) }.returns(Unit)
 
         auth.logout()
 
         delay(100)
-        verify { apiMock.logout(any(), any()) }
+        verify { apiMock.logout(any<String>()) }
     }
 
     @Test
