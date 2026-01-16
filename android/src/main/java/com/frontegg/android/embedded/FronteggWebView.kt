@@ -11,6 +11,7 @@ import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.fronteggAuth
 import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
+import com.frontegg.android.services.FronteggAuthService
 import kotlinx.coroutines.MainScope
 
 
@@ -92,6 +93,13 @@ open class FronteggWebView : WebView {
     }
 
     private fun clearWebView() {
+        // Clear stored reference so we won't try to use a destroyed WebView later (e.g. after social login redirect).
+        try {
+            (context.fronteggAuth as? FronteggAuthService)?.webview = null
+        } catch (_: Throwable) {
+            // best-effort
+        }
+
         clearHistory()
         loadUrl("about:blank")
         onPause()

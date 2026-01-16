@@ -12,6 +12,7 @@ import android.os.Looper
 import android.text.Html
 import android.util.Base64
 import android.util.Log
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
@@ -60,6 +61,47 @@ class FronteggWebClient(
     private var lastErrorResponse: WebResourceResponse? = null
     private val storage = FronteggInnerStorage()
     private var currentWebView: WebView? = null
+
+    override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
+        // If we don't handle this, Android may kill the entire app process:
+        // "Render process ... wasn't handled by all associated webviews, killing application."
+        val didCrash = try { detail?.didCrash() } catch (_: Throwable) { null }
+        val priorityAtExit = try { detail?.rendererPriorityAtExit() } catch (_: Throwable) { null }
+        Log.e(TAG, "WebView renderer process gone. didCrash=$didCrash priorityAtExit=$priorityAtExit")
+
+        // Stop any loaders/spinners
+        try {
+            FronteggState.isLoading.value = false
+            FronteggState.showLoader.value = false
+            FronteggState.webLoading.value = false
+        } catch (_: Throwable) {
+            // best-effort
+        }
+
+        currentWebView = null
+
+        // Clean up the dead WebView on the main thread and clear the stored reference in the auth service
+        Handler(Looper.getMainLooper()).post {
+            try {
+                (context.fronteggAuth as? FronteggAuthService)?.webview = null
+            } catch (_: Throwable) {
+                // best-effort
+            }
+
+            try {
+                view?.stopLoading()
+                view?.loadUrl("about:blank")
+                view?.clearHistory()
+                view?.removeAllViews()
+                view?.destroy()
+            } catch (t: Throwable) {
+                Log.w(TAG, "Failed to cleanup WebView after renderer crash", t)
+            }
+        }
+
+        // We handled it — do not let the system kill our app process.
+        return true
+    }
 
     fun getFormAction(): String {
         // Ensure WebView access on main thread

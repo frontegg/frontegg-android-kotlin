@@ -90,6 +90,10 @@ class FronteggAuthService(
     private val api = ApiProvider.getApi(credentialManager)
     private val storage = StorageProvider.getInnerStorage()
     private val sessionTracker = SessionTracker(credentialManager.context)
+
+    private val exchangeTokenDedupLock = Any()
+    @Volatile private var inFlightExchangeCode: String? = null
+    private val recentlyHandledExchangeCodes: LinkedHashSet<String> = LinkedHashSet()
     
     init {
         networkGate.setFronteggBaseUrl(api.getServerUrl())
@@ -928,11 +932,23 @@ class FronteggAuthService(
         if (stepUpAuthenticator.handleHostedLoginCallback(activity)) {
             return false
         }
+        
+        // Deduplicate same code to avoid "Invalid code" (401) on the second exchange attempt.
+        synchronized(exchangeTokenDedupLock) {
+            if (code == inFlightExchangeCode || recentlyHandledExchangeCodes.contains(code)) {
+                Log.d(TAG, "Ignoring duplicate OAuth code exchange attempt")
+                return true
+            }
+            inFlightExchangeCode = code
+        }
 
         val codeVerifier = credentialManager.getCodeVerifier()
         val redirectUrl = redirectUrlOverride ?: Constants.oauthCallbackUrl(baseUrl)
 
         if (codeVerifier == null) {
+            synchronized(exchangeTokenDedupLock) {
+                if (inFlightExchangeCode == code) inFlightExchangeCode = null
+            }
             return false
         }
 
@@ -950,6 +966,21 @@ class FronteggAuthService(
             } catch (e: Exception) {
                 Log.e(TAG, "handleHostedLoginCallback failed", e)
                 handleFailedTokenExchange(webView, activity, callback)
+            } finally {
+                synchronized(exchangeTokenDedupLock) {
+                    if (inFlightExchangeCode == code) inFlightExchangeCode = null
+                    recentlyHandledExchangeCodes.add(code)
+                    // Keep the set bounded (small LRU-like behavior).
+                    while (recentlyHandledExchangeCodes.size > 20) {
+                        val it = recentlyHandledExchangeCodes.iterator()
+                        if (it.hasNext()) {
+                            it.next()
+                            it.remove()
+                        } else {
+                            break
+                        }
+                    }
+                }
             }
         }
 
