@@ -2,6 +2,27 @@
 
 In this guide, you'll find an overview and best practices for enabling advanced features like passkeys and multi-app configurations.
 
+## Sentry logging (trace IDs + error tracking)
+
+When `FRONTEGG_ENABLE_SENTRY_LOGGING` is enabled, the SDK will:
+
+- Add **Sentry breadcrumbs** for HTTP requests and received `frontegg-trace-id` headers (helps correlating client issues with server logs)
+- Save recent trace IDs to a local file `frontegg-trace-ids.log` in the app's internal storage (`filesDir`)
+
+### Enable Sentry logging
+
+Add these `buildConfigField`s to your app module (or set them via `frontegg.properties` in this repo):
+
+```groovy
+buildConfigField "boolean", "FRONTEGG_ENABLE_SENTRY_LOGGING", "true"
+buildConfigField "int", "FRONTEGG_SENTRY_MAX_QUEUE_SIZE", "30"
+```
+
+Notes:
+
+- `FRONTEGG_SENTRY_MAX_QUEUE_SIZE` maps to Sentry's `maxCacheItems` (offline queue size).
+- DSN is configured inside the SDK and should match the iOS Swift SDK setup.
+
 ## Passkeys authentication
 
 Passkeys enable seamless, passwordless login with biometric authentication and WebAuthn. Follow these steps to integrate them manually using Frontegg's APIs.

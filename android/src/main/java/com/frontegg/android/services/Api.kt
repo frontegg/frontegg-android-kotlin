@@ -15,12 +15,15 @@ import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
+import com.frontegg.android.utils.SentryHelper
+import com.frontegg.android.utils.TraceIdLogger
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.reflect.TypeToken
 import okhttp3.Call
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.Interceptor
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -34,10 +37,65 @@ import java.net.URL
 open class Api(
     private var credentialManager: CredentialManager
 ) {
+    private val sentryInterceptor = Interceptor { chain ->
+        val request = chain.request()
+        val method = request.method
+        val url = request.url
+        val urlNoQuery = url.newBuilder().query(null).build()
+        val path = urlNoQuery.encodedPath
+
+        try {
+            val response = chain.proceed(request)
+
+            // Trace ID breadcrumb + local file (mirrors iOS TraceIdLogger)
+            TraceIdLogger.extractAndLogTraceId(response)
+
+            val statusCode = response.code
+            val level = if (statusCode in 200..299) io.sentry.SentryLevel.INFO else io.sentry.SentryLevel.WARNING
+            SentryHelper.addBreadcrumb(
+                message = "$method $path",
+                category = "http",
+                level = level,
+                data = mapOf(
+                    "method" to method,
+                    "host" to url.host,
+                    "path" to path,
+                    "status_code" to statusCode,
+                )
+            )
+
+            response
+        } catch (t: Throwable) {
+            SentryHelper.addBreadcrumb(
+                message = "$method $path failed",
+                category = "http",
+                level = io.sentry.SentryLevel.WARNING,
+                data = mapOf(
+                    "method" to method,
+                    "host" to url.host,
+                    "path" to path,
+                    "error" to (t.message ?: t.javaClass.simpleName),
+                )
+            )
+            SentryHelper.logError(
+                t,
+                context = mapOf(
+                    "http" to mapOf(
+                        "method" to method,
+                        "host" to url.host,
+                        "path" to path,
+                    )
+                )
+            )
+            throw t
+        }
+    }
+
     private var httpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS) // For slow networks (EDGE)
         .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)   // For slow networks (EDGE)
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
+        .addInterceptor(sentryInterceptor)
         .build()
     private val storage = StorageProvider.getInnerStorage()
     private val baseUrl: String
@@ -115,7 +173,7 @@ open class Api(
         requestBuilder.url(url)
 
         // Create client with custom timeout like Swift version
-        val client = OkHttpClient.Builder()
+        val client = httpClient.newBuilder()
             .connectTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
             .readTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
             .writeTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)

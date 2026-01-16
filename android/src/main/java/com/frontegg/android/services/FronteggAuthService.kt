@@ -29,6 +29,7 @@ import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.RequestQueue
 import com.frontegg.android.utils.RequestPriority
+import com.frontegg.android.utils.SentryHelper
 import com.frontegg.android.utils.SessionTracker
 import com.frontegg.android.utils.calculateTimerOffset
 import com.google.gson.JsonParser
@@ -995,6 +996,16 @@ class FronteggAuthService(
         ).subscribe {
             showLoader.value =
                 initializing.value || (!isAuthenticated.value && (isLoading.value || webLoading.value))
+        }
+
+        // Mirror iOS: bind current user to Sentry scope (only if enableSentryLogging is enabled).
+        user.observable.subscribe { v ->
+            val u = v.value
+            if (u != null) {
+                runCatching { SentryHelper.setUser(userId = u.id, email = u.email, username = u.name) }
+            } else {
+                runCatching { SentryHelper.clearUser() }
+            }
         }
 
         bgScope.launch {

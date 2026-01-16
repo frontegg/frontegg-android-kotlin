@@ -21,6 +21,7 @@ android {
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles "consumer-rules.pro"
         versionName "$version"
+        buildConfigField "String", "FRONTEGG_SDK_VERSION", "\"$version\""
     }
 
     sourceSets {
@@ -107,6 +108,9 @@ dependencies {
     implementation 'com.google.code.gson:gson:2.10.1'
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion"
+
+    // Sentry (optional; enabled via FRONTEGG_ENABLE_SENTRY_LOGGING)
+    implementation 'io.sentry:sentry-android:7.20.0'
 
     implementation 'androidx.webkit:webkit:1.12.1'
     implementation "androidx.browser:browser:1.8.0"

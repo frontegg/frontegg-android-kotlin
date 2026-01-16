@@ -60,6 +60,12 @@ object FronteggConstantsProvider {
         val enableSessionPerTenant =
             safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_SESSION_PER_TENANT", false)
 
+        val enableSentryLogging =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_SENTRY_LOGGING", false)
+
+        val sentryMaxQueueSize =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_SENTRY_MAX_QUEUE_SIZE", 30)
+
         return FronteggConstants(
             baseUrl = baseUrl,
             clientId = clientId,
@@ -71,6 +77,8 @@ object FronteggConstantsProvider {
             mainActivityClass = mainActivityClass,
             disableAutoRefresh = disableAutoRefresh,
             enableSessionPerTenant = enableSessionPerTenant,
+            enableSentryLogging = enableSentryLogging,
+            sentryMaxQueueSize = sentryMaxQueueSize,
         )
     }
 }
