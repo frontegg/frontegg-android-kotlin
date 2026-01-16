@@ -126,6 +126,28 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
                 return
             }
 
+            if (!storage.isEmbeddedMode) {
+                try {
+                    if (storage.useChromeCustomTabs) {
+                        val forwardIntent = Intent(this, AuthenticationActivity::class.java).apply {
+                            data = intentUrl
+                            addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+                        }
+                        startActivity(forwardIntent)
+                    } else {
+                        val browserIntent = Intent(Intent.ACTION_VIEW, intentUrl).apply {
+                            addCategory(Intent.CATEGORY_BROWSABLE)
+                        }
+                        startActivity(browserIntent)
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Failed to forward hosted deep link, finishing", e)
+                } finally {
+                    finish()
+                }
+                return
+            }
+
             webViewUrl = intentUrl.toString()
         }
 
