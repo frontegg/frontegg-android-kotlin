@@ -2,6 +2,7 @@ package com.frontegg.android.utils
 
 import android.content.Context
 import android.content.pm.PackageManager
+import android.util.Log
 import com.frontegg.android.BuildConfig
 import com.frontegg.android.models.FronteggConstants
 import io.sentry.Breadcrumb
@@ -13,12 +14,14 @@ import io.sentry.protocol.User
 import java.util.concurrent.atomic.AtomicBoolean
 
 object SentryHelper {
+    private const val TAG = "SentryHelper"
     private const val CONFIGURED_DSN =
         "https://7f13156fe85003ccf1b968a476787bb1@o362363.ingest.us.sentry.io/4510708685471744"
     private const val SDK_NAME = "FronteggAndroidKotlin"
 
     private val initialized = AtomicBoolean(false)
     private val enabled = AtomicBoolean(false)
+    private val didLogInitStatus = AtomicBoolean(false)
 
     @Volatile
     private var appContext: Context? = null
@@ -28,18 +31,37 @@ object SentryHelper {
     fun getAppContextOrNull(): Context? = appContext
 
     fun initialize(context: Context, constants: FronteggConstants?) {
-        if (initialized.get()) return
-
         val enableSentryLogging = constants?.enableSentryLogging ?: false
-        if (!enableSentryLogging) return
+        val sentryMaxQueueSize = constants?.sentryMaxQueueSize ?: 30
+
+        if (!didLogInitStatus.getAndSet(true)) {
+            val status = if (enableSentryLogging) "ENABLED" else "DISABLED"
+            Log.i(
+                TAG,
+                "Sentry logging is $status (enableSentryLogging=$enableSentryLogging, sentryMaxQueueSize=$sentryMaxQueueSize)"
+            )
+        }
+
+        if (initialized.get()) {
+            Log.d(TAG, "Sentry already initialized, skipping.")
+            return
+        }
+
+        if (!enableSentryLogging) {
+            Log.i(TAG, "Sentry initialization skipped (enableSentryLogging=false).")
+            return
+        }
 
         val applicationContext = context.applicationContext
         appContext = applicationContext
 
         // SentryAndroid.init is synchronous; we still guard against double-init.
-        if (!initialized.compareAndSet(false, true)) return
+        if (!initialized.compareAndSet(false, true)) {
+            Log.d(TAG, "Sentry already initialized, skipping.")
+            return
+        }
 
-        val maxCacheItems = (constants?.sentryMaxQueueSize ?: 30).coerceAtLeast(1)
+        val maxCacheItems = sentryMaxQueueSize.coerceAtLeast(1)
 
         SentryAndroid.init(applicationContext) { options ->
             options.dsn = CONFIGURED_DSN
@@ -61,6 +83,7 @@ object SentryHelper {
         }
 
         enabled.set(true)
+        Log.i(TAG, "Sentry initialized successfully.")
 
         configureGlobalMetadata(constants)
     }
