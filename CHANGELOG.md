@@ -1,3 +1,12 @@
+## v1.3.16
+- **Feature Flag**: Added `FRONTEGG_ENABLE_SENTRY_LOGGING` (BuildConfig/Gradle) to enable/disable Sentry logging
+- **Offline Support**: Configurable `FRONTEGG_SENTRY_MAX_QUEUE_SIZE` (default: 30) for event queuing during offline periods (maps to Sentry `maxCacheItems`)
+- **Comprehensive Breadcrumbs**: Automatic breadcrumbs for HTTP requests, OAuth callbacks, and token refresh attempts (URL query is intentionally omitted)
+- **Trace ID Correlation**: `frontegg-trace-id` headers from API responses are logged as Sentry breadcrumbs and also saved locally to `frontegg-trace-ids.log`
+- **Safe Initialization**: Sentry is initialized by the SDK only when the feature flag is enabled (prevents startup crashes when DSN is not configured by the host app)
+Fixed problem with authenticated user after logout and restart the app. 
+Fixed problems with switchTenants.
+
 ## v1.3.14
 - doze mode support
 
@@ -287,6 +296,7 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
+
 
 
 
