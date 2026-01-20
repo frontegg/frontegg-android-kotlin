@@ -7,6 +7,7 @@ import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.fronteggAuth
 import com.frontegg.android.regions.RegionConfig
+import com.frontegg.android.utils.SentryHelper
 
 class FronteggAppService(
     private val context: Context,
@@ -97,6 +98,7 @@ class FronteggAppService(
         this.applicationId = config.applicationId
         this.selectedRegion = config
         fillStorage()
+        SentryHelper.setBaseUrl(config.baseUrl)
 
         (context.fronteggAuth as FronteggAuthService).reinitWithRegion()
 

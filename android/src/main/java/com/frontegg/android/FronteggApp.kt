@@ -14,6 +14,7 @@ import com.frontegg.android.utils.FronteggConstantsProvider
 import com.frontegg.android.init.ConfigCache
 import com.frontegg.android.init.ConfigCache.RegionsInitFlags
 import com.frontegg.android.utils.isActivityEnabled
+import com.frontegg.android.utils.SentryHelper
 import com.frontegg.debug.AndroidDebugConfigurationChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -46,6 +47,7 @@ val Context.fronteggApp: FronteggApp
         if (FronteggApp.instance == null) {
             val constants = FronteggConstantsProvider.fronteggConstants(this)
             Log.d(FronteggApp.TAG, "Initializing Frontegg SDK with constants: ${constants.toMap()}")
+            SentryHelper.initialize(this, constants)
             var mainClassActivityClass: Class<*>? = null
             try {
                 mainClassActivityClass =
@@ -183,6 +185,12 @@ interface FronteggApp {
             disableAutoRefresh: Boolean = false,
             enableSessionPerTenant: Boolean = false,
         ): FronteggApp {
+            // Initialize Sentry based on BuildConfig (mirrors iOS enableSentryLogging flag).
+            // Safe no-op if flag is missing/false.
+            runCatching {
+                val constants = FronteggConstantsProvider.fronteggConstants(context)
+                SentryHelper.initialize(context, constants)
+            }
 
             val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
            val selectedRegion = CredentialManager(context).getSelectedRegion()

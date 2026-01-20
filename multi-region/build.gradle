@@ -18,6 +18,8 @@ if (fronteggPropsFile.exists()) {
 def fronteggDomain = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN", "").toString()
 def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "").toString()
 def fronteggDisableAutoRefresh = fronteggProperties.getOrDefault("FRONTEGG_DISABLE_AUTO_REFRESH", "false").toString()
+def fronteggEnableSentryLogging = fronteggProperties.getOrDefault("FRONTEGG_ENABLE_SENTRY_LOGGING", "false").toString()
+def fronteggSentryMaxQueueSize = fronteggProperties.getOrDefault("FRONTEGG_SENTRY_MAX_QUEUE_SIZE", "30").toString()
 
 def fronteggDomain2 = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN_2", "").toString()
 
@@ -45,6 +47,8 @@ android {
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
         buildConfigField "boolean", 'FRONTEGG_DISABLE_AUTO_REFRESH', "$fronteggDisableAutoRefresh"
+        buildConfigField "boolean", 'FRONTEGG_ENABLE_SENTRY_LOGGING', "$fronteggEnableSentryLogging"
+        buildConfigField "int", 'FRONTEGG_SENTRY_MAX_QUEUE_SIZE', "$fronteggSentryMaxQueueSize"
         
         vectorDrawables {
             useSupportLibrary true

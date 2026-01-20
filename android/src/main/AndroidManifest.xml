@@ -9,6 +9,14 @@
 
     <application>
 
+        <!--
+          Disable Sentry automatic initialization via ContentProvider.
+          We initialize Sentry manually in code only when FRONTEGG_ENABLE_SENTRY_LOGGING is enabled.
+        -->
+        <provider
+            android:name="io.sentry.android.core.SentryInitProvider"
+            tools:node="remove" />
+
         <provider
             android:name="com.frontegg.android.init.FronteggInitProvider"
             android:authorities="${applicationId}.frontegg-init"

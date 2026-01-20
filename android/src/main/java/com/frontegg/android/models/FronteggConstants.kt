@@ -11,6 +11,8 @@ data class FronteggConstants(
     val mainActivityClass: String?,
     val disableAutoRefresh: Boolean,
     val enableSessionPerTenant: Boolean,
+    val enableSentryLogging: Boolean,
+    val sentryMaxQueueSize: Int,
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -24,6 +26,8 @@ data class FronteggConstants(
             Pair("mainActivityClass", mainActivityClass),
             Pair("disableAutoRefresh", disableAutoRefresh),
             Pair("enableSessionPerTenant", enableSessionPerTenant),
+            Pair("enableSentryLogging", enableSentryLogging),
+            Pair("sentryMaxQueueSize", sentryMaxQueueSize),
         )
     }
 }
