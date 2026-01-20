@@ -102,6 +102,23 @@ class FronteggAuthService(
         credentialManager.setEnableSessionPerTenant(enableSessionPerTenant)
         sessionTracker.setEnableSessionPerTenant(enableSessionPerTenant)
     }
+
+    private fun cacheLastTenantForUser(user: User?, tenantId: String?) {
+        if (user == null || tenantId.isNullOrBlank()) return
+        try {
+            credentialManager.saveLastTenantIdForUser(user.id, tenantId)
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to persist last tenant for user", e)
+        }
+    }
+
+    private fun getCachedTenantIdForUser(user: User): String? {
+        return try {
+            credentialManager.getLastTenantIdForUser(user.id)
+        } catch (_: Exception) {
+            null
+        }
+    }
     
     private val multiFactorAuthenticator =
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
@@ -273,6 +290,7 @@ class FronteggAuthService(
                             this@FronteggAuthService.user.value = user
                             this@FronteggAuthService.isAuthenticated.value = true
                             sessionTracker.trackSessionStart(tenantId)
+                            cacheLastTenantForUser(user, tenantId)
                             
                             refreshTokenTimer.cancelLastTimer()
                             
@@ -299,6 +317,10 @@ class FronteggAuthService(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to refresh token during tenant switch", e)
                 false
+            }
+
+            if (success && enableSessionPerTenant) {
+                cacheLastTenantForUser(currentUser, tenantId)
             }
 
             handler.post {
@@ -649,31 +671,62 @@ class FronteggAuthService(
             this.refreshToken.value = refreshToken
             
             try {
-                val user = api.me()
-                if (user != null) {
-                    if (enableSessionPerTenant) {
-    
-                        val tenantId = if (initialTenantId != null) {
-                            initialTenantId
-                        } else {
-                            user.activeTenant.tenantId
-                        }
-                        credentialManager.setCurrentTenantId(tenantId)
-                        credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken, tenantId)
-                        credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken, tenantId)
-                        
-                        val storedTenant = user.tenants.find { it.tenantId == tenantId }
-                        if (storedTenant != null) {
-                            user.activeTenant = storedTenant
-                        }
-                    }
-                    updateStateWithCredentials(accessToken, refreshToken, user)
-                    return true
-                } else {
+                var user: User = api.me() ?: run {
                     this.isLoading.value = false
                     this.initializing.value = false
                     return false
                 }
+
+                var finalAccessToken = accessToken
+                var finalRefreshToken = refreshToken
+
+                if (enableSessionPerTenant) {
+                    val serverTenantId = user.activeTenant.tenantId
+                    val cachedTenantId = getCachedTenantIdForUser(user)
+                    val cachedTenantValid =
+                        !cachedTenantId.isNullOrBlank() && user.tenants.any { it.tenantId == cachedTenantId }
+
+                    val desiredTenantId = when {
+                        initialTenantId != null -> initialTenantId
+                        cachedTenantValid -> cachedTenantId
+                        else -> serverTenantId
+                    }
+
+                    if (!desiredTenantId.isNullOrBlank() && desiredTenantId != serverTenantId) {
+                        try {
+                            // Align server-side active tenant to the cached tenant for this user/device.
+                            api.switchTenant(desiredTenantId)
+
+                            // Tokens are tenant-dependent; refresh to get tokens for the desired tenant.
+                            val refreshed = api.refreshToken(finalRefreshToken)
+                            finalAccessToken = refreshed.access_token
+                            finalRefreshToken = refreshed.refresh_token
+
+                            // Persist refreshed tokens unscoped so api.me() can authorize before CURRENT_TENANT_ID is set.
+                            credentialManager.save(CredentialKeys.REFRESH_TOKEN, finalRefreshToken, null)
+                            credentialManager.save(CredentialKeys.ACCESS_TOKEN, finalAccessToken, null)
+
+                            api.me()?.let { user = it }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to reconcile tenant during login; falling back to server active tenant", e)
+                        }
+                    }
+
+                    val finalTenantId = desiredTenantId ?: user.activeTenant.tenantId
+                    credentialManager.setCurrentTenantId(finalTenantId)
+                    credentialManager.save(CredentialKeys.REFRESH_TOKEN, finalRefreshToken, finalTenantId)
+                    credentialManager.save(CredentialKeys.ACCESS_TOKEN, finalAccessToken, finalTenantId)
+
+                    val storedTenant = user.tenants.find { it.tenantId == finalTenantId }
+                    if (storedTenant != null) {
+                        user.activeTenant = storedTenant
+                    }
+
+                    cacheLastTenantForUser(user, finalTenantId)
+                }
+
+                updateStateWithCredentials(finalAccessToken, finalRefreshToken, user)
+                return true
             } catch (e: Exception) {
                 this.isLoading.value = false
                 this.initializing.value = false
@@ -706,33 +759,62 @@ class FronteggAuthService(
             // so api.me() should be able to find it. We'll set the tenant ID after getting the user.
             
             try {
-                val user = api.me()
-                if (user != null) {
-                    if (enableSessionPerTenant) {
-                        // After getting user, determine the correct tenant ID
-                        val tenantId = if (initialTenantId != null) {
-                            // Use the initial tenant ID if it was set
-                            initialTenantId
-                        } else {
-                            // Otherwise use the user's active tenant ID (e.g., after logout/login)
-                            user.activeTenant.tenantId
-                        }
-                        credentialManager.setCurrentTenantId(tenantId)
-                        credentialManager.save(CredentialKeys.REFRESH_TOKEN, refreshToken, tenantId)
-                        credentialManager.save(CredentialKeys.ACCESS_TOKEN, accessToken, tenantId)
-                        
-                        val storedTenant = user.tenants.find { it.tenantId == tenantId }
-                        if (storedTenant != null) {
-                            user.activeTenant = storedTenant
-                        }
-                    }
-                    updateStateWithCredentials(accessToken, refreshToken, user, authResponse)
-                    return true
-                } else {
+                var user: User = api.me() ?: run {
                     this.isLoading.value = false
                     this.initializing.value = false
                     return false
                 }
+
+                var finalAccessToken = accessToken
+                var finalRefreshToken = refreshToken
+
+                if (enableSessionPerTenant) {
+                    val serverTenantId = user.activeTenant.tenantId
+                    val cachedTenantId = getCachedTenantIdForUser(user)
+                    val cachedTenantValid =
+                        !cachedTenantId.isNullOrBlank() && user.tenants.any { it.tenantId == cachedTenantId }
+
+                    val desiredTenantId = when {
+                        initialTenantId != null -> initialTenantId
+                        cachedTenantValid -> cachedTenantId
+                        else -> serverTenantId
+                    }
+
+                    if (!desiredTenantId.isNullOrBlank() && desiredTenantId != serverTenantId) {
+                        try {
+                            // Align server-side active tenant to the cached tenant for this user/device.
+                            api.switchTenant(desiredTenantId)
+
+                            // Tokens are tenant-dependent; refresh to get tokens for the desired tenant.
+                            val refreshed = api.refreshToken(finalRefreshToken)
+                            finalAccessToken = refreshed.access_token
+                            finalRefreshToken = refreshed.refresh_token
+
+                            // Persist refreshed tokens unscoped so api.me() can authorize before CURRENT_TENANT_ID is set.
+                            credentialManager.save(CredentialKeys.REFRESH_TOKEN, finalRefreshToken, null)
+                            credentialManager.save(CredentialKeys.ACCESS_TOKEN, finalAccessToken, null)
+
+                            api.me()?.let { user = it }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "Failed to reconcile tenant during login; falling back to server active tenant", e)
+                        }
+                    }
+
+                    val finalTenantId = desiredTenantId ?: user.activeTenant.tenantId
+                    credentialManager.setCurrentTenantId(finalTenantId)
+                    credentialManager.save(CredentialKeys.REFRESH_TOKEN, finalRefreshToken, finalTenantId)
+                    credentialManager.save(CredentialKeys.ACCESS_TOKEN, finalAccessToken, finalTenantId)
+
+                    val storedTenant = user.tenants.find { it.tenantId == finalTenantId }
+                    if (storedTenant != null) {
+                        user.activeTenant = storedTenant
+                    }
+
+                    cacheLastTenantForUser(user, finalTenantId)
+                }
+
+                updateStateWithCredentials(finalAccessToken, finalRefreshToken, user, authResponse)
+                return true
             } catch (e: Exception) {
                 this.isLoading.value = false
                 this.initializing.value = false

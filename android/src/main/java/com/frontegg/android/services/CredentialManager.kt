@@ -19,6 +19,7 @@ open class CredentialManager(val context: Context) {
         private const val SHARED_PREFERENCES_NAME: String =
             "com.frontegg.services.CredentialManager"
         private val TAG = CredentialManager::class.java.simpleName
+        private const val KEY_LAST_TENANT_ID_PREFIX = "last_tenant_id_user_"
     }
 
     private var sp: SharedPreferences;
@@ -116,6 +117,29 @@ open class CredentialManager(val context: Context) {
 
     fun setEnableSessionPerTenant(enabled: Boolean) {
         this.enableSessionPerTenant = enabled
+    }
+
+    /**
+     * Persist the last selected tenant for a specific user on this device.
+     * This is intentionally NOT tied to the current session/token storage and must survive logout.
+     */
+    fun saveLastTenantIdForUser(userId: String, tenantId: String?): Boolean {
+        if (userId.isBlank()) return false
+        val key = "$KEY_LAST_TENANT_ID_PREFIX$userId"
+        with(sp.edit()) {
+            if (tenantId.isNullOrBlank()) {
+                remove(key)
+            } else {
+                putString(key, tenantId)
+            }
+            apply()
+            return commit()
+        }
+    }
+
+    fun getLastTenantIdForUser(userId: String): String? {
+        if (userId.isBlank()) return null
+        return sp.getString("$KEY_LAST_TENANT_ID_PREFIX$userId", null)
     }
 
     fun getCurrentTenantId(): String? {
