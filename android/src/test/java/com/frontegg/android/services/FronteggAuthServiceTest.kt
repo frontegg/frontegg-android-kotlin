@@ -63,20 +63,32 @@ class FronteggAuthServiceTest {
     private val stepUpAuthenticator = mockk<StepUpAuthenticator>()
     @Before
     fun setUp() {
+        // FronteggState is a singleton shared across tests; reset to avoid test order dependence.
+        FronteggState.accessToken.value = null
+        FronteggState.refreshToken.value = null
+        FronteggState.user.value = null
+        FronteggState.isAuthenticated.value = false
+        FronteggState.isLoading.value = false
+        FronteggState.webLoading.value = false
+
         mockkObject(StorageProvider)
         every { StorageProvider.getInnerStorage() }.returns(storageMock)
         every { storageMock.clientId }.returns("TestClientId")
         every { storageMock.applicationId }.returns("TestApplicationId")
         every { storageMock.baseUrl }.returns("https://base.url.com")
         every { storageMock.regions }.returns(listOf())
+        every { storageMock.enableSessionPerTenant }.returns(false)
         mockkObject(FronteggApp)
         every { credentialManagerMock.get(any()) }.returns(null)
         every { credentialManagerMock.context }.returns(mockContext)
+        every { credentialManagerMock.setEnableSessionPerTenant(any()) } returns Unit
         
         // Mock Context methods needed by SessionTracker
-        val mockSharedPreferences = mockk<android.content.SharedPreferences>()
+        val mockSharedPreferences = mockk<android.content.SharedPreferences>(relaxed = true)
+        val mockSharedPreferencesEditor = mockk<android.content.SharedPreferences.Editor>(relaxed = true)
         every { mockContext.getSharedPreferences(any(), any()) }.returns(mockSharedPreferences)
-        every { mockSharedPreferences.edit() }.returns(mockk<android.content.SharedPreferences.Editor>())
+        every { mockSharedPreferences.edit() }.returns(mockSharedPreferencesEditor)
+        every { mockSharedPreferencesEditor.putString(any(), any()) } returns mockSharedPreferencesEditor
         val appLifecycle = mockk<FronteggAppLifecycle>()
         every { appLifecycle.startApp }.returns(FronteggCallback())
         every { appLifecycle.stopApp }.returns(FronteggCallback())
@@ -250,14 +262,14 @@ class FronteggAuthServiceTest {
         every { credentialManagerMock.clear() }.returns(Unit)
         every { storageMock.isEmbeddedMode }.returns(true)
 
-        auth.accessToken.value = "TestRefreshToken"
+        auth.refreshToken.value = "TestRefreshToken"
 
-        every { apiMock.logout(any(), any()) }.returns(Unit)
+        every { apiMock.logout(any<String>()) }.returns(Unit)
 
         auth.logout()
 
         delay(100)
-        verify { apiMock.logout(any(), any()) }
+        verify { apiMock.logout(any<String>()) }
     }
 
     @Test

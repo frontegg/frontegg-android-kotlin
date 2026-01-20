@@ -129,7 +129,7 @@ class ApiTest {
     fun `logout should log debug if success`() {
         mockWebServer.enqueue(MockResponse().setResponseCode(200))
 
-        api.logout("Test Coolies", "Test Access Token Url")
+        api.logout("TestRefreshToken")
 
         verify { Log.d(any(), any()) }
     }

@@ -95,7 +95,13 @@ class AuthenticationActivity : FronteggBaseActivity() {
                 return
             }
 
-            Log.d(TAG, "Got intent with unknown data")
+            if (!customTabLaunched) {
+                startAuth(intentUrl.toString())
+                customTabLaunched = true
+                return
+            }
+
+            Log.d(TAG, "Got intent with unknown data (no code)")
             safeFinishActivity(RESULT_CANCELED)
         }
     }

@@ -19,6 +19,7 @@ open class CredentialManager(val context: Context) {
         private const val SHARED_PREFERENCES_NAME: String =
             "com.frontegg.services.CredentialManager"
         private val TAG = CredentialManager::class.java.simpleName
+        private const val KEY_LAST_TENANT_ID_PREFIX = "last_tenant_id_user_"
     }
 
     private var sp: SharedPreferences;
@@ -118,6 +119,29 @@ open class CredentialManager(val context: Context) {
         this.enableSessionPerTenant = enabled
     }
 
+    /**
+     * Persist the last selected tenant for a specific user on this device.
+     * This is intentionally NOT tied to the current session/token storage and must survive logout.
+     */
+    fun saveLastTenantIdForUser(userId: String, tenantId: String?): Boolean {
+        if (userId.isBlank()) return false
+        val key = "$KEY_LAST_TENANT_ID_PREFIX$userId"
+        with(sp.edit()) {
+            if (tenantId.isNullOrBlank()) {
+                remove(key)
+            } else {
+                putString(key, tenantId)
+            }
+            apply()
+            return commit()
+        }
+    }
+
+    fun getLastTenantIdForUser(userId: String): String? {
+        if (userId.isBlank()) return null
+        return sp.getString("$KEY_LAST_TENANT_ID_PREFIX$userId", null)
+    }
+
     fun getCurrentTenantId(): String? {
         return sp.getString(CredentialKeys.CURRENT_TENANT_ID.toString(), null)
     }
@@ -189,6 +213,34 @@ open class CredentialManager(val context: Context) {
                 remove(CredentialKeys.REFRESH_TOKEN.toString())
                 remove(CredentialKeys.CURRENT_TENANT_ID.toString())
             }
+            if (selectedRegion != null) {
+                putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
+            }
+            apply()
+            commit()
+        }
+    }
+
+    @SuppressLint("ApplySharedPref")
+    fun clearAllTokens() {
+        val selectedRegion: String? = getSelectedRegion()
+        val accessTokenKey = CredentialKeys.ACCESS_TOKEN.toString()
+        val refreshTokenKey = CredentialKeys.REFRESH_TOKEN.toString()
+        
+        with(sp.edit()) {
+            val allKeys = sp.all.keys
+            for (key in allKeys) {
+                if (key == accessTokenKey || key == refreshTokenKey) {
+                    remove(key)
+                } else if (key.startsWith("${accessTokenKey}_tenant_") || 
+                         key.startsWith("${refreshTokenKey}_tenant_")) {
+                    remove(key)
+                }
+            }
+            
+            remove(CredentialKeys.CODE_VERIFIER.toString())
+            remove(CredentialKeys.CURRENT_TENANT_ID.toString())
+            
             if (selectedRegion != null) {
                 putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
             }
