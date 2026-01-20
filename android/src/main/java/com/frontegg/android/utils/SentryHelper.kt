@@ -16,7 +16,7 @@ import java.util.concurrent.atomic.AtomicBoolean
 object SentryHelper {
     private const val TAG = "SentryHelper"
     private const val CONFIGURED_DSN =
-        "https://7f13156fe85003ccf1b968a476787bb1@o362363.ingest.us.sentry.io/4510708685471744"
+        "https://4d01f2ddc791b1ae927e381af179e431@o362363.ingest.us.sentry.io/4510719725076480"
     private const val SDK_NAME = "FronteggAndroidKotlin"
 
     private val initialized = AtomicBoolean(false)
