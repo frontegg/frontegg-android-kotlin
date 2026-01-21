@@ -79,6 +79,13 @@ class FronteggRefreshTokenTimer(
                 return
             }
 
+        // Android 12+ may block exact alarms unless the app has the special access/permission.
+        // If exact alarms are not allowed, rely on JobScheduler fallback.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
+            Log.i(TAG, "Exact alarms are not allowed; skipping AlarmManager scheduling and relying on JobScheduler")
+            return
+        }
+
         val intent = Intent(context, RefreshTokenAlarmReceiver::class.java)
         val flags = PendingIntent.FLAG_UPDATE_CURRENT or
             (if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) PendingIntent.FLAG_MUTABLE else 0)
