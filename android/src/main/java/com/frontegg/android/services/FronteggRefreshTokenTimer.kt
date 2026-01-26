@@ -8,6 +8,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.frontegg.android.utils.FronteggCallback
@@ -44,7 +45,6 @@ class FronteggRefreshTokenTimer(
     fun scheduleTimer(offset: Long) {
         lastJobStart = Instant.now().toEpochMilli()
 
-        // Foreground: simple in-process Timer
         if (appLifecycle.appInForeground) {
             Log.d(TAG, "[foreground] Start Timer task (${offset} ms)")
 
@@ -60,7 +60,6 @@ class FronteggRefreshTokenTimer(
             return
         }
 
-        // Background: dual scheduling – AlarmManager (Doze-friendly) + JobScheduler fallback
         Log.d(TAG, "[background] Start Alarm + JobScheduler tasks (${offset} ms)")
 
         scheduleAlarm(offset)
@@ -79,11 +78,30 @@ class FronteggRefreshTokenTimer(
                 return
             }
 
-        // Android 12+ may block exact alarms unless the app has the special access/permission.
-        // If exact alarms are not allowed, rely on JobScheduler fallback.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && !alarmManager.canScheduleExactAlarms()) {
-            Log.i(TAG, "Exact alarms are not allowed; skipping AlarmManager scheduling and relying on JobScheduler")
-            return
+            Log.i(TAG, "Exact alarms permission not granted; requesting permission")
+            
+            val permissionIntent = getRequestExactAlarmPermissionIntent()
+            if (permissionIntent != null) {
+                try {
+                    permissionIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(permissionIntent)
+                    Log.d(TAG, "Started permission request dialog for SCHEDULE_EXACT_ALARM")
+                    
+                    if (alarmManager.canScheduleExactAlarms()) {
+                        Log.d(TAG, "Permission granted immediately; proceeding with alarm scheduling")
+                    } else {
+                        Log.i(TAG, "Permission not yet granted; JobScheduler will be used as fallback")
+                        return
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to start permission request: ${e.message}", e)
+                    return
+                }
+            } else {
+                Log.i(TAG, "Cannot request permission on this Android version; relying on JobScheduler")
+                return
+            }
         }
 
         val intent = Intent(context, RefreshTokenAlarmReceiver::class.java)
@@ -100,7 +118,6 @@ class FronteggRefreshTokenTimer(
         val triggerAtMillis = System.currentTimeMillis() + offset
 
         try {
-            // Use Doze-friendly exact alarm; falls back gracefully on older devices
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
                 Log.d(TAG, "Scheduling exact alarm with setExactAndAllowWhileIdle at $triggerAtMillis")
                 alarmManager.setExactAndAllowWhileIdle(
@@ -117,9 +134,8 @@ class FronteggRefreshTokenTimer(
                 )
             }
             alarmIntent = pending
+            Log.d(TAG, "Alarm scheduled successfully")
         } catch (e: SecurityException) {
-            // Devices that disallow exact alarms without permission (Android 12+) may throw;
-            // in that case we still have JobScheduler as a fallback.
             Log.w(TAG, "Failed to schedule exact alarm for refresh: ${e.message}", e)
         }
     }
@@ -145,9 +161,9 @@ class FronteggRefreshTokenTimer(
             JOB_ID,
             ComponentName(context, RefreshTokenJobService::class.java),
         )
-            .setMinimumLatency(offset) // Schedule the job to run after the offset
-            .setOverrideDeadline(offset) // Add a buffer to the deadline
-            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY) // Require network
+            .setMinimumLatency(offset)
+            .setOverrideDeadline(offset)
+            .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY)
             .setBackoffCriteria(10000, JobInfo.BACKOFF_POLICY_LINEAR)
             .build()
     }
@@ -157,5 +173,41 @@ class FronteggRefreshTokenTimer(
         const val JOB_ID = 1234 // Unique ID for the JobService
         const val ALARM_REQUEST_CODE = 4321
         var lastJobStart: Long = Instant.now().toEpochMilli()
+
+        /**
+         * Checks if the app can schedule exact alarms.
+         * On Android 12+ (API 31+), this requires the SCHEDULE_EXACT_ALARM permission.
+         *
+         * @param context The application context
+         * @return true if exact alarms can be scheduled, false otherwise
+         */
+        fun canScheduleExactAlarms(context: Context): Boolean {
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+                return true
+            }
+            val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as? AlarmManager
+            return alarmManager?.canScheduleExactAlarms() ?: false
+        }
+
+        /**
+         * Returns an Intent that can be used to request the SCHEDULE_EXACT_ALARM permission.
+         * This should be used with startActivity() from an Activity context.
+         *
+         * Example usage:
+         * ```
+         * if (!FronteggRefreshTokenTimer.canScheduleExactAlarms(context)) {
+         *     startActivity(FronteggRefreshTokenTimer.getRequestExactAlarmPermissionIntent())
+         * }
+         * ```
+         *
+         * @return Intent to request exact alarm permission, or null on Android 11 and below
+         */
+        fun getRequestExactAlarmPermissionIntent(): Intent? {
+            return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+            } else {
+                null
+            }
+        }
     }
 }
