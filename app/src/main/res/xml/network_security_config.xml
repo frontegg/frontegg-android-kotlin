@@ -1,20 +1,20 @@
 <?xml version="1.0" encoding="utf-8"?>
 <network-security-config>
-    <!-- Trust system certificates for all connections -->
+    <!-- 
+        Trust only system certificates for all connections in production.
+        This applies to all domains including any configured Frontegg domain.
+        Cleartext (HTTP) traffic is disabled for security.
+    -->
     <base-config cleartextTrafficPermitted="false">
         <trust-anchors>
             <certificates src="system" />
-            <!-- Also trust user-installed certificates for debug purposes -->
-            <certificates src="user" />
         </trust-anchors>
     </base-config>
     
-    <!-- Specific configuration for Frontegg domain -->
-    <domain-config cleartextTrafficPermitted="false">
-        <domain includeSubdomains="true">davidantoon.me</domain>
+    <!-- Trust user-installed certificates only in debug builds for testing -->
+    <debug-overrides>
         <trust-anchors>
-            <certificates src="system" />
             <certificates src="user" />
         </trust-anchors>
-    </domain-config>
+    </debug-overrides>
 </network-security-config>

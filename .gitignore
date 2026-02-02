@@ -3,12 +3,11 @@
 /local.properties
 /frontegg.properties
 /test.properties
-/.idea/caches
-/.idea/libraries
-/.idea/modules.xml
-/.idea/workspace.xml
-/.idea/navEditor.xml
-/.idea/assetWizardSettings.xml
+
+# IDE - IntelliJ IDEA / Android Studio
+# Ignore entire .idea directory - contains user-specific settings
+.idea/
+
 .DS_Store
 /build
 /captures

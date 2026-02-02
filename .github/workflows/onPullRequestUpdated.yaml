@@ -8,12 +8,18 @@ on:
       - synchronize
     branches:
       - master
+
+env:
+  CI: true
+  LANG: en_US.UTF-8
+
 jobs:
-  build:
+  validate-pr:
+    name: Validate PR Description
     runs-on: 'ubuntu-latest'
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Get Pull Request Description
         env:
@@ -32,3 +38,38 @@ jobs:
             echo "No description provided in the pull request. The 'release/next' branch must provide a description for the correct generation of the 'CHANGELOG.md' file."
             exit 1
           fi
+
+  unit-tests:
+    name: Unit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup
+        uses: ./.github/actions/setup
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Create properties files
+        shell: bash
+        run: |
+          cat <<EOF > frontegg.properties
+          FRONTEGG_DOMAIN=${{ secrets.FRONTEGG_DOMAIN }}
+          FRONTEGG_CLIENT_ID=${{ secrets.FRONTEGG_CLIENT_ID }}
+          FRONTEGG_APPLICATION_ID=${{ secrets.FRONTEGG_APPLICATION_ID }}
+          EOF
+
+      - name: Run Detekt Check
+        run: ./gradlew :android:detektDebug --no-daemon
+
+      - name: Run Unit Tests
+        run: ./gradlew :android:testDebugUnitTest --no-daemon
+
+      - name: Upload Test Results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: android/build/reports/tests/testDebugUnitTest/
+          retention-days: 7
