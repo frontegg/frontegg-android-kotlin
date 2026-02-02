@@ -10,12 +10,12 @@
 
 .DS_Store
 /build
+*/build
+**/bin/
 /captures
 .externalNativeBuild
 .cxx
 local.properties
-embedded/build
 
 toolchains.xml
 settings.xml
-embedded/release
