@@ -19,6 +19,9 @@ object SentryHelper {
         "https://4d01f2ddc791b1ae927e381af179e431@o362363.ingest.us.sentry.io/4510719725076480"
     private const val SDK_NAME = "FronteggAndroidKotlin"
 
+    /** Feature flag name that controls Sentry logging */
+    const val MOBILE_ENABLE_LOGGING_FLAG = "mobile-enable-logging"
+
     private val initialized = AtomicBoolean(false)
     private val enabled = AtomicBoolean(false)
     private val didLogInitStatus = AtomicBoolean(false)
@@ -26,20 +29,33 @@ object SentryHelper {
     @Volatile
     private var appContext: Context? = null
 
+    @Volatile
+    private var storedConstants: FronteggConstants? = null
+
     fun isEnabled(): Boolean = enabled.get() && initialized.get()
 
     fun getAppContextOrNull(): Context? = appContext
 
-    fun initialize(context: Context, constants: FronteggConstants?) {
-        val enableSentryLogging = constants?.enableSentryLogging ?: false
-        val sentryMaxQueueSize = constants?.sentryMaxQueueSize ?: 30
+    /**
+     * Stores context and constants for later initialization.
+     * Sentry will only be initialized when [enableFromFeatureFlag] is called with true.
+     */
+    fun prepare(context: Context, constants: FronteggConstants?) {
+        appContext = context.applicationContext
+        storedConstants = constants
+        Log.d(TAG, "Sentry prepared, waiting for feature flag 'mobile-enable-logging'")
+    }
+
+    /**
+     * Enables Sentry logging based on the feature flag.
+     * Should be called when the 'mobile-enable-logging' feature flag is fetched and is true.
+     */
+    fun enableFromFeatureFlag(enableLogging: Boolean) {
+        val sentryMaxQueueSize = storedConstants?.sentryMaxQueueSize ?: 30
 
         if (!didLogInitStatus.getAndSet(true)) {
-            val status = if (enableSentryLogging) "ENABLED" else "DISABLED"
-            Log.i(
-                TAG,
-                "Sentry logging is $status (enableSentryLogging=$enableSentryLogging, sentryMaxQueueSize=$sentryMaxQueueSize)"
-            )
+            val status = if (enableLogging) "ENABLED (via feature flag)" else "DISABLED"
+            Log.i(TAG, "Sentry logging is $status (sentryMaxQueueSize=$sentryMaxQueueSize)")
         }
 
         if (initialized.get()) {
@@ -47,13 +63,16 @@ object SentryHelper {
             return
         }
 
-        if (!enableSentryLogging) {
-            Log.i(TAG, "Sentry initialization skipped (enableSentryLogging=false).")
+        if (!enableLogging) {
+            Log.i(TAG, "Sentry initialization skipped (feature flag 'mobile-enable-logging' is off).")
             return
         }
 
-        val applicationContext = context.applicationContext
-        appContext = applicationContext
+        val applicationContext = appContext
+        if (applicationContext == null) {
+            Log.w(TAG, "Cannot initialize Sentry: context not prepared. Call prepare() first.")
+            return
+        }
 
         // SentryAndroid.init is synchronous; we still guard against double-init.
         if (!initialized.compareAndSet(false, true)) {
@@ -83,9 +102,9 @@ object SentryHelper {
         }
 
         enabled.set(true)
-        Log.i(TAG, "Sentry initialized successfully.")
+        Log.i(TAG, "Sentry initialized successfully via feature flag.")
 
-        configureGlobalMetadata(constants)
+        configureGlobalMetadata(storedConstants)
     }
 
     private fun configureGlobalMetadata(constants: FronteggConstants?) {
@@ -106,7 +125,6 @@ object SentryHelper {
                 scope.setTag("useDiskCacheWebview", it.useDiskCacheWebview.toString())
                 scope.setTag("disableAutoRefresh", it.disableAutoRefresh.toString())
                 scope.setTag("enableSessionPerTenant", it.enableSessionPerTenant.toString())
-                scope.setTag("enableSentryLogging", it.enableSentryLogging.toString())
                 scope.setTag("sentryMaxQueueSize", it.sentryMaxQueueSize.toString())
             }
         }

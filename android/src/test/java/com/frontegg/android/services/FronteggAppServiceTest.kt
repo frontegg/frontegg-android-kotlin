@@ -126,7 +126,7 @@ class FronteggAppServiceTest {
             )
         } returns Unit
         every { FronteggConstantsProvider.fronteggConstants(any()) } returns mockConstants
-        every { SentryHelper.initialize(any(), any()) } just Runs
+        every { SentryHelper.prepare(any(), any()) } just Runs
 
         mockContext.fronteggApp
 
@@ -172,7 +172,7 @@ class FronteggAppServiceTest {
             )
         } returns Unit
         every { FronteggConstantsProvider.fronteggConstants(any()) } returns mockConstants
-        every { SentryHelper.initialize(any(), any()) } just Runs
+        every { SentryHelper.prepare(any(), any()) } just Runs
 
         mockContext.fronteggAuth
 
