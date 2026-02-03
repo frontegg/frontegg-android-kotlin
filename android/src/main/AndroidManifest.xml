@@ -135,7 +135,8 @@
 
                 <data
                     android:host="${frontegg_domain}"
-                    android:scheme="${package_name}" />
+                    android:scheme="${package_name}"
+                    android:pathPrefix="/android/oauth/callback" />
             </intent-filter>
         </activity>
 

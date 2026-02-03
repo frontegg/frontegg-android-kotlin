@@ -6,18 +6,56 @@ import org.junit.Test
 class CredentialKeysTest {
 
     @Test
-    fun `all CredentialKeys enum values exist`() {
-        val values = CredentialKeys.values()
-        assertEquals(5, values.size)
+    fun `ACCESS_TOKEN enum exists`() {
+        assert(CredentialKeys.ACCESS_TOKEN != null)
     }
 
     @Test
-    fun `CredentialKeys enum contains expected keys`() {
-        val names = CredentialKeys.values().map { it.name }
-        assert(names.contains("ACCESS_TOKEN"))
-        assert(names.contains("REFRESH_TOKEN"))
-        assert(names.contains("CODE_VERIFIER"))
-        assert(names.contains("SELECTED_REGION"))
-        assert(names.contains("CURRENT_TENANT_ID"))
+    fun `REFRESH_TOKEN enum exists`() {
+        assert(CredentialKeys.REFRESH_TOKEN != null)
+    }
+
+    @Test
+    fun `CODE_VERIFIER enum exists`() {
+        assert(CredentialKeys.CODE_VERIFIER != null)
+    }
+
+    @Test
+    fun `SELECTED_REGION enum exists`() {
+        assert(CredentialKeys.SELECTED_REGION != null)
+    }
+
+    @Test
+    fun `CURRENT_TENANT_ID enum exists`() {
+        assert(CredentialKeys.CURRENT_TENANT_ID != null)
+    }
+
+    @Test
+    fun `all credential keys are unique enum values`() {
+        val keys = CredentialKeys.values()
+        val uniqueKeys = keys.toSet()
+        assert(keys.size == uniqueKeys.size) { "Credential keys must be unique" }
+    }
+
+    @Test
+    fun `enum has expected number of values`() {
+        assertEquals(5, CredentialKeys.values().size)
+    }
+
+    @Test
+    fun `enum values have meaningful names`() {
+        val keyNames = CredentialKeys.values().map { it.name }
+        assert(keyNames.contains("ACCESS_TOKEN"))
+        assert(keyNames.contains("REFRESH_TOKEN"))
+        assert(keyNames.contains("CODE_VERIFIER"))
+        assert(keyNames.contains("SELECTED_REGION"))
+        assert(keyNames.contains("CURRENT_TENANT_ID"))
+    }
+
+    @Test
+    fun `enum values can be retrieved by name`() {
+        assert(CredentialKeys.valueOf("ACCESS_TOKEN") == CredentialKeys.ACCESS_TOKEN)
+        assert(CredentialKeys.valueOf("REFRESH_TOKEN") == CredentialKeys.REFRESH_TOKEN)
+        assert(CredentialKeys.valueOf("CODE_VERIFIER") == CredentialKeys.CODE_VERIFIER)
     }
 }

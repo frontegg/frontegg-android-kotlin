@@ -124,6 +124,7 @@
                         android:layout_marginBottom="24dp"
                         android:layout_marginStart="24dp"
                         android:layout_marginEnd="24dp"
+                        android:contentDescription="Sensitive action"
                         android:text="Sensitive action" />
 
                     <Button
