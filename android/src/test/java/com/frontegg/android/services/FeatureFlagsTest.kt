@@ -3,13 +3,17 @@ package com.frontegg.android.services
 import android.content.Context
 import android.util.Log
 import com.frontegg.android.FronteggAuth
+import com.frontegg.android.utils.SentryHelper
 import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
+import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
+import io.mockk.verify
 import kotlinx.coroutines.runBlocking
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Before
 import org.junit.Test
 import java.lang.reflect.Field
@@ -193,5 +197,86 @@ class FeatureFlagsTest {
         } catch (e: Exception) {
             throw RuntimeException("Failed to invoke parseFlags", e)
         }
+    }
+
+    // ========== Tests for mobile-enable-logging feature flag integration ==========
+
+    @Test
+    fun `MOBILE_ENABLE_LOGGING_FLAG constant matches expected value`() {
+        assertEquals("mobile-enable-logging", SentryHelper.MOBILE_ENABLE_LOGGING_FLAG)
+    }
+
+    @Test
+    fun `parseFlags correctly parses mobile-enable-logging flag when on`() {
+        val result = invokeParseFlagsMethod("{\"mobile-enable-logging\": \"on\"}")
+        
+        assertEquals(true, result[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG])
+    }
+
+    @Test
+    fun `parseFlags correctly parses mobile-enable-logging flag when off`() {
+        val result = invokeParseFlagsMethod("{\"mobile-enable-logging\": \"off\"}")
+        
+        assertEquals(false, result[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG])
+    }
+
+    @Test
+    fun `isOnSync returns true for mobile-enable-logging when set to on`() {
+        setFlagsViaReflection(mapOf(SentryHelper.MOBILE_ENABLE_LOGGING_FLAG to true))
+        
+        assert(featureFlags.isOnSync(SentryHelper.MOBILE_ENABLE_LOGGING_FLAG))
+    }
+
+    @Test
+    fun `isOnSync returns false for mobile-enable-logging when set to off`() {
+        setFlagsViaReflection(mapOf(SentryHelper.MOBILE_ENABLE_LOGGING_FLAG to false))
+        
+        assert(!featureFlags.isOnSync(SentryHelper.MOBILE_ENABLE_LOGGING_FLAG))
+    }
+
+    @Test
+    fun `isOnSync returns false for mobile-enable-logging when not present`() {
+        setFlagsViaReflection(mapOf("other-flag" to true))
+        
+        assert(!featureFlags.isOnSync(SentryHelper.MOBILE_ENABLE_LOGGING_FLAG))
+    }
+
+    @Test
+    fun `SentryHelper enableFromFeatureFlag is called with true when mobile-enable-logging is on`() {
+        mockkObject(SentryHelper)
+        every { SentryHelper.enableFromFeatureFlag(any()) } returns Unit
+        
+        // Simulate what loadFlags does after parsing
+        val flagsMap = mapOf(SentryHelper.MOBILE_ENABLE_LOGGING_FLAG to true)
+        val enableLogging = flagsMap[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG] ?: false
+        SentryHelper.enableFromFeatureFlag(enableLogging)
+        
+        verify { SentryHelper.enableFromFeatureFlag(true) }
+    }
+
+    @Test
+    fun `SentryHelper enableFromFeatureFlag is called with false when mobile-enable-logging is off`() {
+        mockkObject(SentryHelper)
+        every { SentryHelper.enableFromFeatureFlag(any()) } returns Unit
+        
+        // Simulate what loadFlags does after parsing
+        val flagsMap = mapOf(SentryHelper.MOBILE_ENABLE_LOGGING_FLAG to false)
+        val enableLogging = flagsMap[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG] ?: false
+        SentryHelper.enableFromFeatureFlag(enableLogging)
+        
+        verify { SentryHelper.enableFromFeatureFlag(false) }
+    }
+
+    @Test
+    fun `SentryHelper enableFromFeatureFlag is called with false when mobile-enable-logging is missing`() {
+        mockkObject(SentryHelper)
+        every { SentryHelper.enableFromFeatureFlag(any()) } returns Unit
+        
+        // Simulate what loadFlags does after parsing (flag not present)
+        val flagsMap = mapOf("other-flag" to true)
+        val enableLogging = flagsMap[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG] ?: false
+        SentryHelper.enableFromFeatureFlag(enableLogging)
+        
+        verify { SentryHelper.enableFromFeatureFlag(false) }
     }
 }

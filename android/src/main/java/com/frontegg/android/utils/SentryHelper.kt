@@ -3,6 +3,7 @@ package com.frontegg.android.utils
 import android.content.Context
 import android.content.pm.PackageManager
 import android.util.Log
+import androidx.annotation.VisibleForTesting
 import com.frontegg.android.BuildConfig
 import com.frontegg.android.models.FronteggConstants
 import io.sentry.Breadcrumb
@@ -212,5 +213,24 @@ object SentryHelper {
             "$pkg (SDK: ${BuildConfig.FRONTEGG_SDK_VERSION})"
         }
     }
+
+    /**
+     * Resets the SentryHelper state for testing purposes.
+     * This should only be used in tests.
+     */
+    @VisibleForTesting
+    fun resetForTesting() {
+        initialized.set(false)
+        enabled.set(false)
+        didLogInitStatus.set(false)
+        appContext = null
+        storedConstants = null
+    }
+
+    /**
+     * Returns whether Sentry has been initialized (for testing).
+     */
+    @VisibleForTesting
+    fun isInitialized(): Boolean = initialized.get()
 }
 
