@@ -3,6 +3,7 @@ package com.frontegg.android.services
 import android.content.Context
 import android.util.Log
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.utils.SentryHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -70,6 +71,10 @@ class FeatureFlags private constructor() {
                 }
                 
                 Log.d(TAG, "Feature flags loaded: $flagsMap")
+                
+                // Enable Sentry logging if the feature flag is on
+                val enableLogging = flagsMap[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG] ?: false
+                SentryHelper.enableFromFeatureFlag(enableLogging)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load feature flags", e)
             }

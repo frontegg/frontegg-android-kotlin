@@ -17,7 +17,6 @@ class FronteggConstantsTest {
             mainActivityClass = "com.test.MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 100
         )
         
@@ -31,7 +30,6 @@ class FronteggConstantsTest {
         assert(constants.mainActivityClass == "com.test.MainActivity")
         assert(!constants.disableAutoRefresh)
         assert(constants.enableSessionPerTenant)
-        assert(!constants.enableSentryLogging)
         assert(constants.sentryMaxQueueSize == 100)
     }
 
@@ -48,7 +46,6 @@ class FronteggConstantsTest {
             mainActivityClass = null,
             disableAutoRefresh = false,
             enableSessionPerTenant = false,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 50
         )
         
@@ -70,7 +67,6 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = true,
             enableSessionPerTenant = true,
-            enableSentryLogging = true,
             sentryMaxQueueSize = 200
         )
         
@@ -86,7 +82,6 @@ class FronteggConstantsTest {
         assert(map["mainActivityClass"] == "MainActivity")
         assert(map["disableAutoRefresh"] == true)
         assert(map["enableSessionPerTenant"] == true)
-        assert(map["enableSentryLogging"] == true)
         assert(map["sentryMaxQueueSize"] == 200)
     }
 
@@ -103,7 +98,6 @@ class FronteggConstantsTest {
             mainActivityClass = null,
             disableAutoRefresh = false,
             enableSessionPerTenant = false,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 50
         )
         
@@ -130,13 +124,12 @@ class FronteggConstantsTest {
             mainActivityClass = null,
             disableAutoRefresh = false,
             enableSessionPerTenant = false,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 50
         )
         
         val map = constants.toMap()
         
-        assert(map.size == 12)
+        assert(map.size == 11)
     }
 
     @Test
@@ -152,7 +145,6 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 100
         )
         
@@ -167,7 +159,6 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 100
         )
         
@@ -188,7 +179,6 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 100
         )
         
@@ -203,7 +193,6 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 100
         )
         
@@ -223,7 +212,6 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            enableSentryLogging = false,
             sentryMaxQueueSize = 100
         )
         

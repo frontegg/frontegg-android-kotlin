@@ -47,7 +47,8 @@ val Context.fronteggApp: FronteggApp
         if (FronteggApp.instance == null) {
             val constants = FronteggConstantsProvider.fronteggConstants(this)
             Log.d(FronteggApp.TAG, "Initializing Frontegg SDK with constants: ${constants.toMap()}")
-            SentryHelper.initialize(this, constants)
+            // Prepare Sentry for later initialization via feature flag
+            SentryHelper.prepare(this, constants)
             var mainClassActivityClass: Class<*>? = null
             try {
                 mainClassActivityClass =
@@ -185,11 +186,10 @@ interface FronteggApp {
             disableAutoRefresh: Boolean = false,
             enableSessionPerTenant: Boolean = false,
         ): FronteggApp {
-            // Initialize Sentry based on BuildConfig (mirrors iOS enableSentryLogging flag).
-            // Safe no-op if flag is missing/false.
+            // Prepare Sentry for later initialization via feature flag.
             runCatching {
                 val constants = FronteggConstantsProvider.fronteggConstants(context)
-                SentryHelper.initialize(context, constants)
+                SentryHelper.prepare(context, constants)
             }
 
             val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)

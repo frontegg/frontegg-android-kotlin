@@ -1105,7 +1105,7 @@ class FronteggAuthService(
                 initializing.value || (!isAuthenticated.value && (isLoading.value || webLoading.value))
         }
 
-        // Mirror iOS: bind current user to Sentry scope (only if enableSentryLogging is enabled).
+        // Mirror iOS: bind current user to Sentry scope (only if 'mobile-enable-logging' feature flag is enabled).
         user.observable.subscribe { v ->
             val u = v.value
             if (u != null) {

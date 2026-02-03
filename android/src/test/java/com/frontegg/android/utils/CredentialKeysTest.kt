@@ -1,5 +1,6 @@
 package com.frontegg.android.utils
 
+import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class CredentialKeysTest {
@@ -32,22 +33,18 @@ class CredentialKeysTest {
     @Test
     fun `all credential keys are unique enum values`() {
         val keys = CredentialKeys.values()
-        
         val uniqueKeys = keys.toSet()
-        
         assert(keys.size == uniqueKeys.size) { "Credential keys must be unique" }
     }
 
     @Test
     fun `enum has expected number of values`() {
-        // ACCESS_TOKEN, REFRESH_TOKEN, CODE_VERIFIER, SELECTED_REGION, CURRENT_TENANT_ID
-        assert(CredentialKeys.values().size == 5)
+        assertEquals(5, CredentialKeys.values().size)
     }
 
     @Test
     fun `enum values have meaningful names`() {
         val keyNames = CredentialKeys.values().map { it.name }
-        
         assert(keyNames.contains("ACCESS_TOKEN"))
         assert(keyNames.contains("REFRESH_TOKEN"))
         assert(keyNames.contains("CODE_VERIFIER"))

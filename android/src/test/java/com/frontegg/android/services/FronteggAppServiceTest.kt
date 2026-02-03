@@ -11,6 +11,7 @@ import com.frontegg.android.models.FronteggConstants
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.testUtils.FakeAndroidKeyStoreProvider
 import com.frontegg.android.utils.FronteggConstantsProvider
+import com.frontegg.android.utils.SentryHelper
 import io.mockk.Runs
 import io.mockk.clearAllMocks
 import io.mockk.every
@@ -91,9 +92,11 @@ class FronteggAppServiceTest {
 
     @Test
     fun `if instance is null getter fronteggApp should call init method`() {
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockFronteggApp = mockk<FronteggApp>(relaxed = true)
         mockkObject(FronteggApp)
         mockkObject(FronteggConstantsProvider)
+        mockkObject(SentryHelper)
         val mockConstants = mockk<FronteggConstants>()
         every { mockConstants.toMap() } returns mapOf()
         every { mockConstants.baseUrl } returns ""
@@ -106,7 +109,7 @@ class FronteggAppServiceTest {
         every { mockConstants.mainActivityClass } returns null
         every { mockConstants.disableAutoRefresh } returns false
         every { mockConstants.enableSessionPerTenant } returns false
-        every { FronteggApp.instance } returns null
+        every { FronteggApp.instance } returns null andThen mockFronteggApp
         every {
             FronteggApp.init(
                 any(),
@@ -123,22 +126,22 @@ class FronteggAppServiceTest {
             )
         } returns Unit
         every { FronteggConstantsProvider.fronteggConstants(any()) } returns mockConstants
+        every { SentryHelper.prepare(any(), any()) } just Runs
 
-        try {
-            mockContext.fronteggApp
-        } catch (e: Exception) {
-            // ignore
-        }
+        mockContext.fronteggApp
 
         verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
+        unmockkObject(SentryHelper)
     }
 
     @Test
     fun `if instance is null getter fronteggAuth should call init method`() {
-        val mockContext = mockk<Context>()
+        val mockContext = mockk<Context>(relaxed = true)
+        val mockFronteggApp = mockk<FronteggApp>(relaxed = true)
         mockkObject(FronteggApp)
         mockkObject(FronteggConstantsProvider)
+        mockkObject(SentryHelper)
         val mockConstants = mockk<FronteggConstants>()
         every { mockConstants.toMap() } returns mapOf()
         every { mockConstants.baseUrl } returns ""
@@ -151,7 +154,8 @@ class FronteggAppServiceTest {
         every { mockConstants.mainActivityClass } returns null
         every { mockConstants.disableAutoRefresh } returns false
         every { mockConstants.enableSessionPerTenant } returns false
-        every { FronteggApp.instance } returns null
+        every { FronteggApp.instance } returns null andThen null andThen mockFronteggApp andThen mockFronteggApp
+        every { mockFronteggApp.auth } returns mockk(relaxed = true)
         every {
             FronteggApp.init(
                 any(),
@@ -168,15 +172,13 @@ class FronteggAppServiceTest {
             )
         } returns Unit
         every { FronteggConstantsProvider.fronteggConstants(any()) } returns mockConstants
+        every { SentryHelper.prepare(any(), any()) } just Runs
 
-        try {
-            mockContext.fronteggAuth
-        } catch (e: Exception) {
-            // ignore
-        }
+        mockContext.fronteggAuth
 
         verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
+        unmockkObject(SentryHelper)
     }
 
     @Test
