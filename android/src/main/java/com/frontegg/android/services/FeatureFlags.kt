@@ -72,7 +72,6 @@ class FeatureFlags private constructor() {
                 
                 Log.d(TAG, "Feature flags loaded: $flagsMap")
                 
-                // Enable Sentry logging if the feature flag is on
                 val enableLogging = flagsMap[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG] ?: false
                 SentryHelper.enableFromFeatureFlag(enableLogging)
             } catch (e: Exception) {
