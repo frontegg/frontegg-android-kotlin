@@ -94,8 +94,8 @@ class FeatureFlags private constructor() {
             json.keys().forEach { key ->
                 val value = json.optString(key, "off").trim().lowercase()
                 result[key] = when (value) {
-                    "on" -> true
-                    "off" -> false
+                    "on", "true" -> true
+                    "off", "false" -> false
                     else -> false
                 }
             }

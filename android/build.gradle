@@ -109,7 +109,7 @@ dependencies {
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion"
 
-    // Sentry (optional; enabled via FRONTEGG_ENABLE_SENTRY_LOGGING)
+    // Sentry (enabled via feature flag mobile-enable-logging)
     implementation 'io.sentry:sentry-android:7.20.0'
 
     implementation 'androidx.webkit:webkit:1.12.1'

@@ -11,7 +11,7 @@
 
         <!--
           Disable Sentry automatic initialization via ContentProvider.
-          We initialize Sentry manually in code only when FRONTEGG_ENABLE_SENTRY_LOGGING is enabled.
+          Sentry is initialized in code only when the mobile-enable-logging feature flag is on.
         -->
         <provider
             android:name="io.sentry.android.core.SentryInitProvider"
