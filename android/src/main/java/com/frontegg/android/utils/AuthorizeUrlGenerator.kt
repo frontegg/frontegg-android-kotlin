@@ -47,6 +47,20 @@ class AuthorizeUrlGenerator(
     }
 
 
+    /**
+     * Generates an OAuth authorization URL with PKCE.
+     *
+     * @param loginHint Optional email hint to pre-fill the login form.
+     * @param loginAction Optional direct login action (e.g., social login provider).
+     * @param preserveCodeVerifier Whether to reuse an existing code verifier.
+     * @param stepUp Whether this is a step-up authentication request.
+     * @param maxAge Maximum age for step-up authentication.
+     * @param formAction Form action for direct login.
+     * @param organization Optional tenant/organization alias for custom login per tenant.
+     *                     When provided, the user will see the customized login experience
+     *                     for that specific tenant.
+     * @return A pair of (authorization URL, code verifier).
+     */
     fun generate(
         loginHint: String? = null,
         loginAction: String? = null,
@@ -54,6 +68,7 @@ class AuthorizeUrlGenerator(
         stepUp: Boolean? = null,
         maxAge: Duration? = null,
         formAction: String? = null,
+        organization: String? = null,
     ): Pair<String, String> {
         val nonce = createRandomString()
 
@@ -98,6 +113,11 @@ class AuthorizeUrlGenerator(
 
         if (loginHint != null) {
             authorizeUrlBuilder.appendQueryParameter("login_hint", loginHint)
+        }
+
+        // Add organization parameter for custom login per tenant
+        if (organization != null) {
+            authorizeUrlBuilder.appendQueryParameter("organization", organization)
         }
 
         if (loginAction != null) {

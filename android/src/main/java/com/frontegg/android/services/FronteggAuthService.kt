@@ -183,12 +183,13 @@ class FronteggAuthService(
     override fun login(
         activity: Activity,
         loginHint: String?,
+        organization: String?,
         callback: ((Exception?) -> Unit)?,
     ) {
         if (isEmbeddedMode) {
-            EmbeddedAuthActivity.authenticate(activity, loginHint, callback)
+            EmbeddedAuthActivity.authenticate(activity, loginHint, organization, callback)
         } else {
-            AuthenticationActivity.authenticate(activity, loginHint, callback)
+            AuthenticationActivity.authenticate(activity, loginHint, organization, callback)
         }
     }
 

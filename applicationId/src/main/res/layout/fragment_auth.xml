@@ -79,6 +79,19 @@
                         android:layout_width="match_parent"
                         android:layout_height="16dp" />
 
+                    <!-- Optional tenant/organization for Login per Account -->
+                    <EditText
+                        android:id="@+id/organization_edit_text"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:hint="Organization (optional)"
+                        android:inputType="text"
+                        android:maxLines="1" />
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="16dp" />
+
                     <!-- Sign in button -->
                     <Button
                         android:id="@+id/login_button"

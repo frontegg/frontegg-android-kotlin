@@ -15,6 +15,7 @@ import com.frontegg.android.init.ConfigCache
 import com.frontegg.android.init.ConfigCache.RegionsInitFlags
 import com.frontegg.android.utils.isActivityEnabled
 import com.frontegg.android.utils.SentryHelper
+import com.frontegg.android.utils.TenantResolver
 import com.frontegg.debug.AndroidDebugConfigurationChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -125,6 +126,10 @@ interface FronteggApp {
          * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
          * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
          * @param disableAutoRefresh Whether to disable automatic token refresh (default: `false`).
+         * @param tenantResolver Optional resolver for custom login per tenant. When provided,
+         *                       enables "Login per Account" functionality where each tenant can
+         *                       have a customized login experience with different branding and
+         *                       login methods. See [TenantResolver] for usage details.
          */
         @VisibleForTesting
         internal fun init(
@@ -139,6 +144,7 @@ interface FronteggApp {
             useDiskCacheWebview: Boolean = false,
             disableAutoRefresh: Boolean = false,
             enableSessionPerTenant: Boolean = false,
+            tenantResolver: TenantResolver? = null,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
                 fronteggDomain
@@ -160,7 +166,8 @@ interface FronteggApp {
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview,
                 disableAutoRefresh = disableAutoRefresh,
-                enableSessionPerTenant = enableSessionPerTenant
+                enableSessionPerTenant = enableSessionPerTenant,
+                tenantResolver = tenantResolver
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
         }
@@ -175,6 +182,9 @@ interface FronteggApp {
          * @param mainActivityClass The Activity to navigate to after authorization (default: `null`).
          * @param useDiskCacheWebview Whether the Frontegg SDK should use disk cache for WebView (default: `false`).
          * @param disableAutoRefresh Whether to disable automatic token refresh (default: `false`).
+         * @param tenantResolver Optional resolver for custom login per tenant. When provided,
+         *                       enables "Login per Account" functionality where each tenant can
+         *                       have a customized login experience. See [TenantResolver] for usage.
          */
         fun initWithRegions(
             regions: List<RegionConfig>,
@@ -185,6 +195,7 @@ interface FronteggApp {
             useDiskCacheWebview: Boolean = false,
             disableAutoRefresh: Boolean = false,
             enableSessionPerTenant: Boolean = false,
+            tenantResolver: TenantResolver? = null,
         ): FronteggApp {
             // Prepare Sentry for later initialization via feature flag.
             runCatching {
@@ -211,7 +222,8 @@ interface FronteggApp {
                        mainActivityClass = mainActivityClass,
                        useDiskCacheWebview = useDiskCacheWebview,
                        disableAutoRefresh = disableAutoRefresh,
-                       enableSessionPerTenant = enableSessionPerTenant
+                       enableSessionPerTenant = enableSessionPerTenant,
+                       tenantResolver = tenantResolver
                    )
                    instance = newInstance
 
@@ -232,7 +244,8 @@ interface FronteggApp {
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview,
                 disableAutoRefresh = disableAutoRefresh,
-                enableSessionPerTenant = enableSessionPerTenant
+                enableSessionPerTenant = enableSessionPerTenant,
+                tenantResolver = tenantResolver
             )
             instance = newInstance
             // Persist parameters to allow retry when network becomes available

@@ -34,9 +34,12 @@ class AuthFragment : Fragment() {
 
         /**
          * Handles user login via the Embedded Frontegg WebView login dialog.
+         * Organization: from UI field, or from BuildConfig.FRONTEGG_ORGANIZATION (frontegg.properties).
          */
         binding.loginButton.setOnClickListener {
-            requireContext().fronteggAuth.login(requireActivity()) {
+            val fromUi = binding.organizationEditText.text?.toString()?.trim()?.takeIf { it.isNotBlank() }
+            val organization = fromUi ?: BuildConfig.FRONTEGG_ORGANIZATION.trim().takeIf { it.isNotBlank() }
+            requireContext().fronteggAuth.login(requireActivity(), loginHint = null, organization = organization) {
                 Log.d("AuthFragment", "Login callback")
             }
         }
