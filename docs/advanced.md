@@ -4,24 +4,23 @@ In this guide, you'll find an overview and best practices for enabling advanced 
 
 ## Sentry logging (trace IDs + error tracking)
 
-When `FRONTEGG_ENABLE_SENTRY_LOGGING` is enabled, the SDK will:
+Sentry reporting is controlled **only** by the remote feature flag `mobile-enable-logging`. When this flag is on (after feature flags are loaded from the server), the SDK will:
 
 - Add **Sentry breadcrumbs** for HTTP requests and received `frontegg-trace-id` headers (helps correlating client issues with server logs)
 - Save recent trace IDs to a local file `frontegg-trace-ids.log` in the app's internal storage (`filesDir`)
 
-### Enable Sentry logging
+There is no local build or plist setting to enable Sentry; use the `mobile-enable-logging` feature flag in the Frontegg portal.
 
-Add these `buildConfigField`s to your app module (or set them via `frontegg.properties` in this repo):
+### Optional: Sentry queue size
+
+You can set the offline queue size via `frontegg.properties` or `buildConfigField`:
 
 ```groovy
-buildConfigField "boolean", "FRONTEGG_ENABLE_SENTRY_LOGGING", "true"
 buildConfigField "int", "FRONTEGG_SENTRY_MAX_QUEUE_SIZE", "30"
 ```
 
-Notes:
-
 - `FRONTEGG_SENTRY_MAX_QUEUE_SIZE` maps to Sentry's `maxCacheItems` (offline queue size).
-- DSN is configured inside the SDK and should match the iOS Swift SDK setup.
+- DSN is configured inside the SDK and matches the iOS Swift SDK setup.
 
 ## Passkeys authentication
 

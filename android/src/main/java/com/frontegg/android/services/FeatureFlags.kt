@@ -72,7 +72,6 @@ class FeatureFlags private constructor() {
                 
                 Log.d(TAG, "Feature flags loaded: $flagsMap")
                 
-                // Enable Sentry logging if the feature flag is on
                 val enableLogging = flagsMap[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG] ?: false
                 SentryHelper.enableFromFeatureFlag(enableLogging)
             } catch (e: Exception) {
@@ -94,8 +93,8 @@ class FeatureFlags private constructor() {
             json.keys().forEach { key ->
                 val value = json.optString(key, "off").trim().lowercase()
                 result[key] = when (value) {
-                    "on" -> true
-                    "off" -> false
+                    "on", "true" -> true
+                    "off", "false" -> false
                     else -> false
                 }
             }

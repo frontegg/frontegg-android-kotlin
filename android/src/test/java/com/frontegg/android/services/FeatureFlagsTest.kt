@@ -137,7 +137,7 @@ class FeatureFlagsTest {
 
     @Test
     fun `parseFlags handles invalid values as false`() {
-        val result = invokeParseFlagsMethod("{\"flag1\": \"invalid\", \"flag2\": \"true\", \"flag3\": \"1\"}")
+        val result = invokeParseFlagsMethod("{\"flag1\": \"invalid\", \"flag2\": \"1\", \"flag3\": \"yes\"}")
         
         assert(result["flag1"] == false)
         assert(result["flag2"] == false)
@@ -216,6 +216,20 @@ class FeatureFlagsTest {
     @Test
     fun `parseFlags correctly parses mobile-enable-logging flag when off`() {
         val result = invokeParseFlagsMethod("{\"mobile-enable-logging\": \"off\"}")
+        
+        assertEquals(false, result[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG])
+    }
+
+    @Test
+    fun `parseFlags correctly parses mobile-enable-logging flag when true`() {
+        val result = invokeParseFlagsMethod("{\"mobile-enable-logging\": \"true\"}")
+        
+        assertEquals(true, result[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG])
+    }
+
+    @Test
+    fun `parseFlags correctly parses mobile-enable-logging flag when false`() {
+        val result = invokeParseFlagsMethod("{\"mobile-enable-logging\": \"false\"}")
         
         assertEquals(false, result[SentryHelper.MOBILE_ENABLE_LOGGING_FLAG])
     }
