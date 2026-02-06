@@ -16,6 +16,7 @@ import com.frontegg.android.init.ConfigCache.RegionsInitFlags
 import com.frontegg.android.utils.isActivityEnabled
 import com.frontegg.android.utils.SentryHelper
 import com.frontegg.android.utils.TenantResolver
+import com.frontegg.android.utils.TenantResolverResult
 import com.frontegg.debug.AndroidDebugConfigurationChecker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
@@ -74,6 +75,9 @@ val Context.fronteggApp: FronteggApp
                 useDiskCacheWebview = constants.useDiskCacheWebview,
                 disableAutoRefresh = constants.disableAutoRefresh,
                 enableSessionPerTenant = constants.enableSessionPerTenant,
+                tenantResolver = constants.fronteggOrganization?.let { org ->
+                    TenantResolver { TenantResolverResult(org) }
+                },
             )
         }
 
