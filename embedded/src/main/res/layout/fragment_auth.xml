@@ -139,6 +139,18 @@
                         android:layout_width="match_parent"
                         android:layout_height="8dp" />
 
+                    <!-- Login with Organization -->
+                    <Button
+                        android:id="@+id/login_with_organization_button"
+                        style="@style/CustomButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:text="Login with Organization" />
+
+                    <Space
+                        android:layout_width="match_parent"
+                        android:layout_height="8dp" />
+
                     <!-- Passkey login -->
                     <Button
                         android:id="@+id/passkeys_button"

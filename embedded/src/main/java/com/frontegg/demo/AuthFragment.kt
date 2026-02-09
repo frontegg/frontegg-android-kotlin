@@ -107,6 +107,19 @@ class AuthFragment : Fragment() {
         }
 
         /**
+         * Handles login with a specific organization alias ("test").
+         * Uses Login per Account flow so the user is routed to that org's login experience.
+         */
+        binding.loginWithOrganizationButton.setOnClickListener {
+            requireContext().fronteggAuth.login(
+                requireActivity(),
+                organization = "test"
+            ) {
+                Log.d("AuthFragment", "Login with Organization callback")
+            }
+        }
+
+        /**
          * Initiates authentication using Passkeys.
          * Passkeys allow for passwordless login using secure device authentication.
          */

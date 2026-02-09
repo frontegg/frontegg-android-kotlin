@@ -17,7 +17,8 @@ class FronteggConstantsTest {
             mainActivityClass = "com.test.MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            sentryMaxQueueSize = 100
+            sentryMaxQueueSize = 100,
+            fronteggOrganization = null
         )
         
         assert(constants.baseUrl == "https://test.frontegg.com")
@@ -46,7 +47,8 @@ class FronteggConstantsTest {
             mainActivityClass = null,
             disableAutoRefresh = false,
             enableSessionPerTenant = false,
-            sentryMaxQueueSize = 50
+            sentryMaxQueueSize = 50,
+            fronteggOrganization = null
         )
         
         assert(constants.applicationId == null)
@@ -67,7 +69,8 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = true,
             enableSessionPerTenant = true,
-            sentryMaxQueueSize = 200
+            sentryMaxQueueSize = 200,
+            fronteggOrganization = null
         )
         
         val map = constants.toMap()
@@ -98,7 +101,8 @@ class FronteggConstantsTest {
             mainActivityClass = null,
             disableAutoRefresh = false,
             enableSessionPerTenant = false,
-            sentryMaxQueueSize = 50
+            sentryMaxQueueSize = 50,
+            fronteggOrganization = null
         )
         
         val map = constants.toMap()
@@ -124,12 +128,13 @@ class FronteggConstantsTest {
             mainActivityClass = null,
             disableAutoRefresh = false,
             enableSessionPerTenant = false,
-            sentryMaxQueueSize = 50
+            sentryMaxQueueSize = 50,
+            fronteggOrganization = null
         )
         
         val map = constants.toMap()
         
-        assert(map.size == 11)
+        assert(map.size == 12)
     }
 
     @Test
@@ -145,7 +150,8 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            sentryMaxQueueSize = 100
+            sentryMaxQueueSize = 100,
+            fronteggOrganization = null
         )
         
         val constants2 = FronteggConstants(
@@ -159,7 +165,8 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            sentryMaxQueueSize = 100
+            sentryMaxQueueSize = 100,
+            fronteggOrganization = null
         )
         
         assert(constants1 == constants2)
@@ -179,7 +186,8 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            sentryMaxQueueSize = 100
+            sentryMaxQueueSize = 100,
+            fronteggOrganization = null
         )
         
         val constants2 = FronteggConstants(
@@ -193,7 +201,8 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            sentryMaxQueueSize = 100
+            sentryMaxQueueSize = 100,
+            fronteggOrganization = null
         )
         
         assert(constants1 != constants2)
@@ -212,7 +221,8 @@ class FronteggConstantsTest {
             mainActivityClass = "MainActivity",
             disableAutoRefresh = false,
             enableSessionPerTenant = true,
-            sentryMaxQueueSize = 100
+            sentryMaxQueueSize = 100,
+            fronteggOrganization = null
         )
         
         val copied = original.copy(baseUrl = "https://new.frontegg.com")
