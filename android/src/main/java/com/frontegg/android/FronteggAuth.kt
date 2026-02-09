@@ -157,6 +157,10 @@ interface FronteggAuth {
      * Requests silent authorization using a refresh token and an optional device token.
      * This function runs asynchronously using a coroutine.
      *
+     * **Token source:** Use tokens obtained from Frontegg identity-server APIs, for example:
+     * - [POST /frontegg/identity/resources/users/v1/signUp](https://docs.frontegg.com/reference/signup) (sign-up response)
+     * - Other identity-server endpoints that return refresh token and optional device token cookie.
+     *
      * @param refreshToken The refresh token used for authentication.
      * @param deviceTokenCookie Optional device token for additional authentication.
      * @return A [User] object if authentication succeeds.
@@ -170,6 +174,10 @@ interface FronteggAuth {
     /**
      * Initiates an asynchronous authorization request using a refresh token.
      * Calls a callback function with the authentication result.
+     *
+     * **Token source:** Use tokens obtained from Frontegg identity-server APIs, for example:
+     * - [POST /frontegg/identity/resources/users/v1/signUp](https://docs.frontegg.com/reference/signup) (sign-up response)
+     * - Other identity-server endpoints that return refresh token and optional device token cookie.
      *
      * @param refreshToken The refresh token used for authentication.
      * @param deviceTokenCookie Optional device token for additional authentication.

@@ -89,7 +89,9 @@ class AuthFragment : Fragment() {
 
         /**
          * Requests authorization using refresh tokens.
-         * Optionally, a device token cookie can be provided for additional security.
+         * Tokens must be obtained from Frontegg identity-server APIs (e.g. POST
+         * /frontegg/identity/resources/users/v1/signUp). Optionally, a device token
+         * cookie can be provided for additional security.
          */
         binding.requestAuthorizedWithTokensButton.setOnClickListener {
             requireContext().fronteggAuth.requestAuthorize(
