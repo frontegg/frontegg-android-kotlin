@@ -1,6 +1,7 @@
 package com.frontegg.android.services
 
 import com.frontegg.android.regions.RegionConfig
+import com.frontegg.android.utils.TenantResolver
 
 class FronteggInnerStorage {
     val baseUrl: String
@@ -49,6 +50,8 @@ class FronteggInnerStorage {
         get() = data["useDiskCacheWebview"] as Boolean? ?: false
     val enableSessionPerTenant: Boolean
         get() = data["enableSessionPerTenant"] as Boolean? ?: false
+    val tenantResolver: TenantResolver?
+        get() = data["tenantResolver"] as TenantResolver?
 
 
     fun fill(
@@ -70,7 +73,8 @@ class FronteggInnerStorage {
         packageName: String,
         deepLinkScheme: String? = null,
         useDiskCacheWebview: Boolean = false,
-        enableSessionPerTenant: Boolean = false
+        enableSessionPerTenant: Boolean = false,
+        tenantResolver: TenantResolver? = null
     ) {
         data["baseUrl"] = baseUrl
         data["clientId"] = clientId
@@ -91,6 +95,7 @@ class FronteggInnerStorage {
         data["deepLinkScheme"] = deepLinkScheme
         data["useDiskCacheWebview"] = useDiskCacheWebview
         data["enableSessionPerTenant"] = enableSessionPerTenant
+        data["tenantResolver"] = tenantResolver
     }
 
     companion object {

@@ -20,6 +20,7 @@ def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "")
 def fronteggApplicationId = fronteggProperties.getOrDefault("FRONTEGG_APPLICATION_ID", "").toString()
 def fronteggDisableAutoRefresh = fronteggProperties.getOrDefault("FRONTEGG_DISABLE_AUTO_REFRESH", "false").toString()
 def fronteggSentryMaxQueueSize = fronteggProperties.getOrDefault("FRONTEGG_SENTRY_MAX_QUEUE_SIZE", "30").toString()
+def fronteggOrganization = fronteggProperties.getOrDefault("FRONTEGG_ORGANIZATION", "").toString()
 
 
 android {
@@ -47,6 +48,7 @@ android {
         buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
         buildConfigField "boolean", 'FRONTEGG_DISABLE_AUTO_REFRESH', "$fronteggDisableAutoRefresh"
         buildConfigField "int", 'FRONTEGG_SENTRY_MAX_QUEUE_SIZE', "$fronteggSentryMaxQueueSize"
+        buildConfigField "String", 'FRONTEGG_ORGANIZATION', "\"$fronteggOrganization\""
 
         testInstrumentationRunnerArguments["LOGIN_EMAIL"] = testProperties.getOrDefault("LOGIN_EMAIL", "")
         testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = testProperties.getOrDefault("LOGIN_PASSWORD", "")

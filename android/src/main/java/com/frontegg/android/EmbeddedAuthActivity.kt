@@ -339,16 +339,30 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
         var onAuthFinishedCallback: ((error: Exception?) -> Unit)? = null // Store callback
 
+        /**
+         * Authenticates the user using the Frontegg embedded login experience.
+         *
+         * @param activity The activity launching the authentication.
+         * @param loginHint Optional email hint to pre-fill the login form.
+         * @param organization Optional tenant/organization alias for custom login per tenant.
+         *                     When provided, users will see the customized login experience
+         *                     configured for that specific tenant in the Frontegg portal.
+         * @param callback Called when authentication completes or fails.
+         */
         @JvmStatic
         fun authenticate(
             activity: Activity,
             loginHint: String? = null,
+            organization: String? = null,
             callback: ((error: Exception?) -> Unit)? = null
         ) {
-            Log.d(TAG, "authenticate")
+            Log.d(TAG, "authenticate (organization=$organization)")
             val intent = Intent(activity, EmbeddedAuthActivity::class.java)
 
-            val authorizeUri = AuthorizeUrlGenerator(activity).generate(loginHint = loginHint)
+            val authorizeUri = AuthorizeUrlGenerator(activity).generate(
+                loginHint = loginHint,
+                organization = organization
+            )
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             onAuthFinishedCallback = callback

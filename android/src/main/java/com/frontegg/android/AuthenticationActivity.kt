@@ -176,13 +176,27 @@ class AuthenticationActivity : FronteggBaseActivity() {
         private val TAG = AuthenticationActivity::class.java.simpleName
         var onAuthFinishedCallback: ((Exception?) -> Unit)? = null // Store callback
 
+        /**
+         * Authenticates the user using Chrome Custom Tabs or system browser.
+         *
+         * @param activity The activity launching the authentication.
+         * @param loginHint Optional email hint to pre-fill the login form.
+         * @param organization Optional tenant/organization alias for custom login per tenant.
+         *                     When provided, users will see the customized login experience
+         *                     configured for that specific tenant in the Frontegg portal.
+         * @param callback Called when authentication completes or fails.
+         */
         fun authenticate(
             activity: Activity,
             loginHint: String? = null,
+            organization: String? = null,
             callback: ((Exception?) -> Unit)? = null
         ) {
             val intent = Intent(activity, AuthenticationActivity::class.java)
-            val authorizeUri = AuthorizeUrlGenerator(activity).generate(loginHint = loginHint)
+            val authorizeUri = AuthorizeUrlGenerator(activity).generate(
+                loginHint = loginHint,
+                organization = organization
+            )
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)

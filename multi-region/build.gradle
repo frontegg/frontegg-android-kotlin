@@ -21,6 +21,7 @@ def fronteggDisableAutoRefresh = fronteggProperties.getOrDefault("FRONTEGG_DISAB
 def fronteggSentryMaxQueueSize = fronteggProperties.getOrDefault("FRONTEGG_SENTRY_MAX_QUEUE_SIZE", "30").toString()
 
 def fronteggDomain2 = fronteggProperties.getOrDefault("FRONTEGG_DOMAIN_2", "").toString()
+def fronteggOrganization = fronteggProperties.getOrDefault("FRONTEGG_ORGANIZATION", "").toString()
 
 android {
     namespace 'com.frontegg.demo'
@@ -47,7 +48,8 @@ android {
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
         buildConfigField "boolean", 'FRONTEGG_DISABLE_AUTO_REFRESH', "$fronteggDisableAutoRefresh"
         buildConfigField "int", 'FRONTEGG_SENTRY_MAX_QUEUE_SIZE', "$fronteggSentryMaxQueueSize"
-        
+        buildConfigField "String", 'FRONTEGG_ORGANIZATION', "\"$fronteggOrganization\""
+
         vectorDrawables {
             useSupportLibrary true
         }

@@ -21,6 +21,7 @@ def fronteggDeepLinkScheme = fronteggProperties.getOrDefault("FRONTEGG_DEEP_LINK
 def fronteggDisableAutoRefresh = fronteggProperties.getOrDefault("FRONTEGG_DISABLE_AUTO_REFRESH", "false").toString()
 def fronteggEnableSessionPerTenant = fronteggProperties.getOrDefault("FRONTEGG_ENABLE_SESSION_PER_TENANT", "true").toString()
 def fronteggSentryMaxQueueSize = fronteggProperties.getOrDefault("FRONTEGG_SENTRY_MAX_QUEUE_SIZE", "30").toString()
+def fronteggOrganization = fronteggProperties.getOrDefault("FRONTEGG_ORGANIZATION", "").toString()
 
 android {
     namespace 'com.frontegg.demo'
@@ -48,6 +49,7 @@ android {
         buildConfigField "boolean", 'FRONTEGG_DISABLE_AUTO_REFRESH', "$fronteggDisableAutoRefresh"
         buildConfigField "boolean", 'FRONTEGG_ENABLE_SESSION_PER_TENANT', "$fronteggEnableSessionPerTenant"
         buildConfigField "int", 'FRONTEGG_SENTRY_MAX_QUEUE_SIZE', "$fronteggSentryMaxQueueSize"
+        buildConfigField "String", 'FRONTEGG_ORGANIZATION', "\"$fronteggOrganization\""
 
         testInstrumentationRunnerArguments["LOGIN_EMAIL"] = testProperties.getOrDefault("LOGIN_EMAIL", "")
         testInstrumentationRunnerArguments["LOGIN_PASSWORD"] = testProperties.getOrDefault("LOGIN_PASSWORD", "")

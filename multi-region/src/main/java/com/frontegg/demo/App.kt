@@ -3,6 +3,8 @@ package com.frontegg.demo
 import android.app.Application
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.regions.RegionConfig
+import com.frontegg.android.utils.TenantResolver
+import com.frontegg.android.utils.TenantResolverResult
 import java.io.File
 
 
@@ -30,7 +32,10 @@ class App : Application() {
                     "6903cab0-9809-4a2e-97dd-b8c0f966c813"  // Client ID for US region
                 )
             ),
-            this  // Application context reference
+            this,  // Application context reference
+            tenantResolver = BuildConfig.FRONTEGG_ORGANIZATION.trim().takeIf { it.isNotBlank() }?.let { org ->
+                TenantResolver { TenantResolverResult(org) }
+            }
         )
     }
 

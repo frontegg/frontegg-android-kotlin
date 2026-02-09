@@ -34,6 +34,7 @@ class AuthFragment : Fragment() {
 
         /**
          * Handles user login via the Embedded Frontegg WebView login dialog.
+         * Organization (for Login per Account) is read from BuildConfig at SDK init via FronteggConstantsProvider.
          */
         binding.loginButton.setOnClickListener {
             requireContext().fronteggAuth.login(requireActivity()) {
@@ -88,7 +89,9 @@ class AuthFragment : Fragment() {
 
         /**
          * Requests authorization using refresh tokens.
-         * Optionally, a device token cookie can be provided for additional security.
+         * Tokens must be obtained from Frontegg identity-server APIs (e.g. POST
+         * /frontegg/identity/resources/users/v1/signUp). Optionally, a device token
+         * cookie can be provided for additional security.
          */
         binding.requestAuthorizedWithTokensButton.setOnClickListener {
             requireContext().fronteggAuth.requestAuthorize(
@@ -100,6 +103,19 @@ class AuthFragment : Fragment() {
                 }.onFailure { error ->
                     Log.e("FronteggAuth", "Authorization failed: ${error.message}")
                 }
+            }
+        }
+
+        /**
+         * Handles login with a specific organization alias ("test").
+         * Uses Login per Account flow so the user is routed to that org's login experience.
+         */
+        binding.loginWithOrganizationButton.setOnClickListener {
+            requireContext().fronteggAuth.login(
+                requireActivity(),
+                organization = "test"
+            ) {
+                Log.d("AuthFragment", "Login with Organization callback")
             }
         }
 

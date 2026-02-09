@@ -183,12 +183,15 @@ class FronteggAuthService(
     override fun login(
         activity: Activity,
         loginHint: String?,
+        organization: String?,
         callback: ((Exception?) -> Unit)?,
     ) {
+        val resolvedOrg = organization?.trim()?.takeIf { it.isNotBlank() }
+            ?: storage.tenantResolver?.resolve()?.tenant?.trim()?.takeIf { it.isNotBlank() }
         if (isEmbeddedMode) {
-            EmbeddedAuthActivity.authenticate(activity, loginHint, callback)
+            EmbeddedAuthActivity.authenticate(activity, loginHint, resolvedOrg, callback)
         } else {
-            AuthenticationActivity.authenticate(activity, loginHint, callback)
+            AuthenticationActivity.authenticate(activity, loginHint, resolvedOrg, callback)
         }
     }
 

@@ -8,6 +8,7 @@ import com.frontegg.android.FronteggAuth
 import com.frontegg.android.fronteggAuth
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.SentryHelper
+import com.frontegg.android.utils.TenantResolver
 
 class FronteggAppService(
     private val context: Context,
@@ -29,7 +30,8 @@ class FronteggAppService(
     private var deepLinkScheme: String? = null,
     private var useDiskCacheWebview: Boolean = false,
     private var disableAutoRefresh: Boolean = false,
-    private var enableSessionPerTenant: Boolean = false
+    private var enableSessionPerTenant: Boolean = false,
+    private var tenantResolver: TenantResolver? = null
 ) : FronteggApp {
 
     private val storage = StorageProvider.getInnerStorage()
@@ -77,6 +79,7 @@ class FronteggAppService(
             deepLinkScheme,
             useDiskCacheWebview,
             enableSessionPerTenant,
+            tenantResolver,
         )
     }
 

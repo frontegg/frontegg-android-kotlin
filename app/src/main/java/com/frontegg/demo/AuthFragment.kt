@@ -34,6 +34,7 @@ class AuthFragment : Fragment() {
 
         /**
          * Handles user login via the Embedded Frontegg WebView login dialog.
+         * Organization (for Login per Account) is read from BuildConfig at SDK init via FronteggConstantsProvider.
          */
         binding.loginButton.setOnClickListener {
             requireContext().fronteggAuth.login(requireActivity()) {

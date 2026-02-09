@@ -63,6 +63,10 @@ object FronteggConstantsProvider {
         val sentryMaxQueueSize =
             safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_SENTRY_MAX_QUEUE_SIZE", 30)
 
+        val rawOrganization = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ORGANIZATION", "")
+        
+        val fronteggOrganization = rawOrganization.trim().takeIf { it.isNotBlank() }
+
         return FronteggConstants(
             baseUrl = baseUrl,
             clientId = clientId,
@@ -75,6 +79,7 @@ object FronteggConstantsProvider {
             disableAutoRefresh = disableAutoRefresh,
             enableSessionPerTenant = enableSessionPerTenant,
             sentryMaxQueueSize = sentryMaxQueueSize,
+            fronteggOrganization = fronteggOrganization,
         )
     }
 }

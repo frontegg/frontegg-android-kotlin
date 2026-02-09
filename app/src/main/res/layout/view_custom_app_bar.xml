@@ -6,13 +6,17 @@
     android:layout_height="72dp"
     android:background="@color/white"
     android:elevation="5dp"
+    android:fitsSystemWindows="true"
     android:paddingStart="24dp"
     android:paddingEnd="24dp"
+    android:paddingTop="24dp"
     app:title="">
 
     <RelativeLayout
         android:layout_width="match_parent"
-        android:layout_height="match_parent">
+        android:layout_height="match_parent"
+        android:clickable="false"
+        android:focusable="false">
 
         <!-- Left side logos -->
         <LinearLayout
@@ -42,22 +46,19 @@
                 android:src="@drawable/ic_kotlin" />
         </LinearLayout>
 
-        <!-- Right side Logout button -->
+        <!-- Right side Logout button (min 48dp touch target for accessibility) -->
         <Button
             android:id="@+id/btn_logout"
             style="@style/Widget.MaterialComponents.Button.TextButton"
             android:layout_width="wrap_content"
-            android:layout_height="40dp"
+            android:layout_height="48dp"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:layout_margin="0dp"
-            android:height="32dp"
+            android:minWidth="48dp"
+            android:minHeight="48dp"
             android:backgroundTint="@color/background"
-            android:minWidth="40dp"
-            android:paddingLeft="20dp"
-            android:paddingTop="0dp"
-            android:paddingRight="20dp"
-            android:paddingBottom="5dp"
+            android:paddingStart="20dp"
+            android:paddingEnd="20dp"
             android:text="Logout"
             android:textColor="@color/text"
             android:visibility="gone" />

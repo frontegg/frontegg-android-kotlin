@@ -148,7 +148,8 @@ class SentryHelperTest {
             mainActivityClass = null,
             disableAutoRefresh = false,
             enableSessionPerTenant = false,
-            sentryMaxQueueSize = 100
+            sentryMaxQueueSize = 100,
+            fronteggOrganization = null
         )
         
         SentryHelper.prepare(mockContext, constants)
@@ -173,7 +174,8 @@ class SentryHelperTest {
             mainActivityClass = null,
             disableAutoRefresh = false,
             enableSessionPerTenant = false,
-            sentryMaxQueueSize = 50
+            sentryMaxQueueSize = 50,
+            fronteggOrganization = null
         )
         
         SentryHelper.prepare(mockContext, constants)
