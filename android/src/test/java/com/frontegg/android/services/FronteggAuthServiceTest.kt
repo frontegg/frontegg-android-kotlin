@@ -78,6 +78,7 @@ class FronteggAuthServiceTest {
         every { storageMock.baseUrl }.returns("https://base.url.com")
         every { storageMock.regions }.returns(listOf())
         every { storageMock.enableSessionPerTenant }.returns(false)
+        every { storageMock.tenantResolver }.returns(null)
         mockkObject(FronteggApp)
         every { credentialManagerMock.get(any()) }.returns(null)
         every { credentialManagerMock.context }.returns(mockContext)
@@ -146,10 +147,10 @@ class FronteggAuthServiceTest {
         every { storageMock.isEmbeddedMode }.returns(true)
 
         mockkObject(EmbeddedAuthActivity)
-        every { EmbeddedAuthActivity.authenticate(any(), any(), any()) }.returns(Unit)
+        every { EmbeddedAuthActivity.authenticate(any(), any(), any(), any()) }.returns(Unit)
         auth.login(mockActivity, null, null)
 
-        verify { EmbeddedAuthActivity.authenticate(any(), any(), any()) }
+        verify { EmbeddedAuthActivity.authenticate(any(), any(), any(), any()) }
     }
 
     @Test
@@ -157,10 +158,10 @@ class FronteggAuthServiceTest {
         every { storageMock.isEmbeddedMode }.returns(false)
 
         mockkObject(AuthenticationActivity)
-        every { AuthenticationActivity.authenticate(any(), any(), any()) }.returns(Unit)
+        every { AuthenticationActivity.authenticate(any(), any(), any(), any()) }.returns(Unit)
         auth.login(mockActivity, null, null)
 
-        verify { AuthenticationActivity.authenticate(any(), any(), any()) }
+        verify { AuthenticationActivity.authenticate(any(), any(), any(), any()) }
     }
 
     @Test
@@ -338,11 +339,11 @@ class FronteggAuthServiceTest {
 
         every { storageMock.isEmbeddedMode }.returns(true)
         mockkObject(EmbeddedAuthActivity)
-        every { EmbeddedAuthActivity.authenticate(any(), any(), any()) }.returns(Unit)
+        every { EmbeddedAuthActivity.authenticate(any(), any(), any(), any()) }.returns(Unit)
 
         val result = auth.handleHostedLoginCallback("TestCode", activity = mockActivity)
 
-        verify(timeout = 1_000) { EmbeddedAuthActivity.authenticate(any(), any(), any()) }
+        verify(timeout = 1_000) { EmbeddedAuthActivity.authenticate(any(), any(), any(), any()) }
         assert(result)
     }
 
