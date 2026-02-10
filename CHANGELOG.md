@@ -1,3 +1,10 @@
+- updated demo apps with more examples
+- schedule alarm permission request
+- tests coverage 
+Removed local sentry flag.
+Added feature-flag for sentry support.
+- added login per account
+
 ## v1.3.16
 - **Sentry**: Sentry is controlled only by the remote feature flag `mobile-enable-logging`; local option `FRONTEGG_ENABLE_SENTRY_LOGGING` has been removed.
 - **Offline Support**: Configurable `FRONTEGG_SENTRY_MAX_QUEUE_SIZE` (default: 30) for event queuing during offline periods (maps to Sentry `maxCacheItems`)
