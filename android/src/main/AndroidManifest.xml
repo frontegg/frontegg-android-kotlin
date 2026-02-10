@@ -34,7 +34,8 @@
         <activity
             android:name="com.frontegg.android.EmbeddedAuthActivity"
             android:exported="true"
-            android:launchMode="singleTop">
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|keyboardHidden">
             <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
 
             <intent-filter android:autoVerify="true">
