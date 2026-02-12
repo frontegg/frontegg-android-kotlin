@@ -89,6 +89,90 @@ android {
 }
 ```
 
+## Login per account (custom login box)
+
+When your Frontegg workspace uses **login per account**, each account (tenant) has its own login URL and branded login experience. To route users to a specific account’s login from the Android app, set the account alias via config or in code.
+
+### Enable via config (build.gradle)
+
+Provide the organization alias via `FRONTEGG_ORGANIZATION` so the SDK reads it at startup (e.g. via `FronteggConstantsProvider`) and adds `organization=<alias>` to the authorize URL for all login flows. Leave the value empty or omit it for standard (non–login-per-account) login.
+
+**Option 1 — `frontegg.properties` (recommended):** create or edit `frontegg.properties` in the project root and set:
+
+```properties
+FRONTEGG_ORGANIZATION=your_alias
+```
+
+**Option 2 — Default in build script:** use `{your_alias}` as the default in `getOrDefault` and replace it with your tenant alias, or set `FRONTEGG_ORGANIZATION` in `frontegg.properties`.
+
+In your app module’s `build.gradle`:
+
+Groovy:
+
+```groovy
+Properties fronteggProperties = new Properties()
+File fronteggPropsFile = project.rootProject.file('frontegg.properties')
+if (fronteggPropsFile.exists()) {
+    fronteggProperties.load(fronteggPropsFile.newDataInputStream())
+}
+def fronteggOrganization = fronteggProperties.getOrDefault("FRONTEGG_ORGANIZATION", "{your_alias}").toString()
+// ...
+android {
+    defaultConfig {
+        // ...
+        buildConfigField "String", 'FRONTEGG_ORGANIZATION', "\"$fronteggOrganization\""
+    }
+}
+```
+
+Kotlin DSL:
+
+```kotlin
+val fronteggProperties = java.util.Properties()
+val fronteggPropsFile = rootProject.file("frontegg.properties")
+if (fronteggPropsFile.exists()) {
+    fronteggProperties.load(fronteggPropsFile.inputStream())
+}
+val fronteggOrganization = fronteggProperties.getOrDefault("FRONTEGG_ORGANIZATION", "{your_alias}").toString()
+// ...
+android {
+    defaultConfig {
+        // ...
+        buildConfigField("String", "FRONTEGG_ORGANIZATION", "\"$fronteggOrganization\"")
+    }
+}
+```
+
+No code changes are required when using only config: the SDK uses `BuildConfig.FRONTEGG_ORGANIZATION` at init.
+
+### Set the account alias in code
+
+You can also pass the organization alias at runtime (e.g. from a deep link or tenant context) by passing the `organization` parameter to `login()`. This overrides the value from config for that login call.
+
+**Query parameter (recommended):** if your app gets the account from a URL or deep link (e.g. `?organization=acme`), set the alias when calling login:
+
+```kotlin
+requireContext().fronteggAuth.login(
+    activity = this,
+    organization = "acme",  // account alias from your URL/context
+    callback = { error -> /* ... */ }
+)
+```
+
+**Subdomain:** if you use subdomains per account (e.g. `acme.yourdomain.com`), derive the alias from the host and pass it the same way to `login()`.
+
+### Hosted vs embedded
+
+- **Hosted login:** the authorize URL includes `organization=<alias>` (e.g. `https://[YOUR_DOMAIN]/oauth/authorize?organization=acme&...`).
+- **Embedded login:** the same `organization` query parameter is included when loading the login page in the WebView.
+
+All login entry points (hosted, embedded, social, magic link, etc.) use the organization from config or from the `organization` parameter passed to `login()`, so you only need to set it once before starting the flow.
+
+### Limitations
+
+- **Switching tenants:** `switchTenant` is not supported between accounts that have custom login boxes. Users who need to use another such account must log in again (with that account's alias set).
+- If you only need different app URLs per account and not different login experiences, use [Application URL](https://developers.frontegg.com/api/tenants/accounts/tenantcontrollerv1_createtenant#applicationurl) configuration instead of custom login boxes.
+
 ## Step-up authentication
 
 Step-up authentication is a security feature that temporarily elevates a user's authentication level to perform sensitive actions, such as accessing personal data, making transactions, or changing security settings.
