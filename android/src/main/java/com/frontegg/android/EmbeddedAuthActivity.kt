@@ -27,6 +27,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
     private var webViewUrl: String? = null
     private var directLoginLaunchedDone: Boolean = false
     private var directLoginLaunched: Boolean = false
+    private var authCompleted: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -41,13 +42,25 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         loaderContainer?.addView(loaderView)
         loaderContainer?.visibility = View.VISIBLE
 
-        consumeIntent(intent)
+        if (savedInstanceState != null) {
+            // Restore WebView state and flags when system recreates the activity
+            webView.restoreState(savedInstanceState)
+            directLoginLaunched =
+                savedInstanceState.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, false)
+            directLoginLaunchedDone =
+                savedInstanceState.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, false)
+            webViewUrl = savedInstanceState.getString(BUNDLE_KEY_WEBVIEW_URL)
+        } else {
+            consumeIntent(intent)
+        }
     }
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, this.directLoginLaunched)
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, this.directLoginLaunchedDone)
+        outState.putString(BUNDLE_KEY_WEBVIEW_URL, this.webViewUrl)
+        webView.saveState(outState)
     }
 
     private fun consumeIntent(intent: Intent) {
@@ -215,6 +228,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
         if (it.value) {
             runOnUiThread {
+                authCompleted = true
                 navigateToAuthenticated()
                 onAuthFinishedCallback?.invoke(null)
                 onAuthFinishedCallback = null
@@ -226,6 +240,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         Log.d(TAG, "isStepUpAuthorization: ${it.value}")
         if (!it.value) {
             runOnUiThread {
+                authCompleted = true
                 navigateToAuthenticated()
                 onAuthFinishedCallback?.invoke(null)
                 onAuthFinishedCallback = null
@@ -260,20 +275,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             disposables.add(fronteggAuth.isAuthenticated.subscribe(this.isAuthenticatedConsumer))
         } else if (fronteggAuth.isStepUpAuthorization.value) {
             disposables.add(fronteggAuth.isStepUpAuthorization.subscribe(this.isStepUpAuthorization))
-        }
-
-        if (directLoginLaunchedDone) {
-            onAuthFinishedCallback?.invoke(null)
-            onAuthFinishedCallback = null
-            FronteggState.isLoading.value = false
-            FronteggState.showLoader.value = false
-            setResult(RESULT_OK)
-            finish()
-            return
-        }
-
-        if (directLoginLaunched) {
-            directLoginLaunchedDone = true
         }
 
         // Consume intent data if available (for social login redirects)
@@ -322,8 +323,12 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
     override fun onDestroy() {
         super.onDestroy()
         FronteggState.webLoading.value = false
-        onAuthFinishedCallback?.invoke(CanceledByUserException())
-        onAuthFinishedCallback = null
+        // Only treat as user-cancelled when the activity is truly finishing,
+        // not during configuration changes or system-driven recreation.
+        if (!authCompleted && isFinishing && !isChangingConfigurations) {
+            onAuthFinishedCallback?.invoke(CanceledByUserException())
+            onAuthFinishedCallback = null
+        }
     }
 
 
@@ -335,6 +340,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             "com.frontegg.android.DIRECT_LOGIN_ACTION_LAUNCHED_DONE"
         const val DIRECT_LOGIN_ACTION_TYPE = "com.frontegg.android.DIRECT_LOGIN_ACTION_TYPE"
         const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
+        private const val BUNDLE_KEY_WEBVIEW_URL = "com.frontegg.android.WEBVIEW_URL"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
         var onAuthFinishedCallback: ((error: Exception?) -> Unit)? = null // Store callback
