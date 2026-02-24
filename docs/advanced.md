@@ -301,13 +301,13 @@ class App : Application() {
             listOf(
                 RegionConfig(
                     "eu",
-                    "autheu.davidantoon.me",
-                    "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"
+                    "app-x4gr8g28fxr5.frontegg.com",
+                    "5f493de4-01c5-4a61-8642-fca650a6a9dc"
                 ),
                 RegionConfig(
                     "us",
-                    "authus.frontegg.com",
-                    "6903cab0-9809-4a2e-97dd-b8c0f966c813"
+                    "app-x4gr8g28fxr5.frontegg.com",
+                    "5f493de4-01c5-4a61-8642-fca650a6a9dc"
                 )
             ),
             this

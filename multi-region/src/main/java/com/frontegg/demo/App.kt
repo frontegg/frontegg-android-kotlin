@@ -23,8 +23,8 @@ class App : Application() {
             listOf(
                 RegionConfig(
                     "eu",              // Region identifier for Europe
-                    "autheu.davidantoon.me",  // Base URL for EU authentication endpoint
-                    "b6adfe4c-d695-4c04-b95f-3ec9fd0c6cca"  // Client ID for EU region
+                    "app-x4gr8g28fxr5.frontegg.com",  // Base URL for EU authentication endpoint
+                    "5f493de4-01c5-4a61-8642-fca650a6a9dc"  // Client ID for EU region
                 ),
                 RegionConfig(
                     "us",              // Region identifier for United States

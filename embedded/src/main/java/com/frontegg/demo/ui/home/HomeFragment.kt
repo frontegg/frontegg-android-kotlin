@@ -239,7 +239,7 @@ class HomeFragment : Fragment() {
         }
 
         val isDefaultCredentials =
-            requireContext().fronteggAuth.baseUrl == "https://autheu.davidantoon.me"
+            requireContext().fronteggAuth.baseUrl == "https://app-x4gr8g28fxr5.frontegg.com"
         Log.d(TAG, "isDefaultCredentials: $isDefaultCredentials")
 
         if (isDefaultCredentials) {

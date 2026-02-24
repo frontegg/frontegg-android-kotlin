@@ -23,7 +23,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="https" />
-                <data android:host="autheu.davidantoon.me" />
+                <data android:host="app-x4gr8g28fxr5.frontegg.com" />
                 <data android:pathPrefix="/oauth/account/activate" />
 
             </intent-filter>
@@ -34,7 +34,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="https" />
-                <data android:host="autheu.davidantoon.me" />
+                <data android:host="app-x4gr8g28fxr5.frontegg.com" />
                 <data android:pathPrefix="/oauth/account/invitation/accept" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
@@ -44,7 +44,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="https" />
-                <data android:host="autheu.davidantoon.me" />
+                <data android:host="app-x4gr8g28fxr5.frontegg.com" />
                 <data android:pathPrefix="/oauth/account/reset-password" />
             </intent-filter>
             <intent-filter android:autoVerify="true">
@@ -54,7 +54,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="https" />
-                <data android:host="autheu.davidantoon.me" />
+                <data android:host="app-x4gr8g28fxr5.frontegg.com" />
                 <data android:pathPrefix="/oauth/account/login/magic-link" />
             </intent-filter>
         </activity>
@@ -70,7 +70,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="autheu.davidantoon.me"
+                    android:host="app-x4gr8g28fxr5.frontegg.com"
                     android:pathPrefix="/frontegg"
                     android:scheme="https" />
 
@@ -82,7 +82,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="autheu.davidantoon.me"
+                    android:host="app-x4gr8g28fxr5.frontegg.com"
                     android:pathPrefix="/oauth"
                     android:scheme="https" />
 
@@ -103,7 +103,7 @@
 
                 <!-- DONT NOT COMBINE THE FOLLOWING LINES INTO ONE LINE-->
                 <data
-                    android:host="autheu.davidantoon.me"
+                    android:host="app-x4gr8g28fxr5.frontegg.com"
                     android:pathPrefix="/oauth/account/redirect/android/com.frontegg.demo"
                     android:scheme="https" />
             </intent-filter>
@@ -114,7 +114,7 @@
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data
-                    android:host="autheu.davidantoon.me"
+                    android:host="app-x4gr8g28fxr5.frontegg.com"
                     android:scheme="com.frontegg.demo" />
             </intent-filter>
         </activity>
