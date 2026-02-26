@@ -1,4 +1,8 @@
 ## v
+Changed baseUrl and clientId for demo and test projects.
+Fixed: first login attempt returns user to the login form(direct login)
+
+## v
 Added new section to advanced documentation regarding login-per-session feature.
 Fixed: Autofill Password Managers kills activity
 Fixed: screen rotation resets flow.
