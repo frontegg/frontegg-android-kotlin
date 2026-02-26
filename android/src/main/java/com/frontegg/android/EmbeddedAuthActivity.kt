@@ -6,7 +6,6 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
-import com.frontegg.android.embedded.FronteggNativeBridge
 import com.frontegg.android.embedded.FronteggWebView
 import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.services.FronteggInnerStorage
@@ -122,14 +121,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
                 // If JSON parsing fails, generate URL without loginAction
                 AuthorizeUrlGenerator(this).generate(null, null, false, null, null, null)
             }
-            
-            // Call directLoginWithContext - it will detect EmbeddedAuthActivity and skip browser launch
-            // Use preserveCodeVerifier = false for first call to avoid NPE if codeVerifier doesn't exist
-            FronteggNativeBridge.directLoginWithContext(
-                this, directLoginData, false
-            )
-            
-            // Use the generated URL with directLogin parameters
+
             webViewUrl = authorizeUri.first
         } else {
             val intentUrl = intent.data
