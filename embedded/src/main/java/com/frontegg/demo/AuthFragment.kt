@@ -32,10 +32,6 @@ class AuthFragment : Fragment() {
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
 
-        /**
-         * Handles user login via the Embedded Frontegg WebView login dialog.
-         * Organization (for Login per Account) is read from BuildConfig at SDK init via FronteggConstantsProvider.
-         */
         binding.loginButton.setOnClickListener {
             requireContext().fronteggAuth.login(requireActivity()) {
                 Log.d("AuthFragment", "Login callback")

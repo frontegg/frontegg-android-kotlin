@@ -85,15 +85,15 @@ class AuthorizeUrlGeneratorTest {
     }
 
     @Test
-    fun `client_id query parameter should be applicationId if applicationId not null`() {
+    fun `client_id query parameter should remain clientId even if applicationId not null`() {
         every { mockStorage.applicationId }.returns("Test Application Id")
         val url = AuthorizeUrlGenerator(mockContext).generate()
         every { mockStorage.applicationId }.returns(null)
         val uri = Uri.parse(url.first)
 
-        val clientId = uri.getQueryParameter("client_id")
-        assert(clientId != null)
-        assert(clientId == "Test Application Id")
+        val clientIdParam = uri.getQueryParameter("client_id")
+        assert(clientIdParam != null)
+        assert(clientIdParam == clientId)
     }
 
     @Test

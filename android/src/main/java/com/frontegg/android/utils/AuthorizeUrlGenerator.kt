@@ -88,7 +88,7 @@ class AuthorizeUrlGenerator(
             .encodedPath(baseUrl)
             .appendEncodedPath("oauth/authorize")
             .appendQueryParameter("response_type", "code")
-            .appendQueryParameter("client_id", applicationId ?: clientId)
+            .appendQueryParameter("client_id", clientId)
             .appendQueryParameter("scope", "openid email profile")
             .appendQueryParameter("redirect_uri", redirectUrl)
             .appendQueryParameter("code_challenge", codeChallenge)
