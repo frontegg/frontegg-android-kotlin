@@ -1,4 +1,11 @@
 ## v
+Changed baseUrl and clientId for demo and test projects.
+Fixed: first login attempt returns user to the login form(direct login)
+- SocialLoginUrlGenerator: Use applicationId ?: clientId for the OAuth client_id (match AuthorizeUrlGenerator and iOS).
+- Blank app id: Treat empty/blank applicationId as unset via .takeIf { it.isNotBlank() } in AuthorizeUrlGenerator, SocialLoginUrlGenerator, AppIdHeaderHelper, and Api so client_id falls back to clientId.
+- WebView headers: Add frontegg-requested-application-id on all login WebView loads via new AppIdHeaderHelper in EmbeddedAuthActivity, FronteggWebClient, and FronteggAuthService.
+
+## v
 Added new section to advanced documentation regarding login-per-session feature.
 Fixed: Autofill Password Managers kills activity
 Fixed: screen rotation resets flow.
