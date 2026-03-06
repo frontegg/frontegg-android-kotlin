@@ -47,7 +47,7 @@ class StepUpAuthenticatorTest {
     @Test
     fun `isSteppedUp returns true for valid authentication`() {
         val mockToken = mockk<JWT>(relaxed = true) {
-            every { auth_time } returns (System.currentTimeMillis() / 1000)
+            every { auth_time } returns (System.currentTimeMillis() / 1000).toDouble()
             every { acr } returns StepUpConstants.ACR_VALUE
             every { amr } returns listOf("otp", StepUpConstants.AMR_MFA_VALUE)
         }
@@ -63,7 +63,7 @@ class StepUpAuthenticatorTest {
     @Test
     fun `isSteppedUp returns true for valid auth_time`() {
         val mockToken = mockk<JWT>(relaxed = true) {
-            every { auth_time } returns (System.currentTimeMillis() / 1000)
+            every { auth_time } returns (System.currentTimeMillis() / 1000).toDouble()
             every { acr } returns StepUpConstants.ACR_VALUE
             every { amr } returns listOf("otp", StepUpConstants.AMR_MFA_VALUE)
         }
@@ -81,7 +81,7 @@ class StepUpAuthenticatorTest {
         val mockToken = mockk<JWT>(relaxed = true) {
             every { auth_time } returns (System.currentTimeMillis() / 1000 - 2.toDuration(
                 DurationUnit.HOURS
-            ).inWholeSeconds)
+            ).inWholeSeconds).toDouble()
             every { acr } returns StepUpConstants.ACR_VALUE
             every { amr } returns listOf("otp", StepUpConstants.AMR_MFA_VALUE)
         }
@@ -97,7 +97,7 @@ class StepUpAuthenticatorTest {
     @Test
     fun `isSteppedUp returns false if JWT not contains acr`() {
         val mockToken = mockk<JWT>(relaxed = true) {
-            every { auth_time } returns (System.currentTimeMillis() / 1000)
+            every { auth_time } returns (System.currentTimeMillis() / 1000).toDouble()
             every { acr } returns null
             every { amr } returns listOf("otp", StepUpConstants.AMR_MFA_VALUE)
         }
@@ -113,7 +113,7 @@ class StepUpAuthenticatorTest {
     @Test
     fun `isSteppedUp returns false if amr not contains mfa value`() {
         val mockToken = mockk<JWT>(relaxed = true) {
-            every { auth_time } returns (System.currentTimeMillis() / 1000)
+            every { auth_time } returns (System.currentTimeMillis() / 1000).toDouble()
             every { acr } returns StepUpConstants.ACR_VALUE
             every { amr } returns listOf("otp")
         }
@@ -129,7 +129,7 @@ class StepUpAuthenticatorTest {
     @Test
     fun `isSteppedUp returns false if amr not contains one of AMR_ADDITIONAL_VALUE value`() {
         val mockToken = mockk<JWT>(relaxed = true) {
-            every { auth_time } returns (System.currentTimeMillis() / 1000)
+            every { auth_time } returns (System.currentTimeMillis() / 1000).toDouble()
             every { acr } returns StepUpConstants.ACR_VALUE
             every { amr } returns listOf("method", StepUpConstants.AMR_MFA_VALUE)
         }
