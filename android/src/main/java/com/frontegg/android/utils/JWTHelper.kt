@@ -15,7 +15,7 @@ class JWT {
     var exp: Long = 0
     var applicationId: String? = null
     var amr: List<String> = listOf()
-    var auth_time: Long? = null
+    var auth_time: Double? = null
     var acr: String? = null
 
     override fun equals(other: Any?): Boolean {
