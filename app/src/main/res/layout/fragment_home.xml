@@ -137,6 +137,15 @@
                         android:layout_marginEnd="24dp"
                         android:text="Get access token" />
 
+                    <Button
+                        android:id="@+id/logout_button"
+                        style="@style/CustomButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="24dp"
+                        android:layout_marginStart="24dp"
+                        android:layout_marginEnd="24dp"
+                        android:text="Logout" />
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

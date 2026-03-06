@@ -120,7 +120,7 @@ open class Api(
             return storage.regions.firstOrNull()?.clientId ?: ""
         }
     private val applicationId: String?
-        get() = storage.applicationId
+        get() = storage.applicationId?.takeIf { it.isNotBlank() }
 
     private fun refreshCookieName(): String {
         val clientIdWithoutFirstDash = clientId.replaceFirst("-", "")

@@ -13,6 +13,7 @@ import com.frontegg.android.services.FronteggState
 import com.frontegg.android.services.StepUpAuthenticator
 import com.frontegg.android.ui.DefaultLoader
 import com.frontegg.android.ui.FronteggBaseActivity
+import com.frontegg.android.utils.AppIdHeaderHelper
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
@@ -182,7 +183,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         // If it's an account action URL (reset-password, etc.), load immediately without checking auth state
         if (isPasswordResetOrAccountAction || isSocialLoginRedirect) {
             Log.d(TAG, "loadUrl (account action/social redirect): $webViewUrl")
-            webView.loadUrl(webViewUrl!!)
+            webView.loadUrl(webViewUrl!!, AppIdHeaderHelper.getHeaders())
             webViewUrl = null
             return
         }
@@ -195,7 +196,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
                         !fronteggAuth.isAuthenticated.value)
         ) {
             Log.d(TAG, "loadUrl $webViewUrl")
-            webView.loadUrl(webViewUrl!!)
+            webView.loadUrl(webViewUrl!!, AppIdHeaderHelper.getHeaders())
             webViewUrl = null
         } else {
             Log.d(TAG, "URL not loaded due to conditions not met")
@@ -291,7 +292,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
                 fronteggAuth.isStepUpAuthorization.value ||
                 (!fronteggAuth.initializing.value && !fronteggAuth.isAuthenticated.value)) {
                 Log.d(TAG, "Retrying loadUrl in onResume: $webViewUrl")
-                webView.loadUrl(webViewUrl!!)
+                webView.loadUrl(webViewUrl!!, AppIdHeaderHelper.getHeaders())
                 webViewUrl = null
             }
         }

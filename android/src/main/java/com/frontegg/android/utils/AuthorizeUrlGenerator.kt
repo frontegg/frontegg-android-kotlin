@@ -22,7 +22,7 @@ class AuthorizeUrlGenerator(
     private val clientId: String
         get() = storage.clientId
     private val applicationId: String?
-        get() = storage.applicationId
+        get() = storage.applicationId?.takeIf { it.isNotBlank() }
     private val baseUrl: String
         get() = storage.baseUrl
 

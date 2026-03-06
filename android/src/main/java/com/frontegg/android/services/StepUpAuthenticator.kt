@@ -28,7 +28,7 @@ class StepUpAuthenticator(
 
         val authTime = jwt.auth_time
         if (maxAge != null && authTime != null) {
-            val nowInSeconds = Instant.now().toEpochMilli() / 1000
+            val nowInSeconds = Instant.now().toEpochMilli() / 1000.0
             val isMaxAgeValid = nowInSeconds - authTime <= maxAge.inWholeSeconds
             if (!isMaxAgeValid) return false
         }

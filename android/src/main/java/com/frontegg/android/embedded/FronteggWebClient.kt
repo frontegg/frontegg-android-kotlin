@@ -23,6 +23,7 @@ import com.frontegg.android.fronteggAuth
 import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
+import com.frontegg.android.utils.AppIdHeaderHelper
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
@@ -587,7 +588,7 @@ class FronteggWebClient(
 
         val authorizeUrl = AuthorizeUrlGenerator(context)
         val url = authorizeUrl.generate()
-        webView.loadUrl(url.first)
+        webView.loadUrl(url.first, AppIdHeaderHelper.getHeaders())
         return false
     }
 
@@ -635,8 +636,7 @@ class FronteggWebClient(
             // Call FronteggAuthService to handle the social login callback
             val redirectUrl = (context.fronteggAuth as FronteggAuthService).handleSocialLoginCallback(url.toString())
             if (redirectUrl != null) {
-                // Load the redirect URL in the webview
-                currentWebView?.loadUrl(redirectUrl)
+                currentWebView?.loadUrl(redirectUrl, AppIdHeaderHelper.getHeaders())
                 return true
             }
 
@@ -682,7 +682,7 @@ class FronteggWebClient(
                 }
 
                 // Otherwise, follow redirect
-                view?.loadUrl(decodedRedirectUri)
+                view?.loadUrl(decodedRedirectUri, AppIdHeaderHelper.getHeaders())
             } else {
                 Log.w(TAG, "No redirectUri parameter found in social login success URL")
             }
