@@ -45,6 +45,8 @@ android {
 
         buildConfigField "String", 'FRONTEGG_DOMAIN', "\"$fronteggDomain\""
         buildConfigField "String", 'FRONTEGG_CLIENT_ID', "\"$fronteggClientId\""
+        buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
+        buildConfigField "boolean", 'FRONTEGG_USE_ASSETS_LINKS', "$fronteggUseAssetsLinks"
         buildConfigField "String", 'FRONTEGG_DEEP_LINK_SCHEME', "\"$fronteggDeepLinkScheme\""
         buildConfigField "boolean", 'FRONTEGG_DISABLE_AUTO_REFRESH', "$fronteggDisableAutoRefresh"
         buildConfigField "boolean", 'FRONTEGG_ENABLE_SESSION_PER_TENANT', "$fronteggEnableSessionPerTenant"

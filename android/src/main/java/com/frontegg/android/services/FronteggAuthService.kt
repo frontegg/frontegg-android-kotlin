@@ -23,6 +23,7 @@ import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceExc
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
+import com.frontegg.android.utils.AppIdHeaderHelper
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.NetworkGate
 import com.frontegg.android.utils.CredentialKeys
@@ -1083,7 +1084,7 @@ class FronteggAuthService(
                 AuthorizeUrlGeneratorProvider.getAuthorizeUrlGenerator(credentialManager.context)
             val url = authorizeUrl.generate()
             withContext(mainDispatcher) {
-                webView.loadUrl(url.first)
+                webView.loadUrl(url.first, AppIdHeaderHelper.getHeaders())
             }
         } else if (activity != null && callback == null) {
             login(activity)
@@ -1593,8 +1594,7 @@ class FronteggAuthService(
                     // Handle the callback
                     val redirectURL = handleSocialLoginCallback(callbackURL)
                     if (redirectURL != null && webview != null) {
-                        // Load the redirect URL in the webview
-                        webview?.loadUrl(redirectURL)
+                        webview?.loadUrl(redirectURL, AppIdHeaderHelper.getHeaders())
                     }
                 } else {
                     Log.i(TAG, "Social login callback invoked with no URL and no error")

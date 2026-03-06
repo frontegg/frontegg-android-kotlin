@@ -141,11 +141,14 @@ class HomeFragment : Fragment() {
 
         binding.toolbar.btnLogout.visibility = View.VISIBLE
 
-        binding.toolbar.btnLogout.setOnClickListener {
+        val logoutAction = View.OnClickListener {
             requireContext().fronteggAuth.logout {
                 Log.d(TAG, "Logout successful")
             }
         }
+
+        binding.toolbar.btnLogout.setOnClickListener(logoutAction)
+        binding.logoutButton.setOnClickListener(logoutAction)
 
         binding.receiveTokenButton.setOnClickListener {
             val token = requireContext().fronteggAuth.accessToken.value
