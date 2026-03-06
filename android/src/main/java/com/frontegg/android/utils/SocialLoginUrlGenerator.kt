@@ -66,7 +66,7 @@ class SocialLoginUrlGenerator private constructor() {
             val authService = context.fronteggAuth as FronteggAuthService
             val redirectUri = authService.defaultRedirectUri()
             
-            val applicationId = storage.applicationId
+            val applicationId = storage.applicationId?.takeIf { it.isNotBlank() }
             val clientId = applicationId ?: storage.clientId.ifBlank { 
                 storage.selectedRegion?.clientId ?: storage.regions.firstOrNull()?.clientId ?: ""
             }
