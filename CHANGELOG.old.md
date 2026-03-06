@@ -1,3 +1,8 @@
+## v
+Added new section to advanced documentation regarding login-per-session feature.
+Fixed: Autofill Password Managers kills activity
+Fixed: screen rotation resets flow.
+
 - updated demo apps with more examples
 - schedule alarm permission request
 - tests coverage 
