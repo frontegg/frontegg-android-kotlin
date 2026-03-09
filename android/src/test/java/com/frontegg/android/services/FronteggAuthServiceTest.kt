@@ -124,8 +124,10 @@ class FronteggAuthServiceTest {
 
         auth = FronteggAuthService(
             credentialManager = credentialManagerMock,
-            refreshTokenTimer = refreshTokenTimer,
             appLifecycle = appLifecycle,
+            refreshTokenTimer = refreshTokenTimer,
+            ioDispatcher = Dispatchers.Unconfined,
+            mainDispatcher = Dispatchers.Unconfined,
             disableAutoRefresh = false
         )
 
@@ -310,7 +312,7 @@ class FronteggAuthServiceTest {
 
         every { apiMock.exchangeToken(any(), any(), any()) }.returns(authResponse)
 
-        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
         every { apiMock.me() }.returns(mockk<User>())
 
         val result = auth.handleHostedLoginCallback("TestCode", callback = { called = true })
