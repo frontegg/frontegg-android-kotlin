@@ -1045,7 +1045,11 @@ class FronteggAuthService(
                 if (data != null) {
                     setCredentials(data.access_token, data.refresh_token)
 
-                    callback?.invoke()
+                    if (callback != null) {
+                        withContext(mainDispatcher) {
+                            callback()
+                        }
+                    }
                 } else {
                     Log.e(TAG, "Failed to exchange token")
                     handleFailedTokenExchange(webView, activity, callback)

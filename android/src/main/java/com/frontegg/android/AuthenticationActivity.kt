@@ -85,12 +85,18 @@ class AuthenticationActivity : FronteggBaseActivity() {
                     }
                 } else {
                     // Regular OAuth callback
-                    (fronteggAuth as FronteggAuthService).handleHostedLoginCallback(code, null, this)
-                    if (storage.useChromeCustomTabs && storage.isEmbeddedMode) {
-                        EmbeddedAuthActivity.afterAuthentication(this)
-                    } else {
-                        safeFinishActivity(RESULT_OK)
-                    }
+                    (fronteggAuth as FronteggAuthService).handleHostedLoginCallback(
+                        code,
+                        webView = null,
+                        activity = this,
+                        callback = {
+                            if (storage.useChromeCustomTabs && storage.isEmbeddedMode) {
+                                EmbeddedAuthActivity.afterAuthentication(this)
+                            } else {
+                                safeFinishActivity(RESULT_OK)
+                            }
+                        }
+                    )
                 }
                 return
             }
