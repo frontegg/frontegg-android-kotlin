@@ -124,8 +124,10 @@ class FronteggAuthServiceTest {
 
         auth = FronteggAuthService(
             credentialManager = credentialManagerMock,
-            refreshTokenTimer = refreshTokenTimer,
             appLifecycle = appLifecycle,
+            refreshTokenTimer = refreshTokenTimer,
+            ioDispatcher = Dispatchers.Unconfined,
+            mainDispatcher = Dispatchers.Unconfined,
             disableAutoRefresh = false
         )
 
