@@ -1,4 +1,7 @@
 ## v
+Fixd hosted login callback with FRONTEGG_USE_CHROME_CUSTOM_TABS = true
+
+## v
 Changed baseUrl and clientId for demo and test projects.
 Fixed: first login attempt returns user to the login form(direct login)
 - SocialLoginUrlGenerator: Use applicationId ?: clientId for the OAuth client_id (match AuthorizeUrlGenerator and iOS).
