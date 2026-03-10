@@ -1,5 +1,5 @@
 ## v
-Fixd hosted login callback with FRONTEGG_USE_CHROME_CUSTOM_TABS = true
+- Fixed race condition in hosted login callback while using chrome custom tabs flag`FRONTEGG_USE_CHROME_CUSTOM_TABS = true`
 
 ## v
 Changed baseUrl and clientId for demo and test projects.
