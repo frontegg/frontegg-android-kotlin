@@ -906,7 +906,7 @@ class FronteggAuthService(
         if (!forceRefresh) {
             val s = entitlements.state
             if (s.featureKeys.isNotEmpty() || s.permissionKeys.isNotEmpty()) {
-                completion?.invoke(true)
+                bgScope.launch(mainDispatcher) { completion?.invoke(true) }
                 return
             }
         }
