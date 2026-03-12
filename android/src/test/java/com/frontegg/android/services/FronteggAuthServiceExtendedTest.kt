@@ -57,7 +57,8 @@ class FronteggAuthServiceExtendedTest {
         every { storageMock.isEmbeddedMode }.returns(true)
         every { storageMock.packageName }.returns("com.test.app")
         every { storageMock.useAssetsLinks }.returns(false)
-        
+        every { storageMock.entitlementsEnabled }.returns(false)
+
         every { credentialManagerMock.get(any()) }.returns(null)
         every { credentialManagerMock.get(any(), any()) }.returns(null)
         every { credentialManagerMock.context }.returns(mockContext)

@@ -2,6 +2,9 @@ package com.frontegg.android
 
 import android.app.Activity
 import android.webkit.WebView
+import com.frontegg.android.models.Entitlement
+import com.frontegg.android.models.EntitlementState
+import com.frontegg.android.models.EntitledToOptions
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.ReadOnlyObservableValue
@@ -57,6 +60,12 @@ interface FronteggAuth {
     
     var webview: WebView?
     val featureFlags: com.frontegg.android.services.FeatureFlags
+    val entitlements: com.frontegg.android.services.EntitlementsService
+
+    fun loadEntitlements(forceRefresh: Boolean = false, completion: ((Boolean) -> Unit)? = null)
+    fun getFeatureEntitlements(featureKey: String, customAttributes: Map<String, Any?>? = null): Entitlement
+    fun getPermissionEntitlements(permissionKey: String, customAttributes: Map<String, Any?>? = null): Entitlement
+    fun getEntitlements(options: EntitledToOptions, customAttributes: Map<String, Any?>? = null): Entitlement
 
     /**
      * Login user. Launch a user login process. Start [EmbeddedAuthActivity] or

@@ -52,6 +52,7 @@ android {
         buildConfigField "boolean", 'FRONTEGG_ENABLE_SESSION_PER_TENANT', "$fronteggEnableSessionPerTenant"
         buildConfigField "int", 'FRONTEGG_SENTRY_MAX_QUEUE_SIZE', "$fronteggSentryMaxQueueSize"
         buildConfigField "String", 'FRONTEGG_ORGANIZATION', "\"$fronteggOrganization\""
+        buildConfigField "boolean", 'FRONTEGG_ENTITLEMENTS_ENABLED', "true"
         buildConfigField "boolean", "FRONTEGG_USE_CHROME_CUSTOM_TABS", "true"
 
 

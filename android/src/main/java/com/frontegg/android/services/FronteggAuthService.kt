@@ -21,6 +21,8 @@ import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
+import com.frontegg.android.models.Entitlement
+import com.frontegg.android.models.EntitledToOptions
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.AppIdHeaderHelper
@@ -92,6 +94,8 @@ class FronteggAuthService(
     private val api = ApiProvider.getApi(credentialManager)
     private val storage = StorageProvider.getInnerStorage()
     private val sessionTracker = SessionTracker(credentialManager.context)
+    override val entitlements: EntitlementsService =
+        EntitlementsService(api, storage.entitlementsEnabled)
 
     private val exchangeTokenDedupLock = Any()
     @Volatile private var inFlightExchangeCode: String? = null
@@ -212,7 +216,7 @@ class FronteggAuthService(
             accessToken.value = null
             refreshToken.value = null
             user.value = null
-            
+            entitlements.clear()
             credentialManager.clearAllTokens()
             credentialManager.setCurrentTenantId(null)
 
@@ -844,20 +848,18 @@ class FronteggAuthService(
             null
         }
 
-        // Track session start if this is a new session
         if (sessionTracker.getSessionStartTime(tenantId) == 0L) {
             sessionTracker.trackSessionStart(tenantId)
         }
 
-        // Cancel previous job if it exists
         refreshTokenTimer.cancelLastTimer()
 
         val decoded = JWTHelper.decode(accessToken)
         if (decoded.exp > 0) {
             val offset = decoded.exp.calculateTimerOffset()
-
             refreshTokenTimer.scheduleTimer(offset)
         }
+        loadEntitlements(forceRefresh = true)
     }
 
     private fun updateStateWithCredentials(accessToken: String, refreshToken: String, user: User, authResponse: com.frontegg.android.models.AuthResponse) {
@@ -884,8 +886,55 @@ class FronteggAuthService(
         val decoded = JWTHelper.decode(accessToken)
         if (decoded.exp > 0) {
             val offset = decoded.exp.calculateTimerOffset()
-
             refreshTokenTimer.scheduleTimer(offset)
+        }
+        loadEntitlements(forceRefresh = true)
+    }
+
+    private fun resolveAccessTokenForCurrentUser(): String? {
+        accessToken.value?.takeIf { it.isNotBlank() }?.let { return it }
+        val enableSessionPerTenant = storage.enableSessionPerTenant
+        if (enableSessionPerTenant) {
+            user.value?.activeTenant?.tenantId?.let { tenantId ->
+                credentialManager.get(com.frontegg.android.utils.CredentialKeys.ACCESS_TOKEN, tenantId)?.let { return it }
+            }
+        }
+        return credentialManager.get(com.frontegg.android.utils.CredentialKeys.ACCESS_TOKEN)
+    }
+
+    override fun loadEntitlements(forceRefresh: Boolean, completion: ((Boolean) -> Unit)?) {
+        if (!forceRefresh) {
+            val s = entitlements.state
+            if (s.featureKeys.isNotEmpty() || s.permissionKeys.isNotEmpty()) {
+                completion?.invoke(true)
+                return
+            }
+        }
+        bgScope.launch {
+            val token = resolveAccessTokenForCurrentUser()
+            if (token == null) {
+                withContext(mainDispatcher) { completion?.invoke(false) }
+                return@launch
+            }
+            val success = entitlements.load(token)
+            withContext(mainDispatcher) { completion?.invoke(success) }
+        }
+    }
+
+    override fun getFeatureEntitlements(featureKey: String, customAttributes: Map<String, Any?>?): Entitlement {
+        if (user.value == null) return Entitlement(isEntitled = false, justification = "NOT_AUTHENTICATED")
+        return entitlements.checkFeature(featureKey)
+    }
+
+    override fun getPermissionEntitlements(permissionKey: String, customAttributes: Map<String, Any?>?): Entitlement {
+        if (user.value == null) return Entitlement(isEntitled = false, justification = "NOT_AUTHENTICATED")
+        return entitlements.checkPermission(permissionKey)
+    }
+
+    override fun getEntitlements(options: EntitledToOptions, customAttributes: Map<String, Any?>?): Entitlement {
+        return when (options) {
+            is EntitledToOptions.FeatureKey -> getFeatureEntitlements(options.key, customAttributes)
+            is EntitledToOptions.PermissionKey -> getPermissionEntitlements(options.key, customAttributes)
         }
     }
 

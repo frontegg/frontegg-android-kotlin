@@ -15,7 +15,10 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.models.EntitledToOptions
+import com.frontegg.demo.R
 import com.frontegg.demo.databinding.FragmentHomeBinding
+import com.frontegg.demo.databinding.LayoutEntitlementRowBinding
 import java.util.Timer
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -168,6 +171,65 @@ class HomeFragment : Fragment() {
                     "Access token was copied to clipboard",
                     Toast.LENGTH_SHORT
                 ).show()
+            }
+        }
+
+        binding.loadEntitlementsButton.setOnClickListener {
+            binding.loadEntitlementsButton.isEnabled = false
+            binding.entitlementsLoading.visibility = View.VISIBLE
+            binding.entitlementsLoadStatus.visibility = View.GONE
+            binding.entitlementsStateSummary.visibility = View.GONE
+            binding.entitlementsResults.removeAllViews()
+            requireContext().fronteggAuth.loadEntitlements(forceRefresh = false) { success ->
+                activity?.runOnUiThread {
+                    binding.loadEntitlementsButton.isEnabled = true
+                    binding.entitlementsLoading.visibility = View.GONE
+                    binding.entitlementsLoadStatus.visibility = View.VISIBLE
+                    binding.entitlementsLoadStatus.text = if (success) "Load succeeded" else "Load failed"
+                    binding.entitlementsLoadStatus.setTextColor(
+                        resources.getColor(
+                            if (success) R.color.greenForeground else R.color.redForeground,
+                            null
+                        )
+                    )
+                    val auth = requireContext().fronteggAuth
+                    val state = auth.entitlements.state
+                    if (state.featureKeys.isNotEmpty() || state.permissionKeys.isNotEmpty()) {
+                        binding.entitlementsStateSummary.visibility = View.VISIBLE
+                        binding.entitlementsStateSummary.text =
+                            "Cached: ${state.featureKeys.size} feature(s), ${state.permissionKeys.size} permission(s)"
+                    }
+                    val results = listOf(
+                        "getFeatureEntitlements(\"test-feature\")" to auth.getFeatureEntitlements("test-feature"),
+                        "getPermissionEntitlements(\"fe.secure.*\")" to auth.getPermissionEntitlements("fe.secure.*"),
+                        "getEntitlements(.featureKey(\"test-feature\"))" to auth.getEntitlements(EntitledToOptions.FeatureKey("test-feature")),
+                        "getEntitlements(.permissionKey(\"fe.secure.*\"))" to auth.getEntitlements(EntitledToOptions.PermissionKey("fe.secure.*")),
+                        "getFeatureEntitlements(…, customAttributes)" to auth.getFeatureEntitlements("test-feature", mapOf("key" to "value")),
+                        "getPermissionEntitlements(…, customAttributes)" to auth.getPermissionEntitlements("fe.secure.*", mapOf("key" to "value"))
+                    )
+                    results.forEach { (label, entitlement) ->
+                        val rowBinding = LayoutEntitlementRowBinding.inflate(layoutInflater, binding.entitlementsResults, false)
+                        rowBinding.entitlementLabel.text = label
+                        rowBinding.entitlementStatus.text = if (entitlement.isEntitled) "Entitled" else "Not entitled${entitlement.justification?.let { " ($it)" } ?: ""}"
+                        rowBinding.entitlementStatus.setTextColor(
+                            resources.getColor(
+                                if (entitlement.isEntitled) R.color.greenForeground else R.color.redForeground,
+                                null
+                            )
+                        )
+                        rowBinding.entitlementIcon.setImageResource(
+                            if (entitlement.isEntitled) R.drawable.ic_check_circle else R.drawable.ic_error
+                        )
+                        rowBinding.entitlementIcon.setColorFilter(
+                            resources.getColor(
+                                if (entitlement.isEntitled) R.color.greenForeground else R.color.redForeground,
+                                null
+                            ),
+                            android.graphics.PorterDuff.Mode.SRC_IN
+                        )
+                        binding.entitlementsResults.addView(rowBinding.root)
+                    }
+                }
             }
         }
 

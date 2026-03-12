@@ -9,6 +9,7 @@ import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
+import com.frontegg.android.models.EntitlementState
 import com.frontegg.android.models.SocialLoginPostLoginRequest
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
@@ -19,6 +20,7 @@ import com.frontegg.android.utils.SentryHelper
 import com.frontegg.android.utils.TraceIdLogger
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import okhttp3.Call
 import okhttp3.Headers
@@ -132,24 +134,21 @@ open class Api(
         val TAG: String = Api::class.java.simpleName
     }
 
-    private fun prepareHeaders(additionalHeaders: Map<String, String> = mapOf()): Headers {
-
+    private fun prepareHeaders(
+        additionalHeaders: Map<String, String> = mapOf(),
+        accessTokenOverride: String? = null
+    ): Headers {
         val headers: MutableMap<String, String> = mutableMapOf(
             Pair("Content-Type", "application/json"),
             Pair("Accept", "application/json"),
             Pair("Origin", this.baseUrl)
         )
-
         val applicationId = this.applicationId
         if (applicationId != null) {
             headers["frontegg-requested-application-id"] = applicationId
         }
-
-        additionalHeaders.forEach {
-            headers[it.key] = it.value
-        }
-
-        val accessToken = this.credentialManager.get(CredentialKeys.ACCESS_TOKEN)
+        additionalHeaders.forEach { headers[it.key] = it.value }
+        val accessToken = accessTokenOverride ?: this.credentialManager.get(CredentialKeys.ACCESS_TOKEN)
         if (accessToken != null) {
             headers["Authorization"] = "Bearer $accessToken"
         }
@@ -221,20 +220,17 @@ open class Api(
         return this.httpClient.newCall(request)
     }
 
-    private fun buildGetRequest(path: String): Call {
-
+    private fun buildGetRequest(path: String, accessTokenOverride: String? = null): Call {
         val url = if (path.startsWith("http")) {
             path.toHttpUrl()
         } else {
             "$baseUrl/$path".toHttpUrl()
         }
         val requestBuilder = Request.Builder()
-        val headers = prepareHeaders()
-
+        val headers = prepareHeaders(accessTokenOverride = accessTokenOverride)
         requestBuilder.method("GET", null)
         requestBuilder.headers(headers)
         requestBuilder.url(url)
-
         val request = requestBuilder.build()
         return this.httpClient.newCall(request)
     }
@@ -297,6 +293,29 @@ open class Api(
         }
 
         return null
+    }
+
+    fun getUserEntitlements(accessTokenOverride: String? = null): EntitlementState? {
+        val call = buildGetRequest(ApiConstants.userEntitlements, accessTokenOverride)
+        val response = call.execute()
+        if (!response.isSuccessful) {
+            Log.w(TAG, "getUserEntitlements failed: ${response.code}")
+            return null
+        }
+        val body = response.body?.string() ?: return null
+        return try {
+            val json = JsonParser.parseString(body).asJsonObject
+            val featureKeys = mutableSetOf<String>()
+            json.getAsJsonObject("features")?.keySet()?.let { keys -> featureKeys.addAll(keys) }
+            val permissionKeys = mutableSetOf<String>()
+            for (entry in json.getAsJsonObject("permissions")?.entrySet().orEmpty()) {
+                if (entry.value.isJsonPrimitive && entry.value.asJsonPrimitive.asBoolean) permissionKeys.add(entry.key)
+            }
+            EntitlementState(featureKeys = featureKeys, permissionKeys = permissionKeys)
+        } catch (e: Exception) {
+            Log.w(TAG, "getUserEntitlements parse error", e)
+            null
+        }
     }
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)

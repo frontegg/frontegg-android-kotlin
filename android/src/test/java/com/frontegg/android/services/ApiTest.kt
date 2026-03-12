@@ -7,6 +7,7 @@ import org.junit.jupiter.api.assertThrows
 import com.frontegg.android.fixtures.authResponseJson
 import com.frontegg.android.fixtures.getAuthResponse
 import com.frontegg.android.fixtures.getUser
+import com.frontegg.android.models.EntitlementState
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.CredentialKeys
@@ -252,5 +253,26 @@ class ApiTest {
         } catch (ignore: FailedToRegisterWebAuthnDevice) {
             assert(true)
         }
+    }
+
+    @Test
+    fun `getUserEntitlements should return parsed state when response is success`() {
+        val body = """{"features":{"sso":{},"mfa":{}},"permissions":{"fe.secure.*":true,"fe.connectivity.*":false}}"""
+        mockWebServer.enqueue(MockResponse().setBody(body))
+
+        val state = api.getUserEntitlements("Test Access Token")
+
+        assert(state != null)
+        assert(state!!.featureKeys == setOf("sso", "mfa"))
+        assert(state.permissionKeys == setOf("fe.secure.*"))
+    }
+
+    @Test
+    fun `getUserEntitlements should return null when response is not success`() {
+        mockWebServer.enqueue(MockResponse().setResponseCode(400))
+
+        val state = api.getUserEntitlements("Test Access Token")
+
+        assert(state == null)
     }
 }
