@@ -903,12 +903,16 @@ class FronteggAuthService(
     }
 
     override fun loadEntitlements(forceRefresh: Boolean, completion: ((Boolean) -> Unit)?) {
-        if (!forceRefresh) {
-            val s = entitlements.state
-            if (s.featureKeys.isNotEmpty() || s.permissionKeys.isNotEmpty()) {
-                bgScope.launch(mainDispatcher) { completion?.invoke(true) }
-                return
+        if (!forceRefresh && isAuthenticated.value && entitlements.hasLoadedOnce) {
+            bgScope.launch(mainDispatcher) {
+                if (isAuthenticated.value) {
+                    completion?.invoke(true)
+                } else {
+                    entitlements.clear()
+                    completion?.invoke(false)
+                }
             }
+            return
         }
         bgScope.launch {
             val token = resolveAccessTokenForCurrentUser()
@@ -917,6 +921,11 @@ class FronteggAuthService(
                 return@launch
             }
             val success = entitlements.load(token)
+            if (!isAuthenticated.value) {
+                entitlements.clear()
+                withContext(mainDispatcher) { completion?.invoke(false) }
+                return@launch
+            }
             withContext(mainDispatcher) { completion?.invoke(success) }
         }
     }

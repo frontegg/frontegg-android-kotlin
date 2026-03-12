@@ -97,8 +97,21 @@ class EntitlementsServiceTest {
     }
 
     @Test
-    fun `checkFeature when enabled and feature missing returns MISSING_FEATURE`() {
+    fun `checkFeature when enabled and not loaded yet returns ENTITLEMENTS_NOT_LOADED`() {
         service = EntitlementsService(mockApi, enabled = true)
+        val result = service.checkFeature("sso")
+        assertFalse(result.isEntitled)
+        assertEquals("ENTITLEMENTS_NOT_LOADED", result.justification)
+    }
+
+    @Test
+    fun `checkFeature when enabled and feature missing returns MISSING_FEATURE`() {
+        every { mockApi.getUserEntitlements(accessTokenOverride = "token") } returns EntitlementState(
+            featureKeys = emptySet(),
+            permissionKeys = emptySet()
+        )
+        service = EntitlementsService(mockApi, enabled = true)
+        service.load("token")
         val result = service.checkFeature("sso")
         assertFalse(result.isEntitled)
         assertEquals("MISSING_FEATURE", result.justification)
@@ -126,8 +139,21 @@ class EntitlementsServiceTest {
     }
 
     @Test
-    fun `checkPermission when enabled and permission missing returns MISSING_PERMISSION`() {
+    fun `checkPermission when enabled and not loaded yet returns ENTITLEMENTS_NOT_LOADED`() {
         service = EntitlementsService(mockApi, enabled = true)
+        val result = service.checkPermission("fe.secure.*")
+        assertFalse(result.isEntitled)
+        assertEquals("ENTITLEMENTS_NOT_LOADED", result.justification)
+    }
+
+    @Test
+    fun `checkPermission when enabled and permission missing returns MISSING_PERMISSION`() {
+        every { mockApi.getUserEntitlements(accessTokenOverride = "token") } returns EntitlementState(
+            featureKeys = emptySet(),
+            permissionKeys = emptySet()
+        )
+        service = EntitlementsService(mockApi, enabled = true)
+        service.load("token")
         val result = service.checkPermission("fe.secure.*")
         assertFalse(result.isEntitled)
         assertEquals("MISSING_PERMISSION", result.justification)

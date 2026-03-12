@@ -63,8 +63,23 @@ interface FronteggAuth {
     val entitlements: com.frontegg.android.services.EntitlementsService
 
     fun loadEntitlements(forceRefresh: Boolean = false, completion: ((Boolean) -> Unit)? = null)
+
+    /**
+     * Returns entitlement for the given feature key. Uses in-memory state from the last successful [loadEntitlements].
+     * @param customAttributes Reserved for future use; not yet sent to the API and has no effect.
+     */
     fun getFeatureEntitlements(featureKey: String, customAttributes: Map<String, Any?>? = null): Entitlement
+
+    /**
+     * Returns entitlement for the given permission key. Uses in-memory state from the last successful [loadEntitlements].
+     * @param customAttributes Reserved for future use; not yet sent to the API and has no effect.
+     */
     fun getPermissionEntitlements(permissionKey: String, customAttributes: Map<String, Any?>? = null): Entitlement
+
+    /**
+     * Returns entitlement for the given option (feature or permission key). Uses in-memory state from the last successful [loadEntitlements].
+     * @param customAttributes Reserved for future use; not yet sent to the API and has no effect.
+     */
     fun getEntitlements(options: EntitledToOptions, customAttributes: Map<String, Any?>? = null): Entitlement
 
     /**

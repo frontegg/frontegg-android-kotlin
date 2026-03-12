@@ -309,7 +309,9 @@ open class Api(
             json.getAsJsonObject("features")?.keySet()?.let { keys -> featureKeys.addAll(keys) }
             val permissionKeys = mutableSetOf<String>()
             for (entry in json.getAsJsonObject("permissions")?.entrySet().orEmpty()) {
-                if (entry.value.isJsonPrimitive && entry.value.asJsonPrimitive.asBoolean) permissionKeys.add(entry.key)
+                if (!entry.value.isJsonPrimitive) continue
+                val prim = entry.value.asJsonPrimitive
+                if (prim.isBoolean && prim.asBoolean) permissionKeys.add(entry.key)
             }
             EntitlementState(featureKeys = featureKeys, permissionKeys = permissionKeys)
         } catch (e: Exception) {

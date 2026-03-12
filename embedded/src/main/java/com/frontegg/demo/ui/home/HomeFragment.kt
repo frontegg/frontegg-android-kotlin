@@ -219,12 +219,12 @@ class HomeFragment : Fragment() {
                             "Cached: ${state.featureKeys.size} feature(s), ${state.permissionKeys.size} permission(s)"
                     }
                     val results = listOf(
-                        "getFeatureEntitlements(\"test-feature\")" to auth.getFeatureEntitlements("test-feature"),
-                        "getPermissionEntitlements(\"fe.secure.*\")" to auth.getPermissionEntitlements("fe.secure.*"),
-                        "getEntitlements(.featureKey(\"test-feature\"))" to auth.getEntitlements(EntitledToOptions.FeatureKey("test-feature")),
+                        "getFeatureEntitlements(\"sso\")" to auth.getFeatureEntitlements("sso"),
+                        "getFeatureEntitlements(\"sso\", customAttributes: [\"env\": \"dev\"])" to auth.getFeatureEntitlements("sso", mapOf("env" to "dev")),
+                        "getEntitlements(.featureKey(\"proteins.*\"), customAttributes: [\"pro\": \"20gr\"])" to auth.getEntitlements(EntitledToOptions.FeatureKey("proteins.*"), mapOf("pro" to "20gr")),
+                        "getPermissionEntitlements(\"dora.protein.*\")" to auth.getPermissionEntitlements("dora.protein.*"),
                         "getEntitlements(.permissionKey(\"fe.secure.*\"))" to auth.getEntitlements(EntitledToOptions.PermissionKey("fe.secure.*")),
-                        "getFeatureEntitlements(…, customAttributes)" to auth.getFeatureEntitlements("test-feature", mapOf("key" to "value")),
-                        "getPermissionEntitlements(…, customAttributes)" to auth.getPermissionEntitlements("fe.secure.*", mapOf("key" to "value"))
+                        "getPermissionEntitlements(\"fe.secure.*\", customAttributes: [\"env\": \"dev\"])" to auth.getPermissionEntitlements("fe.secure.*", mapOf("env" to "dev"))
                     )
                     results.forEach { (label, entitlement) ->
                         val rowBinding = LayoutEntitlementRowBinding.inflate(layoutInflater, binding.entitlementsResults, false)
