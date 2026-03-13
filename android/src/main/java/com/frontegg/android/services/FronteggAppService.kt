@@ -31,6 +31,7 @@ class FronteggAppService(
     private var useDiskCacheWebview: Boolean = false,
     private var disableAutoRefresh: Boolean = false,
     private var enableSessionPerTenant: Boolean = false,
+    private var entitlementsEnabled: Boolean = false,
     private var tenantResolver: TenantResolver? = null
 ) : FronteggApp {
 
@@ -79,6 +80,7 @@ class FronteggAppService(
             deepLinkScheme,
             useDiskCacheWebview,
             enableSessionPerTenant,
+            entitlementsEnabled,
             tenantResolver,
         )
     }

@@ -73,6 +73,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any(),
                 any()
             )
         }.returns(Unit)
@@ -109,10 +111,12 @@ class FronteggAppServiceTest {
         every { mockConstants.mainActivityClass } returns null
         every { mockConstants.disableAutoRefresh } returns false
         every { mockConstants.enableSessionPerTenant } returns false
+        every { mockConstants.entitlementsEnabled } returns false
         every { mockConstants.fronteggOrganization } returns null
         every { FronteggApp.instance } returns null andThen mockFronteggApp
         every {
             FronteggApp.init(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -132,7 +136,7 @@ class FronteggAppServiceTest {
 
         mockContext.fronteggApp
 
-        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
         unmockkObject(SentryHelper)
     }
@@ -156,11 +160,13 @@ class FronteggAppServiceTest {
         every { mockConstants.mainActivityClass } returns null
         every { mockConstants.disableAutoRefresh } returns false
         every { mockConstants.enableSessionPerTenant } returns false
+        every { mockConstants.entitlementsEnabled } returns false
         every { mockConstants.fronteggOrganization } returns null
         every { FronteggApp.instance } returns null andThen null andThen mockFronteggApp andThen mockFronteggApp
         every { mockFronteggApp.auth } returns mockk(relaxed = true)
         every {
             FronteggApp.init(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -180,7 +186,7 @@ class FronteggAppServiceTest {
 
         mockContext.fronteggAuth
 
-        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
         unmockkObject(SentryHelper)
     }
@@ -189,6 +195,8 @@ class FronteggAppServiceTest {
     fun `init should initialize all FronteggApp fields`() {
         every {
             mockStorage.fill(
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -245,7 +253,9 @@ class FronteggAppServiceTest {
                 packageName = "com.frontegg.android.test",
                 deepLinkScheme = null,
                 useDiskCacheWebview = false,
-                enableSessionPerTenant = false
+                enableSessionPerTenant = false,
+                entitlementsEnabled = false,
+                tenantResolver = null
             )
         }
     }
@@ -268,6 +278,8 @@ class FronteggAppServiceTest {
         )
         every {
             mockStorage.fill(
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -323,7 +335,9 @@ class FronteggAppServiceTest {
                 packageName = "com.frontegg.android.test",
                 deepLinkScheme = null,
                 useDiskCacheWebview = false,
-                enableSessionPerTenant = false
+                enableSessionPerTenant = false,
+                entitlementsEnabled = false,
+                tenantResolver = null
             )
         }
     }
@@ -346,6 +360,8 @@ class FronteggAppServiceTest {
         )
         every {
             mockStorage.fill(
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -405,6 +421,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any(),
                 any()
             )
         }
@@ -430,6 +448,8 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any(),
                 any()
             )
         }
@@ -439,6 +459,8 @@ class FronteggAppServiceTest {
     fun `initWithRegion should throw RuntimeException if regions is empty`() {
         every {
             mockStorage.fill(
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -501,6 +523,8 @@ class FronteggAppServiceTest {
         )
         every {
             mockStorage.fill(
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),

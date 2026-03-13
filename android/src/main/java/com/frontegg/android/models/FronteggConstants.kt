@@ -13,6 +13,7 @@ data class FronteggConstants(
     val enableSessionPerTenant: Boolean,
     val sentryMaxQueueSize: Int,
     val fronteggOrganization: String?,
+    val entitlementsEnabled: Boolean = false,
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -28,6 +29,7 @@ data class FronteggConstants(
             Pair("enableSessionPerTenant", enableSessionPerTenant),
             Pair("sentryMaxQueueSize", sentryMaxQueueSize),
             Pair("fronteggOrganization", fronteggOrganization),
+            Pair("entitlementsEnabled", entitlementsEnabled),
         )
     }
 }

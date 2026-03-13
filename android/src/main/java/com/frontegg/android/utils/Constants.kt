@@ -22,7 +22,7 @@ class ApiConstants {
          */
         const val silentRefreshToken: String = "oauth/authorize/silent"
         const val socialLoginPostLogin: String = "oauth/account/social/{provider}/post-login"
-
+        const val userEntitlements: String = "frontegg/entitlements/api/v2/user-entitlements"
     }
 }
 

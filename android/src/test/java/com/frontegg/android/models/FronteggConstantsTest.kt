@@ -134,7 +134,7 @@ class FronteggConstantsTest {
         
         val map = constants.toMap()
         
-        assert(map.size == 12)
+        assert(map.size == 13)
     }
 
     @Test

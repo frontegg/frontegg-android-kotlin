@@ -50,6 +50,8 @@ class FronteggInnerStorage {
         get() = data["useDiskCacheWebview"] as Boolean? ?: false
     val enableSessionPerTenant: Boolean
         get() = data["enableSessionPerTenant"] as Boolean? ?: false
+    val entitlementsEnabled: Boolean
+        get() = data["entitlementsEnabled"] as Boolean? ?: false
     val tenantResolver: TenantResolver?
         get() = data["tenantResolver"] as TenantResolver?
 
@@ -74,6 +76,7 @@ class FronteggInnerStorage {
         deepLinkScheme: String? = null,
         useDiskCacheWebview: Boolean = false,
         enableSessionPerTenant: Boolean = false,
+        entitlementsEnabled: Boolean = false,
         tenantResolver: TenantResolver? = null
     ) {
         data["baseUrl"] = baseUrl
@@ -95,6 +98,7 @@ class FronteggInnerStorage {
         data["deepLinkScheme"] = deepLinkScheme
         data["useDiskCacheWebview"] = useDiskCacheWebview
         data["enableSessionPerTenant"] = enableSessionPerTenant
+        data["entitlementsEnabled"] = entitlementsEnabled
         data["tenantResolver"] = tenantResolver
     }
 

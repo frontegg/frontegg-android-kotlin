@@ -75,6 +75,7 @@ val Context.fronteggApp: FronteggApp
                 useDiskCacheWebview = constants.useDiskCacheWebview,
                 disableAutoRefresh = constants.disableAutoRefresh,
                 enableSessionPerTenant = constants.enableSessionPerTenant,
+                entitlementsEnabled = constants.entitlementsEnabled,
                 tenantResolver = constants.fronteggOrganization?.let { org ->
                     TenantResolver { TenantResolverResult(org) }
                 },
@@ -148,6 +149,7 @@ interface FronteggApp {
             useDiskCacheWebview: Boolean = false,
             disableAutoRefresh: Boolean = false,
             enableSessionPerTenant: Boolean = false,
+            entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
         ) {
             val baseUrl: String = if (fronteggDomain.startsWith("https")) {
@@ -171,6 +173,7 @@ interface FronteggApp {
                 useDiskCacheWebview = useDiskCacheWebview,
                 disableAutoRefresh = disableAutoRefresh,
                 enableSessionPerTenant = enableSessionPerTenant,
+                entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
@@ -199,6 +202,7 @@ interface FronteggApp {
             useDiskCacheWebview: Boolean = false,
             disableAutoRefresh: Boolean = false,
             enableSessionPerTenant: Boolean = false,
+            entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
         ): FronteggApp {
             // Prepare Sentry for later initialization via feature flag.
@@ -227,6 +231,7 @@ interface FronteggApp {
                        useDiskCacheWebview = useDiskCacheWebview,
                        disableAutoRefresh = disableAutoRefresh,
                        enableSessionPerTenant = enableSessionPerTenant,
+                       entitlementsEnabled = entitlementsEnabled,
                        tenantResolver = tenantResolver
                    )
                    instance = newInstance
@@ -249,6 +254,7 @@ interface FronteggApp {
                 useDiskCacheWebview = useDiskCacheWebview,
                 disableAutoRefresh = disableAutoRefresh,
                 enableSessionPerTenant = enableSessionPerTenant,
+                entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver
             )
             instance = newInstance

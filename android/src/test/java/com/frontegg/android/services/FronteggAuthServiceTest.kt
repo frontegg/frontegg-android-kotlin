@@ -78,6 +78,7 @@ class FronteggAuthServiceTest {
         every { storageMock.baseUrl }.returns("https://base.url.com")
         every { storageMock.regions }.returns(listOf())
         every { storageMock.enableSessionPerTenant }.returns(false)
+        every { storageMock.entitlementsEnabled }.returns(false)
         every { storageMock.tenantResolver }.returns(null)
         mockkObject(FronteggApp)
         every { credentialManagerMock.get(any()) }.returns(null)
