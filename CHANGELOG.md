@@ -1,4 +1,16 @@
 ## v
+**Entitlements support**
+Adds support for Frontegg Entitlements so Android apps can load and check user features and permissions.
+- Load entitlements from the Frontegg API and cache them locally.
+- Check feature and permission access with `getFeatureEntitlements`, `getPermissionEntitlements`, and `getEntitlements`.
+- Entitlements load automatically on login and refresh; cache is cleared on logout.
+- Enable via `FRONTEGG_ENTITLEMENTS_ENABLED` in BuildConfig (e.g. buildConfigField "boolean", `FRONTEGG_ENTITLEMENTS_ENABLED`, "true" in your app’s build.gradle).
+
+**Docs & demos**
+- Entitlements section in README.
+- Entitlements UI in demo apps (app and embedded).
+
+## v
 - Fixed race condition in hosted login callback while using chrome custom tabs flag`FRONTEGG_USE_CHROME_CUSTOM_TABS = true`
 
 ## v
