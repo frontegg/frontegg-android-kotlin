@@ -26,6 +26,8 @@ class RefreshTokenAlarmReceiver : BroadcastReceiver() {
 
         // Run refresh in background to avoid blocking the main thread
         Thread {
+            // Avoid logout on stale 401 if refresh token rotated by another in-flight refresh.
+            val refreshTokenBefore = service.refreshToken.value
             try {
                 // Manual call: allow refresh even if auto-refresh is disabled
                 service.sendRefreshToken(isManualCall = true)
@@ -34,8 +36,20 @@ class RefreshTokenAlarmReceiver : BroadcastReceiver() {
 
                 when (e) {
                     is com.frontegg.android.exceptions.FailedToAuthenticateException -> {
-                        // 401 / invalid refresh token – clear credentials
-                        service.clearCredentials()
+                        val refreshTokenAfter = service.refreshToken.value
+                        if (
+                            refreshTokenBefore != null &&
+                            refreshTokenAfter != null &&
+                            refreshTokenAfter != refreshTokenBefore
+                        ) {
+                            Log.w(
+                                tag,
+                                "Refresh token rotated during in-flight refresh " +
+                                    "(before=$refreshTokenBefore after=$refreshTokenAfter); skipping clearCredentials()"
+                            )
+                        } else {
+                            service.clearCredentials()
+                        }
                     }
                     is SocketTimeoutException,
                     is java.net.ConnectException,

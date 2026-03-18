@@ -43,6 +43,8 @@ class RefreshTokenJobService : JobService() {
         Thread {
             var isError = false
             val service = fronteggAuth as FronteggAuthService
+            // Avoid logout on stale 401 if refresh token rotated by another in-flight refresh.
+            val refreshTokenBefore = service.refreshToken.value
             try {
                 service.sendRefreshToken()
             } catch (e: Exception) {
@@ -50,8 +52,20 @@ class RefreshTokenJobService : JobService() {
                 
                 when (e) {
                     is com.frontegg.android.exceptions.FailedToAuthenticateException -> {
-                        // 401 / invalid refresh token – clear credentials
-                        service.clearCredentials()
+                        val refreshTokenAfter = service.refreshToken.value
+                        if (
+                            refreshTokenBefore != null &&
+                            refreshTokenAfter != null &&
+                            refreshTokenAfter != refreshTokenBefore
+                        ) {
+                            Log.w(
+                                TAG,
+                                "Refresh token rotated during in-flight refresh " +
+                                    "(before=$refreshTokenBefore after=$refreshTokenAfter); skipping clearCredentials()"
+                            )
+                        } else {
+                            service.clearCredentials()
+                        }
                     }
                     is SocketTimeoutException,
                     is java.net.ConnectException,

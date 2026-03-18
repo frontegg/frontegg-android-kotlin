@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.arch.core.executor.testing.InstantTaskExecutorRule
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.utils.ObservableValue
+import com.frontegg.android.exceptions.FailedToAuthenticateException
 import io.mockk.Runs
 import io.mockk.every
 import io.mockk.just
@@ -28,6 +29,7 @@ class RefreshTokenJobServiceTest {
     private lateinit var mockParams: JobParameters
     private lateinit var mockkFronteggAppService: FronteggAppService
     private lateinit var mockAuthService: FronteggAuthService
+    private lateinit var refreshTokenObservable: ObservableValue<String?>
 
     @Before
     fun setUp() {
@@ -45,6 +47,8 @@ class RefreshTokenJobServiceTest {
 
         every { mockAuthService.accessToken } returns (ObservableValue(null))
         every { mockAuthService.isLoading } returns (ObservableValue(false))
+        refreshTokenObservable = ObservableValue("old-refresh-token")
+        every { mockAuthService.refreshToken } returns refreshTokenObservable
 
         // Mock RefreshTokenTimer singleton
         every { tokenTimer.scheduleTimer(any()) } just Runs
@@ -91,5 +95,25 @@ class RefreshTokenJobServiceTest {
         // Assert
         verify { mockAuthService.sendRefreshToken() } // Ensure sendRefreshToken is called
         verify { service.jobFinished(mockParams, false) } // Ensure job finishes without errors
+    }
+
+    @Test
+    fun `performBackgroundTask should skip clearCredentials when refresh token rotated`() {
+        // Arrange
+        refreshTokenObservable.value = "token-before"
+        every { service.jobFinished(any(), any()) } just Runs
+
+        every { mockAuthService.sendRefreshToken() } answers {
+            refreshTokenObservable.value = "token-after"
+            throw FailedToAuthenticateException(error = "Refresh token is not valid")
+        }
+
+        // Act
+        service.performBackgroundTask(mockParams)
+        Thread.sleep(200)
+
+        // Assert
+        verify(exactly = 0) { mockAuthService.clearCredentials() }
+        verify { service.jobFinished(mockParams, true) }
     }
 }
