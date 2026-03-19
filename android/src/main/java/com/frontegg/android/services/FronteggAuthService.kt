@@ -341,45 +341,60 @@ class FronteggAuthService(
 
     @Volatile
     private var refreshingInProgress = false
+    private var idempotentRefreshInFlight = false
+
     private var refreshRetryCount = 0
     private val maxRetries = 2
     private val baseRetryDelayMs = 3000L
     private val refreshMutex = Any()
     /**
      * Idempotent refresh token with network quality check.
-     * Actual single-flight is enforced in sendRefreshToken() so that JobService,
-     * AlarmReceiver, and app lifecycle all share the same mutex and never run
-     * two refreshes with the same token (which can cause one 401 and spurious logout).
+     * Single-flight for this path is enforced here ([idempotentRefreshInFlight]) before the network wait,
+     * and in [sendRefreshToken] ([refreshingInProgress]) so JobService, AlarmReceiver, and app lifecycle
+     * never run two refresh HTTP calls with the same token (which can cause one 401 and spurious logout).
      */
     private suspend fun refreshIdempotent(): Boolean {
-        val startTime = System.currentTimeMillis()
-        var networkOk = false
-
-        while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
-            networkOk = networkGate.isNetworkLikelyGood(credentialManager.context)
-            if (networkOk) break
-            delay(2000)
-        }
-
-        if (!networkOk) {
-            // Network is bad/offline - do NOT clear credentials; keep tokens for retry
-            Log.w(TAG, "Network quality check timeout (offline/bad network), keeping tokens for retry")
-            return false
-        }
-
-        isReconnecting.postValue(true)
-        try {
-            val success = sendRefreshToken(isManualCall = true)
-            if (success) {
-                val processedCount = requestQueue.processAll()
-                Log.d(TAG, "Processed $processedCount queued requests")
+        synchronized(refreshMutex) {
+            if (refreshingInProgress || idempotentRefreshInFlight) {
+                Log.d(TAG, "refreshIdempotent skipped: refresh or idempotent flow already in progress")
+                return true
             }
-            return success
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to perform idempotent refresh", e)
-            return false
+            idempotentRefreshInFlight = true
+        }
+        try {
+            // Entire idempotent flow (network wait + HTTP refresh) counts as reconnecting for UI/observers.
+            isReconnecting.postValue(true)
+            val startTime = System.currentTimeMillis()
+            var networkOk = false
+
+            while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
+                networkOk = networkGate.isNetworkLikelyGood(credentialManager.context)
+                if (networkOk) break
+                delay(2000)
+            }
+
+            if (!networkOk) {
+                // Network is bad/offline - do NOT clear credentials; keep tokens for retry
+                Log.w(TAG, "Network quality check timeout (offline/bad network), keeping tokens for retry")
+                return false
+            }
+
+            try {
+                val success = sendRefreshToken(isManualCall = true)
+                if (success) {
+                    val processedCount = requestQueue.processAll()
+                    Log.d(TAG, "Processed $processedCount queued requests")
+                }
+                return success
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to perform idempotent refresh", e)
+                return false
+            }
         } finally {
             isReconnecting.postValue(false)
+            synchronized(refreshMutex) {
+                idempotentRefreshInFlight = false
+            }
         }
     }
 
