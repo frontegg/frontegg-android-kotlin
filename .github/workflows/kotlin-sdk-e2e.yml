@@ -1,0 +1,20 @@
+# Runs Kotlin SDK E2E tests (from e2e-system-tests) on every PR.
+# The reusable workflow checks out the PR head commit, builds the app, and runs Appium tests.
+# Results appear as the "Kotlin SDK E2E" status check on the PR.
+# To require this check before merging, add "Kotlin SDK E2E" as a required status check
+# in Settings → Branches → branch protection rules for the target branch.
+
+name: Kotlin SDK E2E
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  kotlin-sdk-e2e:
+    name: Kotlin SDK E2E
+    uses: frontegg/e2e-system-tests/.github/workflows/kotlin-sdk-e2e-reusable.yml@main
+    with:
+      kotlin_repo_ref: ${{ github.event.pull_request.head.sha }}
+      test_suite: hosted:no-social
+    secrets: inherit

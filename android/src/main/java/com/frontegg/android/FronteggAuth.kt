@@ -146,9 +146,20 @@ interface FronteggAuth {
 
     /**
      * Refresh token if needed.
-     * @return true if taken was successfully refreshed. False otherwise.
+     * Starts refresh in the background and returns immediately; does not wait for completion.
+     * @return true if a refresh was started or already in progress. Use [refreshTokenAndWait] when
+     *         the caller needs the new token (e.g. before reading [accessToken]).
      */
     fun refreshTokenIfNeeded(): Boolean
+
+    /**
+     * Refreshes the token and suspends until refresh completes (or fails).
+     * Use this when the caller must have the updated [accessToken] before proceeding
+     * (e.g. Flutter plugin so that [state.accessToken] is current when the method channel returns).
+     * Waits for network if needed (with timeout), then performs a single refresh.
+     * @return true if refresh succeeded, false if no network in time or refresh failed.
+     */
+    suspend fun refreshTokenAndWait(): Boolean
 
     /**
      * Process queued requests when network becomes available.
