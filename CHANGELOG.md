@@ -1,4 +1,11 @@
 ## v
+### Fixed
+- **Unexpected logout after JWT expiry / opening app from notification:** Concurrent refresh calls (e.g. app foreground + `RefreshTokenJobService` or `RefreshTokenAlarmReceiver`) could both use the same refresh token; one request succeeded and one returned 401, and the error path could clear credentials. Refresh is now **single-flight** inside `sendRefreshToken()` so only one refresh runs at a time across all callers.
+
+### Added
+- **`FronteggAuth.refreshTokenAndWait()`** (`suspend`): Waits until token refresh completes (or fails). Use when the caller must have an updated `accessToken` immediately after refresh. `refreshTokenIfNeeded()` still returns immediately without waiting
+
+## v
 **Entitlements support**
 Adds support for Frontegg Entitlements so Android apps can load and check user features and permissions.
 - Load entitlements from the Frontegg API and cache them locally.
