@@ -346,62 +346,40 @@ class FronteggAuthService(
     private val baseRetryDelayMs = 3000L
     private val refreshMutex = Any()
     /**
-     * Idempotent refresh token with network quality check
-     * Ensures only one refresh execution when network recovers
+     * Idempotent refresh token with network quality check.
+     * Actual single-flight is enforced in sendRefreshToken() so that JobService,
+     * AlarmReceiver, and app lifecycle all share the same mutex and never run
+     * two refreshes with the same token (which can cause one 401 and spurious logout).
      */
     private suspend fun refreshIdempotent(): Boolean {
-        val shouldProceed = synchronized(refreshMutex) {
-            if (refreshingInProgress) {
-                return false
-            }
-            refreshingInProgress = true
-            true
-        }
-        
-        if (!shouldProceed) return true
+        val startTime = System.currentTimeMillis()
+        var networkOk = false
 
+        while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
+            networkOk = networkGate.isNetworkLikelyGood(credentialManager.context)
+            if (networkOk) break
+            delay(2000)
+        }
+
+        if (!networkOk) {
+            // Network is bad/offline - do NOT clear credentials; keep tokens for retry
+            Log.w(TAG, "Network quality check timeout (offline/bad network), keeping tokens for retry")
+            return false
+        }
+
+        isReconnecting.postValue(true)
         try {
-            isReconnecting.postValue(true)
-            
-            val startTime = System.currentTimeMillis()
-            var networkOk = false
-            
-            while (System.currentTimeMillis() - startTime < maxWaitTimeMs) {
-                networkOk = networkGate.isNetworkLikelyGood(credentialManager.context)
-                if (networkOk) {
-                    break
-                }
-                
-                delay(2000)
-            }
-            
-            if (!networkOk) {
-                // Network is bad/offline - do NOT clear credentials; keep tokens for retry
-                // when network recovers. This supports offline mode and prevents logouts
-                // during temporary network issues.
-                Log.w(TAG, "Network quality check timeout (offline/bad network), keeping tokens for retry")
-                isReconnecting.postValue(false)
-                return false
-            }
-            
-            isReconnecting.postValue(false)
-            
             val success = sendRefreshToken(isManualCall = true)
             if (success) {
                 val processedCount = requestQueue.processAll()
                 Log.d(TAG, "Processed $processedCount queued requests")
             }
-            
             return success
-            
         } catch (e: Exception) {
             Log.e(TAG, "Failed to perform idempotent refresh", e)
-            isReconnecting.postValue(false)
             return false
         } finally {
-            synchronized(refreshMutex) {
-                refreshingInProgress = false
-            }
+            isReconnecting.postValue(false)
         }
     }
 
@@ -518,6 +496,10 @@ class FronteggAuthService(
             
             return true
         }
+    }
+
+    override suspend fun refreshTokenAndWait(): Boolean {
+        return refreshIdempotent()
     }
 
     override fun loginWithPasskeys(
@@ -1326,8 +1308,26 @@ class FronteggAuthService(
         if (!isManualCall && disableAutoRefresh) {
             return false
         }
-        
-        val refreshToken = this.refreshToken.value ?: return false
+
+        // Single-flight: only one refresh at a time across app lifecycle, JobService, and AlarmReceiver.
+        // Prevents double refresh with the same token (one 200, one 401) and spurious clearCredentials().
+        val alreadyInProgress = synchronized(refreshMutex) {
+            if (refreshingInProgress) {
+                true
+            } else {
+                refreshingInProgress = true
+                false
+            }
+        }
+        if (alreadyInProgress) {
+            Log.d(TAG, "Refresh already in progress, skipping duplicate call")
+            return true
+        }
+
+        val refreshToken = this.refreshToken.value ?: run {
+            synchronized(refreshMutex) { refreshingInProgress = false }
+            return false
+        }
         this.refreshingToken.value = true
         try {
             val data = api.refreshToken(refreshToken)
@@ -1409,6 +1409,9 @@ class FronteggAuthService(
             lastRefreshError = e
             throw e
         } finally {
+            synchronized(refreshMutex) {
+                refreshingInProgress = false
+            }
             this.refreshingToken.value = false
         }
     }
