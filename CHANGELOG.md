@@ -1,5 +1,4 @@
 ## v
-… calls
 **Fixed**
 - Fixed token refresh getting permanently stuck after background/foreground lifecycle transitions
 
