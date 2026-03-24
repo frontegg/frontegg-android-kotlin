@@ -1,4 +1,12 @@
 ## v
+… calls
+**Fixed**
+- Fixed token refresh getting permanently stuck after background/foreground lifecycle transitions
+
+**Removed**
+- Removed unused refreshRetryCount, maxRetries, and baseRetryDelayMs fields from FronteggAuthService
+
+## v
 ### Fixed
 - **Unexpected logout after JWT expiry / opening app from notification:** Concurrent refresh calls (e.g. app foreground + `RefreshTokenJobService` or `RefreshTokenAlarmReceiver`) could both use the same refresh token; one request succeeded and one returned 401, and the error path could clear credentials. Refresh is now **single-flight** inside `sendRefreshToken()` so only one refresh runs at a time across all callers.
 
