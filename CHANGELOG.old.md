@@ -1,18 +1,18 @@
-## v
+## v1.3.23
 **Fixed**
 - Fixed token refresh getting permanently stuck after background/foreground lifecycle transitions
 
 **Removed**
 - Removed unused refreshRetryCount, maxRetries, and baseRetryDelayMs fields from FronteggAuthService
 
-## v
+## v1.3.22
 ### Fixed
 - **Unexpected logout after JWT expiry / opening app from notification:** Concurrent refresh calls (e.g. app foreground + `RefreshTokenJobService` or `RefreshTokenAlarmReceiver`) could both use the same refresh token; one request succeeded and one returned 401, and the error path could clear credentials. Refresh is now **single-flight** inside `sendRefreshToken()` so only one refresh runs at a time across all callers.
 
 ### Added
 - **`FronteggAuth.refreshTokenAndWait()`** (`suspend`): Waits until token refresh completes (or fails). Use when the caller must have an updated `accessToken` immediately after refresh. `refreshTokenIfNeeded()` still returns immediately without waiting
 
-## v
+## v1.3.21
 **Entitlements support**
 Adds support for Frontegg Entitlements so Android apps can load and check user features and permissions.
 - Load entitlements from the Frontegg API and cache them locally.
@@ -24,17 +24,17 @@ Adds support for Frontegg Entitlements so Android apps can load and check user f
 - Entitlements section in README.
 - Entitlements UI in demo apps (app and embedded).
 
-## v
+## v1.3.20
 - Fixed race condition in hosted login callback while using chrome custom tabs flag`FRONTEGG_USE_CHROME_CUSTOM_TABS = true`
 
-## v
+## v1.3.19
 Changed baseUrl and clientId for demo and test projects.
 Fixed: first login attempt returns user to the login form(direct login)
 - SocialLoginUrlGenerator: Use applicationId ?: clientId for the OAuth client_id (match AuthorizeUrlGenerator and iOS).
 - Blank app id: Treat empty/blank applicationId as unset via .takeIf { it.isNotBlank() } in AuthorizeUrlGenerator, SocialLoginUrlGenerator, AppIdHeaderHelper, and Api so client_id falls back to clientId.
 - WebView headers: Add frontegg-requested-application-id on all login WebView loads via new AppIdHeaderHelper in EmbeddedAuthActivity, FronteggWebClient, and FronteggAuthService.
 
-## v
+## v1.3.17
 Added new section to advanced documentation regarding login-per-session feature.
 Fixed: Autofill Password Managers kills activity
 Fixed: screen rotation resets flow.
