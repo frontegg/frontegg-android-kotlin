@@ -92,7 +92,7 @@ object FronteggReconnector {
                 try {
                     if (FronteggApp.instance != null) {
                         Log.d(TAG, "Attempting token refresh on network reconnect")
-                        val refreshSuccess = context.fronteggAuth.refreshTokenIfNeeded()
+                        val refreshSuccess = context.fronteggAuth.refreshTokenAndWait()
                         if (refreshSuccess) {
                             Log.d(TAG, "Token refresh successful on network reconnect")
                         } else {

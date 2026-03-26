@@ -72,8 +72,8 @@ class FronteggAuthService(
     // Reconnecting state
     val isReconnecting = MutableLiveData<Boolean>()
     
-    // No timeout for network recovery - wait indefinitely
-    private val maxWaitTimeMs = Long.MAX_VALUE
+    private val maxWaitTimeMs = 60_000L
+    @Volatile private var isNetworkMonitoringRunning: Boolean = false
 
 
     companion object {
@@ -351,15 +351,15 @@ class FronteggAuthService(
      * in-progress refresh instead of silently returning. After acquiring the lock
      * each caller re-checks token validity to avoid redundant API calls.
      */
-    private suspend fun refreshIdempotent(): Boolean {
-        refreshMutex.withLock {
+    private suspend fun refreshIdempotent(processQueueAfterSuccess: Boolean = true): Boolean {
+        val success = refreshMutex.withLock {
             val currentAccessToken = accessToken.value
             if (currentAccessToken != null) {
                 val decoded = JWTHelper.decode(currentAccessToken)
                 val offset = decoded.exp.calculateTimerOffset()
                 if (offset > 0) {
                     Log.d(TAG, "refreshIdempotent: token already refreshed by concurrent call, skipping")
-                    return true
+                    return@withLock true
                 }
             }
 
@@ -381,25 +381,29 @@ class FronteggAuthService(
                 if (!networkOk) {
                     Log.w(TAG, "Network quality check timeout (offline/bad network), keeping tokens for retry")
                     isReconnecting.postValue(false)
-                    return false
+                    return@withLock false
                 }
 
                 isReconnecting.postValue(false)
-
-                val success = sendRefreshToken(isManualCall = true)
-                if (success) {
-                    val processedCount = requestQueue.processAll()
-                    Log.d(TAG, "Processed $processedCount queued requests")
-                }
-
-                return success
-
+                sendRefreshToken(isManualCall = true)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to perform idempotent refresh", e)
                 isReconnecting.postValue(false)
-                return false
+                requestQueue.enqueue(
+                    requestId = "refresh_token_retry_${System.currentTimeMillis()}",
+                    request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                    priority = RequestPriority.HIGH
+                )
+                startNetworkMonitoring()
+                return@withLock false
             }
         }
+
+        if (success && processQueueAfterSuccess) {
+            val processedCount = requestQueue.processAll()
+            Log.d(TAG, "Processed $processedCount queued requests")
+        }
+        return success
     }
 
     override fun processQueuedRequests() {
@@ -414,15 +418,21 @@ class FronteggAuthService(
     }
     
     private fun startNetworkMonitoring() {
+        if (isNetworkMonitoringRunning) return
+        isNetworkMonitoringRunning = true
         bgScope.launch {
-            while (requestQueue.hasQueuedRequests()) {
-                if (isNetworkGood()) {
-                    val processedCount = requestQueue.processAll()
-                    Log.d(TAG, "Processed $processedCount queued requests")
-                    break
-                } else {
-                    delay(5000)
+            try {
+                while (requestQueue.hasQueuedRequests()) {
+                    if (isNetworkGood()) {
+                        val processedCount = requestQueue.processAll()
+                        Log.d(TAG, "Processed $processedCount queued requests")
+                        break
+                    } else {
+                        delay(5000)
+                    }
                 }
+            } finally {
+                isNetworkMonitoringRunning = false
             }
         }
     }
@@ -489,7 +499,7 @@ class FronteggAuthService(
             bgScope.launch {
                 requestQueue.enqueue(
                     requestId = "refresh_token_${System.currentTimeMillis()}",
-                    request = { refreshIdempotent() },
+                    request = { refreshIdempotent(processQueueAfterSuccess = false) },
                     priority = RequestPriority.HIGH
                 )
                 startNetworkMonitoring()
@@ -1491,9 +1501,10 @@ class FronteggAuthService(
                     Log.w(TAG, "Network quality is poor, queuing refresh token request")
                     requestQueue.enqueue(
                         requestId = "refresh_token_no_access_${System.currentTimeMillis()}",
-                        request = { refreshIdempotent() },
+                        request = { refreshIdempotent(processQueueAfterSuccess = false) },
                         priority = RequestPriority.HIGH
                     )
+                    startNetworkMonitoring()
                     return@launch
                 }
                 
@@ -1513,9 +1524,10 @@ class FronteggAuthService(
                         Log.w(TAG, "Network quality is poor, queuing refresh token request")
                         requestQueue.enqueue(
                             requestId = "refresh_token_expired_${System.currentTimeMillis()}",
-                            request = { refreshIdempotent() },
+                            request = { refreshIdempotent(processQueueAfterSuccess = false) },
                             priority = RequestPriority.HIGH
                         )
+                        startNetworkMonitoring()
                         return@launch
                     }
                     

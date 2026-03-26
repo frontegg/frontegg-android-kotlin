@@ -35,24 +35,23 @@ class RequestQueue {
      * Executes all requests in queue
      */
     suspend fun processAll(): Int {
-        return mutex.withLock {
+        val sortedRequests = mutex.withLock {
             val requestsToProcess = pendingRequests.toList()
             pendingRequests.clear()
-            
-            val sortedRequests = requestsToProcess.sortedBy { it.priority.ordinal }
-            
-            var successCount = 0
-            for (request in sortedRequests) {
-                try {
-                    request.request()
-                    successCount++
-                } catch (e: Exception) {
-                    Log.e(TAG, "Failed to execute queued request: ${request.id}", e)
-                }
-            }
-            
-            successCount
+            requestsToProcess.sortedBy { it.priority.ordinal }
         }
+
+        var successCount = 0
+        for (request in sortedRequests) {
+            try {
+                request.request()
+                successCount++
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to execute queued request: ${request.id}", e)
+            }
+        }
+
+        return successCount
     }
 
     /**
