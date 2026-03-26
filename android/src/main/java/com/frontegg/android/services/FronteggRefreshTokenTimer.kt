@@ -139,7 +139,7 @@ class FronteggRefreshTokenTimer(
             ComponentName(context, RefreshTokenJobService::class.java),
         )
             .setMinimumLatency(offset) // Schedule the job to run after the offset
-            .setOverrideDeadline(offset) // Add a buffer to the deadline
+            .setOverrideDeadline(offset + 5000L) // Add a buffer to the deadline
             .setRequiredNetworkType(JobInfo.NETWORK_TYPE_ANY) // Require network
             .setBackoffCriteria(10000, JobInfo.BACKOFF_POLICY_LINEAR)
             .build()
