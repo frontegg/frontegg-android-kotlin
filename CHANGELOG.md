@@ -1,4 +1,7 @@
 ## v
+Fixed session recovery after offline mode in background.
+
+## v
 **Fixed**
 - Fixed token refresh getting permanently stuck after background/foreground lifecycle transitions
 
