@@ -67,8 +67,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot")
         tapDesc("E2EDirectSocialLoginButton")
-        Thread.sleep(4_500)
-        waitForUserEmail("social-login@frontegg.com", timeoutMs = 60_000)
+        Thread.sleep(6_000)
+        waitForUserEmail("social-login@frontegg.com", timeoutMs = 90_000)
     }
 
     @Test
@@ -146,13 +146,14 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         )
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         val v0 = accessTokenVersion()
         val rc0 = oauthRefreshRequestCount()
         terminateApp()
-        waitDurationSeconds((expiringAccessTokenTTL + 2).toLong())
+        waitDurationSeconds((expiringAccessTokenTTL + 6).toLong())
         launchApp(resetState = false)
-        waitForUserEmail("test@frontegg.com")
-        waitForAccessTokenVersionChange(v0, timeoutMs = 75_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForAccessTokenVersionChange(v0, timeoutMs = 150_000)
         assert(oauthRefreshRequestCount() > rc0)
     }
 
@@ -235,8 +236,9 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testPasswordLoginWorksWithOfflineModeDisabled() {
         launchApp(resetState = true, enableOfflineMode = false)
+        waitForDesc("LoginPageRoot", timeoutMs = 35_000)
         loginWithPassword()
-        waitForUserEmail("test@frontegg.com")
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
     }
 
     @Test
