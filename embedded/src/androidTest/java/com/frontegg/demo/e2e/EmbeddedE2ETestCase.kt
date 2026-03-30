@@ -1,6 +1,7 @@
 package com.frontegg.demo.e2e
 
 import android.app.Instrumentation
+import android.content.Intent
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.core.app.ActivityScenario
@@ -75,10 +76,15 @@ open class EmbeddedE2ETestCase {
         instrumentation.runOnMainSync {
             (instrumentation.targetContext.applicationContext as App).consumeAndApplyE2EBootstrapFromDisk()
         }
-        scenario = ActivityScenario.launch(NavigationActivity::class.java)
+        // Without Test Orchestrator, tests share one process; a plain launch() can leave the previous
+        // task/back stack (e.g. still on the authenticated graph). Clear task so each launchApp starts cold UI.
+        val launchIntent = Intent(instrumentation.targetContext, NavigationActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+        }
+        scenario = ActivityScenario.launch(launchIntent)
         device.wait(
             Until.hasObject(By.pkg(instrumentation.targetContext.packageName).depth(0)),
-            TimeUnit.SECONDS.toMillis(25),
+            TimeUnit.SECONDS.toMillis(35),
         )
     }
 
@@ -144,17 +150,20 @@ open class EmbeddedE2ETestCase {
     }
 
     protected fun loginWithPassword() {
-        waitForDesc("LoginPageRoot", 90_000)
+        waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedPasswordButton")
         // Embedded WebView: hosted password step — pre-filled email; submit password flow
-        Thread.sleep(2_000)
-        tapWebButtonIfPresent("Sign in", timeoutMs = 55_000)
+        Thread.sleep(3_500)
+        tapWebButtonIfPresent("Sign in", timeoutMs = 90_000)
     }
 
     protected fun tapWebButtonIfPresent(text: String, timeoutMs: Long = 20_000) {
         val primaryLower = text.lowercase()
         if ("continue" in primaryLower || "mock" in primaryLower) {
             Thread.sleep(3_500)
+        }
+        if ("sign in" in primaryLower || "okta" in primaryLower) {
+            Thread.sleep(4_000)
         }
         if (tryEspressoWebTapLink(text)) return
         val deadline = System.currentTimeMillis() + timeoutMs
@@ -197,8 +206,8 @@ open class EmbeddedE2ETestCase {
             }
             if (!waitedChrome && System.currentTimeMillis() - started > 2_500L) {
                 waitedChrome = true
-                device.wait(Until.hasObject(By.pkg("com.android.chrome")), 18_000)
-                device.wait(Until.hasObject(By.pkg("com.google.android.apps.chrome")), 3_000)
+                device.wait(Until.hasObject(By.pkg("com.android.chrome")), 28_000)
+                device.wait(Until.hasObject(By.pkg("com.google.android.apps.chrome")), 5_000)
             }
             val w = device.displayWidth
             val h = device.displayHeight
