@@ -91,13 +91,15 @@ open class CredentialManager(val context: Context) {
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            val cause: Throwable = e.cause!!
-            if (cause.message!!.contains("Signature/MAC verification failed")) {
-                Log.w(TAG, "Master key is corrupted. Recreating the master key")
-                // Recreate the Master Key
+            val msgs = buildList {
+                e.message?.let(::add)
+                e.cause?.message?.let(::add)
+            }.joinToString(" | ").lowercase()
+            if ("signature/mac verification failed" in msgs || "could not decrypt key" in msgs
+                || "decryption failed" in msgs
+            ) {
+                Log.w(TAG, "Encryption key corrupted, recreating master key", e)
                 val masterKey = reinitializeMasterKey()
-
-                // Recreate EncryptedSharedPreferences
                 sp = EncryptedSharedPreferences.create(
                     context,
                     SHARED_PREFERENCES_NAME,
@@ -106,7 +108,6 @@ open class CredentialManager(val context: Context) {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             } else {
-                // Handle other exceptions
                 throw e
             }
         }
