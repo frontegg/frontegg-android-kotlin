@@ -64,6 +64,9 @@ open class EmbeddedE2ETestCase {
     ) {
         scenario?.close()
         scenario = null
+        // Custom Tabs / Chrome often stay on top after SSO; the next test still sees the browser
+        // while our process already has NavigationActivity — waitForDesc then times out on LoginPageRoot.
+        dismissBrowserForegroundIfNeeded()
         Thread.sleep(450)
         // Do not call mock.reset() here: each @Before gets a fresh MockWebServer. Resetting on every
         // relaunch would drop refresh-token state and any queued probe responses (breaks session restore,
@@ -84,10 +87,59 @@ open class EmbeddedE2ETestCase {
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
         scenario = ActivityScenario.launch(launchIntent)
-        device.wait(
-            Until.hasObject(By.pkg(instrumentation.targetContext.packageName).depth(0)),
-            TimeUnit.SECONDS.toMillis(35),
-        )
+        ensureDemoAppForegroundAfterLaunch()
+    }
+
+    private fun targetPackageName(): String = instrumentation.targetContext.packageName
+
+    private fun foregroundPackage(): String? =
+        runCatching { device.currentPackageName }.getOrNull()?.takeIf { it.isNotBlank() }
+
+    private fun isLikelyBrowserPackage(pkg: String): Boolean {
+        val p = pkg.lowercase()
+        return "chrome" in p || p.endsWith(".browser") || "customtabs" in p
+    }
+
+    /** Press back while a browser/Custom Tab is in the foreground so the next launch is visible. */
+    private fun dismissBrowserForegroundIfNeeded() {
+        repeat(15) {
+            val cur = foregroundPackage() ?: return
+            if (cur == targetPackageName()) return
+            if (!isLikelyBrowserPackage(cur)) return
+            runCatching { device.pressBack() }
+            Thread.sleep(450)
+        }
+    }
+
+    private fun reorderNavigationActivityToFront() {
+        val ctx = instrumentation.targetContext
+        val i = Intent(ctx, NavigationActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        ctx.startActivity(i)
+    }
+
+    private fun waitUntilDemoWindowVisible(timeoutMs: Long): Boolean {
+        val pkg = targetPackageName()
+        return device.wait(Until.hasObject(By.pkg(pkg).depth(0)), timeoutMs)
+    }
+
+    private fun ensureDemoAppForegroundAfterLaunch() {
+        val pkg = targetPackageName()
+        var ok = waitUntilDemoWindowVisible(TimeUnit.SECONDS.toMillis(35))
+        var fg = foregroundPackage()
+        if (ok && (fg == null || fg == pkg)) return
+
+        dismissBrowserForegroundIfNeeded()
+        reorderNavigationActivityToFront()
+        Thread.sleep(600)
+        ok = waitUntilDemoWindowVisible(TimeUnit.SECONDS.toMillis(25))
+        fg = foregroundPackage()
+        if (!ok || (fg != null && fg != pkg)) {
+            throw AssertionError(
+                "Demo app did not reach foreground (waitOk=$ok, foregroundPackage=$fg, expected=$pkg)",
+            )
+        }
     }
 
     protected fun terminateApp() {

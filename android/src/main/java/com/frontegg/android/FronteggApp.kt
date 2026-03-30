@@ -10,6 +10,7 @@ import com.frontegg.android.FronteggApp.Companion.initWithRegions
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.services.CredentialManager
 import com.frontegg.android.services.FronteggAppService
+import com.frontegg.android.services.FronteggState
 import com.frontegg.android.utils.FronteggConstantsProvider
 import com.frontegg.android.init.ConfigCache
 import com.frontegg.android.init.ConfigCache.RegionsInitFlags
@@ -191,6 +192,7 @@ interface FronteggApp {
          */
         fun resetInstanceForTesting() {
             instance = null
+            FronteggState.reset()
         }
 
         /**

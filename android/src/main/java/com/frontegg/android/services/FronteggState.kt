@@ -15,4 +15,17 @@ object FronteggState {
     val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
     val isOfflineMode: ObservableValue<Boolean> = ObservableValue(false)
     val isStepUpAuthorization: ObservableValue<Boolean> = ObservableValue(false)
+
+    fun reset() {
+        accessToken.value = null
+        refreshToken.value = null
+        user.value = null
+        isAuthenticated.value = false
+        isLoading.value = true
+        webLoading.value = false
+        initializing.value = true
+        showLoader.value = true
+        refreshingToken.value = false
+        isStepUpAuthorization.value = false
+    }
 }

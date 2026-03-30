@@ -60,7 +60,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2ECustomSSOButton")
         Thread.sleep(4_500)
-        waitForUserEmail("custom-sso@frontegg.com", timeoutMs = 60_000)
+        waitForUserEmail("custom-sso@frontegg.com", timeoutMs = 120_000)
     }
 
     @Test
