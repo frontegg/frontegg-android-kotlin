@@ -1,7 +1,7 @@
 package com.frontegg.android.utils
 
-import android.net.Uri
 import com.frontegg.android.services.StorageProvider
+import java.net.URI
 
 
 class ApiConstants {
@@ -45,11 +45,17 @@ class Constants {
         )
 
         fun oauthCallbackUrl(baseUrl: String): String {
-            val uri = Uri.parse(baseUrl)
-            val scheme = uri.scheme ?: "https"
-            val host = uri.host ?: ""
-            val port = uri.port
-            val hostPart = if (port != -1 && port != 80 && port != 443) "$host:$port" else host
+            // Use java.net.URI so JVM unit tests work; android.net.Uri.parse is often null under stubs.
+            val uri = try {
+                URI(baseUrl)
+            } catch (_: Exception) {
+                null
+            }
+            val scheme = uri?.scheme?.takeIf { it.isNotBlank() } ?: "https"
+            val host = uri?.host.orEmpty()
+            val port = uri?.port ?: -1
+            val hostPart =
+                if (port != -1 && port != 80 && port != 443) "$host:$port" else host
             val storage = StorageProvider.getInnerStorage()
             val packageName = storage.packageName
             val useAssetsLinks = storage.useAssetsLinks
