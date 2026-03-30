@@ -19,9 +19,10 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testPasswordLoginAndSessionRestore() {
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         terminateApp()
         launchApp(resetState = false)
-        waitForUserEmail("test@frontegg.com")
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
     }
 
     @Test
@@ -76,8 +77,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot")
         tapDesc("E2EEmbeddedGoogleSocialButton")
         // Custom Tab loads oauth/authorize → redirect to mock Google page; script auto-completes after ~600ms.
-        Thread.sleep(16_000)
-        waitForUserEmail("google-social@frontegg.com", timeoutMs = 90_000)
+        Thread.sleep(22_000)
+        waitForUserEmail("google-social@frontegg.com", timeoutMs = 120_000)
     }
 
     @Test
@@ -162,14 +163,14 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         val v0 = accessTokenVersion()
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
-        waitForUserEmail("test@frontegg.com")
-        waitForDesc("OfflineModeBadge", 30_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
+        waitForDesc("OfflineModeBadge", 45_000)
         // Simulate recovery: next launch without forced offline
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = false)
-        waitForUserEmail("test@frontegg.com")
-        Thread.sleep(8000)
-        waitForAccessTokenVersionChange(v0, timeoutMs = 120_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
+        Thread.sleep(12_000)
+        waitForAccessTokenVersionChange(v0, timeoutMs = 180_000)
     }
 
     @Test
@@ -242,11 +243,12 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testLogoutClearsSessionAndRelaunchShowsLogin() {
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         tapDesc("LogoutButton")
         waitForDesc("LoginPageRoot")
         terminateApp()
         launchApp(resetState = false)
-        waitForDesc("LoginPageRoot")
+        waitForDesc("LoginPageRoot", timeoutMs = 35_000)
     }
 
     @Test

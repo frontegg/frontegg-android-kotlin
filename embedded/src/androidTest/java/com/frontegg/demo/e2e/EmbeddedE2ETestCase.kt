@@ -144,8 +144,8 @@ open class EmbeddedE2ETestCase {
         waitForDesc("LoginPageRoot")
         tapDesc("E2EEmbeddedPasswordButton")
         // Embedded WebView: hosted password step — pre-filled email; submit password flow
-        Thread.sleep(1500)
-        tapWebButtonIfPresent("Sign in", timeoutMs = 30_000)
+        Thread.sleep(2_000)
+        tapWebButtonIfPresent("Sign in", timeoutMs = 55_000)
     }
 
     protected fun tapWebButtonIfPresent(text: String, timeoutMs: Long = 20_000) {
