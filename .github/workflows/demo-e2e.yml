@@ -19,7 +19,8 @@ jobs:
       - uses: actions/checkout@v4
       - id: set-matrix
         run: |
-          JSON=$(node .github/scripts/generate_e2e_matrix.js)
+          # Avoid writing matrix twice to GITHUB_OUTPUT (node script also appends when env is set)
+          JSON=$(env -u GITHUB_OUTPUT node .github/scripts/generate_e2e_matrix.js)
           {
             echo "matrix<<MATRIX_JSON_EOF"
             echo "$JSON"
@@ -46,7 +47,7 @@ jobs:
         run: chmod +x gradlew
 
       - name: Validate E2E scenario catalog
-        run: node .github/scripts/generate_e2e_matrix.js > /dev/null
+        run: env -u GITHUB_OUTPUT node .github/scripts/generate_e2e_matrix.js > /dev/null
 
       - name: Create dummy frontegg.properties
         run: |
@@ -65,24 +66,31 @@ jobs:
           arch: x86_64
           profile: pixel_6
           script: |
+            # /bin/sh on Ubuntu is dash — no <<<, read -a, or "${arr[@]}"
             CLASS="${{ matrix['test-class'] }}"
             METHODS="${{ matrix['test-methods'] }}"
             if [ -n "$METHODS" ]; then
-              IFS=',' read -ra ARR <<< "$METHODS"
-              for m in "${ARR[@]}"; do
+              _old_ifs=$IFS
+              IFS=,
+              for m in $METHODS; do
+                IFS=$_old_ifs
+                [ -z "$m" ] && continue
                 ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
                   -Pandroid.testInstrumentationRunnerArguments.class="${CLASS}#${m}" || exit 1
               done
+              IFS=$_old_ifs
             else
               ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
-                -Pandroid.testInstrumentationRunnerArguments.class="$CLASS"
+                -Pandroid.testInstrumentationRunnerArguments.class="$CLASS" || exit 1
             fi
 
       - name: Collect JUnit reports
         if: always()
         run: |
           mkdir -p e2e-artifacts
-          find . -name "TEST-*.xml" -path "*/outputs/*" -exec cp {} e2e-artifacts/ \; 2>/dev/null || true
+          find . \( -path "*/build/outputs/*" -o -path "*/build/reports/*" \) \
+            -name "TEST-*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
+          find . -path "*/androidTest-results/*" -name "*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
 
       - name: Publish JUnit report
         uses: mikepenz/action-junit-report@v4
@@ -96,6 +104,7 @@ jobs:
         with:
           name: embedded-e2e-shard-${{ matrix['shard-index'] }}
           path: e2e-artifacts/
+          if-no-files-found: ignore
 
   summary:
     runs-on: ubuntu-latest

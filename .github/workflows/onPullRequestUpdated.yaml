@@ -65,6 +65,17 @@ jobs:
 
       - name: Run Unit Tests
         run: ./gradlew :android:testDebugUnitTest --no-daemon
+        # jacocoTestReport is finalizedBy testDebugUnitTest and runs even when some tests fail
+
+      - name: Coverage summary (step summary)
+        if: always()
+        run: |
+          if [ -f android/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml ]; then
+            python3 .github/scripts/jacoco_folder_summary.py android/build/reports/jacoco/jacocoTestReport/jacocoTestReport.xml >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### Code coverage" >> "$GITHUB_STEP_SUMMARY"
+            echo "JaCoCo XML not found (tests may have failed before coverage was written)." >> "$GITHUB_STEP_SUMMARY"
+          fi
 
       - name: Upload Test Results
         if: always()
@@ -72,4 +83,13 @@ jobs:
         with:
           name: test-results
           path: android/build/reports/tests/testDebugUnitTest/
+          retention-days: 7
+
+      - name: Upload coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: jacoco-android
+          path: |
+            android/build/reports/jacoco/jacocoTestReport/
           retention-days: 7
