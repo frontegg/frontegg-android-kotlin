@@ -156,10 +156,10 @@ interface FronteggApp {
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
         ) {
-            val baseUrl: String = if (fronteggDomain.startsWith("https")) {
-                fronteggDomain
-            } else {
-                "https://$fronteggDomain"
+            val baseUrl: String = when {
+                fronteggDomain.startsWith("http://") || fronteggDomain.startsWith("https://") ->
+                    fronteggDomain
+                else -> "https://$fronteggDomain"
             }
 
             val isEmbeddedMode = context.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
@@ -185,6 +185,69 @@ interface FronteggApp {
             runDebugChecksSafe(context, fronteggDomain, clientId)
         }
 
+        /**
+         * Clears the singleton so the next [Context.fronteggApp] access re-initializes.
+         * Used by embedded demo E2E / instrumented tests with a local mock server.
+         */
+        fun resetInstanceForTesting() {
+            instance = null
+        }
+
+        /**
+         * Initializes the SDK for local instrumented tests (e.g. mock HTTP server on loopback).
+         * Must be called from the app process before any [Context.fronteggAuth] usage.
+         */
+        fun initializeEmbeddedForLocalE2E(
+            context: Context,
+            fronteggDomain: String,
+            clientId: String,
+            applicationId: String? = null,
+            useAssetsLinks: Boolean = false,
+            useChromeCustomTabs: Boolean = false,
+            mainActivityClass: Class<*>? = null,
+            deepLinkScheme: String? = null,
+            useDiskCacheWebview: Boolean = false,
+            disableAutoRefresh: Boolean = false,
+            enableSessionPerTenant: Boolean = false,
+            entitlementsEnabled: Boolean = false,
+            tenantResolver: TenantResolver? = null,
+        ): FronteggApp {
+            resetInstanceForTesting()
+            val baseUrl: String = when {
+                fronteggDomain.startsWith("http://") || fronteggDomain.startsWith("https://") ->
+                    fronteggDomain
+                else -> "https://$fronteggDomain"
+            }
+            val appContext = context.applicationContext
+            val isEmbeddedMode = appContext.isActivityEnabled(EmbeddedAuthActivity::class.java.name)
+            runCatching {
+                val constants = FronteggConstantsProvider.fronteggConstants(appContext)
+                SentryHelper.prepare(appContext, constants)
+            }
+            instance = FronteggAppService(
+                context = appContext,
+                baseUrl = baseUrl,
+                clientId = clientId,
+                applicationId = applicationId,
+                isEmbeddedMode = isEmbeddedMode,
+                handleLoginWithSocialLogin = true,
+                handleLoginWithSocialLoginProvider = true,
+                handleLoginWithCustomSocialLoginProvider = true,
+                handleLoginWithSSO = true,
+                shouldPromptSocialLoginConsent = false,
+                useAssetsLinks = useAssetsLinks,
+                useChromeCustomTabs = useChromeCustomTabs,
+                mainActivityClass = mainActivityClass,
+                deepLinkScheme = deepLinkScheme,
+                useDiskCacheWebview = useDiskCacheWebview,
+                disableAutoRefresh = disableAutoRefresh,
+                enableSessionPerTenant = enableSessionPerTenant,
+                entitlementsEnabled = entitlementsEnabled,
+                tenantResolver = tenantResolver,
+            )
+            runDebugChecksSafe(appContext, fronteggDomain, clientId)
+            return instance!!
+        }
 
         /**
          * Initialization method of [FronteggApp] for multi-regions.

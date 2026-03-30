@@ -1,5 +1,6 @@
 package com.frontegg.android.utils
 
+import android.net.Uri
 import com.frontegg.android.services.StorageProvider
 
 
@@ -44,15 +45,18 @@ class Constants {
         )
 
         fun oauthCallbackUrl(baseUrl: String): String {
-
-            val host = baseUrl.substring("https://".length)
+            val uri = Uri.parse(baseUrl)
+            val scheme = uri.scheme ?: "https"
+            val host = uri.host ?: ""
+            val port = uri.port
+            val hostPart = if (port != -1 && port != 80 && port != 443) "$host:$port" else host
             val storage = StorageProvider.getInnerStorage()
             val packageName = storage.packageName
             val useAssetsLinks = storage.useAssetsLinks
             return if (useAssetsLinks) {
-                "https://${host}/oauth/account/redirect/android/${packageName}"
+                "$scheme://$hostPart/oauth/account/redirect/android/$packageName"
             } else {
-                "${packageName}://${host}/android/oauth/callback"
+                "$packageName://$hostPart/android/oauth/callback"
             }
         }
 

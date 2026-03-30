@@ -1,14 +1,18 @@
 package com.frontegg.demo
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.utils.NetworkGate
 import com.frontegg.android.utils.NullableObject
 import com.frontegg.demo.databinding.ActivityNavigationBinding
 import io.reactivex.rxjava3.disposables.Disposable
@@ -22,6 +26,10 @@ class NavigationActivity : AppCompatActivity() {
 
     private lateinit var binding: ActivityNavigationBinding
     private lateinit var navController: NavController
+    private var e2eOverlay: View? = null
+    private val e2eHandler = Handler(Looper.getMainLooper())
+    private var e2eTicker: Runnable? = null
+    private var e2eBadNetworkSinceMs: Long = 0L
 
     /**
      * Configuration for authenticated users.
@@ -67,6 +75,77 @@ class NavigationActivity : AppCompatActivity() {
         }
 
         setToolbarVisibility(false)
+
+        if (DemoEmbeddedTestMode.isEnabled) {
+            val root = binding.root as ViewGroup
+            e2eOverlay = layoutInflater.inflate(R.layout.e2e_no_connection_overlay, root, false)
+            root.addView(
+                e2eOverlay,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+            e2eOverlay?.elevation = 100f
+            e2eTicker = object : Runnable {
+                override fun run() {
+                    tickE2EUi()
+                    e2eHandler.postDelayed(this, 400)
+                }
+            }
+            e2eOverlay?.findViewById<View>(R.id.e2e_retry_connection_button)?.setOnClickListener {
+                e2eBadNetworkSinceMs = 0L
+                tickE2EUi()
+            }
+            e2eHandler.post(e2eTicker!!)
+        }
+    }
+
+    private fun tickE2EUi() {
+        val overlay = e2eOverlay ?: return
+        val initializing = try {
+            fronteggAuth.initializing.value == true
+        } catch (_: Exception) {
+            false
+        }
+        // Avoid flashing "no connection" while the SDK is still probing / hydrating (Swift parity).
+        if (initializing) {
+            overlay.visibility = View.GONE
+            return
+        }
+        val authenticated = try {
+            fronteggAuth.isAuthenticated.value == true
+        } catch (_: Exception) {
+            false
+        }
+        val forceOff = NetworkGate.isE2eForceNetworkPathOffline()
+        val netLikelyGood = try {
+            !forceOff && NetworkGate.isNetworkLikelyGood(this)
+        } catch (_: Exception) {
+            true
+        }
+        val offlineFeatureOn = DemoEmbeddedTestMode.isOfflineModeFeatureEnabled(this)
+        val now = System.currentTimeMillis()
+        if (!netLikelyGood) {
+            if (e2eBadNetworkSinceMs == 0L) e2eBadNetworkSinceMs = now
+        } else {
+            e2eBadNetworkSinceMs = 0L
+        }
+        // Longer debounce while logged out: cold-start probe slowness should not flash this overlay.
+        val debounceMs = if (authenticated) 2000L else 4500L
+        val sustainedBad = e2eBadNetworkSinceMs > 0 && now - e2eBadNetworkSinceMs > debounceMs
+
+        if (!authenticated && offlineFeatureOn && sustainedBad && !netLikelyGood) {
+            overlay.visibility = View.VISIBLE
+            overlay.findViewById<View>(R.id.e2e_no_connection_seen_ever)?.visibility = View.VISIBLE
+        } else {
+            overlay.visibility = View.GONE
+        }
+    }
+
+    override fun onDestroy() {
+        e2eTicker?.let { e2eHandler.removeCallbacks(it) }
+        super.onDestroy()
     }
 
     /**

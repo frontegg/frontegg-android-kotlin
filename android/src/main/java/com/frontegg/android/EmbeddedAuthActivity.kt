@@ -22,6 +22,7 @@ import kotlin.time.Duration
 
 
 class EmbeddedAuthActivity : FronteggBaseActivity() {
+
     private val storage = FronteggInnerStorage()
     private lateinit var webView: FronteggWebView
     private var webViewUrl: String? = null
@@ -323,7 +324,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             onAuthFinishedCallback = null
         }
     }
-
 
     companion object {
         const val OAUTH_LOGIN_REQUEST = 100001

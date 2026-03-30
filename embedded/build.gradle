@@ -150,6 +150,9 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-web:' + rootProject.espressoVersion
     androidTestImplementation 'androidx.test:monitor:1.7.0-alpha01'
 
+    androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+    androidTestImplementation 'com.google.code.gson:gson:2.10.1'
+
     implementation "junit:junit:4.13.2"
 
     implementation "androidx.test.uiautomator:uiautomator:2.2.0"

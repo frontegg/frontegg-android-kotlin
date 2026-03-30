@@ -12,6 +12,18 @@ import java.util.concurrent.TimeUnit
 object NetworkGate {
 
     private var fronteggBaseUrl: String? = null
+
+    @Volatile
+    private var e2eForceNetworkPathOffline: Boolean = false
+
+    /**
+     * When true, [isNetworkLikelyGood] always returns false (embedded E2E / instrumented tests).
+     */
+    fun setE2eForceNetworkPathOffline(enabled: Boolean) {
+        e2eForceNetworkPathOffline = enabled
+    }
+
+    fun isE2eForceNetworkPathOffline(): Boolean = e2eForceNetworkPathOffline
     
     fun setFronteggBaseUrl(url: String) {
         fronteggBaseUrl = url
@@ -19,6 +31,9 @@ object NetworkGate {
 
     @CheckResult
     fun isNetworkLikelyGood(ctx: Context): Boolean {
+        if (e2eForceNetworkPathOffline) {
+            return false
+        }
         val cm = ctx.getSystemService(ConnectivityManager::class.java)
         val network = cm.activeNetwork
         if (network == null) {
@@ -75,7 +90,16 @@ object NetworkGate {
     
     private fun performPingTest(): Boolean {
         val url = fronteggBaseUrl ?: return false
-        
+        val trimmed = url.trimEnd('/')
+        val probeUrl = if (trimmed.startsWith("http://127.0.0.1") ||
+            trimmed.startsWith("http://localhost") ||
+            trimmed.startsWith("http://10.0.2.2")
+        ) {
+            "$trimmed/test"
+        } else {
+            "$trimmed/"
+        }
+
         try {
             val client = OkHttpClient.Builder()
                 .connectTimeout(5, TimeUnit.SECONDS)
@@ -84,7 +108,7 @@ object NetworkGate {
                 .build()
             
             val request = Request.Builder()
-                .url("$url/")
+                .url(probeUrl)
                 .head()
                 .build()
             

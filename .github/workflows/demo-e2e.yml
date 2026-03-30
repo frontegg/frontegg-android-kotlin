@@ -1,0 +1,118 @@
+name: Demo Embedded E2E (Android)
+
+permissions:
+  contents: read
+  checks: write
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: set-matrix
+        run: |
+          JSON=$(node .github/scripts/generate_e2e_matrix.js)
+          {
+            echo "matrix<<MATRIX_JSON_EOF"
+            echo "$JSON"
+            echo "MATRIX_JSON_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  embedded-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Validate E2E scenario catalog
+        run: node .github/scripts/generate_e2e_matrix.js > /dev/null
+
+      - name: Create dummy frontegg.properties
+        run: |
+          echo "FRONTEGG_DOMAIN=localhost" >> frontegg.properties
+          echo "FRONTEGG_CLIENT_ID=dummy" >> frontegg.properties
+          echo "FRONTEGG_APPLICATION_ID=" >> frontegg.properties
+          echo "FRONTEGG_DEEP_LINK_SCHEME=test" >> frontegg.properties
+
+      - name: Build debug + androidTest
+        run: ./gradlew :embedded:assembleDebug :embedded:assembleDebugAndroidTest --no-daemon
+
+      - name: Run embedded E2E on emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          profile: pixel_6
+          script: |
+            CLASS="${{ matrix['test-class'] }}"
+            METHODS="${{ matrix['test-methods'] }}"
+            if [ -n "$METHODS" ]; then
+              IFS=',' read -ra ARR <<< "$METHODS"
+              for m in "${ARR[@]}"; do
+                ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
+                  -Pandroid.testInstrumentationRunnerArguments.class="${CLASS}#${m}" || exit 1
+              done
+            else
+              ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
+                -Pandroid.testInstrumentationRunnerArguments.class="$CLASS"
+            fi
+
+      - name: Collect JUnit reports
+        if: always()
+        run: |
+          mkdir -p e2e-artifacts
+          find . -name "TEST-*.xml" -path "*/outputs/*" -exec cp {} e2e-artifacts/ \; 2>/dev/null || true
+
+      - name: Publish JUnit report
+        uses: mikepenz/action-junit-report@v4
+        if: always()
+        with:
+          report_paths: e2e-artifacts/*.xml
+          check_name: Embedded E2E (shard ${{ matrix['shard-index'] }})
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: embedded-e2e-shard-${{ matrix['shard-index'] }}
+          path: e2e-artifacts/
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [embedded-e2e]
+    if: always()
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: all-e2e
+
+      - uses: actions/checkout@v4
+
+      - name: Combine summary
+        run: node .github/scripts/combine_e2e_summary.js --artifacts-dir all-e2e --summary e2e-summary.md
+
+      - name: Upload summary
+        uses: actions/upload-artifact@v4
+        with:
+          name: e2e-summary
+          path: e2e-summary.md

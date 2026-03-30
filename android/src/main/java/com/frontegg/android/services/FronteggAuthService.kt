@@ -1757,9 +1757,7 @@ class FronteggAuthService(
                 Log.e(TAG, "Failed to generate auth URL for provider: ${provider.value}")
                 return
             }
-            
-            
-            
+
             val webAuthenticator = com.frontegg.android.utils.WebAuthenticator.getInstance()
             webAuthenticator.start(activity, authURL, ephemeralSession ?: true) { callbackURL, error ->
                 if (error != null) {
