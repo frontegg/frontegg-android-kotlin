@@ -36,7 +36,7 @@ class App : Application() {
     private fun applyE2EBootstrap(bootstrap: DemoEmbeddedTestMode.BootstrapConfig) {
         NetworkGate.setE2eForceNetworkPathOffline(bootstrap.forceNetworkPathOffline)
         if (bootstrap.resetState) {
-            CredentialManager(this).clearSharedPreference(this)
+            CredentialManager(this).wipeAllStoredCredentials()
         }
         FronteggApp.initializeEmbeddedForLocalE2E(
             context = this,

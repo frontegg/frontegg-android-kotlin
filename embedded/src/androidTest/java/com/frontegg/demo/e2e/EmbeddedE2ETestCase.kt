@@ -63,6 +63,8 @@ open class EmbeddedE2ETestCase {
         enableOfflineMode: Boolean? = null,
     ) {
         scenario?.close()
+        scenario = null
+        Thread.sleep(450)
         // Do not call mock.reset() here: each @Before gets a fresh MockWebServer. Resetting on every
         // relaunch would drop refresh-token state and any queued probe responses (breaks session restore,
         // token refresh, and tests that enqueue failures before launchApp).

@@ -41,6 +41,17 @@ open class CredentialManager(val context: Context) {
             .apply()
     }
 
+    /**
+     * Clears both encrypted credential prefs and the legacy plain prefs file.
+     * Used by embedded demo E2E when bootstrap requests a full reset — [clearSharedPreference] alone
+     * does not wipe [sp] (EncryptedSharedPreferences), so tokens could survive and keep the user logged in.
+     */
+    @SuppressLint("ApplySharedPref")
+    fun wipeAllStoredCredentials() {
+        sp.edit().clear().commit()
+        context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).edit().clear().commit()
+    }
+
     private fun createSecretKey(alias: String): SecretKey {
         val keyGenerator =
             KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
