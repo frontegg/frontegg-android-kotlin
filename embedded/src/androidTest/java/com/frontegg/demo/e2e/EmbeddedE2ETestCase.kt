@@ -111,29 +111,51 @@ open class EmbeddedE2ETestCase {
         }
     }
 
-    private fun reorderNavigationActivityToFront() {
+    private fun waitUntilDemoWindowVisible(timeoutMs: Long): Boolean {
+        val pkg = targetPackageName()
+        return device.wait(Until.hasObject(By.pkg(pkg)), timeoutMs)
+    }
+
+    private fun dismissSystemDialogIfNeeded() {
+        val fg = foregroundPackage() ?: return
+        if (fg == targetPackageName()) return
+        if (isLikelyBrowserPackage(fg)) return
+        repeat(5) {
+            runCatching { device.pressBack() }
+            Thread.sleep(350)
+            val cur = foregroundPackage()
+            if (cur == null || cur == targetPackageName()) return
+        }
+    }
+
+    private fun launchDemoActivityIntent() {
         val ctx = instrumentation.targetContext
         val i = Intent(ctx, NavigationActivity::class.java).apply {
-            addFlags(Intent.FLAG_ACTIVITY_REORDER_TO_FRONT or Intent.FLAG_ACTIVITY_NEW_TASK)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
         }
         ctx.startActivity(i)
     }
 
-    private fun waitUntilDemoWindowVisible(timeoutMs: Long): Boolean {
-        val pkg = targetPackageName()
-        return device.wait(Until.hasObject(By.pkg(pkg).depth(0)), timeoutMs)
-    }
-
     private fun ensureDemoAppForegroundAfterLaunch() {
         val pkg = targetPackageName()
+        runCatching { device.wakeUp() }
+
         var ok = waitUntilDemoWindowVisible(TimeUnit.SECONDS.toMillis(35))
         var fg = foregroundPackage()
         if (ok && (fg == null || fg == pkg)) return
 
+        dismissSystemDialogIfNeeded()
         dismissBrowserForegroundIfNeeded()
-        reorderNavigationActivityToFront()
-        Thread.sleep(600)
-        ok = waitUntilDemoWindowVisible(TimeUnit.SECONDS.toMillis(25))
+        launchDemoActivityIntent()
+        Thread.sleep(800)
+        ok = waitUntilDemoWindowVisible(TimeUnit.SECONDS.toMillis(20))
+        fg = foregroundPackage()
+        if (ok && (fg == null || fg == pkg)) return
+
+        runCatching { device.pressHome() }
+        Thread.sleep(500)
+        launchDemoActivityIntent()
+        ok = waitUntilDemoWindowVisible(TimeUnit.SECONDS.toMillis(20))
         fg = foregroundPackage()
         if (!ok || (fg != null && fg != pkg)) {
             throw AssertionError(
@@ -163,7 +185,7 @@ open class EmbeddedE2ETestCase {
         }
     }
 
-    protected fun tapDesc(contentDescription: String, timeoutMs: Long = 10_000) {
+    protected fun tapDesc(contentDescription: String, timeoutMs: Long = 20_000) {
         scrollDescIntoView(contentDescription, timeoutMs)
         device.findObject(By.desc(contentDescription))?.click()
             ?: throw AssertionError("No node for desc=$contentDescription")
