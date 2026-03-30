@@ -6,17 +6,27 @@ set -euo pipefail
 CLASS="${E2E_CLASS:?E2E_CLASS is required}"
 METHODS="${E2E_METHODS:-}"
 
+# One Gradle + one install per shard (not one per method) — faster and avoids flakiness between runs.
 if [[ -n "$METHODS" ]]; then
+  specs=""
   _old_ifs=$IFS
   IFS=,
   for m in $METHODS; do
     IFS=$_old_ifs
     [[ -z "$m" ]] && continue
-    ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
-      -Pandroid.testInstrumentationRunnerArguments.class="${CLASS}#${m}"
+    [[ -n "$specs" ]] && specs+=","
+    specs+="${CLASS}#${m}"
   done
   IFS=$_old_ifs
+  if [[ -z "$specs" ]]; then
+    echo "::error::E2E_METHODS was non-empty but no method names parsed: '$METHODS'" >&2
+    exit 1
+  fi
+  echo "::notice::connectedDebugAndroidTest — $specs"
+  ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
+    -Pandroid.testInstrumentationRunnerArguments.class="${specs}"
 else
+  echo "::notice::connectedDebugAndroidTest — full class $CLASS"
   ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
     -Pandroid.testInstrumentationRunnerArguments.class="$CLASS"
 fi
