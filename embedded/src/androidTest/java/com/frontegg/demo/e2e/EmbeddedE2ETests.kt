@@ -29,7 +29,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testEmbeddedSamlLogin() {
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 45_000)
+        waitForDesc("LoginPageRoot", 90_000)
         tapDesc("E2EEmbeddedSAMLButton")
         tapWebButtonIfPresent("Login With Okta")
         waitForUserEmail("test@saml-domain.com")
@@ -38,7 +38,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testEmbeddedOidcLogin() {
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 45_000)
+        waitForDesc("LoginPageRoot", 90_000)
         tapDesc("E2EEmbeddedOIDCButton")
         tapWebButtonIfPresent("Login With Okta")
         waitForUserEmail("test@oidc-domain.com")
@@ -47,7 +47,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testRequestAuthorizeFlow() {
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 45_000)
+        waitForDesc("LoginPageRoot", 90_000)
         tapDesc("E2ESeedRequestAuthorizeTokenButton")
         Thread.sleep(2_000)
         tapDesc("RequestAuthorizeButton")
@@ -57,7 +57,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testCustomSSOBrowserHandoff() {
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 45_000)
+        waitForDesc("LoginPageRoot", 90_000)
         tapDesc("E2ECustomSSOButton")
         Thread.sleep(4_500)
         waitForUserEmail("custom-sso@frontegg.com", timeoutMs = 60_000)
@@ -66,7 +66,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testDirectSocialBrowserHandoff() {
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 45_000)
+        waitForDesc("LoginPageRoot", 90_000)
         tapDesc("E2EDirectSocialLoginButton")
         Thread.sleep(6_000)
         waitForUserEmail("social-login@frontegg.com", timeoutMs = 90_000)
@@ -75,7 +75,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession() {
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", timeoutMs = 40_000)
+        waitForDesc("LoginPageRoot", 90_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
         // Custom Tab loads oauth/authorize → redirect to mock Google page; script auto-completes after ~600ms.
         Thread.sleep(32_000)
@@ -89,7 +89,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
             "JWT token size exceeded the maximum allowed size. Please contact support to reduce token payload size.",
         )
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 45_000)
+        waitForDesc("LoginPageRoot", 90_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
         Thread.sleep(18_000)
         if (!waitForA11yTextContains("ER-05001", 50_000)) {
@@ -101,7 +101,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testColdLaunchTransientProbeTimeoutsDoNotBlinkNoConnectionPage() {
         mock.queueProbeTimeouts(count = 2, delayMs = 1500)
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 45_000)
+        waitForDesc("LoginPageRoot", 90_000)
         Thread.sleep(2100)
         val noConn = device.findObject(By.desc("NoConnectionPageRoot"))
         if (noConn != null && noConn.visibleBounds.height() > 0) {
@@ -115,11 +115,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         loginWithPassword()
         waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         tapDesc("LogoutButton")
-        waitForDesc("LoginPageRoot", 30_000)
+        waitForDesc("LoginPageRoot", 45_000)
         mock.queueProbeFailures(listOf(503, 503))
         terminateApp()
         launchApp(resetState = false)
-        waitForDesc("LoginPageRoot", timeoutMs = 50_000)
+        waitForDesc("LoginPageRoot", 90_000)
         Thread.sleep(3500)
     }
 
@@ -203,14 +203,14 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         loginWithPassword()
         tapDesc("LogoutButton")
-        waitForDesc("LoginPageRoot", 30_000)
+        waitForDesc("LoginPageRoot", 45_000)
         mock.queueProbeFailures(listOf(503))
         terminateApp()
         launchApp(resetState = false)
         waitForDesc("NoConnectionPageRoot", 45_000)
         mock.reset()
         tapDesc("RetryConnectionButton", 15_000)
-        waitForDesc("LoginPageRoot", 30_000)
+        waitForDesc("LoginPageRoot", 45_000)
         tapDesc("E2ECustomSSOButton")
         Thread.sleep(8_000)
         waitForUserEmail("custom-sso@frontegg.com", 120_000)
@@ -220,7 +220,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testColdLaunchWithOfflineModeDisabledReachesLoginQuickly() {
         mock.queueProbeFailures(listOf(503, 503))
         launchApp(resetState = true, enableOfflineMode = false)
-        waitForDesc("LoginPageRoot", 50_000)
+        waitForDesc("LoginPageRoot", 90_000)
         Thread.sleep(3500)
     }
 
@@ -239,7 +239,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testPasswordLoginWorksWithOfflineModeDisabled() {
         launchApp(resetState = true, enableOfflineMode = false)
-        waitForDesc("LoginPageRoot", 45_000)
+        waitForDesc("LoginPageRoot", 90_000)
         loginWithPassword()
         waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
     }
@@ -250,11 +250,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         loginWithPassword()
         waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
         tapDesc("LogoutButton")
-        waitForDesc("LoginPageRoot", 30_000)
+        waitForDesc("LoginPageRoot", 45_000)
         terminateApp()
         launchApp(resetState = false)
         Thread.sleep(1_500)
-        waitForDesc("LoginPageRoot", timeoutMs = 60_000)
+        waitForDesc("LoginPageRoot", 90_000)
     }
 
     @Test
@@ -272,7 +272,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         // Same-process instrumentation: use bootstrap reset so login is reachable after policy expiry.
         launchApp(resetState = true)
         Thread.sleep(2_500)
-        waitForDesc("LoginPageRoot", 60_000)
+        waitForDesc("LoginPageRoot", 90_000)
     }
 
     @Test

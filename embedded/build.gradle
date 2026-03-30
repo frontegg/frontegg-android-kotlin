@@ -77,10 +77,6 @@ android {
         testInstrumentationRunnerArguments["GOOGLE_PASSWORD"] = testProperties.getOrDefault("GOOGLE_PASSWORD", "")
     }
 
-    testOptions {
-        execution "ANDROIDX_TEST_ORCHESTRATOR"
-    }
-
     signingConfigs {
         release {
             storeFile file(project.property("RELEASE_STORE_FILE"))
@@ -156,6 +152,5 @@ dependencies {
     implementation "junit:junit:4.13.2"
 
     implementation "androidx.test.uiautomator:uiautomator:2.2.0"
-    androidTestUtil "androidx.test:orchestrator:1.5.1"
 
 }
