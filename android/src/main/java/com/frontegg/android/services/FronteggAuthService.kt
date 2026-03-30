@@ -856,7 +856,7 @@ class FronteggAuthService(
                     cacheLastTenantForUser(user, finalTenantId)
                 }
 
-                updateStateWithCredentials(finalAccessToken, finalRefreshToken, user, authResponse)
+                updateStateWithCredentials(finalAccessToken, finalRefreshToken, user)
                 if (enableOfflineMode) {
                     credentialManager.saveOfflineUser(user)
                 }
@@ -890,36 +890,6 @@ class FronteggAuthService(
             sessionTracker.trackSessionStart(tenantId)
         }
 
-        refreshTokenTimer.cancelLastTimer()
-
-        val decoded = JWTHelper.decode(accessToken)
-        if (decoded.exp > 0) {
-            val offset = decoded.exp.calculateTimerOffset()
-            refreshTokenTimer.scheduleTimer(offset)
-        }
-        loadEntitlements(forceRefresh = true)
-    }
-
-    private fun updateStateWithCredentials(accessToken: String, refreshToken: String, user: User, authResponse: com.frontegg.android.models.AuthResponse) {
-        this.refreshToken.value = refreshToken
-        this.accessToken.value = accessToken
-        this.user.value = user
-        this.isAuthenticated.value = true
-        setOfflineMode(false)
-
-        val enableSessionPerTenant = storage.enableSessionPerTenant
-        val tenantId = if (enableSessionPerTenant) {
-            credentialManager.getCurrentTenantId() ?: user.activeTenant.tenantId
-        } else {
-            null
-        }
-
-        // Track session start if this is a new session with lifetime info from API
-        if (sessionTracker.getSessionStartTime(tenantId) == 0L) {
-            sessionTracker.trackSessionStart(tenantId)
-        }
-
-        // Cancel previous job if it exists
         refreshTokenTimer.cancelLastTimer()
 
         val decoded = JWTHelper.decode(accessToken)

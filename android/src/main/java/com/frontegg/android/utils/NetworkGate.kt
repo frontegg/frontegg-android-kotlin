@@ -61,17 +61,10 @@ object NetworkGate {
     private fun performBasicNetworkCheck(caps: NetworkCapabilities): Boolean {
         val onWifi = caps.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
         val onCellular = caps.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
-        val onEthernet = caps.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
-        
+
         val down = caps.linkDownstreamBandwidthKbps
         val up = caps.linkUpstreamBandwidthKbps
-        val transportType = when {
-            onWifi -> "WiFi"
-            onCellular -> "Cellular"
-            onEthernet -> "Ethernet"
-            else -> "Unknown"
-        }
-        
+
         // Allow only fast networks
         if (onWifi && down > 0 && up > 0) {
             if (down < 2000 || up < 1000) {
