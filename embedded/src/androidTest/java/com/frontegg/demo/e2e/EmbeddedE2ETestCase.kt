@@ -408,24 +408,17 @@ open class EmbeddedE2ETestCase {
     }
 
     protected fun waitForUserEmail(email: String, timeoutMs: Long = 30_000) {
-        val deadline = System.currentTimeMillis() + timeoutMs
-        val pkg = targetPackageName()
-        while (System.currentTimeMillis() < deadline) {
-            val remaining = deadline - System.currentTimeMillis()
-            if (remaining <= 0) break
-            val fg = foregroundPackage()
-            if (fg != null && fg != pkg && isLikelyBrowserPackage(fg)) {
-                runCatching { device.pressBack() }
-                Thread.sleep(600)
-                continue
-            }
-            val found = device.wait(Until.hasObject(By.desc("UserPageRoot")), minOf(remaining, 8_000))
-            if (found) {
-                waitForText(email, maxOf(remaining, 10_000))
-                return
-            }
+        dismissBrowserForegroundIfNeeded()
+        val halfTimeout = timeoutMs / 2
+        var ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), halfTimeout)
+        if (!ok) {
+            dismissBrowserForegroundIfNeeded()
+            ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), halfTimeout)
         }
-        throw AssertionError("Timeout waiting for contentDescription=UserPageRoot")
+        if (!ok) {
+            throw AssertionError("Timeout waiting for contentDescription=UserPageRoot")
+        }
+        waitForText(email, timeoutMs)
     }
 
     protected fun accessTokenVersion(): Int {

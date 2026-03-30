@@ -48,8 +48,22 @@ open class CredentialManager(val context: Context) {
      */
     @SuppressLint("ApplySharedPref")
     fun wipeAllStoredCredentials() {
-        sp.edit().clear().commit()
+        try {
+            sp.edit().clear().commit()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear encrypted prefs, deleting file", e)
+            deleteSharedPreferencesFile()
+        }
         context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).edit().clear().commit()
+    }
+
+    private fun deleteSharedPreferencesFile() {
+        try {
+            val prefsDir = java.io.File(context.applicationInfo.dataDir, "shared_prefs")
+            java.io.File(prefsDir, "$SHARED_PREFERENCES_NAME.xml").delete()
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not delete prefs file", e)
+        }
     }
 
     private fun createSecretKey(alias: String): SecretKey {
