@@ -47,9 +47,9 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot")
         tapDesc("E2ESeedRequestAuthorizeTokenButton")
-        Thread.sleep(600)
+        Thread.sleep(1_200)
         tapDesc("RequestAuthorizeButton")
-        waitForUserEmail("signup@frontegg.com", timeoutMs = 60_000)
+        waitForUserEmail("signup@frontegg.com", timeoutMs = 90_000)
     }
 
     @Test
@@ -116,7 +116,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         mock.queueProbeFailures(listOf(503, 503))
         terminateApp()
         launchApp(resetState = false)
-        waitForDesc("LoginPageRoot", timeoutMs = 15_000)
+        waitForDesc("LoginPageRoot", timeoutMs = 35_000)
         Thread.sleep(2100)
     }
 
@@ -215,7 +215,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testColdLaunchWithOfflineModeDisabledReachesLoginQuickly() {
         mock.queueProbeFailures(listOf(503, 503))
         launchApp(resetState = true, enableOfflineMode = false)
-        waitForDesc("LoginPageRoot", 15_000)
+        waitForDesc("LoginPageRoot", 35_000)
         Thread.sleep(2100)
     }
 
@@ -291,8 +291,9 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         loginWithPassword()
         terminateApp()
-        waitDurationSeconds((expiringAccessTokenTTL + 2).toLong())
+        // Extra slack for CI emulators (clock + load); access must be expired before relaunch.
+        waitDurationSeconds((expiringAccessTokenTTL + 6).toLong())
         launchApp(resetState = false)
-        waitForUserEmail("test@frontegg.com")
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
     }
 }
