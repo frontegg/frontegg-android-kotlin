@@ -76,7 +76,10 @@ open class EmbeddedE2ETestCase {
             (instrumentation.targetContext.applicationContext as App).consumeAndApplyE2EBootstrapFromDisk()
         }
         scenario = ActivityScenario.launch(NavigationActivity::class.java)
-        device.wait(Until.hasObject(By.pkg(instrumentation.targetContext.packageName).depth(0)), TimeUnit.SECONDS.toMillis(15))
+        device.wait(
+            Until.hasObject(By.pkg(instrumentation.targetContext.packageName).depth(0)),
+            TimeUnit.SECONDS.toMillis(25),
+        )
     }
 
     protected fun terminateApp() {

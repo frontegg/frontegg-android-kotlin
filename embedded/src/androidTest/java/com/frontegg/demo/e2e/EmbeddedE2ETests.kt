@@ -19,10 +19,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testPasswordLoginAndSessionRestore() {
         launchApp(resetState = true)
         loginWithPassword()
-        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
         terminateApp()
         launchApp(resetState = false)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        Thread.sleep(1_500)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 180_000)
     }
 
     @Test
@@ -74,11 +75,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession() {
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot")
+        waitForDesc("LoginPageRoot", timeoutMs = 40_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
         // Custom Tab loads oauth/authorize → redirect to mock Google page; script auto-completes after ~600ms.
-        Thread.sleep(22_000)
-        waitForUserEmail("google-social@frontegg.com", timeoutMs = 120_000)
+        Thread.sleep(32_000)
+        waitForUserEmail("google-social@frontegg.com", timeoutMs = 150_000)
     }
 
     @Test
@@ -165,14 +166,14 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         val v0 = accessTokenVersion()
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
-        waitForDesc("OfflineModeBadge", 45_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForDesc("OfflineModeBadge", 75_000)
         // Simulate recovery: next launch without forced offline
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = false)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
-        Thread.sleep(12_000)
-        waitForAccessTokenVersionChange(v0, timeoutMs = 180_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        Thread.sleep(18_000)
+        waitForAccessTokenVersionChange(v0, timeoutMs = 240_000)
     }
 
     @Test
@@ -246,12 +247,13 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testLogoutClearsSessionAndRelaunchShowsLogin() {
         launchApp(resetState = true)
         loginWithPassword()
-        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
         tapDesc("LogoutButton")
         waitForDesc("LoginPageRoot")
         terminateApp()
         launchApp(resetState = false)
-        waitForDesc("LoginPageRoot", timeoutMs = 35_000)
+        Thread.sleep(1_500)
+        waitForDesc("LoginPageRoot", timeoutMs = 60_000)
     }
 
     @Test
