@@ -104,7 +104,7 @@ jobs:
           report_paths: e2e-artifacts/*.xml
           check_name: Embedded E2E (shard ${{ matrix['shard-index'] }})
 
-      - uses: actions/upload-artifact@v5
+      - uses: actions/upload-artifact@v6
         if: always()
         with:
           name: embedded-e2e-shard-${{ matrix['shard-index'] }}
@@ -116,7 +116,7 @@ jobs:
     needs: [embedded-e2e]
     if: always()
     steps:
-      - uses: actions/download-artifact@v5
+      - uses: actions/download-artifact@v6
         with:
           path: all-e2e
 
@@ -126,7 +126,7 @@ jobs:
         run: node .github/scripts/combine_e2e_summary.js --artifacts-dir all-e2e --summary e2e-summary.md
 
       - name: Upload summary
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v6
         with:
           name: e2e-summary
           path: e2e-summary.md

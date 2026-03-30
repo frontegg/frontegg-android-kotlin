@@ -39,9 +39,8 @@ runs:
         server-password: NEXUS_PASSWORD
         gpg-private-key: ${{ inputs.gpg_signing_key }}
         gpg-passphrase: GPG_PASSPHRASE
-        cache: 'gradle'
         distribution: temurin
 
-    - name: Gradle cache
-      uses: gradle/gradle-build-action@v2
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v6
 
