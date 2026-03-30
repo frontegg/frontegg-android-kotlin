@@ -65,29 +65,16 @@ jobs:
         run: ./gradlew :embedded:assembleDebug :embedded:assembleDebugAndroidTest --no-daemon
 
       - name: Run embedded E2E on emulator
+        env:
+          E2E_CLASS: ${{ matrix['test-class'] }}
+          E2E_METHODS: ${{ matrix['test-methods'] }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
           arch: x86_64
           profile: pixel_6
-          script: |
-            # /bin/sh on Ubuntu is dash — no <<<, read -a, or "${arr[@]}"
-            CLASS="${{ matrix['test-class'] }}"
-            METHODS="${{ matrix['test-methods'] }}"
-            if [ -n "$METHODS" ]; then
-              _old_ifs=$IFS
-              IFS=,
-              for m in $METHODS; do
-                IFS=$_old_ifs
-                [ -z "$m" ] && continue
-                ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
-                  -Pandroid.testInstrumentationRunnerArguments.class="${CLASS}#${m}" || exit 1
-              done
-              IFS=$_old_ifs
-            else
-              ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
-                -Pandroid.testInstrumentationRunnerArguments.class="$CLASS" || exit 1
-            fi
+          # One line only: the action splits script on newlines and runs each line as separate `sh -c`.
+          script: bash .github/scripts/run_embedded_e2e_shard.sh
 
       - name: Collect JUnit reports
         if: always()
@@ -98,7 +85,7 @@ jobs:
           find . -path "*/androidTest-results/*" -name "*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
 
       - name: Publish JUnit report
-        uses: mikepenz/action-junit-report@v4
+        uses: mikepenz/action-junit-report@v5
         if: always()
         with:
           report_paths: e2e-artifacts/*.xml
