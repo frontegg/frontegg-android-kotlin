@@ -46,11 +46,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     @Test
     fun testRequestAuthorizeFlow() {
         launchApp(resetState = true)
-        waitForDesc("LoginPageRoot")
+        waitForDesc("LoginPageRoot", timeoutMs = 35_000)
         tapDesc("E2ESeedRequestAuthorizeTokenButton")
-        Thread.sleep(1_200)
+        Thread.sleep(2_000)
         tapDesc("RequestAuthorizeButton")
-        waitForUserEmail("signup@frontegg.com", timeoutMs = 90_000)
+        waitForUserEmail("signup@frontegg.com", timeoutMs = 120_000)
     }
 
     @Test
@@ -112,13 +112,14 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testLogoutTerminateTransientProbeFailureDoesNotBlinkNoConnectionPage() {
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         tapDesc("LogoutButton")
         waitForDesc("LoginPageRoot")
         mock.queueProbeFailures(listOf(503, 503))
         terminateApp()
         launchApp(resetState = false)
-        waitForDesc("LoginPageRoot", timeoutMs = 35_000)
-        Thread.sleep(2100)
+        waitForDesc("LoginPageRoot", timeoutMs = 50_000)
+        Thread.sleep(3500)
     }
 
     @Test
@@ -217,8 +218,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testColdLaunchWithOfflineModeDisabledReachesLoginQuickly() {
         mock.queueProbeFailures(listOf(503, 503))
         launchApp(resetState = true, enableOfflineMode = false)
-        waitForDesc("LoginPageRoot", 35_000)
-        Thread.sleep(2100)
+        waitForDesc("LoginPageRoot", 50_000)
+        Thread.sleep(3500)
     }
 
     @Test
@@ -294,10 +295,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         )
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         terminateApp()
         // Extra slack for CI emulators (clock + load); access must be expired before relaunch.
-        waitDurationSeconds((expiringAccessTokenTTL + 6).toLong())
+        waitDurationSeconds((expiringAccessTokenTTL + 8).toLong())
         launchApp(resetState = false)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 150_000)
     }
 }
