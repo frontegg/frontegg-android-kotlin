@@ -65,11 +65,14 @@ class HomeFragment : Fragment() {
         // Get the root view from the binding to return it to the parent container
         val root: View = binding.root
 
+        if (DemoEmbeddedTestMode.isEnabled) {
+            binding.root.contentDescription = "UserPageRoot"
+        }
+
         // Observe the user data from the ViewModel to update the UI with user info
         homeViewModel.user.observe(viewLifecycleOwner) { user ->
             // When the user data changes, update the UI with profile picture, name, email, and active tenant
             if (user != null) {
-                binding.root.contentDescription = "UserPageRoot"
                 binding.helloText.text = "Hello, ${user.name.split(" ")[0]}!"
                 binding.userInfo.apply {
                     // Load profile image

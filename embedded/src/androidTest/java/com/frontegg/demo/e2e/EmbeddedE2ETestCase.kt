@@ -187,8 +187,20 @@ open class EmbeddedE2ETestCase {
 
     protected fun tapDesc(contentDescription: String, timeoutMs: Long = 20_000) {
         scrollDescIntoView(contentDescription, timeoutMs)
-        device.findObject(By.desc(contentDescription))?.click()
-            ?: throw AssertionError("No node for desc=$contentDescription")
+        val deadline = System.currentTimeMillis() + 5_000
+        while (true) {
+            val obj = device.findObject(By.desc(contentDescription))
+                ?: throw AssertionError("No node for desc=$contentDescription")
+            try {
+                obj.click()
+                return
+            } catch (_: androidx.test.uiautomator.StaleObjectException) {
+                if (System.currentTimeMillis() > deadline) {
+                    throw AssertionError("StaleObjectException persists for desc=$contentDescription")
+                }
+                Thread.sleep(300)
+            }
+        }
     }
 
     /** E2E controls sit inside a ScrollView; swipe until the node exists with non-zero bounds. */
@@ -412,6 +424,15 @@ open class EmbeddedE2ETestCase {
         return paths.sumOf { mock.requestCount(null, it) }
     }
 
+    private fun dumpVisibleMarkers(): String {
+        val markers = listOf(
+            "UserPageRoot", "LoginPageRoot", "NoConnectionPageRoot",
+            "AuthenticatedOfflineModeEnabled", "OfflineModeBadge",
+        )
+        val found = markers.filter { device.findObject(By.desc(it)) != null }
+        return found.joinToString(", ").ifEmpty { "<none>" }
+    }
+
     protected fun waitForUserEmail(email: String, timeoutMs: Long = 60_000) {
         val deadline = System.currentTimeMillis() + timeoutMs
         // Phase 1: wait WITHOUT pressing Back — let any in-flight OAuth redirect in the Custom Tab
@@ -427,8 +448,10 @@ open class EmbeddedE2ETestCase {
         }
         if (!ok) {
             val fg = foregroundPackage()
+            val vis = dumpVisibleMarkers()
             throw AssertionError(
-                "Timeout waiting for contentDescription=UserPageRoot (foreground=$fg, expected=${targetPackageName()})",
+                "Timeout waiting for contentDescription=UserPageRoot " +
+                    "(foreground=$fg, expected=${targetPackageName()}, visibleMarkers=[$vis])",
             )
         }
         val textWait = (deadline - System.currentTimeMillis()).coerceAtLeast(10_000)
