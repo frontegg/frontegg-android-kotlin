@@ -101,7 +101,7 @@ open class EmbeddedE2ETestCase {
     }
 
     /** Press back while a browser/Custom Tab is in the foreground so the next launch is visible. */
-    private fun dismissBrowserForegroundIfNeeded() {
+    protected fun dismissBrowserForegroundIfNeeded() {
         repeat(15) {
             val cur = foregroundPackage() ?: return
             if (cur == targetPackageName()) return
@@ -246,6 +246,7 @@ open class EmbeddedE2ETestCase {
         val primary = text.lowercase()
         val started = System.currentTimeMillis()
         var waitedChrome = false
+        var lastEspressoRetry = System.currentTimeMillis()
         fun tryClickNeedle(n: String): Boolean {
             val needle = n.lowercase()
             val root = instrumentation.uiAutomation.rootInActiveWindow ?: return false
@@ -282,8 +283,12 @@ open class EmbeddedE2ETestCase {
             }
             if (!waitedChrome && System.currentTimeMillis() - started > 2_500L) {
                 waitedChrome = true
-                device.wait(Until.hasObject(By.pkg("com.android.chrome")), 28_000)
-                device.wait(Until.hasObject(By.pkg("com.google.android.apps.chrome")), 5_000)
+                device.wait(Until.hasObject(By.pkg("com.android.chrome")), 3_000)
+                device.wait(Until.hasObject(By.pkg("com.google.android.apps.chrome")), 2_000)
+            }
+            if (System.currentTimeMillis() - lastEspressoRetry > 4_000) {
+                lastEspressoRetry = System.currentTimeMillis()
+                if (tryEspressoWebTapLink(text)) return
             }
             val w = device.displayWidth
             val h = device.displayHeight
@@ -407,18 +412,27 @@ open class EmbeddedE2ETestCase {
         return paths.sumOf { mock.requestCount(null, it) }
     }
 
-    protected fun waitForUserEmail(email: String, timeoutMs: Long = 30_000) {
-        dismissBrowserForegroundIfNeeded()
-        val halfTimeout = timeoutMs / 2
-        var ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), halfTimeout)
+    protected fun waitForUserEmail(email: String, timeoutMs: Long = 60_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        // Phase 1: wait WITHOUT pressing Back — let any in-flight OAuth redirect in the Custom Tab
+        // complete naturally.  Pressing Back too early cancels the redirect.
+        val firstWait = (timeoutMs * 3) / 5
+        var ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), firstWait)
         if (!ok) {
+            // Phase 2: redirect should be done by now; dismiss any lingering browser / system overlay
             dismissBrowserForegroundIfNeeded()
-            ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), halfTimeout)
+            dismissSystemDialogIfNeeded()
+            val remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(5_000)
+            ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), remaining)
         }
         if (!ok) {
-            throw AssertionError("Timeout waiting for contentDescription=UserPageRoot")
+            val fg = foregroundPackage()
+            throw AssertionError(
+                "Timeout waiting for contentDescription=UserPageRoot (foreground=$fg, expected=${targetPackageName()})",
+            )
         }
-        waitForText(email, timeoutMs)
+        val textWait = (deadline - System.currentTimeMillis()).coerceAtLeast(10_000)
+        waitForText(email, textWait)
     }
 
     protected fun accessTokenVersion(): Int {

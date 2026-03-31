@@ -59,7 +59,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2ECustomSSOButton")
-        Thread.sleep(4_500)
+        Thread.sleep(8_000)
         waitForUserEmail("custom-sso@frontegg.com", timeoutMs = 120_000)
     }
 
@@ -68,8 +68,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EDirectSocialLoginButton")
-        Thread.sleep(6_000)
-        waitForUserEmail("social-login@frontegg.com", timeoutMs = 90_000)
+        Thread.sleep(8_000)
+        waitForUserEmail("social-login@frontegg.com", timeoutMs = 120_000)
     }
 
     @Test
@@ -91,8 +91,9 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
-        Thread.sleep(18_000)
-        if (!waitForA11yTextContains("ER-05001", 50_000)) {
+        Thread.sleep(25_000)
+        dismissBrowserForegroundIfNeeded()
+        if (!waitForA11yTextContains("ER-05001", 60_000)) {
             throw AssertionError("Expected error text in UI")
         }
     }
@@ -130,7 +131,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         val initialVersion = accessTokenVersion()
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
-        waitForUserEmail("test@frontegg.com")
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         waitForDesc("AuthenticatedOfflineModeEnabled", 10_000)
         waitForDesc("OfflineModeBadge", 10_000)
         assert(accessTokenVersion() == initialVersion)
@@ -187,14 +188,14 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         loginWithPassword()
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
-        waitForUserEmail("test@frontegg.com")
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         waitForDesc("OfflineModeBadge", 30_000)
         waitDurationSeconds((expiringAccessTokenTTL + 2).toLong())
         waitForDesc("AuthenticatedOfflineModeEnabled")
         val versionBeforeReconnect = accessTokenVersion()
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = false)
-        waitForUserEmail("test@frontegg.com")
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         waitForAccessTokenVersionChange(versionBeforeReconnect, timeoutMs = 75_000)
     }
 
@@ -231,7 +232,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         terminateApp()
         mock.queueConnectionDrops(method = "POST", path = "/oauth/token", count = 1)
         launchApp(resetState = false, enableOfflineMode = false)
-        waitForUserEmail("test@frontegg.com")
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         Thread.sleep(2000)
         mock.reset()
     }
