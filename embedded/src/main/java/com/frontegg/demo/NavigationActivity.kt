@@ -17,6 +17,8 @@ import com.frontegg.android.utils.NullableObject
 import com.frontegg.demo.databinding.ActivityNavigationBinding
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -110,16 +112,35 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
 
+    private fun directPing(): Boolean {
+        val baseUrl = try { fronteggAuth.baseUrl } catch (_: Exception) { return true }
+        if (baseUrl.isBlank()) return true
+        val probeUrl = "${baseUrl.trimEnd('/')}/test"
+        return try {
+            val conn = URL(probeUrl).openConnection() as HttpURLConnection
+            conn.requestMethod = "HEAD"
+            conn.connectTimeout = 4_000
+            conn.readTimeout = 4_000
+            conn.instanceFollowRedirects = false
+            try {
+                conn.responseCode in 200..499
+            } finally {
+                conn.disconnect()
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
     private fun scheduleNetProbeIfNeeded() {
         if (e2eNetProbeRunning.get()) return
         val now = System.currentTimeMillis()
         if (now - e2eNetLastProbeMs.get() < 2_000) return
         e2eNetProbeRunning.set(true)
-        val ctx = this
         e2eProbeExecutor.execute {
             val good = try {
                 val forceOff = NetworkGate.isE2eForceNetworkPathOffline()
-                !forceOff && NetworkGate.isNetworkLikelyGood(ctx)
+                !forceOff && directPing()
             } catch (_: Exception) {
                 true
             }

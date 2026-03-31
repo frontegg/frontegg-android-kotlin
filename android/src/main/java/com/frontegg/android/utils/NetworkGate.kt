@@ -6,6 +6,8 @@ import android.net.NetworkCapabilities
 import androidx.annotation.CheckResult
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import java.net.HttpURLConnection
+import java.net.URL
 import java.util.concurrent.TimeUnit
 
 object NetworkGate {
@@ -97,12 +99,12 @@ object NetworkGate {
     private fun performPingTest(): Boolean {
         val url = fronteggBaseUrl ?: return false
         val trimmed = url.trimEnd('/')
-        val probeUrl = if (isLocalUrl(trimmed)) {
-            "$trimmed/test"
-        } else {
-            "$trimmed/"
+
+        if (isLocalUrl(trimmed)) {
+            return performLocalPing("$trimmed/test")
         }
 
+        val probeUrl = "$trimmed/"
         return try {
             val request = Request.Builder()
                 .url(probeUrl)
@@ -116,6 +118,30 @@ object NetworkGate {
             response.close()
             
             responseTime < 3000
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Fresh [HttpURLConnection] per call avoids OkHttp connection-pool state
+     * that can leak between E2E test runs sharing the same process.
+     */
+    private fun performLocalPing(probeUrl: String): Boolean {
+        return try {
+            val conn = URL(probeUrl).openConnection() as HttpURLConnection
+            conn.requestMethod = "HEAD"
+            conn.connectTimeout = 4_000
+            conn.readTimeout = 4_000
+            conn.instanceFollowRedirects = false
+            try {
+                val startTime = System.currentTimeMillis()
+                val code = conn.responseCode
+                val elapsed = System.currentTimeMillis() - startTime
+                code in 200..499 && elapsed < 3000
+            } finally {
+                conn.disconnect()
+            }
         } catch (_: Exception) {
             false
         }
