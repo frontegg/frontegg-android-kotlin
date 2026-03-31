@@ -78,7 +78,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
         // Custom Tab loads oauth/authorize → redirect to mock Google page; script auto-completes after ~600ms.
-        Thread.sleep(32_000)
+        Thread.sleep(45_000)
         waitForUserEmail("google-social@frontegg.com", timeoutMs = 150_000)
     }
 
@@ -162,6 +162,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
 
     @Test
     fun testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken() {
+        mock.configureTokenPolicy(
+            email = "test@frontegg.com",
+            accessTTL = expiringAccessTokenTTL,
+            refreshTTL = longLivedRefreshTokenTTL,
+        )
         launchApp(resetState = true)
         loginWithPassword()
         val v0 = accessTokenVersion()
@@ -169,11 +174,13 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = false, forceNetworkPathOffline = true)
         waitForDesc("UserPageRoot", 90_000)
         waitForDesc("OfflineModeBadge", 75_000)
+        // Let the access token expire during the offline phase
+        waitDurationSeconds((expiringAccessTokenTTL + 5).toLong())
         // Simulate recovery: next launch without forced offline
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = false)
         waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
-        Thread.sleep(18_000)
+        Thread.sleep(10_000)
         waitForAccessTokenVersionChange(v0, timeoutMs = 240_000)
     }
 

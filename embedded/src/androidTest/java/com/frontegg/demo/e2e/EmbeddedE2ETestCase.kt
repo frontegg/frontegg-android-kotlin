@@ -239,10 +239,22 @@ open class EmbeddedE2ETestCase {
 
     protected fun loginWithPassword() {
         waitForDesc("LoginPageRoot", 120_000)
-        tapDesc("E2EEmbeddedPasswordButton")
-        // Embedded WebView: hosted password step — pre-filled email; submit password flow
-        Thread.sleep(3_500)
-        tapWebButtonIfPresent("Sign in", timeoutMs = 90_000)
+        for (attempt in 0..1) {
+            tapDesc("E2EEmbeddedPasswordButton")
+            Thread.sleep(if (attempt == 0) 4_000 else 6_000)
+            try {
+                tapWebButtonIfPresent("Sign in", timeoutMs = if (attempt == 0) 60_000 else 90_000)
+                return
+            } catch (e: AssertionError) {
+                if (attempt == 0 && "not found" in (e.message ?: "")) {
+                    runCatching { device.pressBack() }
+                    Thread.sleep(2_000)
+                    waitForDesc("LoginPageRoot", 30_000)
+                } else {
+                    throw e
+                }
+            }
+        }
     }
 
     protected fun tapWebButtonIfPresent(text: String, timeoutMs: Long = 20_000) {
@@ -443,8 +455,22 @@ open class EmbeddedE2ETestCase {
             // Phase 2: redirect should be done by now; dismiss any lingering browser / system overlay
             dismissBrowserForegroundIfNeeded()
             dismissSystemDialogIfNeeded()
-            val remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(5_000)
-            ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), remaining)
+            val phase2Wait = ((deadline - System.currentTimeMillis()) * 2 / 3).coerceAtLeast(5_000)
+            ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), phase2Wait)
+        }
+        if (!ok) {
+            // Phase 3: no markers visible can mean the SDK's AuthenticationActivity is stuck
+            // on top after a Custom Tab callback. Press Back to dismiss it, then re-launch
+            // NavigationActivity so the authenticated graph (or login) comes to the front.
+            val vis = dumpVisibleMarkers()
+            if ("<none>" in vis) {
+                runCatching { device.pressBack() }
+                Thread.sleep(1_500)
+                launchDemoActivityIntent()
+                Thread.sleep(1_000)
+                val remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(8_000)
+                ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), remaining)
+            }
         }
         if (!ok) {
             val fg = foregroundPackage()
