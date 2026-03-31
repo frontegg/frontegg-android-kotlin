@@ -17,6 +17,9 @@ import com.frontegg.android.utils.NullableObject
 import com.frontegg.demo.databinding.ActivityNavigationBinding
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicLong
 
 class NavigationActivity : AppCompatActivity() {
 
@@ -30,6 +33,12 @@ class NavigationActivity : AppCompatActivity() {
     private val e2eHandler = Handler(Looper.getMainLooper())
     private var e2eTicker: Runnable? = null
     private var e2eBadNetworkSinceMs: Long = 0L
+    private val e2eNetGood = AtomicBoolean(true)
+    private val e2eNetProbeRunning = AtomicBoolean(false)
+    private val e2eNetLastProbeMs = AtomicLong(0L)
+    private val e2eProbeExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "e2e-net-probe").apply { isDaemon = true }
+    }
 
     /**
      * Configuration for authenticated users.
@@ -101,6 +110,25 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
 
+    private fun scheduleNetProbeIfNeeded() {
+        if (e2eNetProbeRunning.get()) return
+        val now = System.currentTimeMillis()
+        if (now - e2eNetLastProbeMs.get() < 2_000) return
+        e2eNetProbeRunning.set(true)
+        val ctx = this
+        e2eProbeExecutor.execute {
+            val good = try {
+                val forceOff = NetworkGate.isE2eForceNetworkPathOffline()
+                !forceOff && NetworkGate.isNetworkLikelyGood(ctx)
+            } catch (_: Exception) {
+                true
+            }
+            e2eNetGood.set(good)
+            e2eNetLastProbeMs.set(System.currentTimeMillis())
+            e2eNetProbeRunning.set(false)
+        }
+    }
+
     private fun tickE2EUi() {
         val overlay = e2eOverlay ?: return
         val initializing = try {
@@ -108,7 +136,6 @@ class NavigationActivity : AppCompatActivity() {
         } catch (_: Exception) {
             false
         }
-        // Avoid flashing "no connection" while the SDK is still probing / hydrating (Swift parity).
         if (initializing) {
             overlay.visibility = View.GONE
             return
@@ -118,12 +145,8 @@ class NavigationActivity : AppCompatActivity() {
         } catch (_: Exception) {
             false
         }
-        val forceOff = NetworkGate.isE2eForceNetworkPathOffline()
-        val netLikelyGood = try {
-            !forceOff && NetworkGate.isNetworkLikelyGood(this)
-        } catch (_: Exception) {
-            true
-        }
+        scheduleNetProbeIfNeeded()
+        val netLikelyGood = e2eNetGood.get()
         val offlineFeatureOn = DemoEmbeddedTestMode.isOfflineModeFeatureEnabled(this)
         val now = System.currentTimeMillis()
         if (!netLikelyGood) {
@@ -131,8 +154,7 @@ class NavigationActivity : AppCompatActivity() {
         } else {
             e2eBadNetworkSinceMs = 0L
         }
-        // Longer debounce while logged out: cold-start probe slowness should not flash this overlay.
-        val debounceMs = if (authenticated) 2000L else 4500L
+        val debounceMs = if (authenticated) 2000L else 6000L
         val sustainedBad = e2eBadNetworkSinceMs > 0 && now - e2eBadNetworkSinceMs > debounceMs
 
         if (!authenticated && offlineFeatureOn && sustainedBad && !netLikelyGood) {
