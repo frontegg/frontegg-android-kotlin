@@ -35,7 +35,14 @@ class LocalMockAuthServer {
 
     fun start() = server.start()
     fun shutdown() = server.shutdown()
+    /** Always use "localhost" so the URL matches the manifest's android:host="${frontegg_domain}". */
     fun urlRoot(): String = server.url("/").toString().trimEnd('/')
+        .replace("://127.0.0.1:", "://localhost:")
+
+    private fun mockAuthority(): String {
+        val p = server.port
+        return if (p == 80 || p == 443) "localhost" else "localhost:$p"
+    }
     fun reset() {
         state.reset()
         requestLogLock.withLock { requestLog.clear() }
@@ -199,6 +206,18 @@ class LocalMockAuthServer {
             method == "GET" && path == "/idp/custom-sso" -> idpPage("custom-sso@frontegg.com", "Custom SSO", "Continue Custom SSO", q)
             method == "GET" && path.startsWith("/idp/social/") ->
                 idpPage("social-login@frontegg.com", "Mock Social", "Continue Mock Social", q)
+            method == "GET" && path.startsWith("/oauth/account/redirect/android/") -> {
+                val pkg = path.removePrefix("/oauth/account/redirect/android/")
+                val code = fq(q, "code")
+                val st = fq(q, "state")
+                val err = state.consumeOAuthErr()
+                val loc = if (err != null) {
+                    "${pkg.lowercase()}://${mockAuthority()}/android/oauth/callback?error=${enc(err.first)}&error_description=${enc(err.second)}&state=${enc(st)}"
+                } else {
+                    "${pkg.lowercase()}://${mockAuthority()}/android/oauth/callback?code=${enc(code)}&state=${enc(st)}"
+                }
+                redir(loc)
+            }
             else -> json(404, JSONObject().put("error", "$method $path"))
         }
     }
@@ -262,10 +281,15 @@ class LocalMockAuthServer {
                     Triple("Mock Social", "Continue Mock Social", "social-login@frontegg.com")
                 else -> Triple("Direct", "Continue", "direct-login@frontegg.com")
             }
-            // Same anchor + id as idpPage: Embedded WebView can use Espresso-Web; a11y matches E2E needles.
             val href =
                 "/browser/complete?email=${enc(em)}&redirect_uri=${enc(redirect)}&state=${enc(st)}"
-            val htmlBody = """<h1>$ti</h1><p><a id="e2e-complete" href="$href">$bt</a></p>"""
+            val htmlBody = """<h1>$ti</h1><p><a id="e2e-complete" href="$href">$bt</a></p>
+            <script>
+            setTimeout(function(){
+              var e=document.getElementById('e2e-complete');
+              if(e) e.click();
+            }, 900);
+            </script>"""
             return html(200, ti, htmlBody)
         }
         val hs = state.issueHosted(redirect, st, hint)
@@ -383,9 +407,7 @@ class LocalMockAuthServer {
             }
             val pkg = o.optString("bundleId", "")
             if (pkg.isEmpty()) return json(400, JSONObject().put("error", "invalid_social_state"))
-            val host = server.hostName
-            val port = server.port
-            val auth = if (port == 80 || port == 443) host else "$host:$port"
+            val auth = mockAuthority()
             val plat = o.optString("platform", "")
             val path = if (plat.equals("android", true)) "/android/oauth/callback" else "/ios/oauth/callback"
             val loc = "${pkg.lowercase()}://$auth$path?state=${enc(rawState)}&code=${enc(code)}&social-login-callback=true"
@@ -396,12 +418,7 @@ class LocalMockAuthServer {
             val st = state.latestHosted() ?: rawState
             val bundle = embeddedBundle(redir)
             val loc = if (bundle != null) {
-                "${bundle.lowercase()}://${
-                    server.hostName.let { h ->
-                        val p = server.port
-                        if (p == 80 || p == 443) h else "$h:$p"
-                    }
-                }/android/oauth/callback?error=${enc(err.first)}&error_description=${enc(err.second)}&state=${enc(st)}"
+                "${bundle.lowercase()}://${mockAuthority()}/android/oauth/callback?error=${enc(err.first)}&error_description=${enc(err.second)}&state=${enc(st)}"
             } else {
                 cbErr(redir, st, err.first, err.second)
             }
