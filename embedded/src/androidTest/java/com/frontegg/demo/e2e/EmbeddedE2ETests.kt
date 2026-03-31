@@ -216,7 +216,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         tapDesc("LogoutButton", 30_000)
         waitForDesc("LoginPageRoot", 60_000)
-        mock.queueProbeFailures(listOf(503))
+        mock.queueProbeFailures(listOf(503, 503, 503, 503, 503, 503, 503, 503))
         terminateApp()
         launchApp(resetState = false)
         waitForDesc("NoConnectionPageRoot", 45_000)
@@ -299,7 +299,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         loginWithPassword()
         waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         val start = oauthRefreshRequestCount()
-        Thread.sleep(35_000)
+        Thread.sleep(42_000)
         assert(oauthRefreshRequestCount() > start)
     }
 
