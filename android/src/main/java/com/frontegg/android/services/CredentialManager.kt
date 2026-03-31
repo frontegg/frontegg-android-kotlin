@@ -253,29 +253,48 @@ open class CredentialManager(val context: Context) {
 
     @SuppressLint("ApplySharedPref")
     fun clearAllTokens() {
-        val selectedRegion: String? = getSelectedRegion()
+        val selectedRegion: String? = try {
+            getSelectedRegion()
+        } catch (_: SecurityException) {
+            null
+        }
         val accessTokenKey = CredentialKeys.ACCESS_TOKEN.toString()
         val refreshTokenKey = CredentialKeys.REFRESH_TOKEN.toString()
-        
-        with(sp.edit()) {
-            val allKeys = sp.all.keys
-            for (key in allKeys) {
-                if (key == accessTokenKey || key == refreshTokenKey) {
-                    remove(key)
-                } else if (key.startsWith("${accessTokenKey}_tenant_") || 
-                         key.startsWith("${refreshTokenKey}_tenant_")) {
-                    remove(key)
+
+        try {
+            with(sp.edit()) {
+                try {
+                    val allKeys = sp.all.keys
+                    for (key in allKeys) {
+                        if (key == accessTokenKey || key == refreshTokenKey) {
+                            remove(key)
+                        } else if (key.startsWith("${accessTokenKey}_tenant_") ||
+                            key.startsWith("${refreshTokenKey}_tenant_")) {
+                            remove(key)
+                        }
+                    }
+                } catch (e: SecurityException) {
+                    // EncryptedSharedPreferences.getAll() decrypts every key; instrumentation runs can
+                    // leave the keystore out of sync with stored ciphertext (Tink "Could not decrypt key").
+                    Log.w(
+                        TAG,
+                        "clearAllTokens: cannot enumerate keys; removing primary token fields only",
+                        e,
+                    )
+                    remove(accessTokenKey)
+                    remove(refreshTokenKey)
                 }
+                remove(CredentialKeys.CODE_VERIFIER.toString())
+                remove(CredentialKeys.CURRENT_TENANT_ID.toString())
+                if (selectedRegion != null) {
+                    putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
+                }
+                apply()
+                commit()
             }
-            
-            remove(CredentialKeys.CODE_VERIFIER.toString())
-            remove(CredentialKeys.CURRENT_TENANT_ID.toString())
-            
-            if (selectedRegion != null) {
-                putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
-            }
-            apply()
-            commit()
+        } catch (e: SecurityException) {
+            Log.w(TAG, "clearAllTokens: commit failed; wiping credential store", e)
+            wipeAllStoredCredentials()
         }
     }
 

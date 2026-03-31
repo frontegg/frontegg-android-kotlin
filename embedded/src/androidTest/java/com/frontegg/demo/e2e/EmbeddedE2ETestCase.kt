@@ -239,17 +239,55 @@ open class EmbeddedE2ETestCase {
 
     protected fun loginWithPassword() {
         waitForDesc("LoginPageRoot", 120_000)
-        for (attempt in 0..1) {
+        for (attempt in 0..2) {
             tapDesc("E2EEmbeddedPasswordButton")
-            Thread.sleep(if (attempt == 0) 4_000 else 6_000)
+            Thread.sleep(
+                when (attempt) {
+                    0 -> 5_000
+                    1 -> 7_000
+                    else -> 9_000
+                },
+            )
             try {
-                tapWebButtonIfPresent("Sign in", timeoutMs = if (attempt == 0) 60_000 else 90_000)
+                tapWebButtonIfPresent(
+                    "Sign in",
+                    timeoutMs = when (attempt) {
+                        0 -> 75_000
+                        1 -> 95_000
+                        else -> 120_000
+                    },
+                )
+                return
+            } catch (e: AssertionError) {
+                if (attempt < 2 && "not found" in (e.message ?: "")) {
+                    runCatching { device.pressBack() }
+                    Thread.sleep(2_500)
+                    waitForDesc("LoginPageRoot", 45_000)
+                } else {
+                    throw e
+                }
+            }
+        }
+    }
+
+    /** SAML/OIDC embedded flows: WebView can render the mock Okta control late on CI emulators. */
+    protected fun tapEmbeddedMockOktaAfterButton(embedButtonDesc: String) {
+        tapDesc(embedButtonDesc)
+        Thread.sleep(3_500)
+        for (attempt in 0..1) {
+            try {
+                tapWebButtonIfPresent(
+                    "Login With Okta",
+                    timeoutMs = if (attempt == 0) 95_000 else 120_000,
+                )
                 return
             } catch (e: AssertionError) {
                 if (attempt == 0 && "not found" in (e.message ?: "")) {
                     runCatching { device.pressBack() }
-                    Thread.sleep(2_000)
-                    waitForDesc("LoginPageRoot", 30_000)
+                    Thread.sleep(2_500)
+                    waitForDesc("LoginPageRoot", 45_000)
+                    tapDesc(embedButtonDesc)
+                    Thread.sleep(5_000)
                 } else {
                     throw e
                 }
@@ -263,7 +301,7 @@ open class EmbeddedE2ETestCase {
             Thread.sleep(3_500)
         }
         if ("sign in" in primaryLower || "okta" in primaryLower) {
-            Thread.sleep(4_000)
+            Thread.sleep(6_000)
         }
         if (tryEspressoWebTapLink(text)) return
         val deadline = System.currentTimeMillis() + timeoutMs

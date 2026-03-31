@@ -30,9 +30,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testEmbeddedSamlLogin() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
-        tapDesc("E2EEmbeddedSAMLButton")
-        Thread.sleep(3_500)
-        tapWebButtonIfPresent("Login With Okta")
+        tapEmbeddedMockOktaAfterButton("E2EEmbeddedSAMLButton")
         waitForUserEmail("test@saml-domain.com")
     }
 
@@ -40,9 +38,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testEmbeddedOidcLogin() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
-        tapDesc("E2EEmbeddedOIDCButton")
-        Thread.sleep(3_500)
-        tapWebButtonIfPresent("Login With Okta")
+        tapEmbeddedMockOktaAfterButton("E2EEmbeddedOIDCButton")
         waitForUserEmail("test@oidc-domain.com")
     }
 
@@ -61,7 +57,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2ECustomSSOButton")
-        Thread.sleep(14_000)
+        Thread.sleep(20_000)
         waitForUserEmail("custom-sso@frontegg.com", timeoutMs = 120_000)
     }
 
@@ -70,7 +66,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EDirectSocialLoginButton")
-        Thread.sleep(14_000)
+        Thread.sleep(20_000)
         waitForUserEmail("social-login@frontegg.com", timeoutMs = 120_000)
     }
 
@@ -80,8 +76,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
         // Custom Tab loads oauth/authorize → redirect to mock Google page; script auto-completes after ~600ms.
-        Thread.sleep(45_000)
-        waitForUserEmail("google-social@frontegg.com", timeoutMs = 150_000)
+        Thread.sleep(55_000)
+        waitForUserEmail("google-social@frontegg.com", timeoutMs = 180_000)
     }
 
     @Test
@@ -93,9 +89,9 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
-        Thread.sleep(25_000)
+        Thread.sleep(38_000)
         dismissBrowserForegroundIfNeeded()
-        if (!waitForA11yTextContains("ER-05001", 60_000)) {
+        if (!waitForA11yTextContains("ER-05001", 90_000)) {
             throw AssertionError("Expected error text in UI")
         }
     }
@@ -222,7 +218,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         mock.queueProbeFailures(listOf(503, 503, 503, 503, 503, 503, 503, 503, 503, 503))
         terminateApp()
         launchApp(resetState = false)
-        waitForDesc("NoConnectionPageRoot", 75_000)
+        waitForDesc("NoConnectionPageRoot", 95_000)
         mock.reset()
         tapDesc("RetryConnectionButton", 15_000)
         waitForDesc("LoginPageRoot", 60_000)

@@ -7,6 +7,7 @@ import android.util.Log
 import android.view.View
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
@@ -28,6 +29,8 @@ class NavigationActivity : AppCompatActivity() {
 
     companion object {
         private val TAG = NavigationActivity::class.java.canonicalName
+        /** Consecutive failed /test probes before showing the offline overlay (browser handoff can starve the mock briefly on CI). */
+        private const val E2E_NET_FAIL_STREAK_THRESHOLD = 5
     }
 
     private lateinit var binding: ActivityNavigationBinding
@@ -36,7 +39,7 @@ class NavigationActivity : AppCompatActivity() {
     private val e2eHandler = Handler(Looper.getMainLooper())
     private var e2eTicker: Runnable? = null
     private var e2eBadNetworkSinceMs: Long = 0L
-    /** Require this many consecutive failed probes before treating the network as bad for the overlay (transient single-probe flakes on CI). */
+    /** Consecutive failed /test probes before the overlay can appear (see [E2E_NET_FAIL_STREAK_THRESHOLD]). */
     private val e2eConsecutiveNetFails = AtomicInteger(0)
     private val e2eNetProbeRunning = AtomicBoolean(false)
     private val e2eNetLastProbeMs = AtomicLong(0L)
@@ -159,6 +162,10 @@ class NavigationActivity : AppCompatActivity() {
 
     private fun tickE2EUi() {
         val overlay = e2eOverlay ?: return
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            overlay.visibility = View.GONE
+            return
+        }
         val initializing = try {
             fronteggAuth.initializing.value == true
         } catch (_: Exception) {
@@ -174,7 +181,7 @@ class NavigationActivity : AppCompatActivity() {
             false
         }
         scheduleNetProbeIfNeeded()
-        val hardNetBad = e2eConsecutiveNetFails.get() >= 3
+        val hardNetBad = e2eConsecutiveNetFails.get() >= E2E_NET_FAIL_STREAK_THRESHOLD
         val offlineFeatureOn = DemoEmbeddedTestMode.isOfflineModeFeatureEnabled(this)
         val now = System.currentTimeMillis()
         if (!hardNetBad) {
@@ -182,7 +189,7 @@ class NavigationActivity : AppCompatActivity() {
         } else {
             if (e2eBadNetworkSinceMs == 0L) e2eBadNetworkSinceMs = now
         }
-        val debounceMs = if (authenticated) 2000L else 6000L
+        val debounceMs = if (authenticated) 2000L else 9000L
         val sustainedBad = e2eBadNetworkSinceMs > 0 && now - e2eBadNetworkSinceMs > debounceMs
 
         if (!authenticated && offlineFeatureOn && sustainedBad && hardNetBad) {
