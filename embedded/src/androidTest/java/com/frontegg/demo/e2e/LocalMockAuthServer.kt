@@ -216,7 +216,9 @@ class LocalMockAuthServer {
                 } else {
                     "${pkg.lowercase()}://${mockAuthority()}/android/oauth/callback?code=${enc(code)}&state=${enc(st)}"
                 }
-                redir(loc)
+                val jsLoc = loc.replace("\\", "\\\\").replace("'", "\\'")
+                html(200, "Redirect", """<p>Completing login…</p>
+                    <script>(function(){window.location.href='$jsLoc';})()</script>""")
             }
             else -> json(404, JSONObject().put("error", "$method $path"))
         }

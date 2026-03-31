@@ -485,7 +485,7 @@ open class EmbeddedE2ETestCase {
     }
 
     protected fun accessTokenVersion(): Int {
-        waitForDesc("AccessTokenVersionValue", 10_000)
+        waitForDesc("AccessTokenVersionValue", 30_000)
         val n = device.findObject(By.desc("AccessTokenVersionValue"))?.text?.toIntOrNull()
             ?: throw AssertionError("No AccessTokenVersionValue")
         return n

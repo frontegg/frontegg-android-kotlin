@@ -128,6 +128,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testAuthenticatedOfflineModeWhenNetworkPathUnavailable() {
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         val initialVersion = accessTokenVersion()
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
@@ -169,6 +170,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         )
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         val v0 = accessTokenVersion()
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
@@ -193,6 +195,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         )
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
         waitForDesc("UserPageRoot", 90_000)
@@ -210,6 +213,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testLogoutTerminateTransientNoConnectionThenCustomSSORecovers() {
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         tapDesc("LogoutButton", 30_000)
         waitForDesc("LoginPageRoot", 60_000)
         mock.queueProbeFailures(listOf(503))
@@ -236,6 +240,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers() {
         launchApp(resetState = true, enableOfflineMode = false)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         terminateApp()
         mock.queueConnectionDrops(method = "POST", path = "/oauth/token", count = 1)
         launchApp(resetState = false, enableOfflineMode = false)
@@ -292,6 +297,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         )
         launchApp(resetState = true)
         loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         val start = oauthRefreshRequestCount()
         Thread.sleep(35_000)
         assert(oauthRefreshRequestCount() > start)
