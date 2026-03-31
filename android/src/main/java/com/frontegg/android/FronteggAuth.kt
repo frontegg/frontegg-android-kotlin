@@ -44,6 +44,7 @@ interface FronteggAuth {
     val initializing: ReadOnlyObservableValue<Boolean>
     val showLoader: ReadOnlyObservableValue<Boolean>
     val refreshingToken: ReadOnlyObservableValue<Boolean>
+    val isOfflineMode: ReadOnlyObservableValue<Boolean>
     val isStepUpAuthorization: ReadOnlyObservableValue<Boolean>
 
     val baseUrl: String

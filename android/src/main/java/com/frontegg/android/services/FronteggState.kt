@@ -13,5 +13,6 @@ object FronteggState {
     val initializing: ObservableValue<Boolean> = ObservableValue(true)
     val showLoader: ObservableValue<Boolean> = ObservableValue(true)
     val refreshingToken: ObservableValue<Boolean> = ObservableValue(false)
+    val isOfflineMode: ObservableValue<Boolean> = ObservableValue(false)
     val isStepUpAuthorization: ObservableValue<Boolean> = ObservableValue(false)
 }

@@ -16,6 +16,8 @@ class FronteggConstantsTest {
             useDiskCacheWebview = true,
             mainActivityClass = "com.test.MainActivity",
             disableAutoRefresh = false,
+            enableOfflineMode = true,
+            networkMonitoringIntervalSeconds = 15,
             enableSessionPerTenant = true,
             sentryMaxQueueSize = 100,
             fronteggOrganization = null
@@ -30,6 +32,8 @@ class FronteggConstantsTest {
         assert(constants.useDiskCacheWebview)
         assert(constants.mainActivityClass == "com.test.MainActivity")
         assert(!constants.disableAutoRefresh)
+        assert(constants.enableOfflineMode)
+        assert(constants.networkMonitoringIntervalSeconds == 15)
         assert(constants.enableSessionPerTenant)
         assert(constants.sentryMaxQueueSize == 100)
     }
@@ -68,6 +72,8 @@ class FronteggConstantsTest {
             useDiskCacheWebview = true,
             mainActivityClass = "MainActivity",
             disableAutoRefresh = true,
+            enableOfflineMode = true,
+            networkMonitoringIntervalSeconds = 20,
             enableSessionPerTenant = true,
             sentryMaxQueueSize = 200,
             fronteggOrganization = null
@@ -84,6 +90,8 @@ class FronteggConstantsTest {
         assert(map["useDiskCacheWebview"] == true)
         assert(map["mainActivityClass"] == "MainActivity")
         assert(map["disableAutoRefresh"] == true)
+        assert(map["enableOfflineMode"] == true)
+        assert(map["networkMonitoringIntervalSeconds"] == 20)
         assert(map["enableSessionPerTenant"] == true)
         assert(map["sentryMaxQueueSize"] == 200)
     }
@@ -134,7 +142,7 @@ class FronteggConstantsTest {
         
         val map = constants.toMap()
         
-        assert(map.size == 13)
+        assert(map.size == 15)
     }
 
     @Test

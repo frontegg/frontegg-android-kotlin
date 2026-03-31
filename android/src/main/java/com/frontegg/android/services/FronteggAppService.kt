@@ -30,6 +30,8 @@ class FronteggAppService(
     private var deepLinkScheme: String? = null,
     private var useDiskCacheWebview: Boolean = false,
     private var disableAutoRefresh: Boolean = false,
+    private var enableOfflineMode: Boolean = false,
+    private var networkMonitoringIntervalSeconds: Int = 10,
     private var enableSessionPerTenant: Boolean = false,
     private var entitlementsEnabled: Boolean = false,
     private var tenantResolver: TenantResolver? = null
@@ -50,6 +52,8 @@ class FronteggAppService(
                 credentialManager,
                 appLifecycle,
                 refreshTokenManager,
+                enableOfflineMode = enableOfflineMode,
+                networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                 disableAutoRefresh = disableAutoRefresh
             )
     }

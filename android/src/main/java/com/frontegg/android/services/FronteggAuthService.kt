@@ -56,6 +56,8 @@ class FronteggAuthService(
     val credentialManager: CredentialManager,
     appLifecycle: FronteggAppLifecycle,
     val refreshTokenTimer: FronteggRefreshTokenTimer,
+    private val enableOfflineMode: Boolean = false,
+    private val networkMonitoringIntervalSeconds: Int = 10,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
     private val disableAutoRefresh: Boolean = false
@@ -74,6 +76,16 @@ class FronteggAuthService(
     
     private val maxWaitTimeMs = 60_000L
     @Volatile private var isNetworkMonitoringRunning: Boolean = false
+    private val monitoringIntervalMs: Long
+        get() = (networkMonitoringIntervalSeconds.coerceAtLeast(1) * 1000L)
+
+    private fun setOfflineMode(value: Boolean) {
+        if (!enableOfflineMode) {
+            FronteggState.isOfflineMode.value = false
+            return
+        }
+        FronteggState.isOfflineMode.value = value
+    }
 
 
     companion object {
@@ -91,6 +103,7 @@ class FronteggAuthService(
     override val initializing = FronteggState.initializing
     override val showLoader = FronteggState.showLoader
     override val refreshingToken = FronteggState.refreshingToken
+    override val isOfflineMode = FronteggState.isOfflineMode
     override val isStepUpAuthorization = FronteggState.isStepUpAuthorization
 
     private val api = ApiProvider.getApi(credentialManager)
@@ -159,6 +172,7 @@ class FronteggAuthService(
 
 
     init {
+        setOfflineMode(false)
         if (!isMultiRegion || selectedRegion !== null) {
             this.initializeSubscriptions()
         }
@@ -220,10 +234,12 @@ class FronteggAuthService(
             user.value = null
             entitlements.clear()
             credentialManager.clearAllTokens()
+            credentialManager.clearOfflineUser()
             credentialManager.setCurrentTenantId(null)
 
             withContext(mainDispatcher) {
                 isLoading.value = false
+                setOfflineMode(false)
                 callback()
             }
 
@@ -389,12 +405,14 @@ class FronteggAuthService(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to perform idempotent refresh", e)
                 isReconnecting.postValue(false)
-                requestQueue.enqueue(
-                    requestId = "refresh_token_retry_${System.currentTimeMillis()}",
-                    request = { refreshIdempotent(processQueueAfterSuccess = false) },
-                    priority = RequestPriority.HIGH
-                )
-                startNetworkMonitoring()
+                if (enableOfflineMode) {
+                    requestQueue.enqueue(
+                        requestId = "refresh_token_retry_${System.currentTimeMillis()}",
+                        request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                        priority = RequestPriority.HIGH
+                    )
+                    startNetworkMonitoring()
+                }
                 return@withLock false
             }
         }
@@ -428,7 +446,7 @@ class FronteggAuthService(
                         Log.d(TAG, "Processed $processedCount queued requests")
                         break
                     } else {
-                        delay(5000)
+                        delay(monitoringIntervalMs)
                     }
                 }
             } finally {
@@ -459,6 +477,7 @@ class FronteggAuthService(
                             }
                             this@FronteggAuthService.user.value = userData
                             this@FronteggAuthService.isLoading.value = false
+                            this@FronteggAuthService.setOfflineMode(false)
                             break
                         }
                     } catch (e: FailedToAuthenticateException) {
@@ -475,6 +494,7 @@ class FronteggAuthService(
                                     }
                                     this@FronteggAuthService.user.value = userData
                                     this@FronteggAuthService.isLoading.value = false
+                                    this@FronteggAuthService.setOfflineMode(false)
                                     break
                                 }
                             } else {
@@ -488,7 +508,7 @@ class FronteggAuthService(
                         Log.w(TAG, "Failed to load user data after network improvement", e)
                     }
                 } else {
-                    delay(5000)
+                    delay(monitoringIntervalMs)
                 }
             }
         }
@@ -496,17 +516,21 @@ class FronteggAuthService(
 
     override fun refreshTokenIfNeeded(): Boolean {
         if (!isNetworkGoodSync()) {
-            bgScope.launch {
-                requestQueue.enqueue(
-                    requestId = "refresh_token_${System.currentTimeMillis()}",
-                    request = { refreshIdempotent(processQueueAfterSuccess = false) },
-                    priority = RequestPriority.HIGH
-                )
-                startNetworkMonitoring()
+            if (enableOfflineMode) {
+                setOfflineMode(true)
+                bgScope.launch {
+                    requestQueue.enqueue(
+                        requestId = "refresh_token_${System.currentTimeMillis()}",
+                        request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                        priority = RequestPriority.HIGH
+                    )
+                    startNetworkMonitoring()
+                }
+                return true
             }
-
-            return true
+            return false
         }
+        setOfflineMode(false)
 
         bgScope.launch {
             refreshIdempotent()
@@ -734,6 +758,9 @@ class FronteggAuthService(
                 }
 
                 updateStateWithCredentials(finalAccessToken, finalRefreshToken, user)
+                if (enableOfflineMode) {
+                    credentialManager.saveOfflineUser(user)
+                }
                 return true
             } catch (e: Exception) {
                 this.isLoading.value = false
@@ -822,6 +849,9 @@ class FronteggAuthService(
                 }
 
                 updateStateWithCredentials(finalAccessToken, finalRefreshToken, user, authResponse)
+                if (enableOfflineMode) {
+                    credentialManager.saveOfflineUser(user)
+                }
                 return true
             } catch (e: Exception) {
                 this.isLoading.value = false
@@ -839,6 +869,7 @@ class FronteggAuthService(
         this.accessToken.value = accessToken
         this.user.value = user
         this.isAuthenticated.value = true
+        setOfflineMode(false)
 
         val enableSessionPerTenant = storage.enableSessionPerTenant
         val tenantId = if (enableSessionPerTenant) {
@@ -866,6 +897,7 @@ class FronteggAuthService(
         this.accessToken.value = accessToken
         this.user.value = user
         this.isAuthenticated.value = true
+        setOfflineMode(false)
 
         val enableSessionPerTenant = storage.enableSessionPerTenant
         val tenantId = if (enableSessionPerTenant) {
@@ -995,6 +1027,8 @@ class FronteggAuthService(
         this.accessToken.value = null
         this.user.value = null
         this.isAuthenticated.value = false
+        setOfflineMode(false)
+        credentialManager.clearOfflineUser()
 
         sessionTracker.clearSessionData(tenantId)
         credentialManager.clear(tenantId)
@@ -1054,9 +1088,11 @@ class FronteggAuthService(
             } catch (e: Exception) {
                 // Network error (offline/bad connection) - assume authenticated and keep tokens
                 // This ensures offline mode works: user stays logged in when offline
-                if (isNetworkError()) {
+                if (enableOfflineMode && isNetworkError()) {
                     Log.d(TAG, "Recovered tokens - network error (offline mode), keeping tokens and assuming authenticated")
                     isAuthenticated.value = true
+                    credentialManager.getOfflineUser()?.let { user.value = it }
+                    setOfflineMode(true)
                     isLoading.value = true // Still loading until network recovers
                 } else {
                     // Other errors - don't clear tokens, let normal flow handle
@@ -1199,11 +1235,18 @@ class FronteggAuthService(
                 // Check network quality before attempting any network operations
                 if (!isNetworkGoodSync()) {
                     Log.w(TAG, "Network quality is poor during initialization, keeping tokens")
-                    this@FronteggAuthService.isAuthenticated.value = true
-                    this@FronteggAuthService.isLoading.value = true
-                    initializing.value = false
-
-                    startUserDataMonitoring()
+                    if (enableOfflineMode) {
+                        this@FronteggAuthService.isAuthenticated.value = true
+                        credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
+                        this@FronteggAuthService.setOfflineMode(true)
+                        this@FronteggAuthService.isLoading.value = true
+                        initializing.value = false
+                        startUserDataMonitoring()
+                    } else {
+                        clearCredentials()
+                        initializing.value = false
+                        isLoading.value = false
+                    }
                     return@launch
                 }
                 
@@ -1233,6 +1276,7 @@ class FronteggAuthService(
                         // Access token is valid, user is authenticated
                         this@FronteggAuthService.user.value = user
                         this@FronteggAuthService.isAuthenticated.value = true
+                        this@FronteggAuthService.setOfflineMode(false)
                         Log.d(TAG, "Access token is valid, user authenticated")
                         initializing.value = false
                         isLoading.value = false
@@ -1244,9 +1288,11 @@ class FronteggAuthService(
                 } catch (e: Exception) {
                     // Network error, keep tokens for later retry
                     Log.w(TAG, "Network error during token validation, keeping tokens", e)
-                    if (isNetworkError()) {
+                    if (enableOfflineMode && isNetworkError()) {
                         // Offline mode, assume authenticated until network returns
                         this@FronteggAuthService.isAuthenticated.value = true
+                        credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
+                        this@FronteggAuthService.setOfflineMode(true)
                         this@FronteggAuthService.isLoading.value = true
                         initializing.value = false
                         return@launch
@@ -1275,8 +1321,15 @@ class FronteggAuthService(
                         if (isNetworkError()) {
                             // Network error, keep tokens and assume authenticated until network returns
                             Log.w(TAG, "Network error during token refresh, keeping tokens for retry")
-                            this@FronteggAuthService.isAuthenticated.value = true
-                            this@FronteggAuthService.isLoading.value = true
+                            if (enableOfflineMode) {
+                                this@FronteggAuthService.isAuthenticated.value = true
+                                credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
+                                this@FronteggAuthService.setOfflineMode(true)
+                                this@FronteggAuthService.isLoading.value = true
+                            } else {
+                                clearCredentials()
+                                isLoading.value = false
+                            }
                         } else {
                             // Non-network error, logout
                             Log.e(TAG, "Non-network error during token refresh, clearing credentials")
@@ -1293,9 +1346,11 @@ class FronteggAuthService(
                 } catch (e: Exception) {
                     // Network error during refresh
                     Log.e(TAG, "Failed to refresh token during initialization", e)
-                    if (isNetworkError()) {
+                    if (enableOfflineMode && isNetworkError()) {
                         // Offline mode, assume authenticated until network returns
                         this@FronteggAuthService.isAuthenticated.value = true
+                        credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
+                        this@FronteggAuthService.setOfflineMode(true)
                         this@FronteggAuthService.isLoading.value = true
                     } else {
                         // Other error, logout
@@ -1394,6 +1449,7 @@ class FronteggAuthService(
                     }
                     this.user.value = user
                     this.isAuthenticated.value = true
+                    setOfflineMode(false)
                 } else {
                     Log.w(TAG, "User is null after successful token refresh")
                     this.isAuthenticated.value = false
@@ -1499,14 +1555,18 @@ class FronteggAuthService(
             bgScope.launch {
                 if (!isNetworkGood()) {
                     Log.w(TAG, "Network quality is poor, queuing refresh token request")
-                    requestQueue.enqueue(
-                        requestId = "refresh_token_no_access_${System.currentTimeMillis()}",
-                        request = { refreshIdempotent(processQueueAfterSuccess = false) },
-                        priority = RequestPriority.HIGH
-                    )
-                    startNetworkMonitoring()
+                    if (enableOfflineMode) {
+                        setOfflineMode(true)
+                        requestQueue.enqueue(
+                            requestId = "refresh_token_no_access_${System.currentTimeMillis()}",
+                            request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                            priority = RequestPriority.HIGH
+                        )
+                        startNetworkMonitoring()
+                    }
                     return@launch
                 }
+                setOfflineMode(false)
                 
                 // when we have valid refreshToken without accessToken => failed to refresh in background
                 refreshIdempotent()
@@ -1522,14 +1582,18 @@ class FronteggAuthService(
                 bgScope.launch {
                     if (!isNetworkGood()) {
                         Log.w(TAG, "Network quality is poor, queuing refresh token request")
-                        requestQueue.enqueue(
-                            requestId = "refresh_token_expired_${System.currentTimeMillis()}",
-                            request = { refreshIdempotent(processQueueAfterSuccess = false) },
-                            priority = RequestPriority.HIGH
-                        )
-                        startNetworkMonitoring()
+                        if (enableOfflineMode) {
+                            setOfflineMode(true)
+                            requestQueue.enqueue(
+                                requestId = "refresh_token_expired_${System.currentTimeMillis()}",
+                                request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                                priority = RequestPriority.HIGH
+                            )
+                            startNetworkMonitoring()
+                        }
                         return@launch
                     }
+                    setOfflineMode(false)
                     
                     refreshIdempotent()
                 }

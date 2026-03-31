@@ -2,6 +2,31 @@
 
 In this guide, you'll find an overview and best practices for enabling advanced features like passkeys and multi-app configurations.
 
+## Offline mode (iOS parity)
+
+Android SDK supports an explicit offline mode gate (like iOS Swift SDK) via BuildConfig flags:
+
+```groovy
+buildConfigField "boolean", "FRONTEGG_ENABLE_OFFLINE_MODE", "true"
+buildConfigField "int", "FRONTEGG_NETWORK_MONITORING_INTERVAL_SECONDS", "10"
+```
+
+- `FRONTEGG_ENABLE_OFFLINE_MODE` (default: `false`)  
+  Enables offline-mode behavior:
+  - keep users authenticated when network is unavailable and tokens exist
+  - expose `fronteggAuth.isOfflineMode` state for UI
+  - use reconnect flow to refresh and process queued requests when connectivity returns
+- `FRONTEGG_NETWORK_MONITORING_INTERVAL_SECONDS` (default: `10`)  
+  Controls polling interval used by offline reconnect/user-data monitoring loops.
+
+### Behavior summary
+
+- **Offline mode disabled (`false`)**: SDK uses regular auth behavior and does not keep offline-specific state.
+- **Offline mode enabled (`true`)**:
+  - startup with stored tokens + no network keeps session alive (`isAuthenticated=true`, `isOfflineMode=true`)
+  - on reconnect SDK clears `isOfflineMode`, refreshes token, and processes queued requests
+  - successful auth/refresh updates cached offline user snapshot for offline restore
+
 ## Sentry logging (trace IDs + error tracking)
 
 Sentry reporting is controlled **only** by the remote feature flag `mobile-enable-logging`. When this flag is on (after feature flags are loaded from the server), the SDK will:

@@ -44,7 +44,7 @@ class FronteggInitProvider : ContentProvider() {
             }
 
             override fun onLost(network: Network) {
-                FronteggReconnector.onNetworkLost()
+                FronteggReconnector.onNetworkLost(ctx.applicationContext)
             }
 
             override fun onCapabilitiesChanged(network: Network, networkCapabilities: NetworkCapabilities) {

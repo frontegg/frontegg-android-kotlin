@@ -20,6 +20,8 @@ def fronteggClientId = fronteggProperties.getOrDefault("FRONTEGG_CLIENT_ID", "")
 def fronteggApplicationId = fronteggProperties.getOrDefault("FRONTEGG_APPLICATION_ID", "").toString()
 def fronteggDeepLinkScheme = fronteggProperties.getOrDefault("FRONTEGG_DEEP_LINK_SCHEME", "").toString()
 def fronteggDisableAutoRefresh = fronteggProperties.getOrDefault("FRONTEGG_DISABLE_AUTO_REFRESH", "false").toString()
+def fronteggEnableOfflineMode = fronteggProperties.getOrDefault("FRONTEGG_ENABLE_OFFLINE_MODE", "true").toString()
+def fronteggNetworkMonitoringIntervalSeconds = fronteggProperties.getOrDefault("FRONTEGG_NETWORK_MONITORING_INTERVAL_SECONDS", "10").toString()
 def fronteggEnableSessionPerTenant = fronteggProperties.getOrDefault("FRONTEGG_ENABLE_SESSION_PER_TENANT", "true").toString()
 def fronteggSentryMaxQueueSize = fronteggProperties.getOrDefault("FRONTEGG_SENTRY_MAX_QUEUE_SIZE", "30").toString()
 def fronteggOrganization = fronteggProperties.getOrDefault("FRONTEGG_ORGANIZATION", "").toString()
@@ -49,6 +51,8 @@ android {
         buildConfigField "String", 'FRONTEGG_APPLICATION_ID', "\"$fronteggApplicationId\""
         buildConfigField "String", 'FRONTEGG_DEEP_LINK_SCHEME', "\"$fronteggDeepLinkScheme\""
         buildConfigField "boolean", 'FRONTEGG_DISABLE_AUTO_REFRESH', "$fronteggDisableAutoRefresh"
+        buildConfigField "boolean", 'FRONTEGG_ENABLE_OFFLINE_MODE', "$fronteggEnableOfflineMode"
+        buildConfigField "int", 'FRONTEGG_NETWORK_MONITORING_INTERVAL_SECONDS', "$fronteggNetworkMonitoringIntervalSeconds"
         buildConfigField "boolean", 'FRONTEGG_ENABLE_SESSION_PER_TENANT', "$fronteggEnableSessionPerTenant"
         buildConfigField "int", 'FRONTEGG_SENTRY_MAX_QUEUE_SIZE', "$fronteggSentryMaxQueueSize"
         buildConfigField "String", 'FRONTEGG_ORGANIZATION', "\"$fronteggOrganization\""

@@ -110,12 +110,16 @@ class FronteggAppServiceTest {
         every { mockConstants.useDiskCacheWebview } returns false
         every { mockConstants.mainActivityClass } returns null
         every { mockConstants.disableAutoRefresh } returns false
+        every { mockConstants.enableOfflineMode } returns false
+        every { mockConstants.networkMonitoringIntervalSeconds } returns 10
         every { mockConstants.enableSessionPerTenant } returns false
         every { mockConstants.entitlementsEnabled } returns false
         every { mockConstants.fronteggOrganization } returns null
         every { FronteggApp.instance } returns null andThen mockFronteggApp
         every {
             FronteggApp.init(
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -136,7 +140,7 @@ class FronteggAppServiceTest {
 
         mockContext.fronteggApp
 
-        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
         unmockkObject(SentryHelper)
     }
@@ -159,6 +163,8 @@ class FronteggAppServiceTest {
         every { mockConstants.useDiskCacheWebview } returns false
         every { mockConstants.mainActivityClass } returns null
         every { mockConstants.disableAutoRefresh } returns false
+        every { mockConstants.enableOfflineMode } returns false
+        every { mockConstants.networkMonitoringIntervalSeconds } returns 10
         every { mockConstants.enableSessionPerTenant } returns false
         every { mockConstants.entitlementsEnabled } returns false
         every { mockConstants.fronteggOrganization } returns null
@@ -166,6 +172,8 @@ class FronteggAppServiceTest {
         every { mockFronteggApp.auth } returns mockk(relaxed = true)
         every {
             FronteggApp.init(
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -186,7 +194,7 @@ class FronteggAppServiceTest {
 
         mockContext.fronteggAuth
 
-        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
         unmockkObject(SentryHelper)
     }
