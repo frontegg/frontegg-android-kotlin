@@ -56,7 +56,7 @@ jobs:
 
       - name: Create dummy frontegg.properties
         run: |
-          echo "FRONTEGG_DOMAIN=localhost" >> frontegg.properties
+          echo "FRONTEGG_DOMAIN=127.0.0.1" >> frontegg.properties
           echo "FRONTEGG_CLIENT_ID=dummy" >> frontegg.properties
           echo "FRONTEGG_APPLICATION_ID=" >> frontegg.properties
           echo "FRONTEGG_DEEP_LINK_SCHEME=test" >> frontegg.properties

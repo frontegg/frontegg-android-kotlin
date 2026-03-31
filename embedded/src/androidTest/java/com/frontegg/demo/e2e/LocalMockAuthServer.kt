@@ -35,13 +35,11 @@ class LocalMockAuthServer {
 
     fun start() = server.start()
     fun shutdown() = server.shutdown()
-    /** Always use "localhost" so the URL matches the manifest's android:host="${frontegg_domain}". */
     fun urlRoot(): String = server.url("/").toString().trimEnd('/')
-        .replace("://127.0.0.1:", "://localhost:")
 
     private fun mockAuthority(): String {
-        val p = server.port
-        return if (p == 80 || p == 443) "localhost" else "localhost:$p"
+        val url = server.url("/")
+        return if (url.port == 80 || url.port == 443) url.host else "${url.host}:${url.port}"
     }
     fun reset() {
         state.reset()
