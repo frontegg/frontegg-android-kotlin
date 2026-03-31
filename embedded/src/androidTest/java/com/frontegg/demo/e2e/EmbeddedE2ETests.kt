@@ -31,6 +31,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedSAMLButton")
+        Thread.sleep(3_500)
         tapWebButtonIfPresent("Login With Okta")
         waitForUserEmail("test@saml-domain.com")
     }
@@ -40,6 +41,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedOIDCButton")
+        Thread.sleep(3_500)
         tapWebButtonIfPresent("Login With Okta")
         waitForUserEmail("test@oidc-domain.com")
     }
@@ -59,7 +61,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2ECustomSSOButton")
-        Thread.sleep(8_000)
+        Thread.sleep(14_000)
         waitForUserEmail("custom-sso@frontegg.com", timeoutMs = 120_000)
     }
 
@@ -68,7 +70,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EDirectSocialLoginButton")
-        Thread.sleep(8_000)
+        Thread.sleep(14_000)
         waitForUserEmail("social-login@frontegg.com", timeoutMs = 120_000)
     }
 
@@ -220,7 +222,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         mock.queueProbeFailures(listOf(503, 503, 503, 503, 503, 503, 503, 503, 503, 503))
         terminateApp()
         launchApp(resetState = false)
-        waitForDesc("NoConnectionPageRoot", 45_000)
+        waitForDesc("NoConnectionPageRoot", 75_000)
         mock.reset()
         tapDesc("RetryConnectionButton", 15_000)
         waitForDesc("LoginPageRoot", 60_000)

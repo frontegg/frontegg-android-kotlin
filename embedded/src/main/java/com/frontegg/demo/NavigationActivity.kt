@@ -21,6 +21,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 
 class NavigationActivity : AppCompatActivity() {
@@ -35,7 +36,8 @@ class NavigationActivity : AppCompatActivity() {
     private val e2eHandler = Handler(Looper.getMainLooper())
     private var e2eTicker: Runnable? = null
     private var e2eBadNetworkSinceMs: Long = 0L
-    private val e2eNetGood = AtomicBoolean(true)
+    /** Require this many consecutive failed probes before treating the network as bad for the overlay (transient single-probe flakes on CI). */
+    private val e2eConsecutiveNetFails = AtomicInteger(0)
     private val e2eNetProbeRunning = AtomicBoolean(false)
     private val e2eNetLastProbeMs = AtomicLong(0L)
     private val e2eProbeExecutor = Executors.newSingleThreadExecutor { r ->
@@ -106,6 +108,7 @@ class NavigationActivity : AppCompatActivity() {
             }
             e2eOverlay?.findViewById<View>(R.id.e2e_retry_connection_button)?.setOnClickListener {
                 e2eBadNetworkSinceMs = 0L
+                e2eConsecutiveNetFails.set(0)
                 tickE2EUi()
             }
             e2eHandler.post(e2eTicker!!)
@@ -144,7 +147,11 @@ class NavigationActivity : AppCompatActivity() {
             } catch (_: Exception) {
                 true
             }
-            e2eNetGood.set(good)
+            if (good) {
+                e2eConsecutiveNetFails.set(0)
+            } else {
+                e2eConsecutiveNetFails.incrementAndGet()
+            }
             e2eNetLastProbeMs.set(System.currentTimeMillis())
             e2eNetProbeRunning.set(false)
         }
@@ -167,18 +174,18 @@ class NavigationActivity : AppCompatActivity() {
             false
         }
         scheduleNetProbeIfNeeded()
-        val netLikelyGood = e2eNetGood.get()
+        val hardNetBad = e2eConsecutiveNetFails.get() >= 3
         val offlineFeatureOn = DemoEmbeddedTestMode.isOfflineModeFeatureEnabled(this)
         val now = System.currentTimeMillis()
-        if (!netLikelyGood) {
-            if (e2eBadNetworkSinceMs == 0L) e2eBadNetworkSinceMs = now
-        } else {
+        if (!hardNetBad) {
             e2eBadNetworkSinceMs = 0L
+        } else {
+            if (e2eBadNetworkSinceMs == 0L) e2eBadNetworkSinceMs = now
         }
         val debounceMs = if (authenticated) 2000L else 6000L
         val sustainedBad = e2eBadNetworkSinceMs > 0 && now - e2eBadNetworkSinceMs > debounceMs
 
-        if (!authenticated && offlineFeatureOn && sustainedBad && !netLikelyGood) {
+        if (!authenticated && offlineFeatureOn && sustainedBad && hardNetBad) {
             overlay.visibility = View.VISIBLE
             overlay.findViewById<View>(R.id.e2e_no_connection_seen_ever)?.visibility = View.VISIBLE
         } else {
