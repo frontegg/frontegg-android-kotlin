@@ -380,20 +380,14 @@ class LocalMockAuthServer {
         val st = fq(q, "state")
         if (ru.isEmpty() || st.isEmpty()) return html(400, "bad", "<h1>bad</h1>")
         val code = state.issueCode("google-social@frontegg.com", ru, st)
-        val href = cb(ru, code, st)
-        val hrefJs = href.replace("\\", "\\\\").replace("'", "\\'")
-        // Same redirect as tapping the button; WebView a11y/WebDriver is flaky on some API levels.
-        val b =
-            """<h1>Mock Google Login</h1>
-            <p><button type="button" id="e2e-mock-google">Continue with Mock Google</button></p>
-            <script>
-            (function(){
-              var go=function(){window.location.href='$hrefJs';};
-              var b=document.getElementById('e2e-mock-google'); if(b) b.onclick=go;
-              setTimeout(go, 600);
-            })();
-            </script>"""
-        return html(200, "Google", b)
+        val err = state.consumeOAuthErr()
+        val pkg = embeddedBundle(ru) ?: ru.substringAfterLast("/")
+        val loc = if (err != null) {
+            "${pkg.lowercase()}://${mockAuthority()}/android/oauth/callback?error=${enc(err.first)}&error_description=${enc(err.second)}&state=${enc(st)}"
+        } else {
+            "${pkg.lowercase()}://${mockAuthority()}/android/oauth/callback?code=${enc(code)}&state=${enc(st)}"
+        }
+        return redir(loc)
     }
 
     private fun socialSuccess(q: Map<String, List<String>>): MockResponse {
