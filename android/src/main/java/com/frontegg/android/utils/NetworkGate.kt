@@ -6,7 +6,6 @@ import android.net.NetworkCapabilities
 import androidx.annotation.CheckResult
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import java.net.URL
 import java.util.concurrent.TimeUnit
 
 object NetworkGate {
@@ -34,28 +33,34 @@ object NetworkGate {
         if (e2eForceNetworkPathOffline) {
             return false
         }
-        val cm = ctx.getSystemService(ConnectivityManager::class.java)
-        val network = cm.activeNetwork
-        if (network == null) {
-            return false
-        }
-        val caps = cm.getNetworkCapabilities(network)
-        if (caps == null) {
-            return false
+
+        // Local mock-server URLs (E2E tests) bypass ConnectivityManager entirely:
+        // loopback is always reachable and CM.activeNetwork may return null on CI emulators.
+        val url = fronteggBaseUrl
+        if (url != null && isLocalUrl(url)) {
+            return performPingTest()
         }
 
-        // 2) Check basic capabilities
+        val cm = ctx.getSystemService(ConnectivityManager::class.java)
+        val network = cm.activeNetwork ?: return false
+        val caps = cm.getNetworkCapabilities(network) ?: return false
+
         if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) {
             return false
         }
 
-        // 3) If no URL for ping - use old logic
         if (fronteggBaseUrl == null) {
             return performBasicNetworkCheck(caps)
         }
 
-        // 4) Perform real ping to Frontegg server
         return performPingTest()
+    }
+
+    private fun isLocalUrl(url: String): Boolean {
+        val u = url.lowercase().trimEnd('/')
+        return u.startsWith("http://127.0.0.1") ||
+            u.startsWith("http://localhost") ||
+            u.startsWith("http://10.0.2.2")
     }
     
     private fun performBasicNetworkCheck(caps: NetworkCapabilities): Boolean {
@@ -81,41 +86,38 @@ object NetworkGate {
         return true
     }
     
+    private val pingClient: OkHttpClient by lazy {
+        OkHttpClient.Builder()
+            .connectTimeout(5, TimeUnit.SECONDS)
+            .readTimeout(5, TimeUnit.SECONDS)
+            .writeTimeout(5, TimeUnit.SECONDS)
+            .build()
+    }
+
     private fun performPingTest(): Boolean {
         val url = fronteggBaseUrl ?: return false
         val trimmed = url.trimEnd('/')
-        val probeUrl = if (trimmed.startsWith("http://127.0.0.1") ||
-            trimmed.startsWith("http://localhost") ||
-            trimmed.startsWith("http://10.0.2.2")
-        ) {
+        val probeUrl = if (isLocalUrl(trimmed)) {
             "$trimmed/test"
         } else {
             "$trimmed/"
         }
 
-        try {
-            val client = OkHttpClient.Builder()
-                .connectTimeout(5, TimeUnit.SECONDS)
-                .readTimeout(5, TimeUnit.SECONDS)
-                .writeTimeout(5, TimeUnit.SECONDS)
-                .build()
-            
+        return try {
             val request = Request.Builder()
                 .url(probeUrl)
                 .head()
                 .build()
             
             val startTime = System.currentTimeMillis()
-            val response = client.newCall(request).execute()
-            val endTime = System.currentTimeMillis()
-            val responseTime = endTime - startTime
+            val response = pingClient.newCall(request).execute()
+            val responseTime = System.currentTimeMillis() - startTime
             
             response.close()
             
-            return responseTime < 1000
-            
-        } catch (e: Exception) {
-            return false
+            responseTime < 3000
+        } catch (_: Exception) {
+            false
         }
     }
 }
