@@ -468,6 +468,34 @@ open class EmbeddedE2ETestCase {
         return false
     }
 
+    /** OAuth / WebView errors: match a11y tree text, contentDescription, or visible text nodes. */
+    protected fun waitForTextOrDescContains(fragment: String, timeoutMs: Long = 30_000): Boolean {
+        val needle = fragment.lowercase()
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            val root = instrumentation.uiAutomation.rootInActiveWindow
+            if (root != null) {
+                try {
+                    if (findBoundsForTextInTree(root, needle) != null) return true
+                } finally {
+                    root.recycle()
+                }
+            }
+            runCatching {
+                device.findObject(By.descContains(fragment))?.let {
+                    if (it.visibleBounds.height() > 4) return true
+                }
+            }
+            runCatching {
+                device.findObject(By.textContains(fragment))?.let {
+                    if (it.visibleBounds.height() > 4) return true
+                }
+            }
+            Thread.sleep(250)
+        }
+        return false
+    }
+
     private fun findBoundsForTextInTree(node: AccessibilityNodeInfo, needle: String): Rect? {
         val t = "${node.text}\n${node.contentDescription}".lowercase()
         if (needle in t && node.isVisibleToUser) {

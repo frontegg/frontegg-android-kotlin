@@ -31,6 +31,8 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
     private var directLoginLaunchedDone: Boolean = false
     private var directLoginLaunched: Boolean = false
     private var authCompleted: Boolean = false
+    /** True while showing the synthetic HTML page for OAuth `error` query params (keeps loader off the WebView). */
+    private var showingOAuthCallbackError: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -86,14 +88,35 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         } catch (_: Exception) {
             rawDesc
         }
-        val line = TextUtils.htmlEncode("$oauthError $decodedDesc".trim())
+        val plain = "$oauthError $decodedDesc".trim()
+        val line = TextUtils.htmlEncode(plain)
         val html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body><p>$line</p></body></html>"
+        showingOAuthCallbackError = true
+        runOnUiThread {
+            FronteggState.showLoader.value = false
+            FronteggState.isLoading.value = false
+            loaderContainer?.visibility = View.GONE
+            findViewById<View>(R.id.embedded_auth_root)?.contentDescription = plain
+            webView.contentDescription = plain
+            webView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        }
         webView.loadDataWithBaseURL(storage.baseUrl, html, "text/html", "UTF-8", null)
+        webView.postDelayed({
+            if (!showingOAuthCallbackError) return@postDelayed
+            loaderContainer?.visibility = View.GONE
+            findViewById<View>(R.id.embedded_auth_root)?.contentDescription = plain
+            webView.contentDescription = plain
+        }, 500)
+        webView.postDelayed({
+            if (!showingOAuthCallbackError) return@postDelayed
+            loaderContainer?.visibility = View.GONE
+        }, 1500)
         return true
     }
 
     private fun consumeIntent(intent: Intent) {
         Log.d(TAG, "consumeIntent")
+        showingOAuthCallbackError = false
         val intentLaunched =
             intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
 
@@ -243,6 +266,10 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
+            if (showingOAuthCallbackError) {
+                loaderContainer?.visibility = View.GONE
+                return@runOnUiThread
+            }
             if (applicationContext.fronteggAuth.isStepUpAuthorization.value) {
                 loaderContainer?.visibility = if (it.value) View.VISIBLE else View.GONE
             } else {

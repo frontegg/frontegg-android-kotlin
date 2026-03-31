@@ -91,7 +91,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         tapDesc("E2EEmbeddedGoogleSocialButton")
         Thread.sleep(50_000)
         dismissBrowserForegroundIfNeeded()
-        if (!waitForA11yTextContains("ER-05001", 120_000)) {
+        if (!waitForTextOrDescContains("ER-05001", 120_000)) {
             throw AssertionError("Expected error text in UI")
         }
     }
