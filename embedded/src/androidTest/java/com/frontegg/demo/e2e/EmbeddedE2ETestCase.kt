@@ -14,6 +14,7 @@ import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
+import java.util.regex.Pattern
 import com.frontegg.demo.App
 import com.frontegg.demo.NavigationActivity
 import org.junit.After
@@ -301,7 +302,7 @@ open class EmbeddedE2ETestCase {
             Thread.sleep(3_500)
         }
         if ("sign in" in primaryLower || "okta" in primaryLower) {
-            Thread.sleep(6_000)
+            Thread.sleep(8_000)
         }
         if (tryEspressoWebTapLink(text)) return
         val deadline = System.currentTimeMillis() + timeoutMs
@@ -323,10 +324,14 @@ open class EmbeddedE2ETestCase {
             }
             return false
         }
+        val signInPattern = Pattern.compile("sign\\s*in", Pattern.CASE_INSENSITIVE)
         while (System.currentTimeMillis() < deadline) {
             if (tryClickNeedle(primary)) return
             device.findObject(By.text(text))?.let { it.click(); return }
             device.findObject(By.textContains(text))?.let { it.click(); return }
+            if ("sign in" in primaryLower) {
+                device.findObject(By.text(signInPattern))?.let { it.click(); return }
+            }
             device.findObject(By.descContains(text))?.let { it.click(); return }
             val shortDesc = text.removePrefix("Continue ").removePrefix("Login ").trim()
             if (shortDesc.isNotEmpty() && shortDesc != text) {
@@ -370,6 +375,16 @@ open class EmbeddedE2ETestCase {
                         authWebView()
                             .withElement(
                                 findElement(Locator.XPATH, "//button[contains(normalize-space(.), 'Sign in')]"),
+                            )
+                            .perform(webClick())
+                    }
+                    add {
+                        authWebView()
+                            .withElement(
+                                findElement(
+                                    Locator.XPATH,
+                                    "//*[self::button or self::a][contains(translate(normalize-space(string(.)), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'sign in')]",
+                                ),
                             )
                             .perform(webClick())
                     }

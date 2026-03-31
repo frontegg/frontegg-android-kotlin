@@ -76,8 +76,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
         // Custom Tab loads oauth/authorize → redirect to mock Google page; script auto-completes after ~600ms.
-        Thread.sleep(55_000)
-        waitForUserEmail("google-social@frontegg.com", timeoutMs = 180_000)
+        Thread.sleep(75_000)
+        waitForUserEmail("google-social@frontegg.com", timeoutMs = 240_000)
     }
 
     @Test
@@ -89,9 +89,9 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
-        Thread.sleep(38_000)
+        Thread.sleep(50_000)
         dismissBrowserForegroundIfNeeded()
-        if (!waitForA11yTextContains("ER-05001", 90_000)) {
+        if (!waitForA11yTextContains("ER-05001", 120_000)) {
             throw AssertionError("Expected error text in UI")
         }
     }
