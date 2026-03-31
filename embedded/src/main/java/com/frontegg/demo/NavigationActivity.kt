@@ -112,6 +112,7 @@ class NavigationActivity : AppCompatActivity() {
             e2eOverlay?.findViewById<View>(R.id.e2e_retry_connection_button)?.setOnClickListener {
                 e2eBadNetworkSinceMs = 0L
                 e2eConsecutiveNetFails.set(0)
+                NetworkGate.setE2eForceNetworkPathOffline(false)
                 tickE2EUi()
             }
             e2eHandler.post(e2eTicker!!)
@@ -192,7 +193,16 @@ class NavigationActivity : AppCompatActivity() {
         val debounceMs = if (authenticated) 2000L else 9000L
         val sustainedBad = e2eBadNetworkSinceMs > 0 && now - e2eBadNetworkSinceMs > debounceMs
 
-        if (!authenticated && offlineFeatureOn && sustainedBad && hardNetBad) {
+        val onLoginDestination = try {
+            navController.currentDestination?.id == R.id.navigation_login
+        } catch (_: Exception) {
+            false
+        }
+        val forceOffline = NetworkGate.isE2eForceNetworkPathOffline()
+        val suppressNoConnectionOverlay =
+            !authenticated && onLoginDestination && !forceOffline
+
+        if (!authenticated && offlineFeatureOn && sustainedBad && hardNetBad && !suppressNoConnectionOverlay) {
             overlay.visibility = View.VISIBLE
             overlay.findViewById<View>(R.id.e2e_no_connection_seen_ever)?.visibility = View.VISIBLE
         } else {

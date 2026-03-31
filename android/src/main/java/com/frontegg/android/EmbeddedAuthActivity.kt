@@ -2,7 +2,9 @@ package com.frontegg.android
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.text.TextUtils
 import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
@@ -62,6 +64,32 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, this.directLoginLaunchedDone)
         outState.putString(BUNDLE_KEY_WEBVIEW_URL, this.webViewUrl)
         webView.saveState(outState)
+    }
+
+    /**
+     * OAuth error redirects use a custom scheme; loading that URL in WebView often shows nothing
+     * and the error never enters the accessibility tree. Render plain HTML so E2E can assert.
+     */
+    private fun loadOAuthCallbackErrorPageIfNeeded(url: String): Boolean {
+        val uri = try {
+            Uri.parse(url)
+        } catch (_: Exception) {
+            return false
+        }
+        val oauthError = uri.getQueryParameter("error")?.trim().orEmpty()
+        if (oauthError.isEmpty()) {
+            return false
+        }
+        val rawDesc = uri.getQueryParameter("error_description").orEmpty()
+        val decodedDesc = try {
+            Uri.decode(rawDesc)
+        } catch (_: Exception) {
+            rawDesc
+        }
+        val line = TextUtils.htmlEncode("$oauthError $decodedDesc".trim())
+        val html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body><p>$line</p></body></html>"
+        webView.loadDataWithBaseURL(storage.baseUrl, html, "text/html", "UTF-8", null)
+        return true
     }
 
     private fun consumeIntent(intent: Intent) {
@@ -162,6 +190,11 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         
         if (webViewUrl == null) {
             Log.d(TAG, "webViewUrl is null, returning")
+            return
+        }
+
+        if (loadOAuthCallbackErrorPageIfNeeded(webViewUrl!!)) {
+            webViewUrl = null
             return
         }
 
