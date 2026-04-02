@@ -18,4 +18,6 @@ on:
 jobs:
   embedded-e2e-suite:
     uses: ./.github/workflows/embedded-e2e-reusable.yml
+    with:
+      junit-check-label: demo-pr
     secrets: inherit

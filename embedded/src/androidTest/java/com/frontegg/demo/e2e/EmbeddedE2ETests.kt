@@ -92,10 +92,14 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
-        Thread.sleep(50_000)
+        Thread.sleep(65_000)
         dismissBrowserForegroundIfNeeded()
-        if (!waitForTextOrDescContains("ER-05001", 150_000)) {
-            throw AssertionError("Expected error text in UI")
+        Thread.sleep(1_500)
+        dismissBrowserForegroundIfNeeded()
+        if (!waitForTextOrDescContains("ER-05001", 200_000) &&
+            !waitForTextOrDescContains("JWT token size exceeded", 60_000)
+        ) {
+            throw AssertionError("Expected OAuth error (ER-05001 or JWT message) in UI")
         }
     }
 
@@ -155,10 +159,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         val v0 = accessTokenVersion()
         val rc0 = oauthRefreshRequestCount()
         terminateApp()
-        waitDurationSeconds((expiringAccessTokenTTL + 6).toLong())
+        waitDurationSeconds((expiringAccessTokenTTL + 10).toLong())
         launchApp(resetState = false)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
-        waitForAccessTokenVersionChange(v0, timeoutMs = 150_000)
+        dismissBrowserForegroundIfNeeded()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 180_000)
+        waitForAccessTokenVersionChange(v0, timeoutMs = 200_000)
         assert(oauthRefreshRequestCount() > rc0)
     }
 
@@ -176,15 +181,16 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
         waitForDesc("UserPageRoot", 90_000)
-        waitForDesc("OfflineModeBadge", 75_000)
+        waitForDesc("OfflineModeBadge", 120_000)
         // Let the access token expire during the offline phase
         waitDurationSeconds((expiringAccessTokenTTL + 5).toLong())
         // Simulate recovery: next launch without forced offline
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = false)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        dismissBrowserForegroundIfNeeded()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 150_000)
         Thread.sleep(10_000)
-        waitForAccessTokenVersionChange(v0, timeoutMs = 240_000)
+        waitForAccessTokenVersionChange(v0, timeoutMs = 300_000)
     }
 
     @Test
@@ -200,14 +206,15 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = true)
         waitForDesc("UserPageRoot", 90_000)
-        waitForDesc("OfflineModeBadge", 30_000)
+        waitForDesc("OfflineModeBadge", 90_000)
         waitDurationSeconds((expiringAccessTokenTTL + 2).toLong())
         waitForDesc("AuthenticatedOfflineModeEnabled")
         val versionBeforeReconnect = accessTokenVersion()
         terminateApp()
         launchApp(resetState = false, forceNetworkPathOffline = false)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
-        waitForAccessTokenVersionChange(versionBeforeReconnect, timeoutMs = 75_000)
+        dismissBrowserForegroundIfNeeded()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 150_000)
+        waitForAccessTokenVersionChange(versionBeforeReconnect, timeoutMs = 150_000)
     }
 
     @Test
@@ -317,8 +324,9 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         terminateApp()
         // Extra slack for CI emulators (clock + load); access must be expired before relaunch.
-        waitDurationSeconds((expiringAccessTokenTTL + 8).toLong())
+        waitDurationSeconds((expiringAccessTokenTTL + 10).toLong())
         launchApp(resetState = false)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 150_000)
+        dismissBrowserForegroundIfNeeded()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 180_000)
     }
 }

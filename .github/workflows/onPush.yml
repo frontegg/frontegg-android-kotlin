@@ -84,6 +84,8 @@ jobs:
   embedded-e2e-android:
     name: Embedded E2E (Android)
     uses: ./.github/workflows/embedded-e2e-reusable.yml
+    with:
+      junit-check-label: push
     secrets: inherit
     permissions:
       contents: read

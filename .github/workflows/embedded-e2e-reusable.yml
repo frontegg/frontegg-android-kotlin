@@ -5,6 +5,11 @@ name: Embedded E2E reusable
 
 on:
   workflow_call:
+    inputs:
+      junit-check-label:
+        description: "Short label for JUnit GitHub Checks (caller passes pr vs push)"
+        required: true
+        type: string
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -97,8 +102,7 @@ jobs:
         if: always()
         with:
           report_paths: e2e-artifacts/*.xml
-          # Include event so PR vs push runs do not overwrite the same GitHub Check name.
-          check_name: Embedded E2E (${{ github.event_name }}) shard ${{ matrix['shard-index'] }}
+          check_name: Embedded E2E (${{ inputs.junit-check-label }}) shard ${{ matrix['shard-index'] }}
 
       - uses: actions/upload-artifact@v6
         if: always()

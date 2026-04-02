@@ -23,10 +23,13 @@ if [[ -n "$METHODS" ]]; then
     exit 1
   fi
   echo "::notice::connectedDebugAndroidTest — $specs"
+  # Pass timeout_msec on the CLI so it is not lost when only `class` is set via -P (merge quirks).
   ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
-    -Pandroid.testInstrumentationRunnerArguments.class="${specs}"
+    -Pandroid.testInstrumentationRunnerArguments.class="${specs}" \
+    -Pandroid.testInstrumentationRunnerArguments.timeout_msec=1800000
 else
   echo "::notice::connectedDebugAndroidTest — full class $CLASS"
   ./gradlew :embedded:connectedDebugAndroidTest --no-daemon \
-    -Pandroid.testInstrumentationRunnerArguments.class="$CLASS"
+    -Pandroid.testInstrumentationRunnerArguments.class="$CLASS" \
+    -Pandroid.testInstrumentationRunnerArguments.timeout_msec=1800000
 fi
