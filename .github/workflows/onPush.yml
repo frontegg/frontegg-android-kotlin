@@ -80,13 +80,6 @@ jobs:
         with:
           sarif_file: android/build/reports/detekt/debug.sarif
 
-  # Same matrix + sharding as PR workflow (generate_e2e_matrix.js); avoids stale 6-shard / 4-test layout.
-  embedded-e2e-android:
-    name: Embedded E2E (Android)
-    uses: ./.github/workflows/embedded-e2e-reusable.yml
-    with:
-      junit-check-label: push
-    secrets: inherit
-    permissions:
-      contents: read
-      checks: write
+  # Embedded E2E runs on pull_request via demo-e2e.yml (opened/synchronize/reopened). Running the same
+  # 12+ emulator matrix on every push doubles CI load, duplicates checks, and increases flake (runner contention).
+  # Use workflow_dispatch on "Demo Embedded E2E (Android)" when you need E2E without a PR.

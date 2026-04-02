@@ -115,6 +115,8 @@ function orderShardStable(shard) {
 const SOLO_SHARD_METHODS = new Set([
   "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
   "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
+  "testCustomSSOBrowserHandoff",
+  "testDirectSocialBrowserHandoff",
 ]);
 
 function main() {

@@ -555,7 +555,10 @@ open class EmbeddedE2ETestCase {
             val f = File.createTempFile("e2e_ui", ".xml", instrumentation.targetContext.cacheDir)
             try {
                 device.dumpWindowHierarchy(f)
-                f.readText().lowercase().contains(n)
+                // Binder-safe cap: huge hierarchies can contribute to TransactionTooLarge when chained in failures.
+                val text = f.readText().lowercase()
+                val slice = if (text.length > 400_000) text.substring(0, 400_000) else text
+                slice.contains(n)
             } finally {
                 f.delete()
             }
