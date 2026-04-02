@@ -33,7 +33,7 @@ jobs:
 
   embedded-e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 90
     needs: matrix
     strategy:
       fail-fast: false
@@ -97,7 +97,8 @@ jobs:
         if: always()
         with:
           report_paths: e2e-artifacts/*.xml
-          check_name: Embedded E2E (shard ${{ matrix['shard-index'] }})
+          # Include event so PR vs push runs do not overwrite the same GitHub Check name.
+          check_name: Embedded E2E (${{ github.event_name }}) shard ${{ matrix['shard-index'] }}
 
       - uses: actions/upload-artifact@v6
         if: always()

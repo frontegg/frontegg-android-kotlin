@@ -39,6 +39,8 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // AndroidJUnitRunner defaults to ~300s per test; E2E uses long Custom Tab / token waits.
+        testInstrumentationRunnerArguments["timeout_msec"] = "1800000"
 
         manifestPlaceholders = [
                 "package_name"      : applicationId,
