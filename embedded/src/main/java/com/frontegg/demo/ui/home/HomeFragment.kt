@@ -16,9 +16,12 @@ import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
 import com.frontegg.android.fronteggAuth
 import com.frontegg.android.models.EntitledToOptions
+import com.frontegg.android.utils.NullableObject
 import com.frontegg.demo.R
 import com.frontegg.demo.databinding.FragmentHomeBinding
 import com.frontegg.demo.databinding.LayoutEntitlementRowBinding
+import io.reactivex.rxjava3.disposables.Disposable
+import io.reactivex.rxjava3.functions.Consumer
 import java.util.Timer
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -26,6 +29,7 @@ import kotlin.time.toDuration
 
 class HomeFragment : Fragment() {
     private var messageTimer = Timer()
+    private val disposables: ArrayList<Disposable> = arrayListOf()
 
     // Binding variable for fragment's views, nullable to handle lifecycle properly
     private var _binding: FragmentHomeBinding? = null
@@ -319,6 +323,7 @@ class HomeFragment : Fragment() {
 
     override fun onResume() {
         super.onResume()
+        disposables.add(requireContext().fronteggAuth.isOfflineMode.subscribe(onOfflineModeChange))
 
         Log.d(TAG, "onResume: HomeFragment, msg: $showMessageOnResume")
         if (showMessageOnResume != null) {
@@ -333,6 +338,8 @@ class HomeFragment : Fragment() {
 
     override fun onPause() {
         super.onPause()
+        disposables.forEach { it.dispose() }
+        disposables.clear()
         messageTimer.cancel()
     }
 
@@ -410,5 +417,11 @@ class HomeFragment : Fragment() {
 
         private var showMessageOnResume: String? = null
         private var isShowMessageOnResumeError: Boolean = false
+    }
+
+    private val onOfflineModeChange: Consumer<NullableObject<Boolean>> = Consumer { state ->
+        activity?.runOnUiThread {
+            binding.offlineModeText.visibility = if (state.value) View.VISIBLE else View.GONE
+        }
     }
 }

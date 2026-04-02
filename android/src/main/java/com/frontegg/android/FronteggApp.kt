@@ -74,6 +74,8 @@ val Context.fronteggApp: FronteggApp
                 deepLinkScheme = constants.deepLinkScheme,
                 useDiskCacheWebview = constants.useDiskCacheWebview,
                 disableAutoRefresh = constants.disableAutoRefresh,
+                enableOfflineMode = constants.enableOfflineMode,
+                networkMonitoringIntervalSeconds = constants.networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = constants.enableSessionPerTenant,
                 entitlementsEnabled = constants.entitlementsEnabled,
                 tenantResolver = constants.fronteggOrganization?.let { org ->
@@ -148,6 +150,8 @@ interface FronteggApp {
             deepLinkScheme: String? = null,
             useDiskCacheWebview: Boolean = false,
             disableAutoRefresh: Boolean = false,
+            enableOfflineMode: Boolean = false,
+            networkMonitoringIntervalSeconds: Int = 10,
             enableSessionPerTenant: Boolean = false,
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
@@ -172,6 +176,8 @@ interface FronteggApp {
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview,
                 disableAutoRefresh = disableAutoRefresh,
+                enableOfflineMode = enableOfflineMode,
+                networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = enableSessionPerTenant,
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver
@@ -201,6 +207,8 @@ interface FronteggApp {
             mainActivityClass: Class<*>? = null,
             useDiskCacheWebview: Boolean = false,
             disableAutoRefresh: Boolean = false,
+            enableOfflineMode: Boolean = false,
+            networkMonitoringIntervalSeconds: Int = 10,
             enableSessionPerTenant: Boolean = false,
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
@@ -230,6 +238,8 @@ interface FronteggApp {
                        mainActivityClass = mainActivityClass,
                        useDiskCacheWebview = useDiskCacheWebview,
                        disableAutoRefresh = disableAutoRefresh,
+                       enableOfflineMode = enableOfflineMode,
+                       networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                        enableSessionPerTenant = enableSessionPerTenant,
                        entitlementsEnabled = entitlementsEnabled,
                        tenantResolver = tenantResolver
@@ -253,6 +263,8 @@ interface FronteggApp {
                 mainActivityClass = mainActivityClass,
                 useDiskCacheWebview = useDiskCacheWebview,
                 disableAutoRefresh = disableAutoRefresh,
+                enableOfflineMode = enableOfflineMode,
+                networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = enableSessionPerTenant,
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver
@@ -266,7 +278,9 @@ interface FronteggApp {
                     useAssetsLinks = useAssetsLinks,
                     useChromeCustomTabs = useChromeCustomTabs,
                     mainActivityClassName = mainActivityClass?.name,
-                    useDiskCacheWebview = useDiskCacheWebview
+                    useDiskCacheWebview = useDiskCacheWebview,
+                    enableOfflineMode = enableOfflineMode,
+                    networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                 )
             )
             return newInstance

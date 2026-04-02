@@ -7,6 +7,7 @@ import android.util.Log
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.fronteggAuth
 import com.frontegg.android.init.ConfigCache
+import com.frontegg.android.utils.FronteggConstantsProvider
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
@@ -38,11 +39,32 @@ object FronteggReconnector {
         dispatcherProvider = provider
     }
 
-    fun onNetworkLost() {
+    fun onNetworkLost(context: Context) {
+        val appCtx = context.applicationContext
+        if (FronteggApp.instance != null) {
+            runCatching {
+                (appCtx.fronteggAuth as? FronteggAuthService)?.evictSharedHttpConnectionPool()
+            }
+        }
+
+        val offlineEnabled = runCatching {
+            FronteggConstantsProvider.fronteggConstants(context).enableOfflineMode
+        }.getOrDefault(false)
+        if (!offlineEnabled) return
         offline = true
+        if (FronteggApp.instance != null) {
+            runCatching {
+                (appCtx.fronteggAuth as? FronteggAuthService)?.applyOfflineUiAfterDefaultNetworkLost()
+            }
+        }
     }
 
     fun onNetworkAvailable(context: Context) {
+        val offlineEnabled = runCatching {
+            FronteggConstantsProvider.fronteggConstants(context).enableOfflineMode
+        }.getOrDefault(false)
+        if (!offlineEnabled) return
+
         val now = System.currentTimeMillis()
         if (now - lastAttemptAt < debounceMs) {
             return
@@ -80,6 +102,8 @@ object FronteggReconnector {
                             useChromeCustomTabs = flags.useChromeCustomTabs,
                             mainActivityClass = mainCls,
                             useDiskCacheWebview = flags.useDiskCacheWebview,
+                            enableOfflineMode = flags.enableOfflineMode,
+                            networkMonitoringIntervalSeconds = flags.networkMonitoringIntervalSeconds,
                         )
                         // small delay to allow internal setup
                         delay(50)
@@ -92,6 +116,7 @@ object FronteggReconnector {
                 try {
                     if (FronteggApp.instance != null) {
                         Log.d(TAG, "Attempting token refresh on network reconnect")
+                        (context.applicationContext.fronteggAuth as? FronteggAuthService)?.evictSharedHttpConnectionPool()
                         val refreshSuccess = context.fronteggAuth.refreshTokenAndWait()
                         if (refreshSuccess) {
                             Log.d(TAG, "Token refresh successful on network reconnect")

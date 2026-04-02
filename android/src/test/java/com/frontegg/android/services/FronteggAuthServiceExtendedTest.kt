@@ -303,6 +303,7 @@ class FronteggAuthServiceExtendedTest {
         
         every { credentialManagerMock.clear() } returns Unit
         every { credentialManagerMock.clear(any()) } returns Unit
+        every { credentialManagerMock.clearOfflineUser() } returns true
         
         auth.clearCredentials()
         

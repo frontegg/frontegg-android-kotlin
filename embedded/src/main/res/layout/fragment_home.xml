@@ -80,6 +80,19 @@
                 android:layout_width="wrap_content"
                 android:layout_height="16dp"/>
 
+            <TextView
+                android:id="@+id/offline_mode_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="24dp"
+                android:layout_marginEnd="24dp"
+                android:layout_marginBottom="8dp"
+                android:fontFamily="@font/manrope_semibold"
+                android:text="Offline Mode"
+                android:textAppearance="?attr/textAppearanceBodyMedium"
+                android:textColor="@color/redForeground"
+                android:visibility="gone" />
+
             <!-- Card with login options -->
             <com.google.android.material.card.MaterialCardView
                 android:layout_width="match_parent"

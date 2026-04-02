@@ -56,6 +56,14 @@ object FronteggConstantsProvider {
 
         val disableAutoRefresh =
             safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_DISABLE_AUTO_REFRESH", false)
+        val enableOfflineMode =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_OFFLINE_MODE", false)
+        val networkMonitoringIntervalSeconds =
+            safeGetValueFromBuildConfig(
+                buildConfigClass,
+                "FRONTEGG_NETWORK_MONITORING_INTERVAL_SECONDS",
+                10
+            )
 
         val enableSessionPerTenant =
             safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_SESSION_PER_TENANT", false)
@@ -77,6 +85,8 @@ object FronteggConstantsProvider {
             useDiskCacheWebview = useDiskCacheWebview,
             mainActivityClass = mainActivityClass,
             disableAutoRefresh = disableAutoRefresh,
+            enableOfflineMode = enableOfflineMode,
+            networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
             enableSessionPerTenant = enableSessionPerTenant,
             sentryMaxQueueSize = sentryMaxQueueSize,
             fronteggOrganization = fronteggOrganization,

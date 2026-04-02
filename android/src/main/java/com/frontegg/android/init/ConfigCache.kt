@@ -16,6 +16,8 @@ internal object ConfigCache {
         val useChromeCustomTabs: Boolean,
         val mainActivityClassName: String?,
         val useDiskCacheWebview: Boolean,
+        val enableOfflineMode: Boolean = false,
+        val networkMonitoringIntervalSeconds: Int = 10,
         val useLegacySocialLoginFlow: Boolean = false,
     )
 
@@ -39,6 +41,8 @@ internal object ConfigCache {
             .put("useChromeCustomTabs", flags.useChromeCustomTabs)
             .put("mainActivityClassName", flags.mainActivityClassName)
             .put("useDiskCacheWebview", flags.useDiskCacheWebview)
+            .put("enableOfflineMode", flags.enableOfflineMode)
+            .put("networkMonitoringIntervalSeconds", flags.networkMonitoringIntervalSeconds)
             .put("useLegacySocialLoginFlow", flags.useLegacySocialLoginFlow)
 
         prefs.edit()
@@ -71,6 +75,8 @@ internal object ConfigCache {
                 useChromeCustomTabs = fj.optBoolean("useChromeCustomTabs", false),
                 mainActivityClassName = fj.optString("mainActivityClassName", "").takeIf { it.isNotEmpty() },
                 useDiskCacheWebview = fj.optBoolean("useDiskCacheWebview", false),
+                enableOfflineMode = fj.optBoolean("enableOfflineMode", false),
+                networkMonitoringIntervalSeconds = fj.optInt("networkMonitoringIntervalSeconds", 10),
                 useLegacySocialLoginFlow = fj.optBoolean("useLegacySocialLoginFlow", false),
             )
             regions to flags

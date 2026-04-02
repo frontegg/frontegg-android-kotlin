@@ -8,7 +8,9 @@ import android.security.keystore.KeyProperties
 import android.util.Log
 import androidx.security.crypto.EncryptedSharedPreferences
 import androidx.security.crypto.MasterKey
+import com.frontegg.android.models.User
 import com.frontegg.android.utils.CredentialKeys
+import com.google.gson.Gson
 import java.security.KeyStore
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
@@ -20,10 +22,12 @@ open class CredentialManager(val context: Context) {
             "com.frontegg.services.CredentialManager"
         private val TAG = CredentialManager::class.java.simpleName
         private const val KEY_LAST_TENANT_ID_PREFIX = "last_tenant_id_user_"
+        private const val KEY_OFFLINE_USER = "user_me"
     }
 
     private var sp: SharedPreferences;
     private var enableSessionPerTenant: Boolean = false
+    private val gson = Gson()
 
     private fun createKeyStore(): KeyStore {
         val keyStore = KeyStore.getInstance("AndroidKeyStore")
@@ -264,5 +268,30 @@ open class CredentialManager(val context: Context) {
 
     fun saveSelectedRegion(selectedRegion: String): Boolean {
         return this.save(CredentialKeys.SELECTED_REGION, selectedRegion)
+    }
+
+    fun saveOfflineUser(user: User?): Boolean {
+        return with(sp.edit()) {
+            if (user == null) {
+                remove(KEY_OFFLINE_USER)
+            } else {
+                putString(KEY_OFFLINE_USER, gson.toJson(user))
+            }
+            apply()
+            commit()
+        }
+    }
+
+    fun getOfflineUser(): User? {
+        val raw = sp.getString(KEY_OFFLINE_USER, null) ?: return null
+        return runCatching { gson.fromJson(raw, User::class.java) }.getOrNull()
+    }
+
+    fun clearOfflineUser(): Boolean {
+        return with(sp.edit()) {
+            remove(KEY_OFFLINE_USER)
+            apply()
+            commit()
+        }
     }
 }
