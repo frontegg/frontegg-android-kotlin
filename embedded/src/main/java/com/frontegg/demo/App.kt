@@ -49,6 +49,7 @@ class App : Application() {
             deepLinkScheme = com.frontegg.demo.BuildConfig.FRONTEGG_DEEP_LINK_SCHEME.takeIf { it.isNotBlank() },
             useDiskCacheWebview = false,
             disableAutoRefresh = com.frontegg.demo.BuildConfig.FRONTEGG_DISABLE_AUTO_REFRESH,
+            enableOfflineMode = bootstrap.enableOfflineMode ?: true,
             enableSessionPerTenant = com.frontegg.demo.BuildConfig.FRONTEGG_ENABLE_SESSION_PER_TENANT,
             entitlementsEnabled = false,
         )

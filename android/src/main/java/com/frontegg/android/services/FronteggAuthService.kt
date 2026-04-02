@@ -1060,9 +1060,10 @@ class FronteggAuthService(
                     Log.d(TAG, "Recovered tokens validated successfully")
                 }
             } catch (e: com.frontegg.android.exceptions.FailedToAuthenticateException) {
-                // Auth error (401) - don't clear tokens here; let normal initialization
-                // or explicit refresh determine if session is truly invalid
-                Log.w(TAG, "Recovered tokens failed auth check (401), deferring to normal flow")
+                // Auth error (401) - access token is likely expired; trigger a refresh using
+                // the stored refresh token that was just restored to memory above.
+                Log.w(TAG, "Recovered tokens failed auth check (401), triggering token refresh")
+                refreshTokenWhenNeeded()
             } catch (e: Exception) {
                 // Network error (offline/bad connection) - assume authenticated and keep tokens
                 // This ensures offline mode works: user stays logged in when offline
@@ -1073,8 +1074,9 @@ class FronteggAuthService(
                     setOfflineMode(true)
                     isLoading.value = true // Still loading until network recovers
                 } else {
-                    // Other errors - don't clear tokens, let normal flow handle
-                    Log.w(TAG, "Recovered tokens - non-network error, deferring to normal flow: ${e.message}", e)
+                    // Other errors - don't clear tokens, trigger refresh to re-validate
+                    Log.w(TAG, "Recovered tokens - non-network error, triggering token refresh: ${e.message}", e)
+                    refreshTokenWhenNeeded()
                 }
             }
         }

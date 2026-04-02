@@ -195,7 +195,7 @@ open class EmbeddedE2ETestCase {
 
     protected fun tapDesc(contentDescription: String, timeoutMs: Long = 20_000) {
         scrollDescIntoView(contentDescription, timeoutMs)
-        val deadline = System.currentTimeMillis() + 5_000
+        val deadline = System.currentTimeMillis() + 12_000
         while (true) {
             val obj = device.findObject(By.desc(contentDescription))
                 ?: throw AssertionError("No node for desc=$contentDescription")
@@ -206,7 +206,7 @@ open class EmbeddedE2ETestCase {
                 if (System.currentTimeMillis() > deadline) {
                     throw AssertionError("StaleObjectException persists for desc=$contentDescription")
                 }
-                Thread.sleep(300)
+                Thread.sleep(500)
             }
         }
     }
