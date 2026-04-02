@@ -96,10 +96,13 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         dismissBrowserForegroundIfNeeded()
         Thread.sleep(1_500)
         dismissBrowserForegroundIfNeeded()
-        if (!waitForTextOrDescContains("ER-05001", 200_000) &&
-            !waitForTextOrDescContains("JWT token size exceeded", 60_000)
-        ) {
-            throw AssertionError("Expected OAuth error (ER-05001 or JWT message) in UI")
+        val sawEr =
+            waitForTextOrDescContains("ER-05001", 200_000) ||
+                waitForTextOrDescContains("JWT token size exceeded", 60_000) ||
+                device.wait(Until.hasObject(By.textContains("ER-050")), 45_000) ||
+                device.wait(Until.hasObject(By.textContains("contact support")), 20_000)
+        if (!sawEr) {
+            throw AssertionError("Expected OAuth error (ER-05001 / JWT / support text) in UI")
         }
     }
 

@@ -91,6 +91,26 @@ function splitIntoShards(items, shardCount) {
   return shards;
 }
 
+/** Custom Tabs / heavy WebView last — reduces emulator OOM / process death when paired with lighter tests. */
+const PREFER_RUN_LAST = new Set([
+  "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
+  "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
+  "testCustomSSOBrowserHandoff",
+  "testDirectSocialBrowserHandoff",
+  "testEmbeddedSamlLogin",
+  "testEmbeddedOidcLogin",
+]);
+
+function orderShardStable(shard) {
+  if (shard.length <= 1) return shard;
+  return [...shard].sort((a, b) => {
+    const la = PREFER_RUN_LAST.has(a) ? 1 : 0;
+    const lb = PREFER_RUN_LAST.has(b) ? 1 : 0;
+    if (la !== lb) return la - lb;
+    return shard.indexOf(a) - shard.indexOf(b);
+  });
+}
+
 function main() {
   const catalogMethods = readCatalogMethods(CONFIG.catalog);
   const sourceMethods = readKotlinTestMethods(CONFIG.testSources);
@@ -110,7 +130,7 @@ function main() {
       "test-methods": "",
     });
   } else {
-    const shards = splitIntoShards(methodsForShards, effectiveShardCount);
+    const shards = splitIntoShards(methodsForShards, effectiveShardCount).map(orderShardStable);
     shards.forEach((shard, i) => {
       include.push({
         "shard-index": i + 1,
