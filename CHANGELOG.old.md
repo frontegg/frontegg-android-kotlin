@@ -1,3 +1,7 @@
+## v1.3.24
+## Fixed
+- Fixed session recovery after offline mode in background.
+
 ## v1.3.23
 **Fixed**
 - Fixed token refresh getting permanently stuck after background/foreground lifecycle transitions

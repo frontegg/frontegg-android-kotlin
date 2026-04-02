@@ -1,3 +1,15 @@
+## v
+### Added
+- Added offline mode config flags:
+  - `FRONTEGG_ENABLE_OFFLINE_MODE` (default `false`)
+  - `FRONTEGG_NETWORK_MONITORING_INTERVAL_SECONDS` (default `10`)
+- Exposed `isOfflineMode` on `FronteggAuth` for UI state handling.
+
+### Changed
+- Offline recovery/reconnect flows are now gated by `FRONTEGG_ENABLE_OFFLINE_MODE`.
+- Offline monitoring intervals now use `FRONTEGG_NETWORK_MONITORING_INTERVAL_SECONDS` instead of hardcoded delays.
+- Added cached offline user persistence and restore behavior for offline startup.
+
 ## v1.3.24
 ## Fixed
 - Fixed session recovery after offline mode in background.
