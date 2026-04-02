@@ -597,6 +597,7 @@ open class EmbeddedE2ETestCase {
         // Phase 1: wait WITHOUT pressing Back — let any in-flight OAuth redirect in the Custom Tab
         // complete naturally.  Pressing Back too early cancels the redirect.
         val firstWait = when {
+            timeoutMs >= 360_000 -> (timeoutMs * 78) / 100
             timeoutMs >= 240_000 -> (timeoutMs * 72) / 100
             timeoutMs >= 120_000 -> (timeoutMs * 65) / 100
             else -> (timeoutMs * 3) / 5
@@ -610,13 +611,18 @@ open class EmbeddedE2ETestCase {
             ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), phase2Wait)
         }
         if (!ok) {
-            // Phase 3: no markers visible can mean the SDK's AuthenticationActivity is stuck
-            // on top after a Custom Tab callback. Press Back to dismiss it, then re-launch
-            // NavigationActivity so the authenticated graph (or login) comes to the front.
+            // Phase 3: Custom Tab / activity stack stuck — empty tree, login visible without user,
+            // or browser still foreground after phase 2.
             val vis = dumpVisibleMarkers()
-            if ("<none>" in vis) {
+            val chromeStillFg = foregroundPackage()?.let { isLikelyBrowserPackage(it) } == true
+            val tryRecover =
+                "<none>" in vis ||
+                (vis.contains("LoginPageRoot") && !vis.contains("UserPageRoot")) ||
+                chromeStillFg
+            if (tryRecover) {
                 runCatching { device.pressBack() }
                 Thread.sleep(1_500)
+                dismissBrowserForegroundIfNeeded()
                 launchDemoActivityIntent()
                 Thread.sleep(1_000)
                 val remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(8_000)

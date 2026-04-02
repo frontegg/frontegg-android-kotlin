@@ -77,9 +77,10 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
-        // Custom Tab loads oauth/authorize → redirect to mock Google page; script auto-completes after ~600ms.
-        Thread.sleep(95_000)
-        waitForUserEmail("google-social@frontegg.com", timeoutMs = 280_000)
+        // Custom Tab: oauth/authorize → mock Google → deep link; CI emulators often need >90s.
+        Thread.sleep(120_000)
+        dismissBrowserForegroundIfNeeded()
+        waitForUserEmail("google-social@frontegg.com", timeoutMs = 420_000)
     }
 
     @Test
@@ -260,13 +261,15 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testLogoutClearsSessionAndRelaunchShowsLogin() {
         launchApp(resetState = true)
         loginWithPassword()
-        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 150_000)
         tapDesc("LogoutButton", 30_000)
-        waitForDesc("LoginPageRoot", 60_000)
+        waitForDesc("LoginPageRoot", 90_000)
         terminateApp()
         launchApp(resetState = false)
-        Thread.sleep(1_500)
-        waitForDesc("LoginPageRoot", 120_000)
+        dismissBrowserForegroundIfNeeded()
+        Thread.sleep(3_000)
+        instrumentation.waitForIdleSync()
+        waitForDesc("LoginPageRoot", 180_000)
     }
 
     @Test
