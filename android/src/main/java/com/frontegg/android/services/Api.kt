@@ -23,6 +23,7 @@ import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.google.gson.reflect.TypeToken
 import okhttp3.Call
+import okhttp3.ConnectionPool
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.Interceptor
@@ -35,6 +36,7 @@ import okhttp3.Response
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.TimeUnit
 
 open class Api(
     private var credentialManager: CredentialManager
@@ -99,6 +101,14 @@ open class Api(
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .addInterceptor(sentryInterceptor)
         .build()
+
+    /**
+     * Closes idle pooled connections. Call when the default network is lost or before a
+     * reconnect refresh so OkHttp does not reuse a broken HTTP/2 socket from the shared pool.
+     */
+    fun evictIdleConnections() {
+        httpClient.connectionPool.evictAll()
+    }
     private val storage = StorageProvider.getInnerStorage()
     private val baseUrl: String
         get() {
@@ -171,11 +181,11 @@ open class Api(
         requestBuilder.headers(headers)
         requestBuilder.url(url)
 
-        // Create client with custom timeout like Swift version
         val client = httpClient.newBuilder()
             .connectTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
             .readTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
             .writeTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
+            .connectionPool(ConnectionPool(1, 1, TimeUnit.NANOSECONDS))
             .build()
 
         val request = requestBuilder.build()

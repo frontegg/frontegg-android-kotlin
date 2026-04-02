@@ -40,11 +40,23 @@ object FronteggReconnector {
     }
 
     fun onNetworkLost(context: Context) {
+        val appCtx = context.applicationContext
+        if (FronteggApp.instance != null) {
+            runCatching {
+                (appCtx.fronteggAuth as? FronteggAuthService)?.evictSharedHttpConnectionPool()
+            }
+        }
+
         val offlineEnabled = runCatching {
             FronteggConstantsProvider.fronteggConstants(context).enableOfflineMode
         }.getOrDefault(false)
         if (!offlineEnabled) return
         offline = true
+        if (FronteggApp.instance != null) {
+            runCatching {
+                (appCtx.fronteggAuth as? FronteggAuthService)?.applyOfflineUiAfterDefaultNetworkLost()
+            }
+        }
     }
 
     fun onNetworkAvailable(context: Context) {
@@ -104,6 +116,7 @@ object FronteggReconnector {
                 try {
                     if (FronteggApp.instance != null) {
                         Log.d(TAG, "Attempting token refresh on network reconnect")
+                        (context.applicationContext.fronteggAuth as? FronteggAuthService)?.evictSharedHttpConnectionPool()
                         val refreshSuccess = context.fronteggAuth.refreshTokenAndWait()
                         if (refreshSuccess) {
                             Log.d(TAG, "Token refresh successful on network reconnect")

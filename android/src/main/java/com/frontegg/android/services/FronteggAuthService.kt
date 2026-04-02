@@ -401,7 +401,15 @@ class FronteggAuthService(
                 }
 
                 isReconnecting.postValue(false)
-                sendRefreshToken(isManualCall = true)
+                api.evictIdleConnections()
+                try {
+                    sendRefreshToken(isManualCall = true)
+                } catch (first: Exception) {
+                    if (!isRetryableRefreshFailure(first)) throw first
+                    Log.w(TAG, "Refresh failed, retrying once after evicting connections", first)
+                    api.evictIdleConnections()
+                    sendRefreshToken(isManualCall = true)
+                }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to perform idempotent refresh", e)
                 isReconnecting.postValue(false)
@@ -1505,6 +1513,28 @@ class FronteggAuthService(
             is FailedToAuthenticateException -> false
             else -> false
         }
+    }
+
+    /** Transient failures where a second attempt after evicting the pool may succeed. */
+    private fun isRetryableRefreshFailure(e: Exception): Boolean {
+        return when (e) {
+            is java.net.SocketTimeoutException,
+            is java.net.ConnectException,
+            is java.net.UnknownHostException,
+            is IOException -> true
+            is FailedToAuthenticateException -> false
+            else -> false
+        }
+    }
+
+    internal fun evictSharedHttpConnectionPool() {
+        api.evictIdleConnections()
+    }
+
+    internal fun applyOfflineUiAfterDefaultNetworkLost() {
+        if (!enableOfflineMode) return
+        if (refreshToken.value == null) return
+        setOfflineMode(true)
     }
 
     /**
