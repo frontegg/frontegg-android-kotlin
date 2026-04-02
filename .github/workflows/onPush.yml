@@ -79,3 +79,12 @@ jobs:
         uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: android/build/reports/detekt/debug.sarif
+
+  # Same matrix + sharding as PR workflow (generate_e2e_matrix.js); avoids stale 6-shard / 4-test layout.
+  embedded-e2e-android:
+    name: Embedded E2E (Android)
+    uses: ./.github/workflows/embedded-e2e-reusable.yml
+    secrets: inherit
+    permissions:
+      contents: read
+      checks: write

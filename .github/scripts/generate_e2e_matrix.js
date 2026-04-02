@@ -4,7 +4,11 @@
 const fs = require("node:fs");
 const path = require("node:path");
 
-const MAX_TESTS_PER_SHARD = 4;
+/**
+ * Small shards + weight-sorted round-robin keeps the slowest tests from landing on the same
+ * shard as each other (e.g. Google Custom Tab vs password WebView).
+ */
+const MAX_TESTS_PER_SHARD = 2;
 
 const ROOT = path.resolve(__dirname, "../..");
 const CONFIG = {
@@ -47,6 +51,40 @@ function validateCatalog(catalogMethods, sourceMethods) {
   throw new Error(`embedded E2E catalog drift: ${problems.join("; ")}`);
 }
 
+/**
+ * Rough CI duration / resource weight (higher = round-robin into shards first so heavy tests
+ * rarely share a shard with each other; catalog document order is unchanged).
+ */
+const TEST_WEIGHTS = {
+  testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession: 100,
+  testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken: 92,
+  testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen: 78,
+  testLogoutTerminateTransientNoConnectionThenCustomSSORecovers: 72,
+  testScheduledTokenRefreshFiresBeforeExpiry: 68,
+  testExpiredAccessTokenRefreshesOnAuthenticatedRelaunch: 62,
+  testAuthenticatedRelaunchWithExpiredAccessTokenAndFreshRefreshToken: 60,
+  testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken: 58,
+  testPasswordLoginAndSessionRestore: 52,
+  testLogoutClearsSessionAndRelaunchShowsLogin: 48,
+  testAuthenticatedOfflineModeWhenNetworkPathUnavailable: 44,
+  testExpiredRefreshTokenClearsSessionAndShowsLogin: 42,
+  testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers: 38,
+  testLogoutTerminateTransientProbeFailureDoesNotBlinkNoConnectionPage: 36,
+  testEmbeddedSamlLogin: 34,
+  testEmbeddedOidcLogin: 34,
+  testCustomSSOBrowserHandoff: 30,
+  testDirectSocialBrowserHandoff: 30,
+  testRequestAuthorizeFlow: 28,
+  testPasswordLoginWorksWithOfflineModeDisabled: 26,
+  testColdLaunchWithOfflineModeDisabledReachesLoginQuickly: 12,
+  testColdLaunchTransientProbeTimeoutsDoNotBlinkNoConnectionPage: 12,
+};
+
+function sortMethodsForSharding(methods) {
+  const w = (m) => TEST_WEIGHTS[m] ?? 20;
+  return [...methods].sort((a, b) => w(b) - w(a));
+}
+
 function splitIntoShards(items, shardCount) {
   const shards = Array.from({ length: shardCount }, () => []);
   items.forEach((item, i) => shards[i % shardCount].push(item));
@@ -54,19 +92,17 @@ function splitIntoShards(items, shardCount) {
 }
 
 function main() {
-  const parsed = parseInt(process.env.INPUT_SHARD_COUNT || "1", 10);
-  const shardCount = Number.isNaN(parsed) ? 1 : Math.max(1, parsed);
-
-  const methods = readCatalogMethods(CONFIG.catalog);
+  const catalogMethods = readCatalogMethods(CONFIG.catalog);
   const sourceMethods = readKotlinTestMethods(CONFIG.testSources);
-  validateCatalog(methods, sourceMethods);
+  validateCatalog(catalogMethods, sourceMethods);
+  const methodsForShards = sortMethodsForSharding(catalogMethods);
 
-  const autoShards = Math.ceil(methods.length / MAX_TESTS_PER_SHARD);
-  const effectiveShardCount =
-    shardCount > 1 ? Math.min(shardCount, methods.length || 1) : Math.max(1, autoShards);
+  // Always derive shard count from catalog + MAX_TESTS_PER_SHARD only (no env cap), so CI cannot
+  // silently collapse to e.g. 6 shards via a stray INPUT_SHARD_COUNT.
+  const effectiveShardCount = Math.max(1, Math.ceil(catalogMethods.length / MAX_TESTS_PER_SHARD));
 
   const include = [];
-  if (effectiveShardCount <= 1 || methods.length === 0) {
+  if (effectiveShardCount <= 1 || catalogMethods.length === 0) {
     include.push({
       "shard-index": 1,
       "shard-total": 1,
@@ -74,7 +110,7 @@ function main() {
       "test-methods": "",
     });
   } else {
-    const shards = splitIntoShards(methods, effectiveShardCount);
+    const shards = splitIntoShards(methodsForShards, effectiveShardCount);
     shards.forEach((shard, i) => {
       include.push({
         "shard-index": i + 1,

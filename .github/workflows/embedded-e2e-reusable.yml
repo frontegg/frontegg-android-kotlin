@@ -1,0 +1,127 @@
+# Shared embedded E2E jobs (matrix + emulator shards + summary). Invoked from:
+# - demo-e2e.yml (pull_request to main/master)
+# - onPush.yml (push to feature branches)
+name: Embedded E2E reusable
+
+on:
+  workflow_call:
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: set-matrix
+        run: |
+          JSON=$(env -u GITHUB_OUTPUT node .github/scripts/generate_e2e_matrix.js)
+          SHARD_JOBS="$(printf '%s' "$JSON" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).include.length")"
+          echo "::notice::Embedded E2E matrix: $SHARD_JOBS parallel emulator job(s) (MAX_TESTS_PER_SHARD in generate_e2e_matrix.js)."
+          {
+            echo "matrix<<MATRIX_JSON_EOF"
+            echo "$JSON"
+            echo "MATRIX_JSON_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  embedded-e2e:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    needs: matrix
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Validate E2E scenario catalog
+        run: env -u GITHUB_OUTPUT node .github/scripts/generate_e2e_matrix.js > /dev/null
+
+      - name: Create dummy frontegg.properties
+        run: |
+          echo "FRONTEGG_DOMAIN=127.0.0.1" >> frontegg.properties
+          echo "FRONTEGG_CLIENT_ID=dummy" >> frontegg.properties
+          echo "FRONTEGG_APPLICATION_ID=" >> frontegg.properties
+          echo "FRONTEGG_DEEP_LINK_SCHEME=test" >> frontegg.properties
+
+      - name: Build debug + androidTest
+        run: ./gradlew :embedded:assembleDebug :embedded:assembleDebugAndroidTest --no-daemon
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run embedded E2E on emulator
+        env:
+          E2E_CLASS: ${{ matrix['test-class'] }}
+          E2E_METHODS: ${{ matrix['test-methods'] }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          cores: 4
+          ram-size: 4096M
+          heap-size: 1024M
+          script: bash .github/scripts/run_embedded_e2e_shard.sh
+
+      - name: Collect JUnit reports
+        if: always()
+        run: |
+          mkdir -p e2e-artifacts
+          find . \( -path "*/build/outputs/*" -o -path "*/build/reports/*" \) \
+            -name "TEST-*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
+          find . -path "*/androidTest-results/*" -name "*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
+
+      - name: Publish JUnit report
+        uses: mikepenz/action-junit-report@v5
+        if: always()
+        with:
+          report_paths: e2e-artifacts/*.xml
+          check_name: Embedded E2E (shard ${{ matrix['shard-index'] }})
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: embedded-e2e-shard-${{ matrix['shard-index'] }}
+          path: e2e-artifacts/
+          if-no-files-found: ignore
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [embedded-e2e]
+    if: always()
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          path: all-e2e
+
+      - uses: actions/checkout@v5
+
+      - name: Combine summary
+        run: node .github/scripts/combine_e2e_summary.js --artifacts-dir all-e2e --summary e2e-summary.md
+
+      - name: Upload summary
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-summary
+          path: e2e-summary.md

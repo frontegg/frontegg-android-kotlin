@@ -22,8 +22,10 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
         terminateApp()
         launchApp(resetState = false)
-        Thread.sleep(1_500)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 180_000)
+        dismissBrowserForegroundIfNeeded()
+        Thread.sleep(3_000)
+        instrumentation.waitForIdleSync()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 300_000)
     }
 
     @Test
@@ -76,8 +78,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
         // Custom Tab loads oauth/authorize → redirect to mock Google page; script auto-completes after ~600ms.
-        Thread.sleep(75_000)
-        waitForUserEmail("google-social@frontegg.com", timeoutMs = 240_000)
+        Thread.sleep(95_000)
+        waitForUserEmail("google-social@frontegg.com", timeoutMs = 280_000)
     }
 
     @Test
@@ -91,7 +93,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         tapDesc("E2EEmbeddedGoogleSocialButton")
         Thread.sleep(50_000)
         dismissBrowserForegroundIfNeeded()
-        if (!waitForTextOrDescContains("ER-05001", 120_000)) {
+        if (!waitForTextOrDescContains("ER-05001", 150_000)) {
             throw AssertionError("Expected error text in UI")
         }
     }

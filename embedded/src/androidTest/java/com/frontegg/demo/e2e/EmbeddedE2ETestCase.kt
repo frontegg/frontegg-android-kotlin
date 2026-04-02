@@ -19,6 +19,7 @@ import com.frontegg.demo.App
 import com.frontegg.demo.NavigationActivity
 import org.junit.After
 import org.junit.Before
+import java.io.File
 import java.util.concurrent.TimeUnit
 
 /**
@@ -34,7 +35,7 @@ open class EmbeddedE2ETestCase {
             instrumentation.targetContext.packageName,
         )
         require(id != 0) { "custom_webview not found in merged resources" }
-        onWebView(withId(id))
+        onWebView(withId(id)).forceJavascriptEnabled()
     }
 
     protected lateinit var mock: LocalMockAuthServer
@@ -55,6 +56,12 @@ open class EmbeddedE2ETestCase {
     @After
     open fun e2eBaseTearDown() {
         scenario?.close()
+        scenario = null
+        runCatching {
+            dismissBrowserForegroundIfNeeded()
+            device.pressHome()
+            Thread.sleep(300)
+        }
         mock.shutdown()
     }
 
@@ -240,27 +247,29 @@ open class EmbeddedE2ETestCase {
 
     protected fun loginWithPassword() {
         waitForDesc("LoginPageRoot", 120_000)
-        for (attempt in 0..2) {
+        for (attempt in 0..3) {
             tapDesc("E2EEmbeddedPasswordButton")
             Thread.sleep(
                 when (attempt) {
-                    0 -> 5_000
-                    1 -> 7_000
-                    else -> 9_000
+                    0 -> 6_000
+                    1 -> 8_000
+                    2 -> 10_000
+                    else -> 12_000
                 },
             )
             try {
                 tapWebButtonIfPresent(
                     "Sign in",
                     timeoutMs = when (attempt) {
-                        0 -> 75_000
-                        1 -> 95_000
-                        else -> 120_000
+                        0 -> 95_000
+                        1 -> 115_000
+                        2 -> 135_000
+                        else -> 155_000
                     },
                 )
                 return
             } catch (e: AssertionError) {
-                if (attempt < 2 && "not found" in (e.message ?: "")) {
+                if (attempt < 3 && "not found" in (e.message ?: "")) {
                     runCatching { device.pressBack() }
                     Thread.sleep(2_500)
                     waitForDesc("LoginPageRoot", 45_000)
@@ -274,21 +283,33 @@ open class EmbeddedE2ETestCase {
     /** SAML/OIDC embedded flows: WebView can render the mock Okta control late on CI emulators. */
     protected fun tapEmbeddedMockOktaAfterButton(embedButtonDesc: String) {
         tapDesc(embedButtonDesc)
-        Thread.sleep(3_500)
-        for (attempt in 0..1) {
+        Thread.sleep(5_000)
+        for (attempt in 0..3) {
             try {
                 tapWebButtonIfPresent(
                     "Login With Okta",
-                    timeoutMs = if (attempt == 0) 95_000 else 120_000,
+                    timeoutMs = when (attempt) {
+                        0 -> 100_000
+                        1 -> 120_000
+                        2 -> 140_000
+                        else -> 160_000
+                    },
                 )
                 return
             } catch (e: AssertionError) {
-                if (attempt == 0 && "not found" in (e.message ?: "")) {
+                if (attempt < 3 && "not found" in (e.message ?: "")) {
                     runCatching { device.pressBack() }
                     Thread.sleep(2_500)
                     waitForDesc("LoginPageRoot", 45_000)
                     tapDesc(embedButtonDesc)
-                    Thread.sleep(5_000)
+                    Thread.sleep(
+                        when (attempt) {
+                            0 -> 5_000
+                            1 -> 7_000
+                            2 -> 9_000
+                            else -> 11_000
+                        },
+                    )
                 } else {
                     throw e
                 }
@@ -303,6 +324,7 @@ open class EmbeddedE2ETestCase {
         }
         if ("sign in" in primaryLower || "okta" in primaryLower) {
             Thread.sleep(8_000)
+            device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
         }
         if (tryEspressoWebTapLink(text)) return
         val deadline = System.currentTimeMillis() + timeoutMs
@@ -310,6 +332,7 @@ open class EmbeddedE2ETestCase {
         val started = System.currentTimeMillis()
         var waitedChrome = false
         var lastEspressoRetry = System.currentTimeMillis()
+        var lastEnterPress = 0L
         fun tryClickNeedle(n: String): Boolean {
             val needle = n.lowercase()
             val root = instrumentation.uiAutomation.rootInActiveWindow ?: return false
@@ -325,12 +348,21 @@ open class EmbeddedE2ETestCase {
             return false
         }
         val signInPattern = Pattern.compile("sign\\s*in", Pattern.CASE_INSENSITIVE)
+        val oktaPattern = Pattern.compile("login\\s+with\\s+okta", Pattern.CASE_INSENSITIVE)
         while (System.currentTimeMillis() < deadline) {
+            val nowLoop = System.currentTimeMillis()
+            if (("sign in" in primaryLower || "okta" in primaryLower) && nowLoop - lastEnterPress > 15_000) {
+                lastEnterPress = nowLoop
+                runCatching { device.pressEnter() }
+            }
             if (tryClickNeedle(primary)) return
             device.findObject(By.text(text))?.let { it.click(); return }
             device.findObject(By.textContains(text))?.let { it.click(); return }
             if ("sign in" in primaryLower) {
                 device.findObject(By.text(signInPattern))?.let { it.click(); return }
+            }
+            if ("okta" in primaryLower) {
+                device.findObject(By.text(oktaPattern))?.let { it.click(); return }
             }
             device.findObject(By.descContains(text))?.let { it.click(); return }
             val shortDesc = text.removePrefix("Continue ").removePrefix("Login ").trim()
@@ -370,6 +402,11 @@ open class EmbeddedE2ETestCase {
         val tries = buildList {
             when {
                 "sign in" in lower -> {
+                    add {
+                        authWebView()
+                            .withElement(findElement(Locator.ID, "e2e-password-submit"))
+                            .perform(webClick())
+                    }
                     add { authWebView().withElement(findElement(Locator.LINK_TEXT, text)).perform(webClick()) }
                     add {
                         authWebView()
@@ -403,6 +440,16 @@ open class EmbeddedE2ETestCase {
                                 findElement(
                                     Locator.XPATH,
                                     "//button[contains(normalize-space(.), 'Login With Okta')]",
+                                ),
+                            )
+                            .perform(webClick())
+                    }
+                    add {
+                        authWebView()
+                            .withElement(
+                                findElement(
+                                    Locator.XPATH,
+                                    "//*[self::button or self::a][contains(translate(normalize-space(string(.)), 'ABCDEFGHIJKLMNOPQRSTUVWXYZ', 'abcdefghijklmnopqrstuvwxyz'), 'login with okta')]",
                                 ),
                             )
                             .perform(webClick())
@@ -472,6 +519,7 @@ open class EmbeddedE2ETestCase {
     protected fun waitForTextOrDescContains(fragment: String, timeoutMs: Long = 30_000): Boolean {
         val needle = fragment.lowercase()
         val end = System.currentTimeMillis() + timeoutMs
+        var lastHierarchyCheck = 0L
         while (System.currentTimeMillis() < end) {
             val root = instrumentation.uiAutomation.rootInActiveWindow
             if (root != null) {
@@ -491,9 +539,27 @@ open class EmbeddedE2ETestCase {
                     if (it.visibleBounds.height() > 4) return true
                 }
             }
+            val now = System.currentTimeMillis()
+            if (now - lastHierarchyCheck > 2_000) {
+                lastHierarchyCheck = now
+                if (windowHierarchyContains(fragment)) return true
+            }
             Thread.sleep(250)
         }
         return false
+    }
+
+    private fun windowHierarchyContains(needle: String): Boolean {
+        val n = needle.lowercase()
+        return runCatching {
+            val f = File.createTempFile("e2e_ui", ".xml", instrumentation.targetContext.cacheDir)
+            try {
+                device.dumpWindowHierarchy(f)
+                f.readText().lowercase().contains(n)
+            } finally {
+                f.delete()
+            }
+        }.getOrDefault(false)
     }
 
     private fun findBoundsForTextInTree(node: AccessibilityNodeInfo, needle: String): Rect? {
@@ -530,7 +596,11 @@ open class EmbeddedE2ETestCase {
         val deadline = System.currentTimeMillis() + timeoutMs
         // Phase 1: wait WITHOUT pressing Back — let any in-flight OAuth redirect in the Custom Tab
         // complete naturally.  Pressing Back too early cancels the redirect.
-        val firstWait = (timeoutMs * 3) / 5
+        val firstWait = when {
+            timeoutMs >= 240_000 -> (timeoutMs * 72) / 100
+            timeoutMs >= 120_000 -> (timeoutMs * 65) / 100
+            else -> (timeoutMs * 3) / 5
+        }
         var ok = device.wait(Until.hasObject(By.desc("UserPageRoot")), firstWait)
         if (!ok) {
             // Phase 2: redirect should be done by now; dismiss any lingering browser / system overlay

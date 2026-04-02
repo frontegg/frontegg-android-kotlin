@@ -324,7 +324,7 @@ class LocalMockAuthServer {
         val pv = if (prefill) """ value="Testpassword1!"""" else ""
         val b =
             """<h1>Password Login</h1><form id="f"><input id="e" type="email" value="${htmlEsc(email)}"/>
-            <input id="p" type="password" name="password"$pv/><button>Sign in</button></form>
+            <input id="p" type="password" name="password"$pv/><button type="submit" id="e2e-password-submit">Sign in</button></form>
             <script>document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
             await fetch('/frontegg/identity/resources/auth/v2/user/sso/prelogin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('e').value})}).catch(()=>null);
             const r=await fetch('/frontegg/identity/resources/auth/v1/user',{method:'POST',headers:{'Content-Type':'application/json'},
@@ -455,7 +455,7 @@ class LocalMockAuthServer {
                     <input type="hidden" name="email" value="${htmlEsc(email)}"/>
                     <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
                     <input type="hidden" name="state" value="${htmlEsc(st)}"/>
-                    <input type="password" name="password"$pv/><button>Sign in</button></form>""",
+                    <input type="password" name="password"$pv/><button type="submit" id="e2e-password-submit">Sign in</button></form>""",
                 )
             }
         }
