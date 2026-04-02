@@ -111,18 +111,20 @@ function orderShardStable(shard) {
   });
 }
 
+/** One test per shard — Chrome Custom Tab routinely SIGKILL/OOMs the app on shared CI shards. */
+const SOLO_SHARD_METHODS = new Set([
+  "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
+  "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
+]);
+
 function main() {
   const catalogMethods = readCatalogMethods(CONFIG.catalog);
   const sourceMethods = readKotlinTestMethods(CONFIG.testSources);
   validateCatalog(catalogMethods, sourceMethods);
   const methodsForShards = sortMethodsForSharding(catalogMethods);
 
-  // Always derive shard count from catalog + MAX_TESTS_PER_SHARD only (no env cap), so CI cannot
-  // silently collapse to e.g. 6 shards via a stray INPUT_SHARD_COUNT.
-  const effectiveShardCount = Math.max(1, Math.ceil(catalogMethods.length / MAX_TESTS_PER_SHARD));
-
   const include = [];
-  if (effectiveShardCount <= 1 || catalogMethods.length === 0) {
+  if (catalogMethods.length === 0) {
     include.push({
       "shard-index": 1,
       "shard-total": 1,
@@ -130,7 +132,14 @@ function main() {
       "test-methods": "",
     });
   } else {
-    const shards = splitIntoShards(methodsForShards, effectiveShardCount).map(orderShardStable);
+    const solo = methodsForShards.filter((m) => SOLO_SHARD_METHODS.has(m));
+    const rest = methodsForShards.filter((m) => !SOLO_SHARD_METHODS.has(m));
+    const restShardCount = Math.max(1, Math.ceil(rest.length / MAX_TESTS_PER_SHARD));
+    const restShards = splitIntoShards(rest, restShardCount).map(orderShardStable);
+    const soloShards = solo.map((m) => [m]);
+    const shards = [...restShards, ...soloShards];
+    const effectiveShardCount = shards.length;
+
     shards.forEach((shard, i) => {
       include.push({
         "shard-index": i + 1,
