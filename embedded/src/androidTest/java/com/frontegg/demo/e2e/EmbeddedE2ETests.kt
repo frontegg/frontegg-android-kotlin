@@ -77,8 +77,16 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EEmbeddedGoogleSocialButton")
-        // Custom Tab: oauth/authorize → mock Google → deep link; CI emulators often need >90s.
-        Thread.sleep(120_000)
+        // Custom Tab: oauth/authorize → mock Google → deep link.
+        // Use chunked sleeps instead of one long Thread.sleep to reduce emulator pressure
+        // (a single 120s sleep with Chrome GPU rendering causes process crashes on CI).
+        for (i in 1..12) {
+            Thread.sleep(10_000)
+            // Early exit: if our app is back in foreground, stop waiting
+            if (device.currentPackageName == instrumentation.targetContext.packageName) {
+                if (device.findObject(By.desc("UserPageRoot")) != null) break
+            }
+        }
         dismissBrowserForegroundIfNeeded()
         waitForUserEmail("google-social@frontegg.com", timeoutMs = 420_000)
     }
