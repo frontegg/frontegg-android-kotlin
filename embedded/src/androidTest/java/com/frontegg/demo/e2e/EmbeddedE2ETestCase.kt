@@ -7,6 +7,7 @@ import android.view.accessibility.AccessibilityNodeInfo
 import androidx.test.core.app.ActivityScenario
 import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.web.sugar.Web.onWebView
+import androidx.test.espresso.web.webdriver.DriverAtoms.clearElement
 import androidx.test.espresso.web.webdriver.DriverAtoms.findElement
 import androidx.test.espresso.web.webdriver.DriverAtoms.webClick
 import androidx.test.espresso.web.webdriver.Locator
@@ -600,6 +601,103 @@ open class EmbeddedE2ETestCase {
             if (found != null) return found
         }
         return null
+    }
+
+    /** Attempt password login but expect an error message instead of successful authentication. */
+    protected fun loginWithPasswordExpectError(errorFragment: String, timeoutMs: Long = 90_000) {
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(10_000)
+        tapWebButtonIfPresent("Sign in", timeoutMs = 60_000)
+        Thread.sleep(3_000)
+        val found = waitForA11yTextContains(errorFragment, timeoutMs)
+        if (!found) {
+            throw AssertionError("Expected error containing '$errorFragment' but not found in UI")
+        }
+    }
+
+    /** Login with magic code flow. The mock server must have magic code strategy enabled. */
+    protected fun loginWithMagicCode(email: String = "test@frontegg.com") {
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(10_000)
+        // The magic code page auto-sends the code on load; wait for the code input to appear
+        waitForA11yTextContains("verification code", 60_000)
+        Thread.sleep(3_000)
+        val code = mock.getIssuedMagicCode(email)
+            ?: throw AssertionError("No magic code issued for $email")
+        enterCodeInWebView("e2e-magic-code", code)
+        Thread.sleep(1_000)
+        tapWebButtonIfPresent("Verify", timeoutMs = 60_000)
+    }
+
+    /** Enter a code into a WebView input field by element ID. */
+    protected fun enterCodeInWebView(elementId: String, code: String) {
+        try {
+            authWebView()
+                .withElement(findElement(Locator.ID, elementId))
+                .perform(clearElement())
+            authWebView()
+                .withElement(findElement(Locator.ID, elementId))
+                .perform(webClick()) // focus the element
+            // Type via UiAutomator since webKeys isn't imported
+            Thread.sleep(300)
+            device.findObject(By.clazz("android.widget.EditText"))?.text = code
+        } catch (_: Throwable) {
+            val input = device.findObject(By.clazz("android.widget.EditText"))
+            input?.click()
+            Thread.sleep(500)
+            input?.text = code
+        }
+    }
+
+    /** Complete an MFA challenge page with a verification code. */
+    protected fun completeMfaChallenge(code: String = "123456", timeoutMs: Long = 90_000) {
+        Thread.sleep(8_000)
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        waitForA11yTextContains("code", 30_000)
+        Thread.sleep(3_000)
+        enterCodeInWebView("e2e-mfa-code", code)
+        Thread.sleep(1_000)
+        tapWebButtonIfPresent("Verify", timeoutMs = timeoutMs)
+    }
+
+    /** Navigate to signup page and fill the form. */
+    protected fun navigateToSignupAndFill(
+        email: String,
+        name: String,
+        password: String,
+        org: String,
+        acceptTerms: Boolean? = null,
+    ) {
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(10_000)
+        tapWebButtonIfPresent("Sign up", timeoutMs = 60_000)
+        Thread.sleep(8_000)
+        try {
+            // Focus and type each field via Espresso Web click + UiAutomator text entry
+            authWebView().withElement(findElement(Locator.ID, "e2e-signup-email")).perform(webClick())
+            Thread.sleep(300)
+            device.findObject(By.focused(true))?.text = email
+            authWebView().withElement(findElement(Locator.ID, "e2e-signup-name")).perform(webClick())
+            Thread.sleep(300)
+            device.findObject(By.focused(true))?.text = name
+            authWebView().withElement(findElement(Locator.ID, "e2e-signup-password")).perform(webClick())
+            Thread.sleep(300)
+            device.findObject(By.focused(true))?.text = password
+            authWebView().withElement(findElement(Locator.ID, "e2e-signup-org")).perform(webClick())
+            Thread.sleep(300)
+            device.findObject(By.focused(true))?.text = org
+            if (acceptTerms == true) {
+                authWebView().withElement(findElement(Locator.ID, "e2e-signup-terms")).perform(webClick())
+            }
+        } catch (_: Throwable) {
+        }
+        tapWebButtonIfPresent("Sign up", timeoutMs = 60_000)
     }
 
     protected fun oauthRefreshRequestCount(): Int {

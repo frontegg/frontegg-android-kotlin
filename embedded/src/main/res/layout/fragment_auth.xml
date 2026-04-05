@@ -232,6 +232,38 @@
                             android:layout_height="wrap_content"
                             android:contentDescription="E2EDirectSocialLoginButton"
                             android:text="E2E Direct Social Login" />
+
+                        <Button
+                            android:id="@+id/e2e_activate_account_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EActivateAccountButton"
+                            android:text="E2E Activate Account" />
+
+                        <Button
+                            android:id="@+id/e2e_accept_invitation_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EAcceptInvitationButton"
+                            android:text="E2E Accept Invitation" />
+
+                        <Button
+                            android:id="@+id/e2e_unlock_account_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EUnlockAccountButton"
+                            android:text="E2E Unlock Account" />
+
+                        <Button
+                            android:id="@+id/e2e_verify_email_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EVerifyEmailButton"
+                            android:text="E2E Verify Email" />
                     </LinearLayout>
 
                 </LinearLayout>

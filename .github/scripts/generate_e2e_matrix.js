@@ -78,6 +78,40 @@ const TEST_WEIGHTS = {
   testPasswordLoginWorksWithOfflineModeDisabled: 26,
   testColdLaunchWithOfflineModeDisabledReachesLoginQuickly: 12,
   testColdLaunchTransientProbeTimeoutsDoNotBlinkNoConnectionPage: 12,
+  // Phase 1 – password complexity & lockout
+  testPasswordLoginMediumComplexityValidation: 30,
+  testPasswordLoginHardComplexityValidation: 35,
+  testAccountLockoutAfterIncorrectPasswordAttempts: 45,
+  testBreachedPasswordError: 30,
+  // Phase 2 – magic code / magic link
+  testMagicCodeLogin: 40,
+  testMagicLinkLogin: 35,
+  testIncorrectMagicCodeValidation: 35,
+  testMagicCodeExpiration: 50,
+  testMagicLinkExpiration: 50,
+  testResendMagicCodeButton: 45,
+  // Phase 3 – MFA
+  testPasswordLoginWithMfaAuthenticator: 65,
+  testPasswordLoginWithMfaSms: 60,
+  testMagicCodeLoginWithMfa: 65,
+  // Phase 4 – signup
+  testSignupWithEmail: 35,
+  testSignupWithSocialLogin: 70,
+  testSignupWithEmailVerificationAndPassword: 50,
+  testSignupWithTermsChecked: 35,
+  testSignupWithTermsUncheckedShowsError: 35,
+  // Phase 5 – forgot / expired password
+  testForgotPasswordFlow: 45,
+  testPasswordExpirationWarning: 40,
+  testPasswordExpiredPage: 40,
+  // Phase 6 – account action pages
+  testMagicLinkConfirmation: 35,
+  testUserActivation: 35,
+  testNewAccountInvitation: 40,
+  testUnlockAccount: 45,
+  // Phase 7 – custom login box
+  testCustomLoginBoxWithPassword: 40,
+  testCustomLoginBoxWithMagicCode: 50,
 };
 
 function sortMethodsForSharding(methods) {
@@ -119,6 +153,13 @@ const SOLO_SHARD_METHODS = new Set([
   "testDirectSocialBrowserHandoff",
   "testAuthenticatedRelaunchWithExpiredAccessTokenAndFreshRefreshToken",
   "testLogoutTerminateTransientNoConnectionThenCustomSSORecovers",
+  "testAccountLockoutAfterIncorrectPasswordAttempts",
+  "testPasswordLoginWithMfaAuthenticator",
+  "testPasswordLoginWithMfaSms",
+  "testMagicCodeLoginWithMfa",
+  "testSignupWithSocialLogin",
+  "testMagicCodeLogin",
+  "testResendMagicCodeButton",
 ]);
 
 function main() {
