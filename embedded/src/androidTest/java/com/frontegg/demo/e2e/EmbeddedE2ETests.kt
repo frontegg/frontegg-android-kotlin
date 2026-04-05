@@ -351,4 +351,248 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         Thread.sleep(2_000)
         waitForUserEmail("test@frontegg.com", timeoutMs = 300_000)
     }
+
+    // ═══════════════════════════════════════════════════════════
+    // Password Complexity & Validation
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    fun testPasswordLoginMediumComplexityValidation() {
+        mock.configurePasswordPolicy(minLength = 8, requireUppercase = true, requireNumber = true)
+        launchApp(resetState = true)
+        loginWithPasswordExpectError("Password must")
+    }
+
+    @Test
+    fun testPasswordLoginHardComplexityValidation() {
+        mock.configurePasswordPolicy(minLength = 12, requireUppercase = true, requireNumber = true, requireSpecial = true)
+        launchApp(resetState = true)
+        loginWithPasswordExpectError("Password must")
+    }
+
+    @Test
+    fun testAccountLockoutAfterIncorrectPasswordAttempts() {
+        mock.configureLockout(maxAttempts = 2)
+        launchApp(resetState = true)
+        loginWithPasswordExpectError("locked", timeoutMs = 120_000)
+    }
+
+    @Test
+    fun testBreachedPasswordError() {
+        mock.configureBreachedPassword("test@frontegg.com")
+        launchApp(resetState = true)
+        loginWithPasswordExpectError("breach")
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Magic Code
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    fun testMagicCodeLogin() {
+        mock.configureAuthStrategies(password = false, magicCode = true)
+        launchApp(resetState = true)
+        loginWithMagicCode()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+    }
+
+    @Test
+    fun testIncorrectMagicCodeValidation() {
+        mock.configureAuthStrategies(password = false, magicCode = true)
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(15_000)
+        // Enter wrong code
+        val input = device.findObject(By.clazz("android.widget.EditText"))
+        input?.click(); Thread.sleep(500); input?.text = "000000"
+        Thread.sleep(1_000)
+        tapWebButtonIfPresent("Verify", timeoutMs = 30_000)
+        Thread.sleep(3_000)
+        val found = waitForWebViewText("Invalid code", 30_000)
+        if (!found) throw AssertionError("Expected 'Invalid code' error")
+    }
+
+    @Test
+    fun testMagicCodeExpiration() {
+        mock.configureAuthStrategies(password = false, magicCode = true)
+        mock.configureMagicCodeTTL(1)
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(15_000) // code expires during this wait (1s TTL)
+        val code = mock.getIssuedMagicCode("test@frontegg.com") ?: throw AssertionError("No code")
+        val input = device.findObject(By.clazz("android.widget.EditText"))
+        input?.click(); Thread.sleep(500); input?.text = code
+        Thread.sleep(1_000)
+        tapWebButtonIfPresent("Verify", timeoutMs = 30_000)
+        Thread.sleep(3_000)
+        val found = waitForWebViewText("expired", 30_000)
+        if (!found) throw AssertionError("Expected 'expired' error")
+    }
+
+    @Test
+    fun testResendMagicCodeButton() {
+        mock.configureAuthStrategies(password = false, magicCode = true)
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(15_000)
+        tapWebButtonIfPresent("Resend code", timeoutMs = 30_000)
+        Thread.sleep(3_000)
+        assert(mock.requestCount("POST", "/identity/resources/auth/v1/passwordless/code/resend") >= 1)
+        val code = mock.getIssuedMagicCode("test@frontegg.com") ?: throw AssertionError("No code after resend")
+        val input = device.findObject(By.clazz("android.widget.EditText"))
+        input?.click(); Thread.sleep(500); input?.text = code
+        Thread.sleep(1_000)
+        tapWebButtonIfPresent("Verify", timeoutMs = 30_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Magic Link
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    fun testMagicLinkSentPage() {
+        mock.configureAuthStrategies(password = false, magicLink = true)
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(10_000)
+        val found = waitForWebViewText("magic link", 60_000)
+        if (!found) throw AssertionError("Expected magic link sent page")
+        mock.waitForRequest(path = "/identity/resources/auth/v1/passwordless/code/prelogin", timeoutMs = 15_000)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // MFA
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    fun testPasswordLoginWithMfaAuthenticator() {
+        mock.configureMfa("test@frontegg.com", "authenticator")
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(10_000)
+        tapWebButtonIfPresent("Sign in", timeoutMs = 90_000)
+        Thread.sleep(5_000)
+        completeMfaChallenge()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+    }
+
+    @Test
+    fun testPasswordLoginWithMfaSms() {
+        mock.configureMfa("test@frontegg.com", "sms")
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(10_000)
+        tapWebButtonIfPresent("Sign in", timeoutMs = 90_000)
+        Thread.sleep(5_000)
+        completeMfaChallenge()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Signup
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    fun testSignupWithEmail() {
+        launchApp(resetState = true)
+        navigateToSignupAndFill("signup-new@frontegg.com", "Test User", "Test1234!", "TestOrg")
+        waitForUserEmail("signup-new@frontegg.com", timeoutMs = 120_000)
+    }
+
+    @Test
+    fun testSignupWithEmailVerificationAndPassword() {
+        mock.configureSignup(requireEmailVerification = true)
+        launchApp(resetState = true)
+        navigateToSignupAndFill("verify-me@frontegg.com", "Verify User", "Test1234!", "VerifyOrg")
+        Thread.sleep(5_000)
+        val found = waitForWebViewText("verify", 60_000)
+        if (!found) throw AssertionError("Expected email verification page")
+    }
+
+    @Test
+    fun testSignupWithTermsChecked() {
+        mock.configureSignup(requireTerms = true)
+        launchApp(resetState = true)
+        navigateToSignupAndFill("terms-ok@frontegg.com", "Terms User", "Test1234!", "TermsOrg", acceptTerms = true)
+        waitForUserEmail("terms-ok@frontegg.com", timeoutMs = 120_000)
+    }
+
+    @Test
+    fun testSignupWithTermsUncheckedShowsError() {
+        mock.configureSignup(requireTerms = true)
+        launchApp(resetState = true)
+        navigateToSignupAndFill("terms-fail@frontegg.com", "No Terms", "Test1234!", "TermsOrg", acceptTerms = false)
+        Thread.sleep(5_000)
+        val found = waitForWebViewText("terms", 60_000)
+        if (!found) throw AssertionError("Expected terms error message")
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Password Management
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    fun testForgotPasswordFlow() {
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(10_000)
+        tapWebButtonIfPresent("Forgot password?", timeoutMs = 60_000)
+        Thread.sleep(5_000)
+        // Type email
+        val input = device.findObject(By.clazz("android.widget.EditText"))
+        input?.click(); Thread.sleep(300); input?.text = "test@frontegg.com"
+        tapWebButtonIfPresent("Reset password", timeoutMs = 30_000)
+        Thread.sleep(3_000)
+        val found = waitForWebViewText("reset", 60_000)
+        if (!found) throw AssertionError("Expected password reset confirmation")
+    }
+
+    @Test
+    fun testPasswordExpirationWarning() {
+        mock.configurePasswordExpiration("test@frontegg.com", daysUntilExpiry = 5)
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+    }
+
+    @Test
+    fun testPasswordExpiredPage() {
+        mock.configurePasswordExpiration("test@frontegg.com", daysUntilExpiry = -1)
+        launchApp(resetState = true)
+        loginWithPasswordExpectError("expired")
+    }
+
+    // ═══════════════════════════════════════════════════════════
+    // Custom Login Box
+    // ═══════════════════════════════════════════════════════════
+
+    @Test
+    fun testCustomLoginBoxWithPassword() {
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+    }
+
+    @Test
+    fun testCustomLoginBoxWithMagicCode() {
+        mock.configureAuthStrategies(password = false, magicCode = true)
+        launchApp(resetState = true)
+        loginWithMagicCode()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+    }
 }

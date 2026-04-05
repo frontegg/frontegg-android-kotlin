@@ -65,6 +65,16 @@ class LocalMockAuthServer {
     fun queueEmbeddedSocialSuccessOAuthError(errorCode: String, errorDescription: String) =
         state.queueEmbeddedSocialSuccessOAuthError(errorCode, errorDescription)
 
+    fun configurePasswordPolicy(minLength: Int, requireUppercase: Boolean = false, requireNumber: Boolean = false, requireSpecial: Boolean = false) = state.configurePasswordPolicy(minLength, requireUppercase, requireNumber, requireSpecial)
+    fun configureLockout(maxAttempts: Int) = state.configureLockout(maxAttempts)
+    fun configureMfa(email: String, type: String) = state.configureMfa(email, type)
+    fun configureAuthStrategies(password: Boolean = true, magicCode: Boolean = false, magicLink: Boolean = false, socialLogin: Boolean = true, sso: Boolean = true) = state.configureAuthStrategies(password, magicCode, magicLink, socialLogin, sso)
+    fun configureSignup(requireTerms: Boolean = false, requireEmailVerification: Boolean = false) = state.configureSignup(requireTerms, requireEmailVerification)
+    fun configurePasswordExpiration(email: String, daysUntilExpiry: Int) = state.configurePasswordExpiration(email, daysUntilExpiry)
+    fun configureBreachedPassword(email: String) = state.configureBreachedPassword(email)
+    fun configureMagicCodeTTL(seconds: Int) = state.configureMagicCodeTTL(seconds)
+    fun getIssuedMagicCode(email: String): String? = state.getIssuedMagicCode(email)
+
     fun waitForRequest(method: String? = null, path: String, timeoutMs: Long = 10_000): Boolean {
         val end = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < end) {
@@ -176,7 +186,7 @@ class LocalMockAuthServer {
             method == "GET" && path == "/frontegg/identity/resources/configurations/v1/public" ->
                 json(200, JSONObject().put("embeddedMode", true).put("loginBoxVisible", true))
             method == "GET" && path == "/frontegg/identity/resources/configurations/v1/auth/strategies/public" ->
-                json(200, JSONObject().put("password", true).put("socialLogin", true).put("sso", true))
+                json(200, JSONObject().put("password", state.authStrategies.password).put("socialLogin", state.authStrategies.socialLogin).put("sso", state.authStrategies.sso).put("magicCode", state.authStrategies.magicCode).put("magicLink", state.authStrategies.magicLink))
             method == "GET" && path == "/frontegg/identity/resources/configurations/v1/sign-up/strategies" ->
                 json(200, JSONObject().put("allowSignUp", true))
             method == "GET" && path == "/frontegg/team/resources/sso/v2/configurations/public" -> json(200, JSONArray())
@@ -218,6 +228,15 @@ class LocalMockAuthServer {
                 html(200, "Redirect", """<p>Completing login…</p>
                     <script>(function(){window.location.href='$jsLoc';})()</script>""")
             }
+            method == "GET" && path == "/oauth/account/mfa-mobile-authenticator" -> mfaChallengePage(q)
+            method == "POST" && path == "/identity/resources/auth/v1/user/mfa/verify" -> mfaVerifyHandler(body)
+            method == "POST" && path == "/identity/resources/auth/v1/passwordless/code/prelogin" -> magicCodePrelogin(body)
+            method == "POST" && path == "/identity/resources/auth/v1/passwordless/code/postlogin" -> magicCodePostlogin(body)
+            method == "POST" && path == "/identity/resources/auth/v1/passwordless/code/resend" -> magicCodeResend(body)
+            method == "GET" && path == "/oauth/account/sign-up" -> signupPage(q)
+            method == "POST" && path == "/frontegg/identity/resources/auth/v1/user/signUp" -> signupHandler(body)
+            method == "GET" && path == "/oauth/account/reset-password" -> resetPasswordPage(q)
+            method == "POST" && path == "/identity/resources/auth/v1/user/passwords/reset" -> json(200, JSONObject().put("ok", true))
             else -> json(404, JSONObject().put("error", "$method $path"))
         }
     }
@@ -311,6 +330,12 @@ class LocalMockAuthServer {
             return html(200, "Login", b)
         }
         email = email.trim()
+        if (state.authStrategies.magicCode && !email.endsWith("@saml-domain.com") && !email.endsWith("@oidc-domain.com")) {
+            return magicCodePage(hs, email)
+        }
+        if (state.authStrategies.magicLink && !email.endsWith("@saml-domain.com") && !email.endsWith("@oidc-domain.com")) {
+            return magicLinkPage(hs, email)
+        }
         return when {
             email.endsWith("@saml-domain.com") ->
                 providerPage("OKTA SAML Mock Server", "Login With Okta", hs, email)
@@ -322,17 +347,25 @@ class LocalMockAuthServer {
 
     private fun passwordPage(hs: String, email: String, prefill: Boolean): MockResponse {
         val pv = if (prefill) """ value="Testpassword1!"""" else ""
-        val b =
-            """<h1>Password Login</h1><form id="f"><input id="e" type="email" value="${htmlEsc(email)}"/>
-            <input id="p" type="password" name="password"$pv/><button type="submit" id="e2e-password-submit">Sign in</button></form>
-            <script>document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
-            await fetch('/frontegg/identity/resources/auth/v2/user/sso/prelogin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('e').value})}).catch(()=>null);
-            const r=await fetch('/frontegg/identity/resources/auth/v1/user',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({email:document.getElementById('e').value,password:document.getElementById('p').value,invitationToken:''})});
-            if(!r.ok)return;const j=await r.json();
-            const p=await fetch('/oauth/postlogin',{method:'POST',headers:{'Content-Type':'application/json'},
-            body:JSON.stringify({state:'${hs}',token:j.access_token})});
-            if(!p.ok)return;await p.json();location='/oauth/postlogin/redirect?state=${enc(hs)}';};</script>"""
+        val b = """<h1>Password Login</h1>
+    <div id="e2e-password-error" style="color:red;display:none"></div>
+    <form id="f"><input id="e" type="email" value="${htmlEsc(email)}"/>
+    <input id="p" type="password" name="password"$pv/>
+    <button type="submit" id="e2e-password-submit">Sign in</button></form>
+    <p><a id="e2e-forgot-password" href="/oauth/account/reset-password?state=${enc(hs)}">Forgot password?</a></p>
+    <p><a id="e2e-signup-link" href="/oauth/account/sign-up?state=${enc(hs)}">Sign up</a></p>
+    <script>document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
+    var errDiv=document.getElementById('e2e-password-error');errDiv.style.display='none';
+    await fetch('/frontegg/identity/resources/auth/v2/user/sso/prelogin',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:document.getElementById('e').value})}).catch(()=>null);
+    const r=await fetch('/frontegg/identity/resources/auth/v1/user',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email:document.getElementById('e').value,password:document.getElementById('p').value,invitationToken:''})});
+    const j=await r.json();
+    if(!r.ok){errDiv.textContent=(j.errors||['Login failed']).join('. ');errDiv.style.display='block';return;}
+    if(j.mfaRequired){location='/oauth/account/mfa-mobile-authenticator?state='+encodeURIComponent(j.mfaToken);return;}
+    if(j.passwordExpiration&&j.passwordExpiration.daysUntilExpiry>0){var w=document.createElement('div');w.id='e2e-password-expiry-warning';w.textContent='Your password will expire in '+j.passwordExpiration.daysUntilExpiry+' days';w.style.color='orange';document.body.insertBefore(w,document.body.firstChild);}
+    const p=await fetch('/oauth/postlogin',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({state:'${hs}',token:j.access_token})});
+    if(!p.ok)return;await p.json();location='/oauth/postlogin/redirect?state=${enc(hs)}';};</script>"""
         return html(200, "pwd", b)
     }
 
@@ -520,13 +553,53 @@ class LocalMockAuthServer {
     }
 
     private fun hostedPasswordLogin(body: String): MockResponse {
-        val em = JSONObject(body.ifEmpty { "{}" }).optString("email", "test@frontegg.com")
+        val jo = JSONObject(body.ifEmpty { "{}" })
+        val em = jo.optString("email", "test@frontegg.com")
+        val pw = jo.optString("password", "")
+        // Check lockout
+        val lockout = state.lockoutConfig
+        if (lockout != null) {
+            val attempts = state.incrementLockout(em)
+            if (attempts > lockout.maxAttempts) {
+                return json(423, JSONObject().put("errors", JSONArray().put("Your account is locked due to too many failed login attempts")))
+            }
+        }
+        // Check breached password
+        if (state.isBreachedEmail(em)) {
+            return json(400, JSONObject().put("errors", JSONArray().put("This password has been found in a data breach. Please choose a different password")))
+        }
+        // Check password policy
+        val policy = state.passwordPolicy
+        if (policy != null) {
+            val errors = mutableListOf<String>()
+            if (pw.length < policy.minLength) errors.add("Password must be at least ${policy.minLength} characters")
+            if (policy.requireUppercase && pw.none { it.isUpperCase() }) errors.add("Password must contain an uppercase letter")
+            if (policy.requireNumber && pw.none { it.isDigit() }) errors.add("Password must contain a number")
+            if (policy.requireSpecial && pw.none { !it.isLetterOrDigit() }) errors.add("Password must contain a special character")
+            if (errors.isNotEmpty()) return json(400, JSONObject().put("errors", JSONArray(errors)))
+        }
+        // Check password expiration
+        val expDays = state.getPasswordExpiration(em)
+        if (expDays != null && expDays <= 0) {
+            return json(400, JSONObject().put("errors", JSONArray().put("Your password has expired. Please reset your password")).put("passwordExpired", true))
+        }
+        // Check MFA
+        val mfa = state.getMfaConfig(em)
+        if (mfa != null) {
+            val iss = state.issueRefresh(em)
+            val at = mintAccess(em, iss.rec.tokenVersion, state.policy(em).accessTokenTTL)
+            val mfaState = b64url(JSONObject().put("email", em).put("mfaType", mfa.type).put("token", at).put("refreshToken", iss.token).toString())
+            return json(200, JSONObject().put("mfaRequired", true).put("mfaToken", mfaState).put("mfaDevices", JSONArray().put(JSONObject().put("type", mfa.type))))
+        }
+        // Normal login
         val iss = state.issueRefresh(em)
-        return MockResponse()
-            .setResponseCode(200)
+        val resp = MockResponse().setResponseCode(200)
             .addHeader("Content-Type", "application/json; charset=utf-8")
             .addHeader("Set-Cookie", "fe_refresh_demoembedded-e2e-client=${iss.token}; Path=/; HttpOnly")
-            .setBody(JSONObject(gson.toJson(tokenJson(iss.rec, iss.token))).toString())
+        val respBody = JSONObject(gson.toJson(tokenJson(iss.rec, iss.token)))
+        val days = state.getPasswordExpiration(em)
+        if (days != null && days > 0) respBody.put("passwordExpiration", JSONObject().put("daysUntilExpiry", days))
+        return resp.setBody(respBody.toString())
     }
 
     private fun cookieRefresh(h: String?): String? {
@@ -669,6 +742,199 @@ class LocalMockAuthServer {
         return ru + sep + "error=${enc(e)}&error_description=${enc(d)}&state=${enc(st)}"
     }
 
+    private fun magicCodePage(hs: String, email: String): MockResponse {
+        state.issueMagicCode(email)
+        val b = """<h1>Magic Code Login</h1>
+    <p id="e2e-magic-code-info">A verification code was sent to ${htmlEsc(email)}</p>
+    <div id="e2e-magic-code-error" style="color:red;display:none"></div>
+    <form id="f"><input id="c" type="text" placeholder="Enter code" maxlength="6"/>
+    <button type="submit" id="e2e-magic-code-submit">Verify</button></form>
+    <p><a id="e2e-magic-code-resend" href="#" onclick="resend();return false;">Resend code</a></p>
+    <script>
+    async function resend(){
+      await fetch('/identity/resources/auth/v1/passwordless/code/resend',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({email:'${htmlEsc(email)}'})});
+      document.getElementById('e2e-magic-code-info').textContent='A new code was sent to ${htmlEsc(email)}';
+    }
+    document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
+    var errDiv=document.getElementById('e2e-magic-code-error');errDiv.style.display='none';
+    const r=await fetch('/identity/resources/auth/v1/passwordless/code/postlogin',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email:'${htmlEsc(email)}',code:document.getElementById('c').value})});
+    const j=await r.json();
+    if(!r.ok){errDiv.textContent=(j.errors||['Verification failed']).join('. ');errDiv.style.display='block';return;}
+    const p=await fetch('/oauth/postlogin',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({state:'$hs',token:j.access_token})});
+    if(!p.ok)return;await p.json();location='/oauth/postlogin/redirect?state=${enc(hs)}';};</script>"""
+        return html(200, "magic-code", b)
+    }
+
+    private fun magicLinkPage(hs: String, email: String): MockResponse {
+        val token = state.issueMagicLink(email)
+        val b = """<h1>Magic Link Login</h1>
+    <p id="e2e-magic-link-info">A magic link was sent to ${htmlEsc(email)}</p>
+    <div id="e2e-magic-link-error" style="color:red;display:none"></div>
+    <p>Check your email and click the link to sign in.</p>
+    <p><a id="e2e-magic-link-verify" href="#" onclick="verify();return false;">I clicked the link (simulate)</a></p>
+    <script>
+    async function verify(){
+      var errDiv=document.getElementById('e2e-magic-link-error');errDiv.style.display='none';
+      const r=await fetch('/identity/resources/auth/v1/passwordless/code/postlogin',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email:'${htmlEsc(email)}',token:'$token'})});
+      const j=await r.json();
+      if(!r.ok){errDiv.textContent=(j.errors||['Verification failed']).join('. ');errDiv.style.display='block';return;}
+      const p=await fetch('/oauth/postlogin',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({state:'$hs',token:j.access_token})});
+      if(!p.ok)return;await p.json();location='/oauth/postlogin/redirect?state=${enc(hs)}';
+    }</script>"""
+        return html(200, "magic-link", b)
+    }
+
+    private fun magicCodePrelogin(body: String): MockResponse {
+        val jo = JSONObject(body.ifEmpty { "{}" })
+        val email = jo.optString("email", "")
+        if (email.isEmpty()) return json(400, JSONObject().put("errors", JSONArray().put("Email is required")))
+        state.issueMagicCode(email)
+        return json(200, JSONObject().put("message", "Code sent"))
+    }
+
+    private fun magicCodePostlogin(body: String): MockResponse {
+        val jo = JSONObject(body.ifEmpty { "{}" })
+        val email = jo.optString("email", "")
+        val code = jo.optString("code", "")
+        val token = jo.optString("token", "")
+        // Magic link flow
+        if (token.isNotEmpty()) {
+            val err = state.validateMagicLink(token)
+            if (err != null) return json(400, JSONObject().put("errors", JSONArray().put(err)))
+            val entry = state.consumeMagicLink(token) ?: return json(400, JSONObject().put("errors", JSONArray().put("Invalid link")))
+            val iss = state.issueRefresh(entry.email)
+            val at = mintAccess(entry.email, iss.rec.tokenVersion, state.policy(entry.email).accessTokenTTL)
+            return json(200, JSONObject().put("access_token", at).put("refresh_token", iss.token))
+        }
+        // Magic code flow
+        if (email.isEmpty() || code.isEmpty()) return json(400, JSONObject().put("errors", JSONArray().put("Email and code are required")))
+        val err = state.validateMagicCode(email, code)
+        if (err != null) return json(400, JSONObject().put("errors", JSONArray().put(err)))
+        val iss = state.issueRefresh(email)
+        val at = mintAccess(email, iss.rec.tokenVersion, state.policy(email).accessTokenTTL)
+        return json(200, JSONObject().put("access_token", at).put("refresh_token", iss.token))
+    }
+
+    private fun magicCodeResend(body: String): MockResponse {
+        val jo = JSONObject(body.ifEmpty { "{}" })
+        val email = jo.optString("email", "")
+        if (email.isEmpty()) return json(400, JSONObject().put("errors", JSONArray().put("Email is required")))
+        state.issueMagicCode(email)
+        return json(200, JSONObject().put("message", "Code resent"))
+    }
+
+    private fun mfaChallengePage(q: Map<String, List<String>>): MockResponse {
+        val mfaState = fq(q, "state")
+        val b = """<h1>MFA Verification</h1>
+    <p id="e2e-mfa-info">Enter the 6-digit code from your authenticator app</p>
+    <div id="e2e-mfa-error" style="color:red;display:none"></div>
+    <form id="f"><input id="c" type="text" placeholder="000000" maxlength="6"/>
+    <button type="submit" id="e2e-mfa-submit">Verify</button></form>
+    <script>document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
+    var errDiv=document.getElementById('e2e-mfa-error');errDiv.style.display='none';
+    const r=await fetch('/identity/resources/auth/v1/user/mfa/verify',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({mfaToken:'${htmlEsc(mfaState)}',code:document.getElementById('c').value})});
+    const j=await r.json();
+    if(!r.ok){errDiv.textContent=(j.errors||['Invalid code']).join('. ');errDiv.style.display='block';return;}
+    location=j.redirectUrl;};</script>"""
+        return html(200, "mfa", b)
+    }
+
+    private fun mfaVerifyHandler(body: String): MockResponse {
+        val jo = JSONObject(body.ifEmpty { "{}" })
+        val mfaToken = jo.optString("mfaToken", "")
+        val code = jo.optString("code", "")
+        if (code != "123456") return json(400, JSONObject().put("errors", JSONArray().put("Invalid MFA code")))
+        // Decode mfaToken to get email and tokens
+        val decoded = try {
+            val padded = mfaToken.replace('-', '+').replace('_', '/').let { var s = it; while (s.length % 4 != 0) s += "="; s }
+            JSONObject(String(Base64.decode(padded, Base64.DEFAULT), Charsets.UTF_8))
+        } catch (_: Exception) {
+            return json(400, JSONObject().put("errors", JSONArray().put("Invalid MFA token")))
+        }
+        val email = decoded.optString("email", "")
+        val accessToken = decoded.optString("token", "")
+        val refreshToken = decoded.optString("refreshToken", "")
+        if (email.isEmpty()) return json(400, JSONObject().put("errors", JSONArray().put("Invalid MFA token")))
+        // Find the hosted state and build redirect
+        val hs = state.latestHosted() ?: return json(400, JSONObject().put("errors", JSONArray().put("No hosted state")))
+        val ctx = state.hosted(hs) ?: return json(400, JSONObject().put("errors", JSONArray().put("Invalid hosted state")))
+        val authCode = state.issueCode(email, ctx.redirect, ctx.origState)
+        state.recordDone(hs, email)
+        return json(200, JSONObject().put("redirectUrl", "/oauth/postlogin/redirect?state=${enc(hs)}"))
+    }
+
+    private fun signupPage(q: Map<String, List<String>>): MockResponse {
+        val hs = fq(q, "state")
+        val cfg = state.signupConfig
+        val termsHtml = if (cfg.requireTerms) """<label><input type="checkbox" id="terms" required/> I agree to Terms</label><br/>""" else ""
+        val b = """<h1>Sign Up</h1>
+    <div id="e2e-signup-error" style="color:red;display:none"></div>
+    <form id="f">
+    <input id="name" type="text" placeholder="Full Name"/>
+    <input id="email" type="email" placeholder="Email"/>
+    <input id="pw" type="password" placeholder="Password"/>
+    $termsHtml
+    <button type="submit" id="e2e-signup-submit">Sign Up</button></form>
+    <script>document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
+    var errDiv=document.getElementById('e2e-signup-error');errDiv.style.display='none';
+    const r=await fetch('/frontegg/identity/resources/auth/v1/user/signUp',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({name:document.getElementById('name').value,email:document.getElementById('email').value,password:document.getElementById('pw').value})});
+    const j=await r.json();
+    if(!r.ok){errDiv.textContent=(j.errors||['Signup failed']).join('. ');errDiv.style.display='block';return;}
+    if(j.requireEmailVerification){var msg=document.createElement('div');msg.id='e2e-signup-verify-email';msg.textContent='Please check your email to verify your account';document.body.appendChild(msg);return;}
+    const p=await fetch('/oauth/postlogin',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({state:'$hs',token:j.access_token})});
+    if(!p.ok)return;await p.json();location='/oauth/postlogin/redirect?state=${enc(hs)}';};</script>"""
+        return html(200, "signup", b)
+    }
+
+    private fun signupHandler(body: String): MockResponse {
+        val jo = JSONObject(body.ifEmpty { "{}" })
+        val email = jo.optString("email", "")
+        val pw = jo.optString("password", "")
+        val name = jo.optString("name", "")
+        if (email.isEmpty() || pw.isEmpty()) return json(400, JSONObject().put("errors", JSONArray().put("Email and password are required")))
+        // Check password policy
+        val policy = state.passwordPolicy
+        if (policy != null) {
+            val errors = mutableListOf<String>()
+            if (pw.length < policy.minLength) errors.add("Password must be at least ${policy.minLength} characters")
+            if (policy.requireUppercase && pw.none { it.isUpperCase() }) errors.add("Password must contain an uppercase letter")
+            if (policy.requireNumber && pw.none { it.isDigit() }) errors.add("Password must contain a number")
+            if (policy.requireSpecial && pw.none { !it.isLetterOrDigit() }) errors.add("Password must contain a special character")
+            if (errors.isNotEmpty()) return json(400, JSONObject().put("errors", JSONArray(errors)))
+        }
+        if (state.signupConfig.requireEmailVerification) {
+            return json(200, JSONObject().put("requireEmailVerification", true).put("email", email))
+        }
+        val iss = state.issueRefresh(email)
+        val at = mintAccess(email, iss.rec.tokenVersion, state.policy(email).accessTokenTTL)
+        return json(200, JSONObject().put("access_token", at).put("refresh_token", iss.token))
+    }
+
+    private fun resetPasswordPage(q: Map<String, List<String>>): MockResponse {
+        val hs = fq(q, "state")
+        val b = """<h1>Reset Password</h1>
+    <div id="e2e-reset-success" style="color:green;display:none"></div>
+    <div id="e2e-reset-error" style="color:red;display:none"></div>
+    <form id="f"><input id="email" type="email" placeholder="Email"/>
+    <button type="submit" id="e2e-reset-submit">Send Reset Link</button></form>
+    <p><a id="e2e-back-to-login" href="/oauth/prelogin?state=${enc(hs)}">Back to login</a></p>
+    <script>document.getElementById('f').onsubmit=async ev=>{ev.preventDefault();
+    var errDiv=document.getElementById('e2e-reset-error');errDiv.style.display='none';
+    var okDiv=document.getElementById('e2e-reset-success');okDiv.style.display='none';
+    const r=await fetch('/identity/resources/auth/v1/user/passwords/reset',{method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({email:document.getElementById('email').value})});
+    if(!r.ok){errDiv.textContent='Failed to send reset link';errDiv.style.display='block';return;}
+    okDiv.textContent='If an account exists, a reset link has been sent';okDiv.style.display='block';};</script>"""
+        return html(200, "reset", b)
+    }
+
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
 
     /**
@@ -747,6 +1013,13 @@ private data class AuthCode(val email: String, val redirect: String, val state: 
 private data class Pol(val accessTokenTTL: Int = 3600, val refreshTokenTTL: Int = 86400, val startingTokenVersion: Int = 1)
 private data class RtRec(val email: String, val exp: Double, var tokenVersion: Int)
 private data class Issued(val token: String, val rec: RtRec)
+private data class PasswordPolicyConfig(val minLength: Int, val requireUppercase: Boolean, val requireNumber: Boolean, val requireSpecial: Boolean)
+private data class LockoutConfig(val maxAttempts: Int)
+private data class MfaConfig(val type: String)
+private data class MagicCodeEntry(val code: String, val email: String, val expiresAt: Long, var used: Boolean = false)
+private data class MagicLinkEntry(val token: String, val email: String, val expiresAt: Long, var used: Boolean = false)
+private data class SignupConfig(val requireTerms: Boolean = false, val requireEmailVerification: Boolean = false)
+private data class AuthStrategiesConfig(val password: Boolean = true, val magicCode: Boolean = false, val magicLink: Boolean = false, val socialLogin: Boolean = true, val sso: Boolean = true)
 
 private class MockAuthState {
     private val lock = ReentrantLock()
@@ -758,9 +1031,24 @@ private class MockAuthState {
     private val rts = mutableMapOf<String, RtRec>()
     private val pols = mutableMapOf<String, Pol>()
     private var oauthErr: Pair<String, String>? = null
+    var passwordPolicy: PasswordPolicyConfig? = null
+    var lockoutConfig: LockoutConfig? = null
+    val lockoutState = mutableMapOf<String, Int>()
+    val mfaConfig = mutableMapOf<String, MfaConfig>()
+    val magicCodes = mutableMapOf<String, MagicCodeEntry>()
+    val magicLinks = mutableMapOf<String, MagicLinkEntry>()
+    var signupConfig: SignupConfig = SignupConfig()
+    val passwordExpiration = mutableMapOf<String, Int>()
+    val breachedEmails = mutableSetOf<String>()
+    var authStrategies: AuthStrategiesConfig = AuthStrategiesConfig()
+    var magicCodeTTLSeconds: Int = 300
 
     fun reset() = lock.withLock {
         q.clear(); codes.clear(); hosted.clear(); latestH = null; done.clear(); pols.clear(); oauthErr = null; rts.clear()
+        passwordPolicy = null; lockoutConfig = null; lockoutState.clear()
+        mfaConfig.clear(); magicCodes.clear(); magicLinks.clear()
+        signupConfig = SignupConfig(); passwordExpiration.clear(); breachedEmails.clear()
+        authStrategies = AuthStrategiesConfig(); magicCodeTTLSeconds = 300
         rts["signup-refresh-token"] = RtRec(
             "signup@frontegg.com",
             System.currentTimeMillis() / 1000.0 + Pol().refreshTokenTTL,
@@ -848,6 +1136,26 @@ private class MockAuthState {
         oauthErr = null
         x
     }
+
+    fun configurePasswordPolicy(ml: Int, u: Boolean, n: Boolean, s: Boolean) = lock.withLock { passwordPolicy = PasswordPolicyConfig(ml, u, n, s) }
+    fun configureLockout(max: Int) = lock.withLock { lockoutConfig = LockoutConfig(max) }
+    fun configureMfa(email: String, type: String) = lock.withLock { mfaConfig[email.lowercase()] = MfaConfig(type) }
+    fun getMfaConfig(email: String): MfaConfig? = lock.withLock { mfaConfig[email.lowercase()] }
+    fun configureAuthStrategies(pw: Boolean, mc: Boolean, ml: Boolean, sl: Boolean, sso: Boolean) = lock.withLock { authStrategies = AuthStrategiesConfig(pw, mc, ml, sl, sso) }
+    fun configureSignup(terms: Boolean, emailVerify: Boolean) = lock.withLock { signupConfig = SignupConfig(terms, emailVerify) }
+    fun configurePasswordExpiration(email: String, days: Int) = lock.withLock { passwordExpiration[email.lowercase()] = days }
+    fun getPasswordExpiration(email: String): Int? = lock.withLock { passwordExpiration[email.lowercase()] }
+    fun configureBreachedPassword(email: String) = lock.withLock { breachedEmails.add(email.lowercase()) }
+    fun isBreachedEmail(email: String): Boolean = lock.withLock { email.lowercase() in breachedEmails }
+    fun configureMagicCodeTTL(seconds: Int) = lock.withLock { magicCodeTTLSeconds = seconds }
+    fun incrementLockout(email: String): Int = lock.withLock { val c = (lockoutState[email.lowercase()] ?: 0) + 1; lockoutState[email.lowercase()] = c; c }
+    fun issueMagicCode(email: String): String = lock.withLock { val code = "%06d".format((100000..999999).random()); magicCodes[email.lowercase()] = MagicCodeEntry(code, email, System.currentTimeMillis() + magicCodeTTLSeconds * 1000); code }
+    fun getIssuedMagicCode(email: String): String? = lock.withLock { magicCodes[email.lowercase()]?.code }
+    fun validateMagicCode(email: String, code: String): String? = lock.withLock { val e = magicCodes[email.lowercase()] ?: return@withLock "Invalid code"; if (e.used) return@withLock "Code already used"; if (System.currentTimeMillis() > e.expiresAt) return@withLock "Code expired"; if (e.code != code) return@withLock "Invalid code"; e.used = true; null }
+    fun issueMagicLink(email: String): String = lock.withLock { val t = "magiclink-${UUID.randomUUID().toString().lowercase()}"; magicLinks[t] = MagicLinkEntry(t, email, System.currentTimeMillis() + magicCodeTTLSeconds * 1000); t }
+    fun getIssuedMagicLinkToken(email: String): String? = lock.withLock { magicLinks.values.firstOrNull { it.email.equals(email, true) }?.token }
+    fun validateMagicLink(token: String): String? = lock.withLock { val e = magicLinks[token] ?: return@withLock "Invalid link"; if (e.used) return@withLock "Link already used"; if (System.currentTimeMillis() > e.expiresAt) return@withLock "Link expired"; null }
+    fun consumeMagicLink(token: String): MagicLinkEntry? = lock.withLock { val e = magicLinks[token] ?: return@withLock null; e.used = true; e }
 
     private fun norm(p: String) = if (p.isEmpty() || p == "/") p else if (p.startsWith("/")) p else "/$p"
 }

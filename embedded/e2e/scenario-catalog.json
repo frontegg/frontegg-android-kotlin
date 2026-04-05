@@ -109,6 +109,106 @@
       "method": "testAuthenticatedRelaunchWithExpiredAccessTokenAndFreshRefreshToken",
       "title": "Relaunch with expired access token refreshes via valid refresh token",
       "description": "Logs in with a very short access TTL, terminates after access expires but before refresh expires, relaunches, and verifies the token is refreshed."
+    },
+    {
+      "method": "testPasswordLoginMediumComplexityValidation",
+      "title": "Medium password complexity shows validation error",
+      "description": "Configures medium password policy (8 chars, uppercase, number), attempts login, and verifies a complexity validation error appears in the WebView."
+    },
+    {
+      "method": "testPasswordLoginHardComplexityValidation",
+      "title": "Hard password complexity shows validation error",
+      "description": "Configures hard password policy (12 chars, uppercase, number, special), attempts login, and verifies a complexity validation error appears in the WebView."
+    },
+    {
+      "method": "testAccountLockoutAfterIncorrectPasswordAttempts",
+      "title": "Account locks out after incorrect password attempts",
+      "description": "Configures lockout after 2 failed attempts, attempts login, and verifies the account locked error appears in the WebView."
+    },
+    {
+      "method": "testBreachedPasswordError",
+      "title": "Breached password shows error",
+      "description": "Configures a breached password for the test user, attempts login, and verifies a breach error message appears in the WebView."
+    },
+    {
+      "method": "testMagicCodeLogin",
+      "title": "Magic code login succeeds",
+      "description": "Enables magic code auth strategy, completes the magic code login flow, and verifies the user is authenticated."
+    },
+    {
+      "method": "testIncorrectMagicCodeValidation",
+      "title": "Incorrect magic code shows validation error",
+      "description": "Enables magic code auth strategy, enters an incorrect code, and verifies an invalid code error appears in the WebView."
+    },
+    {
+      "method": "testMagicCodeExpiration",
+      "title": "Expired magic code shows error",
+      "description": "Enables magic code with a 1-second TTL, waits for expiration, enters the expired code, and verifies an expiration error appears."
+    },
+    {
+      "method": "testResendMagicCodeButton",
+      "title": "Resend magic code button issues new code",
+      "description": "Enables magic code auth, clicks the resend button, verifies a resend request was made, enters the new code, and verifies login succeeds."
+    },
+    {
+      "method": "testMagicLinkSentPage",
+      "title": "Magic link sent page appears",
+      "description": "Enables magic link auth strategy, opens the login flow, and verifies the magic link sent page is displayed with the prelogin request."
+    },
+    {
+      "method": "testPasswordLoginWithMfaAuthenticator",
+      "title": "Password login with authenticator MFA succeeds",
+      "description": "Configures authenticator MFA for the test user, completes password login and MFA challenge, and verifies the user is authenticated."
+    },
+    {
+      "method": "testPasswordLoginWithMfaSms",
+      "title": "Password login with SMS MFA succeeds",
+      "description": "Configures SMS MFA for the test user, completes password login and MFA challenge, and verifies the user is authenticated."
+    },
+    {
+      "method": "testSignupWithEmail",
+      "title": "Signup with email succeeds",
+      "description": "Navigates to the signup page, fills the form with email, name, password, and org, and verifies the new user is authenticated."
+    },
+    {
+      "method": "testSignupWithEmailVerificationAndPassword",
+      "title": "Signup with email verification shows verification page",
+      "description": "Configures required email verification, completes signup, and verifies the email verification page appears."
+    },
+    {
+      "method": "testSignupWithTermsChecked",
+      "title": "Signup with terms accepted succeeds",
+      "description": "Configures required terms acceptance, completes signup with terms checked, and verifies the user is authenticated."
+    },
+    {
+      "method": "testSignupWithTermsUncheckedShowsError",
+      "title": "Signup without accepting terms shows error",
+      "description": "Configures required terms acceptance, completes signup without checking terms, and verifies a terms error appears."
+    },
+    {
+      "method": "testForgotPasswordFlow",
+      "title": "Forgot password flow shows reset confirmation",
+      "description": "Opens the password page, clicks forgot password, enters email, submits, and verifies the password reset confirmation page appears."
+    },
+    {
+      "method": "testPasswordExpirationWarning",
+      "title": "Password expiration warning allows login",
+      "description": "Configures password expiration in 5 days, logs in with password, and verifies the user is authenticated despite the warning."
+    },
+    {
+      "method": "testPasswordExpiredPage",
+      "title": "Expired password shows error page",
+      "description": "Configures an already-expired password, attempts login, and verifies the expired error appears in the WebView."
+    },
+    {
+      "method": "testCustomLoginBoxWithPassword",
+      "title": "Custom login box with password succeeds",
+      "description": "Launches the app, completes password login through the custom login box, and verifies the user is authenticated."
+    },
+    {
+      "method": "testCustomLoginBoxWithMagicCode",
+      "title": "Custom login box with magic code succeeds",
+      "description": "Enables magic code auth strategy, completes magic code login through the custom login box, and verifies the user is authenticated."
     }
   ]
 }

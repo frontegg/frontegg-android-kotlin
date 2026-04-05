@@ -78,6 +78,26 @@ const TEST_WEIGHTS = {
   testPasswordLoginWorksWithOfflineModeDisabled: 26,
   testColdLaunchWithOfflineModeDisabledReachesLoginQuickly: 12,
   testColdLaunchTransientProbeTimeoutsDoNotBlinkNoConnectionPage: 12,
+  testPasswordLoginMediumComplexityValidation: 32,
+  testPasswordLoginHardComplexityValidation: 32,
+  testAccountLockoutAfterIncorrectPasswordAttempts: 40,
+  testBreachedPasswordError: 30,
+  testMagicCodeLogin: 55,
+  testIncorrectMagicCodeValidation: 48,
+  testMagicCodeExpiration: 50,
+  testResendMagicCodeButton: 56,
+  testMagicLinkSentPage: 38,
+  testPasswordLoginWithMfaAuthenticator: 58,
+  testPasswordLoginWithMfaSms: 58,
+  testSignupWithEmail: 52,
+  testSignupWithEmailVerificationAndPassword: 48,
+  testSignupWithTermsChecked: 50,
+  testSignupWithTermsUncheckedShowsError: 42,
+  testForgotPasswordFlow: 36,
+  testPasswordExpirationWarning: 38,
+  testPasswordExpiredPage: 34,
+  testCustomLoginBoxWithPassword: 30,
+  testCustomLoginBoxWithMagicCode: 52,
 };
 
 function sortMethodsForSharding(methods) {
@@ -119,6 +139,14 @@ const SOLO_SHARD_METHODS = new Set([
   "testDirectSocialBrowserHandoff",
   "testAuthenticatedRelaunchWithExpiredAccessTokenAndFreshRefreshToken",
   "testLogoutTerminateTransientNoConnectionThenCustomSSORecovers",
+  "testMagicCodeLogin",
+  "testResendMagicCodeButton",
+  "testMagicCodeExpiration",
+  "testPasswordLoginWithMfaAuthenticator",
+  "testPasswordLoginWithMfaSms",
+  "testSignupWithEmail",
+  "testSignupWithTermsChecked",
+  "testCustomLoginBoxWithMagicCode",
 ]);
 
 function main() {
