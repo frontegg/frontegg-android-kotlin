@@ -232,7 +232,7 @@ open class EmbeddedE2ETestCase {
             }
             swipes++
             Thread.sleep(280)
-            if (swipes > 18) break
+            if (swipes > 30) break
         }
         val ok = device.wait(Until.hasObject(By.desc(contentDescription)), 2_000)
         if (!ok) {

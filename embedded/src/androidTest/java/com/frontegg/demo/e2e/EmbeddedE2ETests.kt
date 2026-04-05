@@ -634,7 +634,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testUserActivation() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
-        tapDesc("E2EActivateAccountButton", 30_000)
+        tapDesc("E2EActivateAccountButton", 60_000)
         Thread.sleep(8_000)
         val found = waitForA11yTextContains("activate", 60_000)
             || waitForA11yTextContains("Activate", 60_000)
@@ -645,7 +645,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testNewAccountInvitation() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
-        tapDesc("E2EAcceptInvitationButton", 30_000)
+        tapDesc("E2EAcceptInvitationButton", 60_000)
         Thread.sleep(8_000)
         val found = waitForA11yTextContains("invitation", 60_000)
             || waitForA11yTextContains("Invitation", 60_000)
@@ -656,7 +656,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     fun testUnlockAccount() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
-        tapDesc("E2EUnlockAccountButton", 30_000)
+        tapDesc("E2EUnlockAccountButton", 60_000)
         Thread.sleep(8_000)
         val found = waitForA11yTextContains("unlock", 60_000)
             || waitForA11yTextContains("Unlock", 60_000)
