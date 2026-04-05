@@ -249,8 +249,9 @@ open class EmbeddedE2ETestCase {
         waitForDesc("LoginPageRoot", 120_000)
         for (attempt in 0..3) {
             tapDesc("E2EEmbeddedPasswordButton")
-            // Wait for the embedded WebView to load the mock server's password page.
-            // CI emulators are slow to render WebView content; first attempt needs extra time.
+            // Wait for EmbeddedAuthActivity to open and the WebView to load the password page.
+            // First, wait for the WebView container to appear, then give the HTML time to render.
+            device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
             Thread.sleep(
                 when (attempt) {
                     0 -> 10_000
@@ -272,6 +273,12 @@ open class EmbeddedE2ETestCase {
                 return
             } catch (e: AssertionError) {
                 if (attempt < 3 && "not found" in (e.message ?: "")) {
+                    // Dump diagnostic info before retrying
+                    val hierarchy = runCatching {
+                        val root = instrumentation.uiAutomation.rootInActiveWindow
+                        root?.let { dumpNodeTree(it, 0) } ?: "<null root>"
+                    }.getOrDefault("<dump failed>")
+                    android.util.Log.w("E2E", "Sign in not found (attempt $attempt), hierarchy sample: ${hierarchy.take(500)}")
                     runCatching { device.pressBack() }
                     Thread.sleep(2_500)
                     waitForDesc("LoginPageRoot", 45_000)
@@ -280,6 +287,18 @@ open class EmbeddedE2ETestCase {
                 }
             }
         }
+    }
+
+    private fun dumpNodeTree(node: AccessibilityNodeInfo, depth: Int): String {
+        val sb = StringBuilder()
+        val indent = "  ".repeat(depth)
+        sb.append("$indent${node.className} text=${node.text} desc=${node.contentDescription}\n")
+        for (i in 0 until node.childCount.coerceAtMost(20)) {
+            val c = node.getChild(i) ?: continue
+            sb.append(dumpNodeTree(c, depth + 1))
+            c.recycle()
+        }
+        return sb.toString()
     }
 
     /** SAML/OIDC embedded flows: WebView can render the mock Okta control late on CI emulators. */
