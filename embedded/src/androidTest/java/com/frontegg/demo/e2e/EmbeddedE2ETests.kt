@@ -104,7 +104,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         var sawEr =
             waitForTextOrDescContains("ER-05001", 150_000) ||
                 waitForTextOrDescContains("JWT token size exceeded", 30_000) ||
-                waitForA11yTextContains("er-050", 30_000) ||
+                waitForWebViewTextContains("er-050", 30_000) ||
                 device.wait(Until.hasObject(By.descContains("ER-050")), 30_000)
         if (!sawEr) {
             dismissBrowserForegroundIfNeeded()
@@ -113,7 +113,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
             sawEr =
                 waitForTextOrDescContains("ER-05001", 240_000) ||
                     waitForTextOrDescContains("JWT token size exceeded", 120_000) ||
-                    waitForA11yTextContains("er-050", 120_000) ||
+                    waitForWebViewTextContains("er-050", 120_000) ||
                     device.wait(Until.hasObject(By.textContains("ER-050")), 90_000) ||
                     device.wait(Until.hasObject(By.descContains("ER-050")), 60_000) ||
                     device.wait(Until.hasObject(By.textContains("contact support")), 60_000)
@@ -404,7 +404,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         tapDesc("E2EEmbeddedPasswordButton")
         device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
         Thread.sleep(10_000)
-        waitForA11yTextContains("magic link", 60_000)
+        waitForWebViewTextContains("magic link", 60_000)
         mock.waitForRequest(path = "/identity/resources/auth/v1/passwordless/code/prelogin", timeoutMs = 15_000)
     }
 
@@ -420,7 +420,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         Thread.sleep(1_000)
         tapWebButtonIfPresent("Verify", timeoutMs = 30_000)
         Thread.sleep(3_000)
-        val found = waitForA11yTextContains("Invalid code", 30_000)
+        val found = waitForWebViewTextContains("Invalid code", 30_000)
         if (!found) throw AssertionError("Expected 'Invalid code' error")
     }
 
@@ -439,7 +439,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         Thread.sleep(1_000)
         tapWebButtonIfPresent("Verify", timeoutMs = 30_000)
         Thread.sleep(3_000)
-        val found = waitForA11yTextContains("expired", 30_000)
+        val found = waitForWebViewTextContains("expired", 30_000)
         if (!found) throw AssertionError("Expected 'expired' error")
     }
 
@@ -549,8 +549,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         navigateToSignupAndFill("verify-me@frontegg.com", "Verify User", "Test1234!", "VerifyOrg")
         Thread.sleep(5_000)
-        val found = waitForA11yTextContains("verify", 60_000)
-            || waitForA11yTextContains("email", 30_000)
+        val found = waitForWebViewTextContains("verify", 60_000)
+            || waitForWebViewTextContains("email", 30_000)
         if (!found) throw AssertionError("Expected email verification page")
     }
 
@@ -568,7 +568,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         launchApp(resetState = true)
         navigateToSignupAndFill("terms-fail@frontegg.com", "No Terms", "Test1234!", "TermsOrg", acceptTerms = false)
         Thread.sleep(5_000)
-        val found = waitForA11yTextContains("terms", 60_000)
+        val found = waitForWebViewTextContains("terms", 60_000)
         if (!found) throw AssertionError("Expected terms error message")
     }
 
@@ -594,8 +594,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         } catch (_: Throwable) {}
         tapWebButtonIfPresent("Reset password", timeoutMs = 30_000)
         Thread.sleep(3_000)
-        val found = waitForA11yTextContains("reset", 60_000)
-            || waitForA11yTextContains("email sent", 30_000)
+        val found = waitForWebViewTextContains("reset", 60_000)
+            || waitForWebViewTextContains("email sent", 30_000)
         if (!found) throw AssertionError("Expected password reset confirmation")
     }
 
@@ -626,7 +626,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         tapDesc("E2EEmbeddedPasswordButton")
         device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
         Thread.sleep(10_000)
-        waitForA11yTextContains("magic link", 60_000)
+        waitForWebViewTextContains("magic link", 60_000)
         mock.waitForRequest(path = "/identity/resources/auth/v1/passwordless/code/prelogin", timeoutMs = 15_000)
     }
 
@@ -636,8 +636,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EActivateAccountButton", 60_000)
         Thread.sleep(8_000)
-        val found = waitForA11yTextContains("activate", 60_000)
-            || waitForA11yTextContains("Activate", 60_000)
+        val found = waitForWebViewTextContains("activate", 60_000)
+            || waitForWebViewTextContains("Activate", 60_000)
         if (!found) throw AssertionError("Expected activation page")
     }
 
@@ -647,8 +647,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EAcceptInvitationButton", 60_000)
         Thread.sleep(8_000)
-        val found = waitForA11yTextContains("invitation", 60_000)
-            || waitForA11yTextContains("Invitation", 60_000)
+        val found = waitForWebViewTextContains("invitation", 60_000)
+            || waitForWebViewTextContains("Invitation", 60_000)
         if (!found) throw AssertionError("Expected invitation page")
     }
 
@@ -658,8 +658,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EUnlockAccountButton", 60_000)
         Thread.sleep(8_000)
-        val found = waitForA11yTextContains("unlock", 60_000)
-            || waitForA11yTextContains("Unlock", 60_000)
+        val found = waitForWebViewTextContains("unlock", 60_000)
+            || waitForWebViewTextContains("Unlock", 60_000)
         if (!found) throw AssertionError("Expected unlock page")
     }
 

@@ -611,10 +611,29 @@ open class EmbeddedE2ETestCase {
         Thread.sleep(10_000)
         tapWebButtonIfPresent("Sign in", timeoutMs = 60_000)
         Thread.sleep(3_000)
-        val found = waitForA11yTextContains(errorFragment, timeoutMs)
+        val found = waitForWebViewTextContains(errorFragment, timeoutMs)
         if (!found) {
             throw AssertionError("Expected error containing '$errorFragment' but not found in UI")
         }
+    }
+
+    /**
+     * Wait for text to appear in the WebView. Checks both the native a11y tree AND the
+     * WebView DOM via window hierarchy dump (XML includes WebView content on CI emulators).
+     */
+    protected fun waitForWebViewTextContains(fragment: String, timeoutMs: Long = 30_000): Boolean {
+        val end = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < end) {
+            // Check a11y tree
+            if (waitForA11yTextContains(fragment, 2_000)) return true
+            // Check UiAutomator text/desc
+            if (device.findObject(By.textContains(fragment)) != null) return true
+            if (device.findObject(By.descContains(fragment)) != null) return true
+            // Check full window hierarchy XML dump (includes WebView DOM content)
+            if (windowHierarchyContains(fragment)) return true
+            Thread.sleep(500)
+        }
+        return false
     }
 
     /** Login with magic code flow. The mock server must have magic code strategy enabled. */
