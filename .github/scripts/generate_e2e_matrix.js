@@ -111,12 +111,13 @@ function orderShardStable(shard) {
   });
 }
 
-/** One test per shard — Chrome Custom Tab routinely SIGKILL/OOMs the app on shared CI shards. */
+/** One test per shard — Chrome Custom Tab or heavy token flows routinely SIGKILL/OOM on shared CI shards. */
 const SOLO_SHARD_METHODS = new Set([
   "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
   "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
   "testCustomSSOBrowserHandoff",
   "testDirectSocialBrowserHandoff",
+  "testAuthenticatedRelaunchWithExpiredAccessTokenAndFreshRefreshToken",
 ]);
 
 function main() {

@@ -385,7 +385,11 @@ class LocalMockAuthServer {
         } else {
             "${pkg.lowercase()}://${mockAuthority()}/android/oauth/callback?code=${enc(code)}&state=${enc(st)}"
         }
-        return redir(loc)
+        // Chrome on Android 14+ (API 34) blocks 302 redirects to custom URL schemes.
+        // Use an HTML page with JS redirect (same pattern as /oauth/account/redirect/android/).
+        val jsLoc = loc.replace("\\", "\\\\").replace("'", "\\'")
+        return html(200, "Redirect", """<p>Completing login…</p>
+            <script>(function(){window.location.href='$jsLoc';})()</script>""")
     }
 
     private fun socialSuccess(q: Map<String, List<String>>): MockResponse {
