@@ -379,17 +379,14 @@ class LocalMockAuthServer {
         if (ru.isEmpty() || st.isEmpty()) return html(400, "bad", "<h1>bad</h1>")
         val code = state.issueCode("google-social@frontegg.com", ru, st)
         val err = state.consumeOAuthErr()
-        val pkg = embeddedBundle(ru) ?: ru.substringAfterLast("/")
-        val loc = if (err != null) {
-            "${pkg.lowercase()}://${mockAuthority()}/android/oauth/callback?error=${enc(err.first)}&error_description=${enc(err.second)}&state=${enc(st)}"
+        // Redirect back to redirect_uri (typically /oauth/account/redirect/android/<pkg>)
+        // which serves an HTML+JS page that navigates to the app's deep link.
+        // Direct redirects (302 or JS) to custom URL schemes are blocked by Chrome on API 34+.
+        return if (err != null) {
+            redir(cbErr(ru, st, err.first, err.second))
         } else {
-            "${pkg.lowercase()}://${mockAuthority()}/android/oauth/callback?code=${enc(code)}&state=${enc(st)}"
+            redir(cb(ru, code, st))
         }
-        // Chrome on Android 14+ (API 34) blocks 302 redirects to custom URL schemes.
-        // Use an HTML page with JS redirect (same pattern as /oauth/account/redirect/android/).
-        val jsLoc = loc.replace("\\", "\\\\").replace("'", "\\'")
-        return html(200, "Redirect", """<p>Completing login…</p>
-            <script>(function(){window.location.href='$jsLoc';})()</script>""")
     }
 
     private fun socialSuccess(q: Map<String, List<String>>): MockResponse {

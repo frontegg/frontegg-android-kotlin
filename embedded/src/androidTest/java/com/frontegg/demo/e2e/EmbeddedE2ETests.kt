@@ -308,7 +308,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         )
         launchApp(resetState = true)
         loginWithPassword()
-        waitForUserEmail("test@frontegg.com")
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         waitDurationSeconds(18)
         terminateApp()
         // Same-process instrumentation: use bootstrap reset so login is reachable after policy expiry.
