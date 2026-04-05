@@ -118,6 +118,7 @@ const SOLO_SHARD_METHODS = new Set([
   "testCustomSSOBrowserHandoff",
   "testDirectSocialBrowserHandoff",
   "testAuthenticatedRelaunchWithExpiredAccessTokenAndFreshRefreshToken",
+  "testLogoutTerminateTransientNoConnectionThenCustomSSORecovers",
 ]);
 
 function main() {
