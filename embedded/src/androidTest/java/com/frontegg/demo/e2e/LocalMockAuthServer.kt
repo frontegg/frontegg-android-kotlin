@@ -379,13 +379,16 @@ class LocalMockAuthServer {
         if (ru.isEmpty() || st.isEmpty()) return html(400, "bad", "<h1>bad</h1>")
         val code = state.issueCode("google-social@frontegg.com", ru, st)
         val err = state.consumeOAuthErr()
-        // Redirect back to redirect_uri (typically /oauth/account/redirect/android/<pkg>)
-        // which serves an HTML+JS page that navigates to the app's deep link.
-        // Direct redirects (302 or JS) to custom URL schemes are blocked by Chrome on API 34+.
+        val pkg = embeddedBundle(ru) ?: ru.substringAfterLast("/")
+        // Chrome Custom Tabs on API 34+ block 302 and JS redirects to custom URL schemes.
+        // Route through the /oauth/account/redirect/android/ HTTP endpoint which serves an
+        // HTML page with a JS window.location.href redirect — Chrome allows JS navigation
+        // to custom schemes from same-origin HTTP pages.
+        val httpRedirect = "${urlRoot()}/oauth/account/redirect/android/$pkg"
         return if (err != null) {
-            redir(cbErr(ru, st, err.first, err.second))
+            redir(cbErr(httpRedirect, st, err.first, err.second))
         } else {
-            redir(cb(ru, code, st))
+            redir(cb(httpRedirect, code, st))
         }
     }
 
