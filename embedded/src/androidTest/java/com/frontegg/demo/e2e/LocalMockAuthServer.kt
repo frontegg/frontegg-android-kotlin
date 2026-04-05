@@ -240,6 +240,14 @@ class LocalMockAuthServer {
             method == "POST" && path == "/identity/resources/auth/v1/passwordless/code/postlogin" -> magicCodePostlogin(body)
             method == "POST" && path == "/identity/resources/auth/v1/passwordless/code/resend" -> magicCodeResend(body)
             method == "GET" && path == "/identity/resources/auth/v1/passwordless/link/verify" -> magicLinkVerify(q)
+            method == "GET" && path == "/oauth/account/sign-up" -> signupPage(q)
+            method == "POST" && path == "/frontegg/identity/resources/auth/v1/user/signUp" -> signupHandler(body)
+            method == "GET" && path == "/oauth/account/reset-password" -> resetPasswordPage(q)
+            method == "POST" && path == "/identity/resources/auth/v1/user/passwords/reset" -> json(200, JSONObject().put("ok", true))
+            method == "GET" && path == "/oauth/account/activate" -> activateAccountPage(q)
+            method == "GET" && path == "/oauth/account/invitation/accept" -> acceptInvitationPage(q)
+            method == "GET" && path == "/oauth/account/unlock" -> unlockAccountPage(q)
+            method == "GET" && path == "/oauth/account/verify-email" -> verifyEmailPage(q)
             else -> json(404, JSONObject().put("error", "$method $path"))
         }
     }
@@ -917,6 +925,95 @@ class LocalMockAuthServer {
     private fun cbErr(ru: String, st: String, e: String, d: String): String {
         val sep = if (ru.contains("?")) "&" else "?"
         return ru + sep + "error=${enc(e)}&error_description=${enc(d)}&state=${enc(st)}"
+    }
+
+    private fun signupPage(q: Map<String, List<String>>): MockResponse {
+        val hs = fq(q, "state")
+        val termsRequired = state.signupConfig.requireTerms
+        val termsHtml = if (termsRequired) """<p><label><input type="checkbox" id="e2e-signup-terms"/> I agree to Terms of use and Privacy policy</label></p>""" else ""
+        val b = """<h1>Sign up</h1>
+        <div id="e2e-signup-error" style="color:red;display:none"></div>
+        <form id="sf"><input id="e2e-signup-email" type="email" placeholder="Email"/>
+        <input id="e2e-signup-name" type="text" placeholder="Name"/>
+        <input id="e2e-signup-password" type="password" placeholder="Password"/>
+        <input id="e2e-signup-org" type="text" placeholder="Organization"/>
+        $termsHtml
+        <button type="submit" id="e2e-signup-submit">Sign up</button></form>
+        <p><a id="e2e-mock-google" href="#">Continue with Google</a></p>
+        <script>
+        document.getElementById('sf').onsubmit=async ev=>{ev.preventDefault();
+        var errDiv=document.getElementById('e2e-signup-error');errDiv.style.display='none';
+        var terms=document.getElementById('e2e-signup-terms');
+        if(terms&&!terms.checked){errDiv.textContent='You must agree to the terms of use and privacy policy';errDiv.style.display='block';return;}
+        const r=await fetch('/frontegg/identity/resources/auth/v1/user/signUp',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:document.getElementById('e2e-signup-email').value,name:document.getElementById('e2e-signup-name').value,
+        password:document.getElementById('e2e-signup-password').value,companyName:document.getElementById('e2e-signup-org').value})});
+        const j=await r.json();
+        if(!r.ok){errDiv.textContent=(j.errors||['Signup failed']).join('. ');errDiv.style.display='block';return;}
+        if(j.shouldVerifyEmail){document.body.innerHTML='<h1>Verify your email</h1><p id="e2e-verify-email-sent">Check your email to verify your account</p>';return;}
+        location='/oauth/postlogin/redirect?state=${enc(hs)}';};</script>"""
+        return html(200, "signup", b)
+    }
+
+    private fun signupHandler(body: String): MockResponse {
+        val jo = JSONObject(body.ifEmpty { "{}" })
+        val em = jo.optString("email", "")
+        if (em.isEmpty()) return json(400, JSONObject().put("errors", JSONArray().put("Email is required")))
+        if (state.signupConfig.requireEmailVerification) {
+            return json(200, JSONObject().put("shouldVerifyEmail", true))
+        }
+        val hs = state.latestHosted()
+        if (hs != null) {
+            val ctx = state.hosted(hs)
+            if (ctx != null) {
+                state.issueCode(em, ctx.redirect, ctx.origState)
+                state.recordDone(hs, em)
+            }
+        }
+        val iss = state.issueRefresh(em)
+        return json(200, JSONObject(gson.toJson(tokenJson(iss.rec, iss.token))))
+    }
+
+    private fun resetPasswordPage(q: Map<String, List<String>>): MockResponse {
+        val b = """<h1>Reset password</h1>
+        <form id="rf"><input id="e2e-reset-email" type="email" placeholder="Email"/>
+        <button type="submit" id="e2e-reset-submit">Reset password</button></form>
+        <div id="e2e-reset-confirmation" style="display:none"><p>Password reset email sent</p></div>
+        <script>document.getElementById('rf').onsubmit=async ev=>{ev.preventDefault();
+        await fetch('/identity/resources/auth/v1/user/passwords/reset',{method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email:document.getElementById('e2e-reset-email').value})});
+        document.getElementById('rf').style.display='none';
+        document.getElementById('e2e-reset-confirmation').style.display='block';};</script>"""
+        return html(200, "reset", b)
+    }
+
+    private fun activateAccountPage(q: Map<String, List<String>>): MockResponse {
+        val b = """<h1>Activate your account</h1>
+        <p id="e2e-activate-page">Set up your password to activate your account</p>
+        <form id="af"><input id="e2e-activate-password" type="password" placeholder="Password"/>
+        <button type="submit" id="e2e-activate-submit">Activate</button></form>"""
+        return html(200, "activate", b)
+    }
+
+    private fun acceptInvitationPage(q: Map<String, List<String>>): MockResponse {
+        val b = """<h1>Accept invitation</h1>
+        <p id="e2e-invitation-page">You have been invited to join an organization</p>
+        <button id="e2e-accept-invite">Accept invitation</button>"""
+        return html(200, "invitation", b)
+    }
+
+    private fun unlockAccountPage(q: Map<String, List<String>>): MockResponse {
+        val b = """<h1>Account unlocked</h1>
+        <p id="e2e-unlock-page">Your account has been unlocked successfully</p>
+        <p><a href="/">Back to login</a></p>"""
+        return html(200, "unlock", b)
+    }
+
+    private fun verifyEmailPage(q: Map<String, List<String>>): MockResponse {
+        val b = """<h1>Email verified</h1>
+        <p id="e2e-verify-email-page">Your email has been verified successfully</p>
+        <p><a href="/">Continue to login</a></p>"""
+        return html(200, "verify-email", b)
     }
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
