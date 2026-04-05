@@ -249,12 +249,14 @@ open class EmbeddedE2ETestCase {
         waitForDesc("LoginPageRoot", 120_000)
         for (attempt in 0..3) {
             tapDesc("E2EEmbeddedPasswordButton")
+            // Wait for the embedded WebView to load the mock server's password page.
+            // CI emulators are slow to render WebView content; first attempt needs extra time.
             Thread.sleep(
                 when (attempt) {
-                    0 -> 6_000
-                    1 -> 8_000
-                    2 -> 10_000
-                    else -> 12_000
+                    0 -> 10_000
+                    1 -> 12_000
+                    2 -> 14_000
+                    else -> 16_000
                 },
             )
             try {

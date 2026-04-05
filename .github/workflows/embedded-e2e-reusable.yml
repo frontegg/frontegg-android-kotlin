@@ -88,11 +88,13 @@ jobs:
           ram-size: 4096M
           heap-size: 1024M
           disable-animations: true
-          emulator-options: -no-window -gpu swiftshader_indirect -no-snapshot -noaudio -no-boot-anim -no-snapshot-save
           script: |
-            # Warm-up: let the emulator settle after boot before running heavy tests.
+            # Warm-up: dismiss lock screen, disable animations explicitly, let emulator settle.
             adb shell input keyevent 82
-            sleep 5
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+            sleep 8
             bash .github/scripts/run_embedded_e2e_shard.sh
 
       - name: Collect JUnit reports

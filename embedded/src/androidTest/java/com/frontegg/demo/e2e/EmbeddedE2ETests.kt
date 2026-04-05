@@ -251,7 +251,7 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         tapDesc("RetryConnectionButton", 15_000)
         waitForDesc("LoginPageRoot", 60_000)
         tapDesc("E2ECustomSSOButton")
-        Thread.sleep(12_000)
+        Thread.sleep(20_000)
         waitForUserEmail("custom-sso@frontegg.com", 180_000)
     }
 
