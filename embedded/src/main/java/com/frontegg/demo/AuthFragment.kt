@@ -103,30 +103,6 @@ class AuthFragment : Fragment() {
                     callback = { Log.d("AuthFragment", "E2E direct social") },
                 )
             }
-            binding.e2eActivateAccountButton.setOnClickListener {
-                val url = "${requireContext().fronteggAuth.baseUrl}/oauth/account/activate?userId=mock-user&token=mock-activate-token"
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                intent.setClass(requireContext(), com.frontegg.android.EmbeddedAuthActivity::class.java)
-                startActivity(intent)
-            }
-            binding.e2eAcceptInvitationButton.setOnClickListener {
-                val url = "${requireContext().fronteggAuth.baseUrl}/oauth/account/invitation/accept?userId=mock-user&token=mock-invite-token"
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                intent.setClass(requireContext(), com.frontegg.android.EmbeddedAuthActivity::class.java)
-                startActivity(intent)
-            }
-            binding.e2eUnlockAccountButton.setOnClickListener {
-                val url = "${requireContext().fronteggAuth.baseUrl}/oauth/account/unlock?token=mock-unlock-token"
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                intent.setClass(requireContext(), com.frontegg.android.EmbeddedAuthActivity::class.java)
-                startActivity(intent)
-            }
-            binding.e2eVerifyEmailButton.setOnClickListener {
-                val url = "${requireContext().fronteggAuth.baseUrl}/oauth/account/verify-email?userId=mock-user&token=mock-verify-token"
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
-                intent.setClass(requireContext(), com.frontegg.android.EmbeddedAuthActivity::class.java)
-                startActivity(intent)
-            }
         }
 
         /**
