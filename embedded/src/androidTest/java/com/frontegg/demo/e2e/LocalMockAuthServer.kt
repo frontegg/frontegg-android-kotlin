@@ -379,19 +379,12 @@ class LocalMockAuthServer {
         if (ru.isEmpty() || st.isEmpty()) return html(400, "bad", "<h1>bad</h1>")
         val code = state.issueCode("google-social@frontegg.com", ru, st)
         val err = state.consumeOAuthErr()
-        // redirect_uri is a custom-scheme URL: com.frontegg.demo://host/android/oauth/callback
-        // Extract the package name from the scheme (everything before "://").
-        val pkg = embeddedBundle(ru)
-            ?: ru.substringBefore("://").takeIf { it.contains(".") }
-            ?: ru.substringAfterLast("/")
-        // Chrome Custom Tabs on API 34+ block 302 redirects to custom URL schemes.
-        // Route through the HTTP /oauth/account/redirect/android/ endpoint which serves an
-        // HTML page with a JS window.location.href redirect to the app's deep link.
-        val httpRedirect = "${urlRoot()}/oauth/account/redirect/android/$pkg"
+        // Redirect back to redirect_uri with code/error. redir() automatically uses HTML+JS
+        // instead of 302 when the target is a custom-scheme URL (Chrome Custom Tab compat).
         return if (err != null) {
-            redir(cbErr(httpRedirect, st, err.first, err.second))
+            redir(cbErr(ru, st, err.first, err.second))
         } else {
-            redir(cb(httpRedirect, code, st))
+            redir(cb(ru, code, st))
         }
     }
 
@@ -677,7 +670,23 @@ class LocalMockAuthServer {
     }
 
     private fun enc(s: String) = URLEncoder.encode(s, "UTF-8")
-    private fun redir(loc: String) = MockResponse().setResponseCode(302).addHeader("Location", loc)
+
+    /**
+     * Redirect to [loc]. Chrome Custom Tabs on API 34+ block HTTP 302 redirects to custom URL
+     * schemes (com.frontegg.demo://...). When the target is a custom scheme, serve an HTML page
+     * with a JS `window.location.href` redirect instead — Chrome allows JS-initiated navigation
+     * to custom schemes from same-origin pages.
+     */
+    private fun redir(loc: String): MockResponse {
+        val isCustomScheme = !loc.startsWith("http://") && !loc.startsWith("https://") && loc.contains("://")
+        if (isCustomScheme) {
+            val jsLoc = loc.replace("\\", "\\\\").replace("'", "\\'")
+            return html(200, "Redirect", """<p>Redirecting…</p>
+                <script>(function(){window.location.href='$jsLoc';})()</script>""")
+        }
+        return MockResponse().setResponseCode(302).addHeader("Location", loc)
+    }
+
     private fun html(c: Int, @Suppress("UNUSED_PARAMETER") title: String, body: String) =
         MockResponse().setResponseCode(c).addHeader("Content-Type", "text/html; charset=utf-8")
             .setBody("<!DOCTYPE html><html><body>$body</body></html>")
