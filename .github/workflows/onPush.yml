@@ -9,6 +9,7 @@ env:
   CI: true
   LANG: en_US.UTF-8
   API_LEVEL: 34
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
 
 concurrency:
   group: ci-push-${{ github.ref }}
@@ -20,7 +21,7 @@ jobs:
     runs-on: macos-15-xlarge
     steps:
       - name: Checkout
-        uses: actions/checkout@v4.2.0
+        uses: actions/checkout@v5
 
       - name: Setup
         uses: ./.github/actions/setup
@@ -67,7 +68,7 @@ jobs:
 
       - name: Run Unit Tests
         shell: bash
-        run: ./gradlew :android:test --no-daemon
+        run: ./gradlew :android:testDebugUnitTest --no-daemon
 
       - name: Build Libraries
         shell: bash
@@ -75,6 +76,10 @@ jobs:
 
       - name: Upload Detekt SARIF
         if: success() || failure()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: android/build/reports/detekt/debug.sarif
+
+  # Embedded E2E runs on pull_request via demo-e2e.yml (opened/synchronize/reopened). Running the same
+  # 12+ emulator matrix on every push doubles CI load, duplicates checks, and increases flake (runner contention).
+  # Use workflow_dispatch on "Demo Embedded E2E (Android)" when you need E2E without a PR.

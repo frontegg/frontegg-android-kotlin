@@ -856,7 +856,7 @@ class FronteggAuthService(
                     cacheLastTenantForUser(user, finalTenantId)
                 }
 
-                updateStateWithCredentials(finalAccessToken, finalRefreshToken, user, authResponse)
+                updateStateWithCredentials(finalAccessToken, finalRefreshToken, user)
                 if (enableOfflineMode) {
                     credentialManager.saveOfflineUser(user)
                 }
@@ -890,36 +890,6 @@ class FronteggAuthService(
             sessionTracker.trackSessionStart(tenantId)
         }
 
-        refreshTokenTimer.cancelLastTimer()
-
-        val decoded = JWTHelper.decode(accessToken)
-        if (decoded.exp > 0) {
-            val offset = decoded.exp.calculateTimerOffset()
-            refreshTokenTimer.scheduleTimer(offset)
-        }
-        loadEntitlements(forceRefresh = true)
-    }
-
-    private fun updateStateWithCredentials(accessToken: String, refreshToken: String, user: User, authResponse: com.frontegg.android.models.AuthResponse) {
-        this.refreshToken.value = refreshToken
-        this.accessToken.value = accessToken
-        this.user.value = user
-        this.isAuthenticated.value = true
-        setOfflineMode(false)
-
-        val enableSessionPerTenant = storage.enableSessionPerTenant
-        val tenantId = if (enableSessionPerTenant) {
-            credentialManager.getCurrentTenantId() ?: user.activeTenant.tenantId
-        } else {
-            null
-        }
-
-        // Track session start if this is a new session with lifetime info from API
-        if (sessionTracker.getSessionStartTime(tenantId) == 0L) {
-            sessionTracker.trackSessionStart(tenantId)
-        }
-
-        // Cancel previous job if it exists
         refreshTokenTimer.cancelLastTimer()
 
         val decoded = JWTHelper.decode(accessToken)
@@ -1090,9 +1060,10 @@ class FronteggAuthService(
                     Log.d(TAG, "Recovered tokens validated successfully")
                 }
             } catch (e: com.frontegg.android.exceptions.FailedToAuthenticateException) {
-                // Auth error (401) - don't clear tokens here; let normal initialization
-                // or explicit refresh determine if session is truly invalid
-                Log.w(TAG, "Recovered tokens failed auth check (401), deferring to normal flow")
+                // Auth error (401) - access token is likely expired; trigger a refresh using
+                // the stored refresh token that was just restored to memory above.
+                Log.w(TAG, "Recovered tokens failed auth check (401), triggering token refresh")
+                refreshTokenWhenNeeded()
             } catch (e: Exception) {
                 // Network error (offline/bad connection) - assume authenticated and keep tokens
                 // This ensures offline mode works: user stays logged in when offline
@@ -1103,8 +1074,9 @@ class FronteggAuthService(
                     setOfflineMode(true)
                     isLoading.value = true // Still loading until network recovers
                 } else {
-                    // Other errors - don't clear tokens, let normal flow handle
-                    Log.w(TAG, "Recovered tokens - non-network error, deferring to normal flow: ${e.message}", e)
+                    // Other errors - don't clear tokens, trigger refresh to re-validate
+                    Log.w(TAG, "Recovered tokens - non-network error, triggering token refresh: ${e.message}", e)
+                    refreshTokenWhenNeeded()
                 }
             }
         }
@@ -1757,9 +1729,7 @@ class FronteggAuthService(
                 Log.e(TAG, "Failed to generate auth URL for provider: ${provider.value}")
                 return
             }
-            
-            
-            
+
             val webAuthenticator = com.frontegg.android.utils.WebAuthenticator.getInstance()
             webAuthenticator.start(activity, authURL, ephemeralSession ?: true) { callbackURL, error ->
                 if (error != null) {

@@ -41,6 +41,31 @@ open class CredentialManager(val context: Context) {
             .apply()
     }
 
+    /**
+     * Clears both encrypted credential prefs and the legacy plain prefs file.
+     * Used by embedded demo E2E when bootstrap requests a full reset — [clearSharedPreference] alone
+     * does not wipe [sp] (EncryptedSharedPreferences), so tokens could survive and keep the user logged in.
+     */
+    @SuppressLint("ApplySharedPref")
+    fun wipeAllStoredCredentials() {
+        try {
+            sp.edit().clear().commit()
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to clear encrypted prefs, deleting file", e)
+            deleteSharedPreferencesFile()
+        }
+        context.getSharedPreferences(SHARED_PREFERENCES_NAME, Context.MODE_PRIVATE).edit().clear().commit()
+    }
+
+    private fun deleteSharedPreferencesFile() {
+        try {
+            val prefsDir = java.io.File(context.applicationInfo.dataDir, "shared_prefs")
+            java.io.File(prefsDir, "$SHARED_PREFERENCES_NAME.xml").delete()
+        } catch (e: Exception) {
+            Log.w(TAG, "Could not delete prefs file", e)
+        }
+    }
+
     private fun createSecretKey(alias: String): SecretKey {
         val keyGenerator =
             KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, "AndroidKeyStore")
@@ -80,13 +105,15 @@ open class CredentialManager(val context: Context) {
                 EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
             )
         } catch (e: Exception) {
-            val cause: Throwable = e.cause!!
-            if (cause.message!!.contains("Signature/MAC verification failed")) {
-                Log.w(TAG, "Master key is corrupted. Recreating the master key")
-                // Recreate the Master Key
+            val msgs = buildList {
+                e.message?.let(::add)
+                e.cause?.message?.let(::add)
+            }.joinToString(" | ").lowercase()
+            if ("signature/mac verification failed" in msgs || "could not decrypt key" in msgs
+                || "decryption failed" in msgs
+            ) {
+                Log.w(TAG, "Encryption key corrupted, recreating master key", e)
                 val masterKey = reinitializeMasterKey()
-
-                // Recreate EncryptedSharedPreferences
                 sp = EncryptedSharedPreferences.create(
                     context,
                     SHARED_PREFERENCES_NAME,
@@ -95,7 +122,6 @@ open class CredentialManager(val context: Context) {
                     EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM
                 )
             } else {
-                // Handle other exceptions
                 throw e
             }
         }
@@ -227,29 +253,48 @@ open class CredentialManager(val context: Context) {
 
     @SuppressLint("ApplySharedPref")
     fun clearAllTokens() {
-        val selectedRegion: String? = getSelectedRegion()
+        val selectedRegion: String? = try {
+            getSelectedRegion()
+        } catch (_: SecurityException) {
+            null
+        }
         val accessTokenKey = CredentialKeys.ACCESS_TOKEN.toString()
         val refreshTokenKey = CredentialKeys.REFRESH_TOKEN.toString()
-        
-        with(sp.edit()) {
-            val allKeys = sp.all.keys
-            for (key in allKeys) {
-                if (key == accessTokenKey || key == refreshTokenKey) {
-                    remove(key)
-                } else if (key.startsWith("${accessTokenKey}_tenant_") || 
-                         key.startsWith("${refreshTokenKey}_tenant_")) {
-                    remove(key)
+
+        try {
+            with(sp.edit()) {
+                try {
+                    val allKeys = sp.all.keys
+                    for (key in allKeys) {
+                        if (key == accessTokenKey || key == refreshTokenKey) {
+                            remove(key)
+                        } else if (key.startsWith("${accessTokenKey}_tenant_") ||
+                            key.startsWith("${refreshTokenKey}_tenant_")) {
+                            remove(key)
+                        }
+                    }
+                } catch (e: SecurityException) {
+                    // EncryptedSharedPreferences.getAll() decrypts every key; instrumentation runs can
+                    // leave the keystore out of sync with stored ciphertext (Tink "Could not decrypt key").
+                    Log.w(
+                        TAG,
+                        "clearAllTokens: cannot enumerate keys; removing primary token fields only",
+                        e,
+                    )
+                    remove(accessTokenKey)
+                    remove(refreshTokenKey)
                 }
+                remove(CredentialKeys.CODE_VERIFIER.toString())
+                remove(CredentialKeys.CURRENT_TENANT_ID.toString())
+                if (selectedRegion != null) {
+                    putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
+                }
+                apply()
+                commit()
             }
-            
-            remove(CredentialKeys.CODE_VERIFIER.toString())
-            remove(CredentialKeys.CURRENT_TENANT_ID.toString())
-            
-            if (selectedRegion != null) {
-                putString(CredentialKeys.SELECTED_REGION.toString(), selectedRegion)
-            }
-            apply()
-            commit()
+        } catch (e: SecurityException) {
+            Log.w(TAG, "clearAllTokens: commit failed; wiping credential store", e)
+            wipeAllStoredCredentials()
         }
     }
 

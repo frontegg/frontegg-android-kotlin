@@ -2,7 +2,9 @@ package com.frontegg.android
 
 import android.app.Activity
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
+import android.text.TextUtils
 import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
@@ -22,12 +24,15 @@ import kotlin.time.Duration
 
 
 class EmbeddedAuthActivity : FronteggBaseActivity() {
+
     private val storage = FronteggInnerStorage()
     private lateinit var webView: FronteggWebView
     private var webViewUrl: String? = null
     private var directLoginLaunchedDone: Boolean = false
     private var directLoginLaunched: Boolean = false
     private var authCompleted: Boolean = false
+    /** True while showing the synthetic HTML page for OAuth `error` query params (keeps loader off the WebView). */
+    private var showingOAuthCallbackError: Boolean = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,8 +68,55 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         webView.saveState(outState)
     }
 
+    /**
+     * OAuth error redirects use a custom scheme; loading that URL in WebView often shows nothing
+     * and the error never enters the accessibility tree. Render plain HTML so E2E can assert.
+     */
+    private fun loadOAuthCallbackErrorPageIfNeeded(url: String): Boolean {
+        val uri = try {
+            Uri.parse(url)
+        } catch (_: Exception) {
+            return false
+        }
+        val oauthError = uri.getQueryParameter("error")?.trim().orEmpty()
+        if (oauthError.isEmpty()) {
+            return false
+        }
+        val rawDesc = uri.getQueryParameter("error_description").orEmpty()
+        val decodedDesc = try {
+            Uri.decode(rawDesc)
+        } catch (_: Exception) {
+            rawDesc
+        }
+        val plain = "$oauthError $decodedDesc".trim()
+        val line = TextUtils.htmlEncode(plain)
+        val html = "<!DOCTYPE html><html><head><meta charset=\"utf-8\"/></head><body><p>$line</p></body></html>"
+        showingOAuthCallbackError = true
+        runOnUiThread {
+            FronteggState.showLoader.value = false
+            FronteggState.isLoading.value = false
+            loaderContainer?.visibility = View.GONE
+            findViewById<View>(R.id.embedded_auth_root)?.contentDescription = plain
+            webView.contentDescription = plain
+            webView.importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_YES
+        }
+        webView.loadDataWithBaseURL(storage.baseUrl, html, "text/html", "UTF-8", null)
+        webView.postDelayed({
+            if (!showingOAuthCallbackError) return@postDelayed
+            loaderContainer?.visibility = View.GONE
+            findViewById<View>(R.id.embedded_auth_root)?.contentDescription = plain
+            webView.contentDescription = plain
+        }, 500)
+        webView.postDelayed({
+            if (!showingOAuthCallbackError) return@postDelayed
+            loaderContainer?.visibility = View.GONE
+        }, 1500)
+        return true
+    }
+
     private fun consumeIntent(intent: Intent) {
         Log.d(TAG, "consumeIntent")
+        showingOAuthCallbackError = false
         val intentLaunched =
             intent.extras?.getBoolean(AUTH_LAUNCHED, false) ?: false
 
@@ -164,6 +216,11 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             return
         }
 
+        if (loadOAuthCallbackErrorPageIfNeeded(webViewUrl!!)) {
+            webViewUrl = null
+            return
+        }
+
         // Always load URL for password reset and other account actions that don't require authentication
         // These URLs should be accessible regardless of auth state (initializing/authenticated)
         // This is especially important for Flutter apps where initialization may complete after activity starts
@@ -209,6 +266,10 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
     private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
         Log.d(TAG, "showLoaderConsumer: ${it.value}")
         runOnUiThread {
+            if (showingOAuthCallbackError) {
+                loaderContainer?.visibility = View.GONE
+                return@runOnUiThread
+            }
             if (applicationContext.fronteggAuth.isStepUpAuthorization.value) {
                 loaderContainer?.visibility = if (it.value) View.VISIBLE else View.GONE
             } else {
@@ -323,7 +384,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             onAuthFinishedCallback = null
         }
     }
-
 
     companion object {
         const val OAUTH_LOGIN_REQUEST = 100001

@@ -101,6 +101,33 @@ class AuthenticationActivity : FronteggBaseActivity() {
                 return
             }
 
+            val oauthError = intentUrl.getQueryParameter("error")
+            if (!oauthError.isNullOrEmpty()) {
+                Log.w(TAG, "OAuth error callback: $oauthError")
+                if (storage.isEmbeddedMode) {
+                    startActivity(
+                        Intent(this, EmbeddedAuthActivity::class.java).apply {
+                            data = intentUrl
+                        },
+                    )
+                    finish()
+                } else {
+                    val rawDesc = intentUrl.getQueryParameter("error_description").orEmpty()
+                    val msg = try {
+                        "$oauthError: ${Uri.decode(rawDesc)}"
+                    } catch (_: Exception) {
+                        "$oauthError: $rawDesc"
+                    }
+                    android.widget.Toast.makeText(
+                        applicationContext,
+                        msg,
+                        android.widget.Toast.LENGTH_LONG,
+                    ).show()
+                    safeFinishActivity(RESULT_CANCELED)
+                }
+                return
+            }
+
             if (!customTabLaunched) {
                 startAuth(intentUrl.toString())
                 customTabLaunched = true

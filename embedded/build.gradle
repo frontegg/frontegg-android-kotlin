@@ -39,6 +39,8 @@ android {
         versionName "1.0"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
+        // AndroidJUnitRunner defaults to ~300s per test; E2E uses long Custom Tab / token waits.
+        testInstrumentationRunnerArguments["timeout_msec"] = "1800000"
 
         manifestPlaceholders = [
                 "package_name"      : applicationId,
@@ -75,10 +77,6 @@ android {
 
         testInstrumentationRunnerArguments["GOOGLE_EMAIL"] = testProperties.getOrDefault("GOOGLE_EMAIL", "")
         testInstrumentationRunnerArguments["GOOGLE_PASSWORD"] = testProperties.getOrDefault("GOOGLE_PASSWORD", "")
-    }
-
-    testOptions {
-        execution "ANDROIDX_TEST_ORCHESTRATOR"
     }
 
     signingConfigs {
@@ -150,9 +148,11 @@ dependencies {
     androidTestImplementation 'androidx.test.espresso:espresso-web:' + rootProject.espressoVersion
     androidTestImplementation 'androidx.test:monitor:1.7.0-alpha01'
 
+    androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
+    androidTestImplementation 'com.google.code.gson:gson:2.10.1'
+
     implementation "junit:junit:4.13.2"
 
     implementation "androidx.test.uiautomator:uiautomator:2.2.0"
-    androidTestUtil "androidx.test:orchestrator:1.5.1"
 
 }
