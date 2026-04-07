@@ -52,6 +52,16 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -65,8 +75,20 @@ jobs:
           echo "FRONTEGG_APPLICATION_ID=" >> frontegg.properties
           echo "FRONTEGG_DEEP_LINK_SCHEME=test" >> frontegg.properties
 
-      - name: Build debug + androidTest
-        run: ./gradlew :embedded:assembleDebug :embedded:assembleDebugAndroidTest --no-daemon
+      - name: Build debug + androidTest (with retry for transient maven failures)
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::Gradle build attempt $attempt"
+            if ./gradlew :embedded:assembleDebug :embedded:assembleDebugAndroidTest --no-daemon; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "Build attempt $attempt failed, retrying after 10s..."
+            sleep 10
+          done
+          echo "::error::Build failed after 3 attempts"
+          exit 1
 
       # macOS xlarge runners (Apple Silicon) use HVF acceleration via arm64-v8a system images.
       # No KVM setup needed. Native arm64 emulation is dramatically more stable than swiftshader on Linux.
