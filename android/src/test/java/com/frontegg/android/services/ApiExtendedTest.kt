@@ -145,11 +145,12 @@ class ApiExtendedTest {
 
     @Test
     fun `refreshToken handles other error responses`() {
+        // 5xx is transient — refreshToken throws IOException so SDK preserves the session.
         mockWebServer.enqueue(MockResponse()
             .setResponseCode(500)
             .setBody("{\"error\": \"Server error\"}"))
 
-        assertThrows<FailedToAuthenticateException> {
+        assertThrows<java.io.IOException> {
             api.refreshToken("some-token")
         }
     }
