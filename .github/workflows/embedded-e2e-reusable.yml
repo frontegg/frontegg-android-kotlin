@@ -37,7 +37,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   embedded-e2e:
-    runs-on: macos-15-xlarge
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     needs: matrix
     strategy:
@@ -90,8 +90,12 @@ jobs:
           echo "::error::Build failed after 3 attempts"
           exit 1
 
-      # macOS xlarge runners (Apple Silicon) use HVF acceleration via arm64-v8a system images.
-      # No KVM setup needed. Native arm64 emulation is dramatically more stable than swiftshader on Linux.
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
       - name: Run embedded E2E on emulator
         env:
           E2E_CLASS: ${{ matrix['test-class'] }}
@@ -99,20 +103,19 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 34
-          arch: arm64-v8a
+          arch: x86_64
           target: google_apis
           profile: pixel_6
           cores: 4
           ram-size: 4096M
           heap-size: 1024M
           disable-animations: true
-          emulator-boot-timeout: 600
           script: |
             adb shell input keyevent 82
             adb shell settings put global window_animation_scale 0
             adb shell settings put global transition_animation_scale 0
             adb shell settings put global animator_duration_scale 0
-            sleep 5
+            sleep 8
             bash .github/scripts/run_embedded_e2e_shard.sh
 
       - name: Collect JUnit reports
