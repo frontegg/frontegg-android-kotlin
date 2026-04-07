@@ -122,6 +122,7 @@ const SOLO_SHARD_METHODS = new Set([
   "testLogoutTerminateTransientNoConnectionThenCustomSSORecovers",
   "testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken",
   "testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken",
+  "testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers",
 ]);
 
 /**
@@ -145,6 +146,7 @@ const FLAKY_METHODS = new Set([
   "testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken",
   "testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken",
   "testLogoutTerminateTransientNoConnectionThenCustomSSORecovers",
+  "testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers",
 ]);
 
 function main() {
