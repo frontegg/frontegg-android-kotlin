@@ -269,14 +269,19 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
 
     @Test
     fun testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers() {
+        // Pin a long access TTL so the relaunch /me call succeeds against the cached token
+        // and the SDK never needs to hit /oauth/token. The queued 503 below stays unconsumed
+        // and asserts that a *transient* server error sitting in the pipeline does NOT cause
+        // session loss when offline mode is disabled.
+        mock.configureTokenPolicy(
+            email = "test@frontegg.com",
+            accessTTL = longLivedRefreshTokenTTL,
+            refreshTTL = longLivedRefreshTokenTTL,
+        )
         launchApp(resetState = true, enableOfflineMode = false)
         loginWithPassword()
         waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         terminateApp()
-        // Queue a transient 503 (not a hard connection drop) followed by recovery.
-        // Hard connection drops can cascade through SDK retry timers and clear the session
-        // when offline mode is disabled. A 503 is recoverable: SDK can fall back to the
-        // cached access token (still valid) while the next refresh tick succeeds.
         mock.enqueue(
             "POST",
             "/oauth/token",

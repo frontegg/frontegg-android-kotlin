@@ -150,10 +150,6 @@ const FLAKY_METHODS = new Set([
   // Chrome on API 34 emulators blocks the JS-driven deep link back to com.frontegg.demo://,
   // so the Custom Tab handoff never returns. Works on real devices. Advisory-only on CI.
   "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
-  // Cross-process mock-state setup (queue 503 in instrumentation proc, then relaunch
-  // app proc) is unreliable on CI emulator. SDK-side fix shipped (5xx no longer
-  // clears session); residual flake is the test scaffolding, not the SDK.
-  "testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers",
 ]);
 
 function main() {
