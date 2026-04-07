@@ -37,10 +37,7 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   embedded-e2e:
-    # ubuntu-latest-8-cores: 8 vCPU, 32 GB RAM, 300 GB SSD — 2-4x more powerful
-    # than ubuntu-latest (2 vCPU, 7 GB RAM). Reduces emulator process crashes
-    # and WebView rendering delays caused by resource contention.
-    runs-on: ubuntu-latest-8-cores
+    runs-on: ubuntu-latest
     timeout-minutes: 90
     needs: matrix
     strategy:
@@ -109,9 +106,9 @@ jobs:
           arch: x86_64
           target: google_apis
           profile: pixel_6
-          cores: 6
-          ram-size: 8192M
-          heap-size: 2048M
+          cores: 4
+          ram-size: 4096M
+          heap-size: 1024M
           disable-animations: true
           script: |
             adb shell input keyevent 82
