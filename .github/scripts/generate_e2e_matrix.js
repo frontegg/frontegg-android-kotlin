@@ -122,6 +122,7 @@ const SOLO_SHARD_METHODS = new Set([
   "testLogoutTerminateTransientNoConnectionThenCustomSSORecovers",
   "testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken",
   "testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken",
+  "testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers",
 ]);
 
 /**
@@ -140,12 +141,17 @@ const SOLO_SHARD_METHODS = new Set([
  *   Custom Tab handoff, multiplying both flaky behaviors.
  */
 const FLAKY_METHODS = new Set([
+  // Google Custom Tab: Chrome on API 34 emulators blocks deep-link handoff
+  // back to the app from Chrome Custom Tab in some edge cases. Works on real devices.
+  "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
+  "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
   // Offline mode token refresh: tight timing windows (access TTL 21s + refresh 21s)
   // are unreliable on slow CI emulators where a single GC pause can push the
   // refresh past its window.
   "testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken",
   "testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken",
   "testLogoutTerminateTransientNoConnectionThenCustomSSORecovers",
+  "testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers",
 ]);
 
 function main() {
