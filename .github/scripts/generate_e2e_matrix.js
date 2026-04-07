@@ -146,14 +146,21 @@ const SOLO_SHARD_METHODS = new Set([
 // - Offline mode timing: access token TTL bumped from 21s to 60s so slow emulator
 //   phases don't push expiry past test expectations
 // If any of these regress, add them back here temporarily and open an issue.
-const FLAKY_METHODS = new Set([
-  // Chrome on API 34 emulators blocks the JS-driven deep link back to com.frontegg.demo://,
-  // so the Custom Tab handoff never returns. Works on real devices. Advisory-only on CI.
+// Tests that must run on API 33 instead of 34. Chrome on the API 34 emulator image
+// blocks the JS-driven navigation from https:// to custom URL schemes
+// (com.frontegg.demo://...), breaking the Custom Tab handoff. API 33 works.
+// These are GATING — they block the PR. They just run on a different image.
+const API33_METHODS = new Set([
   "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
   "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
-  // Re-marking as flaky to unblock merge. SDK 5xx-preserve fix shipped, test
-  // pinned long TTL, but residual flake remains in cross-process mock state.
-  // TODO: investigate why /oauth/token still gets hit on relaunch.
+]);
+
+// Tests that are advisory-only (do not gate merge). Used for tests whose root
+// cause is not yet diagnosed. TODO: drive this set to empty.
+const FLAKY_METHODS = new Set([
+  // SDK 5xx-preserve fix shipped and test pins a long TTL, but residual flake
+  // remains in cross-process mock state. Investigate why /oauth/token still
+  // gets hit on relaunch.
   "testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers",
 ]);
 
@@ -182,11 +189,13 @@ function main() {
 
     shards.forEach((shard, i) => {
       const flaky = shard.every((m) => FLAKY_METHODS.has(m));
+      const apiLevel = shard.every((m) => API33_METHODS.has(m)) ? 33 : 34;
       include.push({
         "shard-index": i + 1,
         "shard-total": effectiveShardCount,
         "test-class": CONFIG.testClass,
         "test-methods": shard.join(","),
+        "api-level": apiLevel,
         flaky,
       });
     });

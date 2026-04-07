@@ -37,13 +37,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   embedded-e2e:
-    name: "embedded-e2e${{ matrix.flaky && ' (flaky)' || '' }}"
+    name: "embedded-e2e (api${{ matrix['api-level'] }}${{ matrix.flaky && ', flaky' || '' }})"
     runs-on: ubuntu-latest
     timeout-minutes: 90
     needs: matrix
-    # Flaky shards report as failing even with continue-on-error (branch protection
-    # reads individual check conclusions). Skip them entirely on PRs and only run
-    # them on push for advisory signal. See FLAKY_METHODS in generate_e2e_matrix.js.
+    # Shards may run on different API images — see API33_METHODS / FLAKY_METHODS
+    # in generate_e2e_matrix.js. Flaky shards are advisory: skipped on PRs, runs
+    # on push for signal only.
     if: ${{ matrix.flaky != true || github.event_name != 'pull_request' }}
     continue-on-error: ${{ matrix.flaky == true }}
     strategy:
@@ -111,15 +111,17 @@ jobs:
         id: sdk-cache
         with:
           path: |
-            /usr/local/lib/android/sdk/system-images/android-34
+            /usr/local/lib/android/sdk/system-images/android-${{ matrix['api-level'] }}
             /usr/local/lib/android/sdk/emulator
-            /usr/local/lib/android/sdk/platforms/android-34
+            /usr/local/lib/android/sdk/platforms/android-${{ matrix['api-level'] }}
             /usr/local/lib/android/sdk/build-tools
             /usr/local/lib/android/sdk/licenses
-          key: android-sdk-api34-google_apis-x86_64-v1
+          key: android-sdk-api${{ matrix['api-level'] }}-google_apis-x86_64-v1
 
       - name: Pre-install Android SDK packages (with retry on corrupt zip)
         if: steps.sdk-cache.outputs.cache-hit != 'true'
+        env:
+          API_LEVEL: ${{ matrix['api-level'] }}
         run: |
           set -e
           SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
@@ -137,21 +139,21 @@ jobs:
             ls -la "$SDK_ROOT/cmdline-tools" 2>/dev/null || true
             exit 1
           fi
-          echo "Using sdkmanager: $SDKMANAGER"
+          echo "Using sdkmanager: $SDKMANAGER (API $API_LEVEL)"
           yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           for attempt in 1 2 3; do
             echo "::group::sdkmanager install attempt $attempt"
             if "$SDKMANAGER" --install \
                 "platform-tools" \
-                "platforms;android-34" \
+                "platforms;android-${API_LEVEL}" \
                 "emulator" \
-                "system-images;android-34;google_apis;x86_64"; then
+                "system-images;android-${API_LEVEL};google_apis;x86_64"; then
               echo "::endgroup::"
               exit 0
             fi
             echo "::endgroup::"
             echo "Install attempt $attempt failed (likely corrupt CDN zip), wiping partial downloads and retrying..."
-            rm -rf "$SDK_ROOT/system-images/android-34" || true
+            rm -rf "$SDK_ROOT/system-images/android-${API_LEVEL}" || true
             rm -rf "$HOME/.android/cache" || true
             sleep 5
           done
@@ -165,13 +167,13 @@ jobs:
           path: |
             ~/.android/avd/*
             ~/.android/adb*
-          key: avd-api34-google_apis-x86_64-pixel6-v1
+          key: avd-api${{ matrix['api-level'] }}-google_apis-x86_64-pixel6-v1
 
       - name: Create AVD snapshot if cache missing
         if: steps.avd-cache.outputs.cache-hit != 'true'
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ matrix['api-level'] }}
           arch: x86_64
           target: google_apis
           profile: pixel_6
@@ -189,7 +191,7 @@ jobs:
           E2E_METHODS: ${{ matrix['test-methods'] }}
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ matrix['api-level'] }}
           arch: x86_64
           target: google_apis
           profile: pixel_6
