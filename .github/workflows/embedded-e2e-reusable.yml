@@ -41,8 +41,10 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90
     needs: matrix
-    # Shards containing ONLY known-flaky tests (Chromium-on-emulator limitations)
-    # don't block the PR. See FLAKY_METHODS in generate_e2e_matrix.js.
+    # Flaky shards report as failing even with continue-on-error (branch protection
+    # reads individual check conclusions). Skip them entirely on PRs and only run
+    # them on push for advisory signal. See FLAKY_METHODS in generate_e2e_matrix.js.
+    if: ${{ matrix.flaky != true || github.event_name != 'pull_request' }}
     continue-on-error: ${{ matrix.flaky == true }}
     strategy:
       fail-fast: false
