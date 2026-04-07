@@ -157,12 +157,26 @@ jobs:
             -name "TEST-*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
           find . -path "*/androidTest-results/*" -name "*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
 
-      - name: Publish JUnit report
+      # Only publish a GitHub check run for STABLE shards. Flaky shards still upload
+      # artifacts below — results visible in CI summary — but don't create check runs
+      # that would appear as failures on the PR.
+      - name: Publish JUnit report (stable shards)
         uses: mikepenz/action-junit-report@v5
-        if: always()
+        if: always() && matrix.flaky != true
         with:
           report_paths: e2e-artifacts/*.xml
           check_name: Embedded E2E (${{ inputs.junit-check-label }}) shard ${{ matrix['shard-index'] }}
+
+      # For flaky shards, annotate-only (no check run created — results still in logs
+      # and uploaded artifacts, but no PR check that could block merge).
+      - name: Publish JUnit report (flaky, annotate-only)
+        uses: mikepenz/action-junit-report@v5
+        if: always() && matrix.flaky == true
+        with:
+          report_paths: e2e-artifacts/*.xml
+          check_name: Embedded E2E (${{ inputs.junit-check-label }}) shard ${{ matrix['shard-index'] }} (flaky, advisory)
+          annotate_only: true
+          update_check: false
 
       - uses: actions/upload-artifact@v6
         if: always()
@@ -171,26 +185,55 @@ jobs:
           path: e2e-artifacts/
           if-no-files-found: ignore
 
-  # Regression guard: fails if any non-flaky shard failed. Flaky shards
-  # (see FLAKY_METHODS in generate_e2e_matrix.js) use continue-on-error and
-  # don't block the PR, but this job ensures all STABLE shards must pass.
+  # Regression guard: fails if any STABLE shard failed. Flaky shards (see
+  # FLAKY_METHODS in generate_e2e_matrix.js) use continue-on-error and their
+  # failures don't block the PR. This job checks JUnit XML artifacts from
+  # stable shards and fails if any contain failures.
   regression-guard:
     name: "Regression guard (stable shards)"
     runs-on: ubuntu-latest
-    needs: [embedded-e2e]
+    needs: [matrix, embedded-e2e]
     if: always()
     steps:
-      - name: Fail if any stable shard failed
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v6
+        with:
+          path: all-shards
+          pattern: embedded-e2e-shard-*
+
+      - name: Check stable shards passed
         env:
-          RESULT: ${{ needs.embedded-e2e.result }}
+          MATRIX: ${{ needs.matrix.outputs.matrix }}
         run: |
-          echo "embedded-e2e result: $RESULT"
-          if [ "$RESULT" = "failure" ]; then
-            echo "::error::One or more stable (non-flaky) shards failed. Flaky shards do not count."
-            exit 1
-          fi
-          if [ "$RESULT" = "cancelled" ]; then
-            echo "::error::Embedded E2E was cancelled."
+          set -euo pipefail
+          # Get list of non-flaky shard indexes from the matrix
+          STABLE_SHARDS=$(echo "$MATRIX" | node -e '
+            const m = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const stable = m.include.filter(s => !s.flaky).map(s => s["shard-index"]);
+            process.stdout.write(stable.join(" "));
+          ')
+          echo "Stable shards: $STABLE_SHARDS"
+
+          FAILED_SHARDS=""
+          for shard in $STABLE_SHARDS; do
+            artifact_dir="all-shards/embedded-e2e-shard-$shard"
+            if [ ! -d "$artifact_dir" ]; then
+              echo "::warning::Shard $shard has no artifacts (job may have errored before tests ran)"
+              FAILED_SHARDS="$FAILED_SHARDS $shard"
+              continue
+            fi
+            # Check all JUnit XML files for failures/errors
+            if grep -lE 'failures="[1-9]|errors="[1-9]' "$artifact_dir"/*.xml 2>/dev/null; then
+              echo "::error::Stable shard $shard has test failures"
+              FAILED_SHARDS="$FAILED_SHARDS $shard"
+            else
+              echo "Shard $shard: ✓"
+            fi
+          done
+
+          if [ -n "$FAILED_SHARDS" ]; then
+            echo "::error::Stable shards failed:$FAILED_SHARDS"
             exit 1
           fi
           echo "::notice::All stable shards passed ✓"
