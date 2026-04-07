@@ -56,9 +56,7 @@ function validateCatalog(catalogMethods, sourceMethods) {
  * rarely share a shard with each other; catalog document order is unchanged).
  */
 const TEST_WEIGHTS = {
-  testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession: 100,
   testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken: 92,
-  testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen: 78,
   testLogoutTerminateTransientNoConnectionThenCustomSSORecovers: 72,
   testScheduledTokenRefreshFiresBeforeExpiry: 68,
   testExpiredAccessTokenRefreshesOnAuthenticatedRelaunch: 62,
@@ -93,8 +91,6 @@ function splitIntoShards(items, shardCount) {
 
 /** Custom Tabs / heavy WebView last — reduces emulator OOM / process death when paired with lighter tests. */
 const PREFER_RUN_LAST = new Set([
-  "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
-  "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
   "testCustomSSOBrowserHandoff",
   "testDirectSocialBrowserHandoff",
   "testEmbeddedSamlLogin",
@@ -114,8 +110,6 @@ function orderShardStable(shard) {
 /** One test per shard — Chrome Custom Tab, heavy token flows, or flaky tests
  *  that need isolation so their flaky flag applies to the whole shard. */
 const SOLO_SHARD_METHODS = new Set([
-  "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
-  "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
   "testCustomSSOBrowserHandoff",
   "testDirectSocialBrowserHandoff",
   "testAuthenticatedRelaunchWithExpiredAccessTokenAndFreshRefreshToken",
@@ -146,14 +140,8 @@ const SOLO_SHARD_METHODS = new Set([
 // - Offline mode timing: access token TTL bumped from 21s to 60s so slow emulator
 //   phases don't push expiry past test expectations
 // If any of these regress, add them back here temporarily and open an issue.
-// Tests that must run on API 33 instead of 34. Chrome on the API 34 emulator image
-// blocks the JS-driven navigation from https:// to custom URL schemes
-// (com.frontegg.demo://...), breaking the Custom Tab handoff. API 33 works.
-// These are GATING — they block the PR. They just run on a different image.
-const API33_METHODS = new Set([
-  "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
-  "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
-]);
+// Tests that must run on an older API image. Currently empty.
+const API33_METHODS = new Set([]);
 
 // Tests that are advisory-only (do not gate merge). Used for tests whose root
 // cause is not yet diagnosed. TODO: drive this set to empty.

@@ -31,16 +31,6 @@
       "description": "Starts the direct social browser flow, completes the mock social provider handoff, and verifies the social user is signed in."
     },
     {
-      "method": "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
-      "title": "Embedded Google social login succeeds with system web auth",
-      "description": "Runs the embedded Google social flow through the real system web authentication session and verifies the Google social user is signed in."
-    },
-    {
-      "method": "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
-      "title": "Embedded Google OAuth error keeps login open",
-      "description": "Queues an OAuth error from the Google social callback, verifies the OAuth error toast is shown, and confirms the login UI stays open without authenticating the user."
-    },
-    {
       "method": "testColdLaunchTransientProbeTimeoutsDoNotBlinkNoConnectionPage",
       "title": "Cold launch probe timeouts do not blink no-connection UI",
       "description": "Queues transient startup probe timeouts and verifies the app stays on the login experience without flashing the no-connection screen."

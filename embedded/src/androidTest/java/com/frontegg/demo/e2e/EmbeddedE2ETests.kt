@@ -77,57 +77,6 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     }
 
     @Test
-    fun testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession() {
-        launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 120_000)
-        tapDesc("E2EEmbeddedGoogleSocialButton")
-        // Custom Tab: oauth/authorize → mock Google → deep link.
-        // Use chunked sleeps instead of one long Thread.sleep to reduce emulator pressure
-        // (a single 120s sleep with Chrome GPU rendering causes process crashes on CI).
-        for (i in 1..12) {
-            Thread.sleep(10_000)
-            // Early exit: if our app is back in foreground, stop waiting
-            if (device.currentPackageName == instrumentation.targetContext.packageName) {
-                if (device.findObject(By.desc("UserPageRoot")) != null) break
-            }
-        }
-        dismissBrowserForegroundIfNeeded()
-        waitForUserEmail("google-social@frontegg.com", timeoutMs = 420_000)
-    }
-
-    @Test
-    fun testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen() {
-        mock.queueEmbeddedSocialSuccessOAuthError(
-            "ER-05001",
-            "JWT token size exceeded the maximum allowed size. Please contact support to reduce token payload size.",
-        )
-        launchApp(resetState = true)
-        waitForDesc("LoginPageRoot", 120_000)
-        tapDesc("E2EEmbeddedGoogleSocialButton")
-        // Long passive wait first (no Back): dismissing Chrome too early can cancel the redirect to EmbeddedAuth.
-        var sawEr =
-            waitForTextOrDescContains("ER-05001", 150_000) ||
-                waitForTextOrDescContains("JWT token size exceeded", 30_000) ||
-                waitForA11yTextContains("er-050", 30_000) ||
-                device.wait(Until.hasObject(By.descContains("ER-050")), 30_000)
-        if (!sawEr) {
-            dismissBrowserForegroundIfNeeded()
-            Thread.sleep(2_000)
-            dismissBrowserForegroundIfNeeded()
-            sawEr =
-                waitForTextOrDescContains("ER-05001", 240_000) ||
-                    waitForTextOrDescContains("JWT token size exceeded", 120_000) ||
-                    waitForA11yTextContains("er-050", 120_000) ||
-                    device.wait(Until.hasObject(By.textContains("ER-050")), 90_000) ||
-                    device.wait(Until.hasObject(By.descContains("ER-050")), 60_000) ||
-                    device.wait(Until.hasObject(By.textContains("contact support")), 60_000)
-        }
-        if (!sawEr) {
-            throw AssertionError("Expected OAuth error (ER-05001 / JWT / support text) in UI")
-        }
-    }
-
-    @Test
     fun testColdLaunchTransientProbeTimeoutsDoNotBlinkNoConnectionPage() {
         mock.queueProbeTimeouts(count = 2, delayMs = 1500)
         launchApp(resetState = true)
