@@ -26,6 +26,8 @@ jobs:
     steps:
       - uses: actions/checkout@v5
       - id: set-matrix
+        env:
+          E2E_EVENT_NAME: ${{ github.event_name }}
         run: |
           JSON=$(env -u GITHUB_OUTPUT node .github/scripts/generate_e2e_matrix.js)
           SHARD_JOBS="$(printf '%s' "$JSON" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).include.length")"
@@ -42,9 +44,9 @@ jobs:
     timeout-minutes: 90
     needs: matrix
     # Shards may run on different API images — see API33_METHODS / FLAKY_METHODS
-    # in generate_e2e_matrix.js. Flaky shards are advisory: skipped on PRs, runs
-    # on push for signal only.
-    if: ${{ matrix.flaky != true || github.event_name != 'pull_request' }}
+    # in generate_e2e_matrix.js. Flaky shards are filtered out entirely on PRs by
+    # the matrix generator (E2E_EVENT_NAME=pull_request), so they never spawn jobs
+    # that could block merge. On push they run advisory (continue-on-error).
     continue-on-error: ${{ matrix.flaky == true }}
     strategy:
       fail-fast: false

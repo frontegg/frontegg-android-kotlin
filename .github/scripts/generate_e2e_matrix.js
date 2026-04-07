@@ -168,7 +168,16 @@ function main() {
   const catalogMethods = readCatalogMethods(CONFIG.catalog);
   const sourceMethods = readKotlinTestMethods(CONFIG.testSources);
   validateCatalog(catalogMethods, sourceMethods);
-  const methodsForShards = sortMethodsForSharding(catalogMethods);
+  // On pull_request events, filter flaky tests out entirely so they never spawn
+  // jobs that could block merge. continue-on-error alone isn't enough because
+  // branch protection reads individual check-run conclusions. Job-level `if:`
+  // referencing matrix.flaky also doesn't work (matrix context isn't available
+  // at job-level if-evaluation when matrix is built from fromJson). So: filter here.
+  const isPR = process.env.E2E_EVENT_NAME === "pull_request";
+  const filteredMethods = isPR
+    ? catalogMethods.filter((m) => !FLAKY_METHODS.has(m))
+    : catalogMethods;
+  const methodsForShards = sortMethodsForSharding(filteredMethods);
 
   const include = [];
   if (catalogMethods.length === 0) {
