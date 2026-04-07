@@ -120,10 +120,26 @@ jobs:
         if: steps.sdk-cache.outputs.cache-hit != 'true'
         run: |
           set -e
-          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            for cand in \
+              "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+              "$SDK_ROOT/cmdline-tools"/*/bin/sdkmanager \
+              "$SDK_ROOT/tools/bin/sdkmanager"; do
+              if [ -x "$cand" ]; then SDKMANAGER="$cand"; break; fi
+            done
+          fi
+          if [ -z "$SDKMANAGER" ] || [ ! -x "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found under $SDK_ROOT"
+            ls -la "$SDK_ROOT/cmdline-tools" 2>/dev/null || true
+            exit 1
+          fi
+          echo "Using sdkmanager: $SDKMANAGER"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
           for attempt in 1 2 3; do
             echo "::group::sdkmanager install attempt $attempt"
-            if sdkmanager --install \
+            if "$SDKMANAGER" --install \
                 "platform-tools" \
                 "platforms;android-34" \
                 "emulator" \
@@ -133,7 +149,7 @@ jobs:
             fi
             echo "::endgroup::"
             echo "Install attempt $attempt failed (likely corrupt CDN zip), wiping partial downloads and retrying..."
-            rm -rf /usr/local/lib/android/sdk/system-images/android-34 || true
+            rm -rf "$SDK_ROOT/system-images/android-34" || true
             rm -rf "$HOME/.android/cache" || true
             sleep 5
           done
