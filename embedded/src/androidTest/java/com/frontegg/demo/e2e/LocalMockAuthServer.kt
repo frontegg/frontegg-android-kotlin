@@ -269,10 +269,19 @@ class LocalMockAuthServer {
             val dest = dec?.get("data")?.asString ?: ""
             val typ = dec?.get("type")?.asString
             // Embedded Google social (loginWithSocialLoginProvider): authorize carries social-login/google → mock IdP page.
+            // Use HTML auto-click instead of 302 redirect — Chrome blocks 302 chains ending in custom URL schemes
+            // when initiated from Custom Tab. The HTML+JS click pattern is the same one Custom SSO uses successfully.
             if (typ.equals("social-login", ignoreCase = true) && dest.equals("google", ignoreCase = true)) {
-                val loc =
-                    "${urlRoot()}/idp/google/authorize?redirect_uri=${enc(redirect)}&state=${enc(st)}"
-                return redir(loc)
+                val href =
+                    "/idp/google/authorize?redirect_uri=${enc(redirect)}&state=${enc(st)}"
+                val htmlBody = """<h1>Mock Google</h1><p><a id="e2e-complete" href="$href">Continue with Mock Google</a></p>
+                <script>
+                setTimeout(function(){
+                  var e=document.getElementById('e2e-complete');
+                  if(e) e.click();
+                }, 900);
+                </script>"""
+                return html(200, "Mock Google", htmlBody)
             }
             val (ti, bt, em) = when {
                 dest.contains("custom-sso") ->

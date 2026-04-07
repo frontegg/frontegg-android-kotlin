@@ -141,8 +141,9 @@ const SOLO_SHARD_METHODS = new Set([
  *   Custom Tab handoff, multiplying both flaky behaviors.
  */
 const FLAKY_METHODS = new Set([
-  "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
-  "testEmbeddedGoogleSocialLoginOAuthErrorShowsToastAndKeepsLoginOpen",
+  // Offline mode token refresh: tight timing windows (access TTL 21s + refresh 21s)
+  // are unreliable on slow CI emulators where a single GC pause can push the
+  // refresh past its window.
   "testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken",
   "testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken",
   "testLogoutTerminateTransientNoConnectionThenCustomSSORecovers",
