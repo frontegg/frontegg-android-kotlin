@@ -100,6 +100,46 @@ jobs:
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
 
+      # Cache the Android SDK packages that android-emulator-runner installs on every job.
+      # Without this, sdkmanager re-downloads emulator + system-image from Google's CDN each
+      # run, and intermittently gets a corrupt zip ("Error on ZipFile unknown archive") which
+      # crashes the runner before tests start. Caching makes the install a no-op on hit.
+      - name: Android SDK packages cache
+        uses: actions/cache@v4
+        id: sdk-cache
+        with:
+          path: |
+            /usr/local/lib/android/sdk/system-images/android-34
+            /usr/local/lib/android/sdk/emulator
+            /usr/local/lib/android/sdk/platforms/android-34
+            /usr/local/lib/android/sdk/build-tools
+            /usr/local/lib/android/sdk/licenses
+          key: android-sdk-api34-google_apis-x86_64-v1
+
+      - name: Pre-install Android SDK packages (with retry on corrupt zip)
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        run: |
+          set -e
+          yes | sdkmanager --licenses >/dev/null 2>&1 || true
+          for attempt in 1 2 3; do
+            echo "::group::sdkmanager install attempt $attempt"
+            if sdkmanager --install \
+                "platform-tools" \
+                "platforms;android-34" \
+                "emulator" \
+                "system-images;android-34;google_apis;x86_64"; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "Install attempt $attempt failed (likely corrupt CDN zip), wiping partial downloads and retrying..."
+            rm -rf /usr/local/lib/android/sdk/system-images/android-34 || true
+            rm -rf "$HOME/.android/cache" || true
+            sleep 5
+          done
+          echo "::error::sdkmanager install failed after 3 attempts"
+          exit 1
+
       - name: AVD cache
         uses: actions/cache@v4
         id: avd-cache
