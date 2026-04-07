@@ -1,6 +1,5 @@
 package com.frontegg.android.utils
 
-import com.frontegg.android.FronteggApp
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.StorageProvider
 import io.mockk.every
@@ -22,7 +21,6 @@ class ConstantsTest {
 
     @Before
     fun setUp() {
-        mockkObject(Constants.Companion)
         mockStorage = mockkClass(FronteggInnerStorage::class)
         mockkObject(StorageProvider)
         every { StorageProvider.getInnerStorage() }.returns(mockStorage)

@@ -1,27 +1,51 @@
 package com.frontegg.demo
 
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.util.Log
 import android.view.View
+import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.Lifecycle
 import androidx.navigation.NavController
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.setupActionBarWithNavController
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.utils.NetworkGate
 import com.frontegg.android.utils.NullableObject
 import com.frontegg.demo.databinding.ActivityNavigationBinding
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
+import java.util.concurrent.atomic.AtomicLong
 
 class NavigationActivity : AppCompatActivity() {
 
     companion object {
         private val TAG = NavigationActivity::class.java.canonicalName
+        /** Consecutive failed /test probes before showing the offline overlay (browser handoff can starve the mock briefly on CI). */
+        private const val E2E_NET_FAIL_STREAK_THRESHOLD = 5
     }
 
     private lateinit var binding: ActivityNavigationBinding
     private lateinit var navController: NavController
+    private var e2eOverlay: View? = null
+    private val e2eHandler = Handler(Looper.getMainLooper())
+    private var e2eTicker: Runnable? = null
+    private var e2eBadNetworkSinceMs: Long = 0L
+    /** Consecutive failed /test probes before the overlay can appear (see [E2E_NET_FAIL_STREAK_THRESHOLD]). */
+    private val e2eConsecutiveNetFails = AtomicInteger(0)
+    private val e2eNetProbeRunning = AtomicBoolean(false)
+    private val e2eNetLastProbeMs = AtomicLong(0L)
+    private val e2eProbeExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "e2e-net-probe").apply { isDaemon = true }
+    }
 
     /**
      * Configuration for authenticated users.
@@ -67,6 +91,128 @@ class NavigationActivity : AppCompatActivity() {
         }
 
         setToolbarVisibility(false)
+
+        if (DemoEmbeddedTestMode.isEnabled) {
+            val root = binding.root as ViewGroup
+            e2eOverlay = layoutInflater.inflate(R.layout.e2e_no_connection_overlay, root, false)
+            root.addView(
+                e2eOverlay,
+                ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                ),
+            )
+            e2eOverlay?.elevation = 100f
+            e2eTicker = object : Runnable {
+                override fun run() {
+                    tickE2EUi()
+                    e2eHandler.postDelayed(this, 400)
+                }
+            }
+            e2eOverlay?.findViewById<View>(R.id.e2e_retry_connection_button)?.setOnClickListener {
+                e2eBadNetworkSinceMs = 0L
+                e2eConsecutiveNetFails.set(0)
+                NetworkGate.setE2eForceNetworkPathOffline(false)
+                tickE2EUi()
+            }
+            e2eHandler.post(e2eTicker!!)
+        }
+    }
+
+    private fun directPing(): Boolean {
+        val baseUrl = try { fronteggAuth.baseUrl } catch (_: Exception) { return true }
+        if (baseUrl.isBlank()) return true
+        val probeUrl = "${baseUrl.trimEnd('/')}/test"
+        return try {
+            val conn = URL(probeUrl).openConnection() as HttpURLConnection
+            conn.requestMethod = "HEAD"
+            conn.connectTimeout = 4_000
+            conn.readTimeout = 4_000
+            conn.instanceFollowRedirects = false
+            try {
+                conn.responseCode in 200..499
+            } finally {
+                conn.disconnect()
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    private fun scheduleNetProbeIfNeeded() {
+        if (e2eNetProbeRunning.get()) return
+        val now = System.currentTimeMillis()
+        if (now - e2eNetLastProbeMs.get() < 2_000) return
+        e2eNetProbeRunning.set(true)
+        e2eProbeExecutor.execute {
+            val good = try {
+                val forceOff = NetworkGate.isE2eForceNetworkPathOffline()
+                !forceOff && directPing()
+            } catch (_: Exception) {
+                true
+            }
+            if (good) {
+                e2eConsecutiveNetFails.set(0)
+            } else {
+                e2eConsecutiveNetFails.incrementAndGet()
+            }
+            e2eNetLastProbeMs.set(System.currentTimeMillis())
+            e2eNetProbeRunning.set(false)
+        }
+    }
+
+    private fun tickE2EUi() {
+        val overlay = e2eOverlay ?: return
+        if (!lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)) {
+            overlay.visibility = View.GONE
+            return
+        }
+        val initializing = try {
+            fronteggAuth.initializing.value == true
+        } catch (_: Exception) {
+            false
+        }
+        if (initializing) {
+            overlay.visibility = View.GONE
+            return
+        }
+        val authenticated = try {
+            fronteggAuth.isAuthenticated.value == true
+        } catch (_: Exception) {
+            false
+        }
+        scheduleNetProbeIfNeeded()
+        val hardNetBad = e2eConsecutiveNetFails.get() >= E2E_NET_FAIL_STREAK_THRESHOLD
+        val offlineFeatureOn = DemoEmbeddedTestMode.isOfflineModeFeatureEnabled(this)
+        val now = System.currentTimeMillis()
+        if (!hardNetBad) {
+            e2eBadNetworkSinceMs = 0L
+        } else {
+            if (e2eBadNetworkSinceMs == 0L) e2eBadNetworkSinceMs = now
+        }
+        val debounceMs = if (authenticated) 2000L else 9000L
+        val sustainedBad = e2eBadNetworkSinceMs > 0 && now - e2eBadNetworkSinceMs > debounceMs
+
+        val onLoginDestination = try {
+            navController.currentDestination?.id == R.id.navigation_login
+        } catch (_: Exception) {
+            false
+        }
+        val forceOffline = NetworkGate.isE2eForceNetworkPathOffline()
+        val suppressNoConnectionOverlay =
+            !authenticated && onLoginDestination && !forceOffline
+
+        if (!authenticated && offlineFeatureOn && sustainedBad && hardNetBad && !suppressNoConnectionOverlay) {
+            overlay.visibility = View.VISIBLE
+            overlay.findViewById<View>(R.id.e2e_no_connection_seen_ever)?.visibility = View.VISIBLE
+        } else {
+            overlay.visibility = View.GONE
+        }
+    }
+
+    override fun onDestroy() {
+        e2eTicker?.let { e2eHandler.removeCallbacks(it) }
+        super.onDestroy()
     }
 
     /**

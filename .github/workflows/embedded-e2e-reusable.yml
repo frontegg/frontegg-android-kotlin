@@ -1,0 +1,321 @@
+# Shared embedded E2E jobs (matrix + emulator shards + summary). Invoked from:
+# - demo-e2e.yml (pull_request to main/master)
+# - onPush.yml (push to feature branches)
+name: Embedded E2E reusable
+
+on:
+  workflow_call:
+    inputs:
+      junit-check-label:
+        description: "Short label for JUnit GitHub Checks (caller passes pr vs push)"
+        required: true
+        type: string
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.set-matrix.outputs.matrix }}
+    steps:
+      - uses: actions/checkout@v5
+      - id: set-matrix
+        env:
+          E2E_EVENT_NAME: ${{ github.event_name }}
+        run: |
+          JSON=$(env -u GITHUB_OUTPUT node .github/scripts/generate_e2e_matrix.js)
+          SHARD_JOBS="$(printf '%s' "$JSON" | node -p "JSON.parse(require('fs').readFileSync(0,'utf8')).include.length")"
+          echo "::notice::Embedded E2E matrix: $SHARD_JOBS parallel emulator job(s) (MAX_TESTS_PER_SHARD in generate_e2e_matrix.js)."
+          {
+            echo "matrix<<MATRIX_JSON_EOF"
+            echo "$JSON"
+            echo "MATRIX_JSON_EOF"
+          } >> "$GITHUB_OUTPUT"
+
+  embedded-e2e:
+    name: "embedded-e2e (api${{ matrix.apiLevel }}${{ matrix.flaky && ', flaky' || '' }})"
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    needs: matrix
+    # Shards may run on different API images — see API33_METHODS / FLAKY_METHODS
+    # in generate_e2e_matrix.js. Flaky shards are filtered out entirely on PRs by
+    # the matrix generator (E2E_EVENT_NAME=pull_request), so they never spawn jobs
+    # that could block merge. On push they run advisory (continue-on-error).
+    continue-on-error: ${{ matrix.flaky == true }}
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Cache Gradle dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: gradle-${{ runner.os }}-${{ hashFiles('**/*.gradle*', '**/gradle-wrapper.properties') }}
+          restore-keys: |
+            gradle-${{ runner.os }}-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Validate E2E scenario catalog
+        run: env -u GITHUB_OUTPUT node .github/scripts/generate_e2e_matrix.js > /dev/null
+
+      - name: Create dummy frontegg.properties
+        run: |
+          echo "FRONTEGG_DOMAIN=127.0.0.1" >> frontegg.properties
+          echo "FRONTEGG_CLIENT_ID=dummy" >> frontegg.properties
+          echo "FRONTEGG_APPLICATION_ID=" >> frontegg.properties
+          echo "FRONTEGG_DEEP_LINK_SCHEME=test" >> frontegg.properties
+
+      - name: Build debug + androidTest (with retry for transient maven failures)
+        run: |
+          for attempt in 1 2 3; do
+            echo "::group::Gradle build attempt $attempt"
+            if ./gradlew :embedded:assembleDebug :embedded:assembleDebugAndroidTest --no-daemon; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "Build attempt $attempt failed, retrying after 10s..."
+            sleep 10
+          done
+          echo "::error::Build failed after 3 attempts"
+          exit 1
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # Cache the Android SDK packages that android-emulator-runner installs on every job.
+      # Without this, sdkmanager re-downloads emulator + system-image from Google's CDN each
+      # run, and intermittently gets a corrupt zip ("Error on ZipFile unknown archive") which
+      # crashes the runner before tests start. Caching makes the install a no-op on hit.
+      - name: Android SDK packages cache
+        uses: actions/cache@v4
+        id: sdk-cache
+        with:
+          path: |
+            /usr/local/lib/android/sdk/system-images/android-${{ matrix.apiLevel }}
+            /usr/local/lib/android/sdk/emulator
+            /usr/local/lib/android/sdk/platforms/android-${{ matrix.apiLevel }}
+            /usr/local/lib/android/sdk/build-tools
+            /usr/local/lib/android/sdk/licenses
+          key: android-sdk-api${{ matrix.apiLevel }}-google_apis-x86_64-v1
+
+      - name: Pre-install Android SDK packages (with retry on corrupt zip)
+        if: steps.sdk-cache.outputs.cache-hit != 'true'
+        env:
+          API_LEVEL: ${{ matrix.apiLevel }}
+        run: |
+          set -e
+          SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$(command -v sdkmanager || true)"
+          if [ -z "$SDKMANAGER" ]; then
+            for cand in \
+              "$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager" \
+              "$SDK_ROOT/cmdline-tools"/*/bin/sdkmanager \
+              "$SDK_ROOT/tools/bin/sdkmanager"; do
+              if [ -x "$cand" ]; then SDKMANAGER="$cand"; break; fi
+            done
+          fi
+          if [ -z "$SDKMANAGER" ] || [ ! -x "$SDKMANAGER" ]; then
+            echo "::error::sdkmanager not found under $SDK_ROOT"
+            ls -la "$SDK_ROOT/cmdline-tools" 2>/dev/null || true
+            exit 1
+          fi
+          echo "Using sdkmanager: $SDKMANAGER (API $API_LEVEL)"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          for attempt in 1 2 3; do
+            echo "::group::sdkmanager install attempt $attempt"
+            if "$SDKMANAGER" --install \
+                "platform-tools" \
+                "platforms;android-${API_LEVEL}" \
+                "emulator" \
+                "system-images;android-${API_LEVEL};google_apis;x86_64"; then
+              echo "::endgroup::"
+              exit 0
+            fi
+            echo "::endgroup::"
+            echo "Install attempt $attempt failed (likely corrupt CDN zip), wiping partial downloads and retrying..."
+            rm -rf "$SDK_ROOT/system-images/android-${API_LEVEL}" || true
+            rm -rf "$HOME/.android/cache" || true
+            sleep 5
+          done
+          echo "::error::sdkmanager install failed after 3 attempts"
+          exit 1
+
+      - name: AVD cache
+        uses: actions/cache@v4
+        id: avd-cache
+        with:
+          path: |
+            ~/.android/avd/*
+            ~/.android/adb*
+          key: avd-api${{ matrix.apiLevel }}-google_apis-x86_64-pixel6-v1
+
+      - name: Create AVD snapshot if cache missing
+        if: steps.avd-cache.outputs.cache-hit != 'true'
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.apiLevel }}
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          cores: 4
+          ram-size: 4096M
+          heap-size: 1024M
+          force-avd-creation: false
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: echo "AVD snapshot generated"
+
+      - name: Run embedded E2E on emulator
+        env:
+          E2E_CLASS: ${{ matrix['test-class'] }}
+          E2E_METHODS: ${{ matrix['test-methods'] }}
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.apiLevel }}
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          cores: 4
+          ram-size: 4096M
+          heap-size: 1024M
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
+          disable-animations: true
+          script: |
+            adb shell input keyevent 82
+            adb shell settings put global window_animation_scale 0
+            adb shell settings put global transition_animation_scale 0
+            adb shell settings put global animator_duration_scale 0
+            sleep 5
+            bash .github/scripts/run_embedded_e2e_shard.sh
+
+      - name: Collect JUnit reports
+        if: always()
+        run: |
+          mkdir -p e2e-artifacts
+          find . \( -path "*/build/outputs/*" -o -path "*/build/reports/*" \) \
+            -name "TEST-*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
+          find . -path "*/androidTest-results/*" -name "*.xml" -exec cp -f {} e2e-artifacts/ \; 2>/dev/null || true
+
+      # Only publish a GitHub check run for STABLE shards. Flaky shards still upload
+      # artifacts below — results visible in CI summary — but don't create check runs
+      # that would appear as failures on the PR.
+      - name: Publish JUnit report (stable shards)
+        uses: mikepenz/action-junit-report@v5
+        if: always() && matrix.flaky != true
+        with:
+          report_paths: e2e-artifacts/*.xml
+          check_name: Embedded E2E (${{ inputs.junit-check-label }}) shard ${{ matrix['shard-index'] }}
+
+      # For flaky shards, annotate-only (no check run created — results still in logs
+      # and uploaded artifacts, but no PR check that could block merge).
+      - name: Publish JUnit report (flaky, annotate-only)
+        uses: mikepenz/action-junit-report@v5
+        if: always() && matrix.flaky == true
+        with:
+          report_paths: e2e-artifacts/*.xml
+          check_name: Embedded E2E (${{ inputs.junit-check-label }}) shard ${{ matrix['shard-index'] }} (flaky, advisory)
+          annotate_only: true
+          update_check: false
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: embedded-e2e-shard-${{ matrix['shard-index'] }}
+          path: e2e-artifacts/
+          if-no-files-found: ignore
+
+  # Regression guard: fails if any STABLE shard failed. Flaky shards (see
+  # FLAKY_METHODS in generate_e2e_matrix.js) use continue-on-error and their
+  # failures don't block the PR. This job checks JUnit XML artifacts from
+  # stable shards and fails if any contain failures.
+  regression-guard:
+    name: "Regression guard (stable shards)"
+    runs-on: ubuntu-latest
+    needs: [matrix, embedded-e2e]
+    if: always()
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v6
+        with:
+          path: all-shards
+          pattern: embedded-e2e-shard-*
+
+      - name: Check stable shards passed
+        env:
+          MATRIX: ${{ needs.matrix.outputs.matrix }}
+        run: |
+          set -euo pipefail
+          # Get list of non-flaky shard indexes from the matrix
+          STABLE_SHARDS=$(echo "$MATRIX" | node -e '
+            const m = JSON.parse(require("fs").readFileSync(0, "utf8"));
+            const stable = m.include.filter(s => !s.flaky).map(s => s["shard-index"]);
+            process.stdout.write(stable.join(" "));
+          ')
+          echo "Stable shards: $STABLE_SHARDS"
+
+          FAILED_SHARDS=""
+          for shard in $STABLE_SHARDS; do
+            artifact_dir="all-shards/embedded-e2e-shard-$shard"
+            if [ ! -d "$artifact_dir" ]; then
+              echo "::warning::Shard $shard has no artifacts (job may have errored before tests ran)"
+              FAILED_SHARDS="$FAILED_SHARDS $shard"
+              continue
+            fi
+            # Check all JUnit XML files for failures/errors
+            if grep -lE 'failures="[1-9]|errors="[1-9]' "$artifact_dir"/*.xml 2>/dev/null; then
+              echo "::error::Stable shard $shard has test failures"
+              FAILED_SHARDS="$FAILED_SHARDS $shard"
+            else
+              echo "Shard $shard: ✓"
+            fi
+          done
+
+          if [ -n "$FAILED_SHARDS" ]; then
+            echo "::error::Stable shards failed:$FAILED_SHARDS"
+            exit 1
+          fi
+          echo "::notice::All stable shards passed ✓"
+
+  summary:
+    runs-on: ubuntu-latest
+    needs: [embedded-e2e]
+    if: always()
+    steps:
+      - uses: actions/download-artifact@v6
+        with:
+          path: all-e2e
+
+      - uses: actions/checkout@v5
+
+      - name: Combine summary
+        run: node .github/scripts/combine_e2e_summary.js --artifacts-dir all-e2e --summary e2e-summary.md
+
+      - name: Upload summary
+        uses: actions/upload-artifact@v6
+        with:
+          name: e2e-summary
+          path: e2e-summary.md

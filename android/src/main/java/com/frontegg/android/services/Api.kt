@@ -363,6 +363,13 @@ open class Api(
         // Handle other errors
         val errorBody = response.body?.string() ?: "Unknown error occurred"
         Log.e(TAG, "Refresh token failed: code=${response.code}, body=$errorBody")
+        // 5xx is a transient server-side failure, NOT an auth failure. Throw IOException so
+        // the SDK's network-error paths preserve credentials (instead of clearing the session
+        // via FailedToAuthenticateException). 4xx (other than 401, handled above) is treated
+        // as auth failure as before.
+        if (response.code in 500..599) {
+            throw IOException("Refresh token transient server error: ${response.code} - $errorBody")
+        }
         throw FailedToAuthenticateException(
             response.headers,
             "Refresh token failed: ${response.code} - $errorBody"

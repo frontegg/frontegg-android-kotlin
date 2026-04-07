@@ -1,0 +1,23 @@
+name: Demo Embedded E2E (Android)
+
+# Run JS actions on Node 24 (Node 20 runner deprecation). See:
+# https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+permissions:
+  contents: read
+  checks: write
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [master, main]
+  workflow_dispatch:
+
+jobs:
+  embedded-e2e-suite:
+    uses: ./.github/workflows/embedded-e2e-reusable.yml
+    with:
+      junit-check-label: demo-pr
+    secrets: inherit

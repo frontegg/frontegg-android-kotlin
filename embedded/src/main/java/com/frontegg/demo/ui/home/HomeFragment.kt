@@ -6,6 +6,9 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.util.Base64
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.View
@@ -15,13 +18,16 @@ import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.utils.NetworkGate
 import com.frontegg.android.models.EntitledToOptions
 import com.frontegg.android.utils.NullableObject
 import com.frontegg.demo.R
+import com.frontegg.demo.DemoEmbeddedTestMode
 import com.frontegg.demo.databinding.FragmentHomeBinding
 import com.frontegg.demo.databinding.LayoutEntitlementRowBinding
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import org.json.JSONObject
 import java.util.Timer
 import kotlin.time.DurationUnit
 import kotlin.time.toDuration
@@ -30,6 +36,13 @@ import kotlin.time.toDuration
 class HomeFragment : Fragment() {
     private var messageTimer = Timer()
     private val disposables: ArrayList<Disposable> = arrayListOf()
+    private val e2eHandler = Handler(Looper.getMainLooper())
+    private val e2eTicker = object : Runnable {
+        override fun run() {
+            tickE2eHomeMarkers()
+            e2eHandler.postDelayed(this, 400)
+        }
+    }
 
     // Binding variable for fragment's views, nullable to handle lifecycle properly
     private var _binding: FragmentHomeBinding? = null
@@ -52,6 +65,10 @@ class HomeFragment : Fragment() {
         // Get the root view from the binding to return it to the parent container
         val root: View = binding.root
 
+        if (DemoEmbeddedTestMode.isEnabled) {
+            binding.root.contentDescription = "UserPageRoot"
+        }
+
         // Observe the user data from the ViewModel to update the UI with user info
         homeViewModel.user.observe(viewLifecycleOwner) { user ->
             // When the user data changes, update the UI with profile picture, name, email, and active tenant
@@ -68,6 +85,9 @@ class HomeFragment : Fragment() {
                     // Set user details
                     userFullNameText.text = user.name
                     userEmailText.text = user.email
+                    if (DemoEmbeddedTestMode.isEnabled) {
+                        userEmailText.contentDescription = "UserEmailValue"
+                    }
                     userRolesText.text = if (user.roles.isNotEmpty()) {
                         user.roles.joinToString(", ") { it.name }
                     } else {
@@ -174,6 +194,12 @@ class HomeFragment : Fragment() {
             requireContext().fronteggAuth.logout {
                 Log.d(TAG, "Logout successful")
             }
+        }
+
+        if (DemoEmbeddedTestMode.isEnabled) {
+            binding.e2eHomeMarkers.visibility = View.VISIBLE
+            binding.receiveTokenButton.contentDescription = "GetCurrentAccessTokenButton"
+            e2eHandler.post(e2eTicker)
         }
 
         binding.receiveTokenButton.setOnClickListener {
@@ -341,10 +367,53 @@ class HomeFragment : Fragment() {
         disposables.forEach { it.dispose() }
         disposables.clear()
         messageTimer.cancel()
+        e2eHandler.removeCallbacks(e2eTicker)
+    }
+
+    private fun tickE2eHomeMarkers() {
+        if (!DemoEmbeddedTestMode.isEnabled || _binding == null) return
+        val auth = requireContext().fronteggAuth
+        val authenticated = auth.isAuthenticated.value == true
+        val forceOff = NetworkGate.isE2eForceNetworkPathOffline()
+        val netOk = !forceOff && runCatching { NetworkGate.isNetworkLikelyGood(requireContext()) }.getOrDefault(true)
+        val offlineFeat = DemoEmbeddedTestMode.isOfflineModeFeatureEnabled(requireContext())
+
+        val tok = auth.accessToken.value
+        if (!tok.isNullOrEmpty()) {
+            jwtPayload(tok)?.let { jo ->
+                binding.e2eAccessTokenVersion.text = jo.optInt("token_version", 0).toString()
+                binding.e2eAccessTokenExp.text = jo.optLong("exp", 0L).toString()
+            }
+        }
+        binding.e2eAuthRefreshing.text =
+            if (auth.refreshingToken.value == true) "1" else "0"
+
+        val showOffline = authenticated && offlineFeat && !netOk
+        binding.e2eOfflineBadge.visibility = if (showOffline) View.VISIBLE else View.GONE
+        binding.e2eAuthOfflineEnabled.visibility = if (showOffline) View.VISIBLE else View.GONE
+        binding.e2eAuthOfflineEnabled.text = if (showOffline) "1" else "0"
+
+        val showUnauthOffline = !authenticated && offlineFeat && !netOk
+        binding.e2eUnauthOfflineEnabled.visibility = if (showUnauthOffline) View.VISIBLE else View.GONE
+        binding.e2eUnauthOfflineEnabled.text = if (showUnauthOffline) "1" else "0"
+    }
+
+    private fun jwtPayload(jwt: String): JSONObject? {
+        val parts = jwt.split(".")
+        if (parts.size < 2) return null
+        return try {
+            var body = parts[1].replace('-', '+').replace('_', '/')
+            while (body.length % 4 != 0) body += "="
+            val bytes = Base64.decode(body, Base64.DEFAULT)
+            JSONObject(String(bytes, Charsets.UTF_8))
+        } catch (_: Exception) {
+            null
+        }
     }
 
     override fun onDestroyView() {
         super.onDestroyView()
+        e2eHandler.removeCallbacks(e2eTicker)
         // Set the binding to null to avoid memory leaks
         _binding = null
     }

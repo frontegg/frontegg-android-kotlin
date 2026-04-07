@@ -133,6 +133,7 @@
                         style="@style/CustomButton"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
+                        android:contentDescription="RequestAuthorizeButton"
                         android:text="Request Authorized With Tokens" />
 
                     <Space
@@ -158,6 +159,80 @@
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:text="Login with Passkeys" />
+
+                    <LinearLayout
+                        android:id="@+id/e2e_controls"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:visibility="gone">
+
+                        <Space
+                            android:layout_width="match_parent"
+                            android:layout_height="16dp" />
+
+                        <TextView
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:text="E2E Controls"
+                            android:textColor="@color/gray600" />
+
+                        <Button
+                            android:id="@+id/e2e_embedded_password_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EEmbeddedPasswordButton"
+                            android:text="E2E Embedded Password Login" />
+
+                        <Button
+                            android:id="@+id/e2e_embedded_saml_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EEmbeddedSAMLButton"
+                            android:text="E2E Embedded SAML Login" />
+
+                        <Button
+                            android:id="@+id/e2e_embedded_oidc_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EEmbeddedOIDCButton"
+                            android:text="E2E Embedded OIDC Login" />
+
+                        <Button
+                            android:id="@+id/e2e_embedded_google_social_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EEmbeddedGoogleSocialButton"
+                            android:text="E2E Embedded Google Social Login" />
+
+                        <Button
+                            android:id="@+id/e2e_seed_request_authorize_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2ESeedRequestAuthorizeTokenButton"
+                            android:text="Use E2E Request Authorize Token" />
+
+                        <Button
+                            android:id="@+id/e2e_custom_sso_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2ECustomSSOButton"
+                            android:text="E2E Custom SSO" />
+
+                        <Button
+                            android:id="@+id/e2e_direct_social_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EDirectSocialLoginButton"
+                            android:text="E2E Direct Social Login" />
+                    </LinearLayout>
 
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

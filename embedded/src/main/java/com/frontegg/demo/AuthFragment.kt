@@ -13,6 +13,11 @@ import com.frontegg.demo.databinding.FragmentAuthBinding
 
 class AuthFragment : Fragment() {
 
+    companion object {
+        /** Set by E2E "seed" button; consumed by Request Authorize flow. */
+        var e2eRequestAuthorizeRefreshToken: String? = null
+    }
+
     private var _binding: FragmentAuthBinding? = null
 
     /**
@@ -39,6 +44,61 @@ class AuthFragment : Fragment() {
         binding.loginButton.setOnClickListener {
             requireContext().fronteggAuth.login(requireActivity()) {
                 Log.d("AuthFragment", "Login callback")
+            }
+        }
+
+        if (DemoEmbeddedTestMode.isEnabled) {
+            binding.root.contentDescription = "LoginPageRoot"
+            binding.e2eControls.visibility = View.VISIBLE
+
+            binding.e2eEmbeddedPasswordButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.EMBEDDED_PASSWORD_EMAIL,
+                ) { Log.d("AuthFragment", "E2E password login") }
+            }
+            binding.e2eEmbeddedSamlButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.EMBEDDED_SAML_EMAIL,
+                ) { Log.d("AuthFragment", "E2E SAML login") }
+            }
+            binding.e2eEmbeddedOidcButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.EMBEDDED_OIDC_EMAIL,
+                ) { Log.d("AuthFragment", "E2E OIDC login") }
+            }
+            binding.e2eEmbeddedGoogleSocialButton.setOnClickListener {
+                // Use directLoginAction (single call, same code path as Custom SSO which works on
+                // CI emulators). The previous implementation called login() AND
+                // loginWithSocialLoginProvider() in parallel, racing two separate Custom Tab
+                // launches against each other and against the EmbeddedAuthActivity startup.
+                // The mock server's authorizePage() already handles social-login/google via
+                // login_direct_action — this single call routes through that proven path.
+                requireContext().fronteggAuth.directLoginAction(
+                    requireActivity(),
+                    "social-login",
+                    "google",
+                ) { Log.d("AuthFragment", "E2E google social") }
+            }
+            binding.e2eSeedRequestAuthorizeButton.setOnClickListener {
+                e2eRequestAuthorizeRefreshToken = DemoEmbeddedTestMode.REQUEST_AUTHORIZE_REFRESH_TOKEN
+            }
+            binding.e2eCustomSsoButton.setOnClickListener {
+                val url = DemoEmbeddedTestMode.customSsoUrl(requireContext().fronteggAuth.baseUrl)
+                requireContext().fronteggAuth.directLoginAction(requireActivity(), "direct", url) {
+                    Log.d("AuthFragment", "E2E custom SSO")
+                }
+            }
+            binding.e2eDirectSocialButton.setOnClickListener {
+                val url = DemoEmbeddedTestMode.directSocialLoginUrl(requireContext().fronteggAuth.baseUrl)
+                requireContext().fronteggAuth.directLoginAction(
+                    requireActivity(),
+                    "direct",
+                    url,
+                    callback = { Log.d("AuthFragment", "E2E direct social") },
+                )
             }
         }
 
@@ -94,9 +154,14 @@ class AuthFragment : Fragment() {
          * cookie can be provided for additional security.
          */
         binding.requestAuthorizedWithTokensButton.setOnClickListener {
+            val rt = if (DemoEmbeddedTestMode.isEnabled) {
+                e2eRequestAuthorizeRefreshToken ?: DemoEmbeddedTestMode.REQUEST_AUTHORIZE_REFRESH_TOKEN
+            } else {
+                "f3291a85-7cfd-4319-9e24-fab68d3eba1f"
+            }
             requireContext().fronteggAuth.requestAuthorize(
-                refreshToken = "f3291a85-7cfd-4319-9e24-fab68d3eba1f",
-                deviceTokenCookie = "45dee82f-154e-4430-9fbf-951700f77e14"
+                refreshToken = rt,
+                deviceTokenCookie = if (DemoEmbeddedTestMode.isEnabled) null else "45dee82f-154e-4430-9fbf-951700f77e14"
             ) { result ->
                 result.onSuccess { user ->
                     Log.d("FronteggAuth", "User authorized: ${user.name}")

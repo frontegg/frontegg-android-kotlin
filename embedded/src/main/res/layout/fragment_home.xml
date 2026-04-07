@@ -120,6 +120,70 @@
                         android:textAppearance="?attr/textAppearanceHeadlineSmall"
                         android:textStyle="bold" />
 
+                    <LinearLayout
+                        android:id="@+id/e2e_home_markers"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="vertical"
+                        android:paddingStart="24dp"
+                        android:paddingEnd="24dp"
+                        android:visibility="gone">
+
+                        <TextView
+                            android:id="@+id/e2e_offline_badge"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="OfflineModeBadge"
+                            android:text="Offline Mode"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
+
+                        <TextView
+                            android:id="@+id/e2e_auth_offline_enabled"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="AuthenticatedOfflineModeEnabled"
+                            android:text="0"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
+
+                        <TextView
+                            android:id="@+id/e2e_unauth_offline_enabled"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="UnauthenticatedOfflineModeEnabled"
+                            android:text="0"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
+
+                        <TextView
+                            android:id="@+id/e2e_access_token_version"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="AccessTokenVersionValue"
+                            android:text="0"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
+
+                        <TextView
+                            android:id="@+id/e2e_access_token_exp"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="AccessTokenExpValue"
+                            android:text="0"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
+
+                        <TextView
+                            android:id="@+id/e2e_auth_refreshing"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="AuthRefreshingTokenValue"
+                            android:text="0"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
+                    </LinearLayout>
+
 
                     <include
                         android:id="@+id/tenant_info"
