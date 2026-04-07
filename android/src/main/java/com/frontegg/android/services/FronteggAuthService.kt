@@ -1301,13 +1301,15 @@ class FronteggAuthService(
                         if (isNetworkError()) {
                             // Network error, keep tokens and assume authenticated until network returns
                             Log.w(TAG, "Network error during token refresh, keeping tokens for retry")
+                            // Transient network/server error: keep cached tokens regardless of
+                            // offline mode. The access token may still be valid; even if not, a
+                            // future refresh tick will retry. Clearing on a 5xx is wrong.
+                            this@FronteggAuthService.isAuthenticated.value = true
                             if (enableOfflineMode) {
-                                this@FronteggAuthService.isAuthenticated.value = true
                                 credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
                                 this@FronteggAuthService.setOfflineMode(true)
                                 this@FronteggAuthService.isLoading.value = true
                             } else {
-                                clearCredentials()
                                 isLoading.value = false
                             }
                         } else {
@@ -1326,12 +1328,15 @@ class FronteggAuthService(
                 } catch (e: Exception) {
                     // Network error during refresh
                     Log.e(TAG, "Failed to refresh token during initialization", e)
-                    if (enableOfflineMode && isNetworkError()) {
-                        // Offline mode, assume authenticated until network returns
+                    if (isNetworkError()) {
+                        // Transient network/server error: keep cached tokens regardless of
+                        // offline mode. A 5xx or socket error is not an auth failure.
                         this@FronteggAuthService.isAuthenticated.value = true
-                        credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
-                        this@FronteggAuthService.setOfflineMode(true)
-                        this@FronteggAuthService.isLoading.value = true
+                        if (enableOfflineMode) {
+                            credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
+                            this@FronteggAuthService.setOfflineMode(true)
+                            this@FronteggAuthService.isLoading.value = true
+                        }
                     } else {
                         // Other error, logout
                         clearCredentials()
