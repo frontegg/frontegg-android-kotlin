@@ -146,7 +146,11 @@ const SOLO_SHARD_METHODS = new Set([
 // - Offline mode timing: access token TTL bumped from 21s to 60s so slow emulator
 //   phases don't push expiry past test expectations
 // If any of these regress, add them back here temporarily and open an issue.
-const FLAKY_METHODS = new Set();
+const FLAKY_METHODS = new Set([
+  // Chrome on API 34 emulators blocks the JS-driven deep link back to com.frontegg.demo://,
+  // so the Custom Tab handoff never returns. Works on real devices. Advisory-only on CI.
+  "testEmbeddedGoogleSocialLoginWithSystemWebAuthenticationSession",
+]);
 
 function main() {
   const catalogMethods = readCatalogMethods(CONFIG.catalog);
