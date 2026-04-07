@@ -8,12 +8,8 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.lifecycleScope
 import com.frontegg.android.fronteggAuth
-import com.frontegg.android.models.SocialLoginProvider
-import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.demo.databinding.FragmentAuthBinding
-import kotlinx.coroutines.launch
 
 class AuthFragment : Fragment() {
 
@@ -74,16 +70,17 @@ class AuthFragment : Fragment() {
                 ) { Log.d("AuthFragment", "E2E OIDC login") }
             }
             binding.e2eEmbeddedGoogleSocialButton.setOnClickListener {
-                val act = requireActivity()
-                requireContext().fronteggAuth.login(act) {
-                    Log.d("AuthFragment", "E2E google: login opened")
-                }
-                // Mirror Swift: open embedded login then trigger Google social in WebView pipeline
-                (requireContext().fronteggAuth as? FronteggAuthService)?.let { svc ->
-                    lifecycleScope.launch {
-                        svc.loginWithSocialLoginProvider(act, SocialLoginProvider.GOOGLE)
-                    }
-                }
+                // Use directLoginAction (single call, same code path as Custom SSO which works on
+                // CI emulators). The previous implementation called login() AND
+                // loginWithSocialLoginProvider() in parallel, racing two separate Custom Tab
+                // launches against each other and against the EmbeddedAuthActivity startup.
+                // The mock server's authorizePage() already handles social-login/google via
+                // login_direct_action — this single call routes through that proven path.
+                requireContext().fronteggAuth.directLoginAction(
+                    requireActivity(),
+                    "social-login",
+                    "google",
+                ) { Log.d("AuthFragment", "E2E google social") }
             }
             binding.e2eSeedRequestAuthorizeButton.setOnClickListener {
                 e2eRequestAuthorizeRefreshToken = DemoEmbeddedTestMode.REQUEST_AUTHORIZE_REFRESH_TOKEN

@@ -12,8 +12,12 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class EmbeddedE2ETests : EmbeddedE2ETestCase() {
 
-    private val expiringAccessTokenTTL = 21
-    private val longLivedRefreshTokenTTL = 120
+    // Bumped from 21s → 60s. The 21s window was too tight for slow CI emulators where
+    // a single GC pause or slow WebView render during offline relaunch (which itself can
+    // take 30+ seconds before OfflineModeBadge appears) was enough to push the access
+    // token past expiry mid-test, breaking timing assumptions in offline mode tests.
+    private val expiringAccessTokenTTL = 60
+    private val longLivedRefreshTokenTTL = 300
 
     @Test
     fun testPasswordLoginAndSessionRestore() {
