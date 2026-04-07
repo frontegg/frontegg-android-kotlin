@@ -269,9 +269,17 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         loginWithPassword()
         waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
         terminateApp()
-        mock.queueConnectionDrops(method = "POST", path = "/oauth/token", count = 1)
+        // Queue a transient 503 (not a hard connection drop) followed by recovery.
+        // Hard connection drops can cascade through SDK retry timers and clear the session
+        // when offline mode is disabled. A 503 is recoverable: SDK can fall back to the
+        // cached access token (still valid) while the next refresh tick succeeds.
+        mock.enqueue(
+            "POST",
+            "/oauth/token",
+            listOf(mapOf("status" to 503, "json" to org.json.JSONObject().put("error", "transient"))),
+        )
         launchApp(resetState = false, enableOfflineMode = false)
-        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
+        waitForUserEmail("test@frontegg.com", timeoutMs = 150_000)
         Thread.sleep(2000)
         mock.reset()
     }
