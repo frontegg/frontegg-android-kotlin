@@ -37,9 +37,13 @@ jobs:
           } >> "$GITHUB_OUTPUT"
 
   embedded-e2e:
+    name: "embedded-e2e${{ matrix.flaky && ' (flaky)' || '' }}"
     runs-on: ubuntu-latest
     timeout-minutes: 90
     needs: matrix
+    # Shards containing ONLY known-flaky tests (Chromium-on-emulator limitations)
+    # don't block the PR. See FLAKY_METHODS in generate_e2e_matrix.js.
+    continue-on-error: ${{ matrix.flaky == true }}
     strategy:
       fail-fast: false
       matrix: ${{ fromJson(needs.matrix.outputs.matrix) }}
@@ -166,6 +170,30 @@ jobs:
           name: embedded-e2e-shard-${{ matrix['shard-index'] }}
           path: e2e-artifacts/
           if-no-files-found: ignore
+
+  # Regression guard: fails if any non-flaky shard failed. Flaky shards
+  # (see FLAKY_METHODS in generate_e2e_matrix.js) use continue-on-error and
+  # don't block the PR, but this job ensures all STABLE shards must pass.
+  regression-guard:
+    name: "Regression guard (stable shards)"
+    runs-on: ubuntu-latest
+    needs: [embedded-e2e]
+    if: always()
+    steps:
+      - name: Fail if any stable shard failed
+        env:
+          RESULT: ${{ needs.embedded-e2e.result }}
+        run: |
+          echo "embedded-e2e result: $RESULT"
+          if [ "$RESULT" = "failure" ]; then
+            echo "::error::One or more stable (non-flaky) shards failed. Flaky shards do not count."
+            exit 1
+          fi
+          if [ "$RESULT" = "cancelled" ]; then
+            echo "::error::Embedded E2E was cancelled."
+            exit 1
+          fi
+          echo "::notice::All stable shards passed ✓"
 
   summary:
     runs-on: ubuntu-latest
