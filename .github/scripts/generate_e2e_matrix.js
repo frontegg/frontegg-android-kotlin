@@ -195,7 +195,7 @@ function main() {
         "shard-total": effectiveShardCount,
         "test-class": CONFIG.testClass,
         "test-methods": shard.join(","),
-        "api-level": apiLevel,
+        apiLevel,
         flaky,
       });
     });
