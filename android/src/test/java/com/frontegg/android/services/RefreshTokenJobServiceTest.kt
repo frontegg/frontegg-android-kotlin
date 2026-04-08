@@ -77,9 +77,13 @@ class RefreshTokenJobServiceTest {
     }
 
     @Test
-    fun `performBackgroundTask should call sendRefreshToken and finish job successfully`() {
+    fun `performBackgroundTask should call internal auto refresh and finish job successfully`() {
         // Arrange
-        every { mockAuthService.sendRefreshToken() } returns true
+        every {
+            mockAuthService.sendRefreshTokenInternal(
+                FronteggAuthService.RefreshInvocationSource.INTERNAL_AUTO
+            )
+        } returns true
         every { service.jobFinished(any(), any()) } just Runs
 
         // Act
@@ -89,7 +93,11 @@ class RefreshTokenJobServiceTest {
         Thread.sleep(100)
 
         // Assert
-        verify { mockAuthService.sendRefreshToken() } // Ensure sendRefreshToken is called
+        verify {
+            mockAuthService.sendRefreshTokenInternal(
+                FronteggAuthService.RefreshInvocationSource.INTERNAL_AUTO
+            )
+        }
         verify { service.jobFinished(mockParams, false) } // Ensure job finishes without errors
     }
 }
