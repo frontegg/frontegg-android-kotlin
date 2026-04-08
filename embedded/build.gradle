@@ -3,7 +3,6 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-
 Properties testProperties = new Properties()
 File testPropsFile = project.rootProject.file('test.properties')
 if (testPropsFile.exists()) {

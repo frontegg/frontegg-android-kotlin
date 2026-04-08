@@ -62,6 +62,10 @@ class FronteggAuthService(
     private val mainDispatcher: CoroutineDispatcher = Dispatchers.Main,
     private val disableAutoRefresh: Boolean = false
 ) : FronteggAuth {
+    internal enum class RefreshInvocationSource {
+        MANUAL_USER,
+        INTERNAL_AUTO,
+    }
     // use a dedicated scope instead of GlobalScope
     private val bgScope = CoroutineScope(ioDispatcher + SupervisorJob())
     
@@ -187,7 +191,7 @@ class FronteggAuthService(
         }
 
         refreshTokenTimer.refreshTokenIfNeeded.addCallback {
-            refreshTokenIfNeeded()
+            refreshTokenIfNeededInternal(source = RefreshInvocationSource.INTERNAL_AUTO)
         }
 
         // Load feature flags on initialization
@@ -361,13 +365,23 @@ class FronteggAuthService(
     @Volatile
     private var refreshingInProgress = false
     private val sendRefreshLock = Any()
+    private fun isAutoRefreshBlocked(source: RefreshInvocationSource): Boolean {
+        return disableAutoRefresh && source == RefreshInvocationSource.INTERNAL_AUTO
+    }
     /**
      * Idempotent refresh token with network quality check.
      * Uses a coroutine Mutex so that concurrent callers suspend and wait for the
      * in-progress refresh instead of silently returning. After acquiring the lock
      * each caller re-checks token validity to avoid redundant API calls.
      */
-    private suspend fun refreshIdempotent(processQueueAfterSuccess: Boolean = true): Boolean {
+    private suspend fun refreshIdempotent(
+        source: RefreshInvocationSource = RefreshInvocationSource.MANUAL_USER,
+        processQueueAfterSuccess: Boolean = true
+    ): Boolean {
+        if (isAutoRefreshBlocked(source)) {
+            Log.d(TAG, "Skipping auto refresh (FRONTEGG_DISABLE_AUTO_REFRESH=true)")
+            return false
+        }
         val success = refreshMutex.withLock {
             val currentAccessToken = accessToken.value
             if (currentAccessToken != null) {
@@ -403,12 +417,12 @@ class FronteggAuthService(
                 isReconnecting.postValue(false)
                 api.evictIdleConnections()
                 try {
-                    sendRefreshToken(isManualCall = true)
+                    sendRefreshTokenInternal(source)
                 } catch (first: Exception) {
                     if (!isRetryableRefreshFailure(first)) throw first
                     Log.w(TAG, "Refresh failed, retrying once after evicting connections", first)
                     api.evictIdleConnections()
-                    sendRefreshToken(isManualCall = true)
+                    sendRefreshTokenInternal(source)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to perform idempotent refresh", e)
@@ -416,7 +430,12 @@ class FronteggAuthService(
                 if (enableOfflineMode) {
                     requestQueue.enqueue(
                         requestId = "refresh_token_retry_${System.currentTimeMillis()}",
-                        request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                        request = {
+                            refreshIdempotent(
+                                source = source,
+                                processQueueAfterSuccess = false
+                            )
+                        },
                         priority = RequestPriority.HIGH
                     )
                     startNetworkMonitoring()
@@ -490,7 +509,7 @@ class FronteggAuthService(
                         }
                     } catch (e: FailedToAuthenticateException) {
                         try {
-                            val refreshSuccess = sendRefreshToken()
+                            val refreshSuccess = sendRefreshTokenInternal(RefreshInvocationSource.INTERNAL_AUTO)
                             if (refreshSuccess) {
                                 val userData = api.me()
                                 if (userData != null) {
@@ -523,13 +542,26 @@ class FronteggAuthService(
     }
 
     override fun refreshTokenIfNeeded(): Boolean {
+        return refreshTokenIfNeededInternal(source = RefreshInvocationSource.MANUAL_USER)
+    }
+
+    internal fun refreshTokenIfNeededInternal(source: RefreshInvocationSource): Boolean {
+        if (isAutoRefreshBlocked(source)) {
+            Log.d(TAG, "Skipping auto refresh (FRONTEGG_DISABLE_AUTO_REFRESH=true)")
+            return false
+        }
         if (!isNetworkGoodSync()) {
             if (enableOfflineMode) {
                 setOfflineMode(true)
                 bgScope.launch {
                     requestQueue.enqueue(
                         requestId = "refresh_token_${System.currentTimeMillis()}",
-                        request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                        request = {
+                            refreshIdempotent(
+                                source = source,
+                                processQueueAfterSuccess = false
+                            )
+                        },
                         priority = RequestPriority.HIGH
                     )
                     startNetworkMonitoring()
@@ -541,14 +573,30 @@ class FronteggAuthService(
         setOfflineMode(false)
 
         bgScope.launch {
-            refreshIdempotent()
+            refreshIdempotent(source = source)
         }
 
         return true
     }
 
     override suspend fun refreshTokenAndWait(): Boolean {
-        return refreshIdempotent()
+        return refreshIdempotent(source = RefreshInvocationSource.MANUAL_USER)
+    }
+
+    internal suspend fun refreshTokenAndWaitInternal(source: RefreshInvocationSource): Boolean {
+        return refreshIdempotent(source = source)
+    }
+
+    internal fun isAutoRefreshDisabled(): Boolean = disableAutoRefresh
+
+    /**
+     * With disableAutoRefresh=true reconnect should still exit offline UI mode once
+     * a validated network is back, even though no auto refresh is executed.
+     */
+    internal fun clearOfflineModeOnReconnectIfAutoRefreshDisabled() {
+        if (enableOfflineMode && disableAutoRefresh) {
+            setOfflineMode(false)
+        }
     }
 
     override fun loginWithPasskeys(
@@ -1316,7 +1364,7 @@ class FronteggAuthService(
                         }
                     }
                     
-                    val success = sendRefreshToken()
+                    val success = sendRefreshTokenInternal(RefreshInvocationSource.INTERNAL_AUTO)
                     if (success) {
                         if (enableSessionPerTenant && tenantId != null) {
                             credentialManager.setCurrentTenantId(tenantId)
@@ -1383,9 +1431,9 @@ class FronteggAuthService(
      * @throws Exception if an error occurs during the process.
      */
     @Throws(IllegalArgumentException::class, IOException::class)
-    fun sendRefreshToken(isManualCall: Boolean = false): Boolean {
-        // Only block automatic refresh operations, not manual calls
-        if (!isManualCall && disableAutoRefresh) {
+    internal fun sendRefreshTokenInternal(source: RefreshInvocationSource): Boolean {
+        if (isAutoRefreshBlocked(source)) {
+            Log.d(TAG, "Skipping auto refresh (FRONTEGG_DISABLE_AUTO_REFRESH=true)")
             return false
         }
 
@@ -1495,6 +1543,15 @@ class FronteggAuthService(
         }
     }
 
+    fun sendRefreshToken(isManualCall: Boolean = false): Boolean {
+        val source = if (isManualCall) {
+            RefreshInvocationSource.MANUAL_USER
+        } else {
+            RefreshInvocationSource.INTERNAL_AUTO
+        }
+        return sendRefreshTokenInternal(source)
+    }
+
     private fun maskToken(token: String?): String {
         if (token.isNullOrBlank()) return "<null>"
         val head = token.take(6)
@@ -1589,7 +1646,12 @@ class FronteggAuthService(
                         setOfflineMode(true)
                         requestQueue.enqueue(
                             requestId = "refresh_token_no_access_${System.currentTimeMillis()}",
-                            request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                            request = {
+                                refreshIdempotent(
+                                    source = RefreshInvocationSource.INTERNAL_AUTO,
+                                    processQueueAfterSuccess = false
+                                )
+                            },
                             priority = RequestPriority.HIGH
                         )
                         startNetworkMonitoring()
@@ -1599,7 +1661,7 @@ class FronteggAuthService(
                 setOfflineMode(false)
                 
                 // when we have valid refreshToken without accessToken => failed to refresh in background
-                refreshIdempotent()
+                refreshIdempotent(source = RefreshInvocationSource.INTERNAL_AUTO)
             }
             return
         }
@@ -1616,7 +1678,12 @@ class FronteggAuthService(
                             setOfflineMode(true)
                             requestQueue.enqueue(
                                 requestId = "refresh_token_expired_${System.currentTimeMillis()}",
-                                request = { refreshIdempotent(processQueueAfterSuccess = false) },
+                                request = {
+                                    refreshIdempotent(
+                                        source = RefreshInvocationSource.INTERNAL_AUTO,
+                                        processQueueAfterSuccess = false
+                                    )
+                                },
                                 priority = RequestPriority.HIGH
                             )
                             startNetworkMonitoring()
@@ -1625,7 +1692,7 @@ class FronteggAuthService(
                     }
                     setOfflineMode(false)
                     
-                    refreshIdempotent()
+                    refreshIdempotent(source = RefreshInvocationSource.INTERNAL_AUTO)
                 }
             } else {
                 refreshTokenTimer.scheduleTimer(offset)

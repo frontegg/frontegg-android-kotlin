@@ -27,8 +27,7 @@ class RefreshTokenAlarmReceiver : BroadcastReceiver() {
         // Run refresh in background to avoid blocking the main thread
         Thread {
             try {
-                // Manual call: allow refresh even if auto-refresh is disabled
-                service.sendRefreshToken(isManualCall = true)
+                service.sendRefreshTokenInternal(FronteggAuthService.RefreshInvocationSource.INTERNAL_AUTO)
             } catch (e: Exception) {
                 Log.w(tag, "Alarm-based refresh failed: ${e.message}", e)
 
