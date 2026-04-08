@@ -1543,6 +1543,7 @@ class FronteggAuthService(
         }
     }
 
+    @Throws(IllegalArgumentException::class, IOException::class)
     fun sendRefreshToken(isManualCall: Boolean = false): Boolean {
         val source = if (isManualCall) {
             RefreshInvocationSource.MANUAL_USER
