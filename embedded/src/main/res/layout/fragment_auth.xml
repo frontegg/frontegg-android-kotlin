@@ -232,6 +232,102 @@
                             android:layout_height="wrap_content"
                             android:contentDescription="E2EDirectSocialLoginButton"
                             android:text="E2E Direct Social Login" />
+
+                        <Button
+                            android:id="@+id/e2e_magic_code_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EMagicCodeButton"
+                            android:text="E2E Magic Code Login" />
+
+                        <Button
+                            android:id="@+id/e2e_magic_link_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EMagicLinkButton"
+                            android:text="E2E Magic Link Login" />
+
+                        <Button
+                            android:id="@+id/e2e_sms_login_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2ESmsLoginButton"
+                            android:text="E2E SMS Login" />
+
+                        <Button
+                            android:id="@+id/e2e_username_login_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EUsernameLoginButton"
+                            android:text="E2E Username Login" />
+
+                        <Button
+                            android:id="@+id/e2e_mfa_authenticator_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EMfaAuthenticatorButton"
+                            android:text="E2E MFA Authenticator Login" />
+
+                        <Button
+                            android:id="@+id/e2e_mfa_sms_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EMfaSmsButton"
+                            android:text="E2E MFA SMS Login" />
+
+                        <Button
+                            android:id="@+id/e2e_forgot_password_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EForgotPasswordButton"
+                            android:text="E2E Forgot Password" />
+
+                        <Button
+                            android:id="@+id/e2e_signup_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2ESignupButton"
+                            android:text="E2E Signup" />
+
+                        <Button
+                            android:id="@+id/e2e_custom_login_box_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2ECustomLoginBoxButton"
+                            android:text="E2E Custom Login Box" />
+
+                        <Button
+                            android:id="@+id/e2e_confirm_activation_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EConfirmActivationButton"
+                            android:text="E2E Confirm Activation" />
+
+                        <Button
+                            android:id="@+id/e2e_confirm_invitation_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EConfirmInvitationButton"
+                            android:text="E2E Confirm Invitation" />
+
+                        <Button
+                            android:id="@+id/e2e_confirm_unlock_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EConfirmUnlockButton"
+                            android:text="E2E Confirm Unlock" />
                     </LinearLayout>
 
                 </LinearLayout>

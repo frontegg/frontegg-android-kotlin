@@ -15,7 +15,14 @@ const CONFIG = {
   catalog: path.join(ROOT, "embedded/e2e/scenario-catalog.json"),
   testSources: [
     path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/EmbeddedE2ETests.kt"),
+    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/LoginFlowTests.kt"),
+    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/SignUpFlowTests.kt"),
+    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/PasswordManagementTests.kt"),
+    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/MagicCodeLinkValidationTests.kt"),
+    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/ConfirmationFlowTests.kt"),
+    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/CustomLoginBoxTests.kt"),
   ],
+  /** @deprecated — kept for backward compat; new catalog entries carry their own "class" field. */
   testClass: "com.frontegg.demo.e2e.EmbeddedE2ETests",
 };
 
@@ -25,6 +32,19 @@ function readCatalogMethods(catalogPath) {
   return entries
     .map((entry) => entry.method)
     .filter((method) => typeof method === "string" && method.length > 0);
+}
+
+/** Returns a map: method -> fully-qualified class name (from catalog "class" field or fallback). */
+function readCatalogMethodClasses(catalogPath) {
+  const raw = JSON.parse(fs.readFileSync(catalogPath, "utf-8"));
+  const entries = raw.tests || raw.scenarios || [];
+  const map = {};
+  for (const entry of entries) {
+    if (typeof entry.method === "string" && entry.method.length > 0) {
+      map[entry.method] = entry.class || CONFIG.testClass;
+    }
+  }
+  return map;
 }
 
 function readKotlinTestMethods(testSources) {
@@ -76,6 +96,54 @@ const TEST_WEIGHTS = {
   testPasswordLoginWorksWithOfflineModeDisabled: 26,
   testColdLaunchWithOfflineModeDisabledReachesLoginQuickly: 12,
   testColdLaunchTransientProbeTimeoutsDoNotBlinkNoConnectionPage: 12,
+  // Login flow tests
+  testPasswordLoginMediumComplexity: 22,
+  testPasswordLoginHardComplexity: 22,
+  testLoginWithMfaAuthenticator: 32,
+  testLoginWithMfaSms: 32,
+  testLoginWithMagicCode: 28,
+  testLoginWithMagicCodeMfaAuthenticator: 36,
+  testLoginWithMagicCodeMfaSms: 36,
+  testLoginWithMagicLink: 30,
+  testLoginWithMagicLinkMfaAuthenticator: 38,
+  testLoginWithMagicLinkMfaSms: 38,
+  testLoginWithSms: 26,
+  testLoginWithUsername: 22,
+  // Sign up tests
+  testSignUpWithSms: 26,
+  testSignUpWithUsername: 24,
+  testSignUpWithSocialLogin: 30,
+  testSignUpWithEmailVerificationRedirectPassword: 32,
+  testSignUpWithEmailVerificationRedirectPasswordless: 32,
+  testSignUpWithCheckedTos: 24,
+  testSignUpWithUncheckedTos: 18,
+  testSignUpTosErrorOnSetPasswordPage: 28,
+  // Password management tests
+  testForgetPasswordEasyComplexity: 22,
+  testForgetPasswordMediumComplexity: 22,
+  testForgetPasswordHardComplexity: 22,
+  testForgetPasswordWithEmail: 24,
+  testForgetPasswordWithSms: 26,
+  testAccountLockedAfterIncorrectAttempts: 28,
+  testBreachedPasswordWarning: 18,
+  testPasswordExpirationRemindLater: 26,
+  testPasswordExpirationChangePassword: 28,
+  testPasswordExpiredNoRemindLater: 22,
+  testPasswordExpiredChangePassword: 28,
+  // Magic code/link validation
+  testMagicCodeIncorrectCode: 18,
+  testMagicCodeExpiration: 20,
+  testMagicLinkExpiration: 20,
+  testResendCodeButton: 18,
+  // Confirmation flows
+  testConfirmMagicLink: 26,
+  testUserActivation: 24,
+  testNewAccountInvitation: 24,
+  testUnlockAccount: 22,
+  // Custom login box
+  testCustomLoginBoxPasswordLogin: 26,
+  testCustomLoginBoxMagicCodeLink: 28,
+  testCustomLoginBoxSocialLogin: 30,
 };
 
 function sortMethodsForSharding(methods) {
@@ -154,6 +222,7 @@ const FLAKY_METHODS = new Set([
 
 function main() {
   const catalogMethods = readCatalogMethods(CONFIG.catalog);
+  const methodClasses = readCatalogMethodClasses(CONFIG.catalog);
   const sourceMethods = readKotlinTestMethods(CONFIG.testSources);
   validateCatalog(catalogMethods, sourceMethods);
   // On pull_request events, filter flaky tests out entirely so they never spawn
@@ -187,11 +256,18 @@ function main() {
     shards.forEach((shard, i) => {
       const flaky = shard.every((m) => FLAKY_METHODS.has(m));
       const apiLevel = shard.every((m) => API33_METHODS.has(m)) ? 33 : 34;
+      // Build fully-qualified class#method specs for shards with mixed classes.
+      const classes = new Set(shard.map((m) => methodClasses[m] || CONFIG.testClass));
+      const testClass = classes.size === 1 ? [...classes][0] : "";
+      // When the shard spans multiple classes, encode as "Class#method" pairs in test-methods.
+      const testMethods = classes.size === 1
+        ? shard.join(",")
+        : shard.map((m) => `${methodClasses[m] || CONFIG.testClass}#${m}`).join(",");
       include.push({
         "shard-index": i + 1,
         "shard-total": effectiveShardCount,
-        "test-class": CONFIG.testClass,
-        "test-methods": shard.join(","),
+        "test-class": testClass,
+        "test-methods": testMethods,
         apiLevel,
         flaky,
       });

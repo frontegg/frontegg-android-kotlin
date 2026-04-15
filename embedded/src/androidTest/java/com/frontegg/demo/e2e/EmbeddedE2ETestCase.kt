@@ -9,6 +9,7 @@ import androidx.test.espresso.matcher.ViewMatchers.withId
 import androidx.test.espresso.web.sugar.Web.onWebView
 import androidx.test.espresso.web.webdriver.DriverAtoms.findElement
 import androidx.test.espresso.web.webdriver.DriverAtoms.webClick
+import androidx.test.espresso.web.webdriver.DriverAtoms.webKeys
 import androidx.test.espresso.web.webdriver.Locator
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
@@ -28,7 +29,7 @@ import java.util.concurrent.TimeUnit
 open class EmbeddedE2ETestCase {
 
     /** Merged APK id for the SDK embedded layout's WebView (library R differs from app at compile time). */
-    private fun authWebView() = run {
+    protected fun authWebView() = run {
         val id = instrumentation.targetContext.resources.getIdentifier(
             "custom_webview",
             "id",
@@ -684,5 +685,101 @@ open class EmbeddedE2ETestCase {
 
     protected fun waitDurationSeconds(seconds: Long) {
         Thread.sleep(TimeUnit.SECONDS.toMillis(seconds))
+    }
+
+    // ── New helpers for extended E2E test scenarios ──
+
+    /** Enter text into a WebView input element by its HTML id attribute. */
+    protected fun enterWebInput(elementId: String, text: String) {
+        for (attempt in 0..3) {
+            try {
+                authWebView()
+                    .withElement(findElement(Locator.ID, elementId))
+                    .perform(webKeys(text))
+                return
+            } catch (_: Throwable) {
+                Thread.sleep(2_000)
+            }
+        }
+        throw AssertionError("Could not enter text into WebView input id=$elementId")
+    }
+
+    /** Click a WebView button by its HTML id attribute. */
+    protected fun clickWebElement(elementId: String) {
+        for (attempt in 0..3) {
+            try {
+                authWebView()
+                    .withElement(findElement(Locator.ID, elementId))
+                    .perform(webClick())
+                return
+            } catch (_: Throwable) {
+                Thread.sleep(2_000)
+            }
+        }
+        throw AssertionError("Could not click WebView element id=$elementId")
+    }
+
+    /** Login with magic code: tap the E2E button, wait for code page, enter code "123456", submit. */
+    protected fun loginWithMagicCode() {
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EMagicCodeButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(10_000)
+        enterWebInput("e2e-code-input", "123456")
+        clickWebElement("e2e-magic-code-submit")
+    }
+
+    /** Login with magic link: tap the E2E button, wait for auto-redirect from mock server. */
+    protected fun loginWithMagicLink() {
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EMagicLinkButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        // Magic link page auto-redirects after 3 seconds via JS setTimeout
+        Thread.sleep(15_000)
+    }
+
+    /** Navigate to the forgot password flow. */
+    protected fun navigateToForgotPassword() {
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EForgotPasswordButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        Thread.sleep(8_000)
+    }
+
+    /** Verify MFA page is shown with expected type label. */
+    protected fun verifyMfaPage(type: String) {
+        val expected = if (type == "sms") "Enter SMS code" else "Enter authenticator code"
+        assert(waitForTextOrDescContains(expected, 30_000)) {
+            "MFA page for $type not found"
+        }
+    }
+
+    /** Submit MFA code in the WebView. */
+    protected fun submitMfaCode(code: String) {
+        enterWebInput("e2e-mfa-code-input", code)
+        clickWebElement("e2e-mfa-submit")
+    }
+
+    /** Verify an error message is visible in the WebView or accessibility tree. */
+    protected fun verifyErrorMessage(expectedText: String) {
+        assert(waitForTextOrDescContains(expectedText, 20_000)) {
+            "Expected error '$expectedText' not found"
+        }
+    }
+
+    /** Verify an element is NOT visible by contentDescription. */
+    protected fun verifyNoElement(contentDescription: String) {
+        Thread.sleep(2_000)
+        val found = device.findObject(By.desc(contentDescription))
+        assert(found == null || found.visibleBounds.height() <= 0) {
+            "Element '$contentDescription' should not be visible"
+        }
+    }
+
+    /** Verify a text/element IS visible in the WebView. */
+    protected fun verifyWebText(expectedText: String, timeoutMs: Long = 20_000) {
+        assert(waitForTextOrDescContains(expectedText, timeoutMs)) {
+            "Expected text '$expectedText' not found in WebView"
+        }
     }
 }

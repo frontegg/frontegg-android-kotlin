@@ -100,6 +100,78 @@ class AuthFragment : Fragment() {
                     callback = { Log.d("AuthFragment", "E2E direct social") },
                 )
             }
+            binding.e2eMagicCodeButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.MAGIC_CODE_EMAIL,
+                ) { Log.d("AuthFragment", "E2E magic code login") }
+            }
+            binding.e2eMagicLinkButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.MAGIC_LINK_EMAIL,
+                ) { Log.d("AuthFragment", "E2E magic link login") }
+            }
+            binding.e2eSmsLoginButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.SMS_LOGIN_EMAIL,
+                ) { Log.d("AuthFragment", "E2E SMS login") }
+            }
+            binding.e2eUsernameLoginButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.USERNAME_LOGIN_EMAIL,
+                ) { Log.d("AuthFragment", "E2E username login") }
+            }
+            binding.e2eMfaAuthenticatorButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.MFA_AUTHENTICATOR_EMAIL,
+                ) { Log.d("AuthFragment", "E2E MFA authenticator login") }
+            }
+            binding.e2eMfaSmsButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.MFA_SMS_EMAIL,
+                ) { Log.d("AuthFragment", "E2E MFA SMS login") }
+            }
+            binding.e2eForgotPasswordButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.FORGOT_PASSWORD_EMAIL,
+                ) { Log.d("AuthFragment", "E2E forgot password") }
+            }
+            binding.e2eSignupButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.TOS_SIGNUP_EMAIL,
+                ) { Log.d("AuthFragment", "E2E signup") }
+            }
+            binding.e2eCustomLoginBoxButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.CUSTOM_LOGIN_BOX_EMAIL,
+                ) { Log.d("AuthFragment", "E2E custom login box") }
+            }
+            binding.e2eConfirmActivationButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.ACTIVATION_EMAIL,
+                ) { Log.d("AuthFragment", "E2E confirm activation") }
+            }
+            binding.e2eConfirmInvitationButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.INVITATION_EMAIL,
+                ) { Log.d("AuthFragment", "E2E confirm invitation") }
+            }
+            binding.e2eConfirmUnlockButton.setOnClickListener {
+                requireContext().fronteggAuth.login(
+                    requireActivity(),
+                    loginHint = DemoEmbeddedTestMode.UNLOCK_EMAIL,
+                ) { Log.d("AuthFragment", "E2E confirm unlock") }
+            }
         }
 
         /**

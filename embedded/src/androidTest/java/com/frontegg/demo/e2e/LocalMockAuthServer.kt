@@ -65,6 +65,18 @@ class LocalMockAuthServer {
     fun queueEmbeddedSocialSuccessOAuthError(errorCode: String, errorDescription: String) =
         state.queueEmbeddedSocialSuccessOAuthError(errorCode, errorDescription)
 
+    fun configurePasswordPolicy(complexity: String) = state.setPasswordComplexity(complexity)
+    fun configureMfa(email: String, type: String) = state.configureMfa(email, type)
+    fun configureLoginMethod(email: String, method: String) = state.configureLoginMethod(email, method)
+    fun configurePasswordExpiration(email: String, daysLeft: Int, canRemindLater: Boolean) = state.configurePasswordExpiration(email, daysLeft, canRemindLater)
+    fun configureAccountLocking(email: String, maxAttempts: Int) = state.configureAccountLocking(email, maxAttempts)
+    fun configureBreachedPassword(password: String) = state.addBreachedPassword(password)
+    fun configureTosRequired(required: Boolean) = state.setTosRequired(required)
+    fun configureEmailVerificationRedirect(enabled: Boolean) = state.setEmailVerificationRedirect(enabled)
+    fun configureCustomLoginBox(enabled: Boolean) = state.setCustomLoginBox(enabled)
+    fun configureMagicCodeExpiration(expirationMs: Long) = state.setMagicCodeExpiration(expirationMs)
+    fun configureMagicLinkExpiration(expirationMs: Long) = state.setMagicLinkExpiration(expirationMs)
+
     fun waitForRequest(method: String? = null, path: String, timeoutMs: Long = 10_000): Boolean {
         val end = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < end) {
@@ -174,11 +186,11 @@ class LocalMockAuthServer {
             method == "GET" && path == "/identity/resources/auth/v1/sso/config" -> androidSocialConfig()
             method == "GET" && path == "/identity/resources/auth/v1/feature-flags" -> json(200, JSONObject())
             method == "GET" && path == "/frontegg/identity/resources/configurations/v1/public" ->
-                json(200, JSONObject().put("embeddedMode", true).put("loginBoxVisible", true))
+                json(200, JSONObject().put("embeddedMode", true).put("loginBoxVisible", !state.isCustomLoginBox()).put("customLoginBox", state.isCustomLoginBox()))
             method == "GET" && path == "/frontegg/identity/resources/configurations/v1/auth/strategies/public" ->
                 json(200, JSONObject().put("password", true).put("socialLogin", true).put("sso", true))
             method == "GET" && path == "/frontegg/identity/resources/configurations/v1/sign-up/strategies" ->
-                json(200, JSONObject().put("allowSignUp", true))
+                json(200, JSONObject().put("allowSignUp", true).put("tosRequired", state.isTosRequired()).put("emailVerificationRequired", state.isEmailVerificationRedirect()))
             method == "GET" && path == "/frontegg/team/resources/sso/v2/configurations/public" -> json(200, JSONArray())
             (method == "GET" && path == "/identity/resources/sso/custom/v1") ||
                 (method == "GET" && path == "/frontegg/identity/resources/sso/custom/v1") ->
@@ -218,6 +230,32 @@ class LocalMockAuthServer {
                 html(200, "Redirect", """<p>Completing login…</p>
                     <script>(function(){window.location.href='$jsLoc';})()</script>""")
             }
+            method == "GET" && path == "/embedded/magic-code" -> magicCodePage(q)
+            method == "POST" && path == "/embedded/magic-code/verify" -> magicCodeVerify(body)
+            method == "POST" && path == "/embedded/magic-code/resend" -> magicCodeResend(body)
+            method == "GET" && path == "/embedded/magic-link/sent" -> magicLinkSentPage(q)
+            method == "GET" && path == "/embedded/magic-link/callback" -> magicLinkCallback(q)
+            method == "GET" && path == "/embedded/mfa" -> mfaPage(q)
+            method == "POST" && path == "/embedded/mfa/verify" -> mfaVerify(body)
+            method == "GET" && path == "/embedded/sms-login" -> smsLoginPage(q)
+            method == "POST" && path == "/embedded/sms-login/verify" -> smsLoginVerify(body)
+            method == "GET" && path == "/embedded/username-login" -> usernameLoginPage(q)
+            method == "POST" && path == "/embedded/username-login/submit" -> usernameLoginSubmit(body)
+            method == "GET" && path == "/embedded/signup" -> signupPage(q)
+            method == "POST" && path == "/embedded/signup/submit" -> signupSubmit(body)
+            method == "GET" && path == "/embedded/signup/verify-email" -> signupVerifyEmailPage(q)
+            method == "GET" && path == "/embedded/signup/verify-email/callback" -> signupVerifyEmailCallback(q)
+            method == "GET" && path == "/embedded/forgot-password" -> forgotPasswordPage(q)
+            method == "POST" && path == "/embedded/forgot-password/submit" -> forgotPasswordSubmit(body)
+            method == "GET" && path == "/embedded/reset-password" -> resetPasswordPage(q)
+            method == "POST" && path == "/embedded/reset-password/submit" -> resetPasswordSubmit(body)
+            method == "GET" && path == "/embedded/password-expiring" -> passwordExpiringPage(q)
+            method == "GET" && path == "/embedded/password-expiring/skip" -> passwordExpiringSkip(q)
+            method == "GET" && path == "/embedded/password-expired" -> passwordExpiredPage(q)
+            method == "GET" && path == "/embedded/confirm/activation" -> confirmationPage("activation", q)
+            method == "GET" && path == "/embedded/confirm/invitation" -> confirmationPage("invitation", q)
+            method == "GET" && path == "/embedded/confirm/unlock" -> confirmationPage("unlock", q)
+            method == "POST" && path == "/embedded/confirm/submit" -> confirmationSubmit(body)
             else -> json(404, JSONObject().put("error", "$method $path"))
         }
     }
@@ -320,7 +358,24 @@ class LocalMockAuthServer {
             return html(200, "Login", b)
         }
         email = email.trim()
+        val loginMethod = state.loginMethod(email)
         return when {
+            loginMethod == "magic-code" -> {
+                val ctx2 = state.hosted(hs)!!
+                redir("/embedded/magic-code?email=${enc(email)}&redirect_uri=${enc(ctx2.redirect)}&state=${enc(ctx2.origState)}")
+            }
+            loginMethod == "magic-link" -> {
+                val ctx2 = state.hosted(hs)!!
+                redir("/embedded/magic-link/sent?email=${enc(email)}&redirect_uri=${enc(ctx2.redirect)}&state=${enc(ctx2.origState)}")
+            }
+            loginMethod == "sms" -> {
+                val ctx2 = state.hosted(hs)!!
+                redir("/embedded/sms-login?redirect_uri=${enc(ctx2.redirect)}&state=${enc(ctx2.origState)}&email=${enc(email)}")
+            }
+            loginMethod == "username" -> {
+                val ctx2 = state.hosted(hs)!!
+                redir("/embedded/username-login?redirect_uri=${enc(ctx2.redirect)}&state=${enc(ctx2.origState)}")
+            }
             email.endsWith("@saml-domain.com") ->
                 providerPage("OKTA SAML Mock Server", "Login With Okta", hs, email)
             email.endsWith("@oidc-domain.com") ->
@@ -445,7 +500,12 @@ class LocalMockAuthServer {
         val email = fq(q, "email", "test@frontegg.com")
         val ru = fq(q, "redirect_uri")
         val st = fq(q, "state")
+        val loginMethod = state.loginMethod(email)
         return when {
+            loginMethod == "magic-code" -> redir("/embedded/magic-code?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}")
+            loginMethod == "magic-link" -> redir("/embedded/magic-link/sent?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}")
+            loginMethod == "sms" -> redir("/embedded/sms-login?redirect_uri=${enc(ru)}&state=${enc(st)}&email=${enc(email)}")
+            loginMethod == "username" -> redir("/embedded/username-login?redirect_uri=${enc(ru)}&state=${enc(st)}")
             email.endsWith("@saml-domain.com") || email.endsWith("@oidc-domain.com") -> {
                 val href =
                     "/browser/complete?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}"
@@ -473,8 +533,37 @@ class LocalMockAuthServer {
     private fun embeddedPassword(body: String): MockResponse {
         val f = parseForm(body)
         val email = f["email"] ?: "test@frontegg.com"
+        val password = f["password"] ?: ""
         val ru = f["redirect_uri"] ?: ""
         val st = f["state"] ?: ""
+        // Account lock check
+        if (state.isAccountLocked(email)) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">Your account is locked</p>""")
+        }
+        // Breached password check
+        if (state.isBreachedPassword(password)) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">Password has been breached</p>""")
+        }
+        // Password complexity check
+        val complexityError = validatePasswordComplexity(password, state.getPasswordComplexity())
+        if (complexityError != null) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">$complexityError</p>""")
+        }
+        // MFA check
+        val mfa = state.mfaType(email)
+        if (mfa != null) {
+            return redir("/embedded/mfa?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}&mfa_type=${enc(mfa)}")
+        }
+        // Password expiration check
+        val expiry = state.passwordExpiration(email)
+        if (expiry != null) {
+            val (days, canRemind, isExpired) = expiry
+            if (isExpired) {
+                return redir("/embedded/password-expired?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}")
+            } else {
+                return redir("/embedded/password-expiring?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}&days=$days&can_remind=$canRemind")
+            }
+        }
         val code = state.issueCode(email, ru, st)
         return redir(cb(ru, code, st))
     }
@@ -529,7 +618,18 @@ class LocalMockAuthServer {
     }
 
     private fun hostedPasswordLogin(body: String): MockResponse {
-        val em = JSONObject(body.ifEmpty { "{}" }).optString("email", "test@frontegg.com")
+        val jo = JSONObject(body.ifEmpty { "{}" })
+        val em = jo.optString("email", "test@frontegg.com")
+        val pw = jo.optString("password", "")
+        // Account lock check
+        if (state.isAccountLocked(em)) {
+            state.recordFailedAttempt(em)
+            return json(423, JSONObject().put("errors", JSONArray().put("Your account is locked")))
+        }
+        // Breached password check
+        if (state.isBreachedPassword(pw)) {
+            return json(400, JSONObject().put("errors", JSONArray().put("Password has been breached")))
+        }
         val iss = state.issueRefresh(em)
         return MockResponse()
             .setResponseCode(200)
@@ -741,6 +841,438 @@ class LocalMockAuthServer {
         return m
     }
 
+    // ── New route handlers ────────────────────────────────────────────
+
+    private fun magicCodePage(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        state.issueMagicCode(email)
+        val b = """<h1>Enter code</h1>
+            <p>We sent a 6-digit code to $email</p>
+            <form id="f" action="/embedded/magic-code/verify" method="post">
+            <input type="hidden" name="email" value="${htmlEsc(email)}"/>
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <input type="text" id="e2e-code-input" name="code" placeholder="Enter code"/>
+            <button type="submit" id="e2e-magic-code-submit">Verify</button>
+            </form>
+            <form action="/embedded/magic-code/resend" method="post">
+            <input type="hidden" name="email" value="${htmlEsc(email)}"/>
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <button type="submit" id="e2e-resend-code">Resend code</button>
+            </form>"""
+        return html(200, "magic-code", b)
+    }
+
+    private fun magicCodeVerify(body: String): MockResponse {
+        val f = parseForm(body)
+        val email = f["email"] ?: ""
+        val code = f["code"] ?: ""
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        if (state.isMagicCodeExpired(email)) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">Code expired</p>
+                <a href="/embedded/magic-code?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}">Try again</a>""")
+        }
+        if (!state.verifyMagicCode(email, code)) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">Invalid code</p>
+                <a href="/embedded/magic-code?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}">Try again</a>""")
+        }
+        // Check MFA
+        val mfa = state.mfaType(email)
+        if (mfa != null) {
+            return redir("/embedded/mfa?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}&mfa_type=${enc(mfa)}")
+        }
+        val authCode = state.issueCode(email, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    private fun magicCodeResend(body: String): MockResponse {
+        val f = parseForm(body)
+        val email = f["email"] ?: ""
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        state.issueMagicCode(email)
+        return redir("/embedded/magic-code?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}")
+    }
+
+    private fun magicLinkSentPage(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val token = state.issueMagicLink(email)
+        val callbackUrl = "/embedded/magic-link/callback?token=${enc(token)}&email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}"
+        val b = """<h1>Check your email</h1>
+            <p>We sent a magic link to $email</p>
+            <p id="e2e-magic-link-sent">Magic link sent</p>
+            <script>setTimeout(function(){ window.location.href='$callbackUrl'; }, 3000);</script>"""
+        return html(200, "magic-link-sent", b)
+    }
+
+    private fun magicLinkCallback(q: Map<String, List<String>>): MockResponse {
+        val token = fq(q, "token", "")
+        @Suppress("UNUSED_VARIABLE") val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val verified = state.verifyMagicLink(token)
+        if (verified == null) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">Link expired</p>""")
+        }
+        val mfa = state.mfaType(verified)
+        if (mfa != null) {
+            return redir("/embedded/mfa?email=${enc(verified)}&redirect_uri=${enc(ru)}&state=${enc(st)}&mfa_type=${enc(mfa)}")
+        }
+        val authCode = state.issueCode(verified, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    private fun mfaPage(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val mfaType = fq(q, "mfa_type", "authenticator")
+        val label = if (mfaType == "sms") "Enter SMS code" else "Enter authenticator code"
+        val b = """<h1>MFA Verification</h1>
+            <p id="e2e-mfa-label">$label</p>
+            <form id="f" action="/embedded/mfa/verify" method="post">
+            <input type="hidden" name="email" value="${htmlEsc(email)}"/>
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <input type="text" id="e2e-mfa-code-input" name="code" placeholder="$label"/>
+            <button type="submit" id="e2e-mfa-submit">Verify</button>
+            </form>"""
+        return html(200, "mfa", b)
+    }
+
+    private fun mfaVerify(body: String): MockResponse {
+        val f = parseForm(body)
+        val email = f["email"] ?: ""
+        val code = f["code"] ?: ""
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        if (code != "123456") {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">Invalid MFA code</p>
+                <a href="javascript:history.back()">Try again</a>""")
+        }
+        val authCode = state.issueCode(email, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    private fun smsLoginPage(q: Map<String, List<String>>): MockResponse {
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val step = fq(q, "step", "phone")
+        val email = fq(q, "email", "")
+        if (step == "code") {
+            state.issueMagicCode(email)
+            val b = """<h1>Enter SMS code</h1>
+                <p>We sent a code to your phone</p>
+                <form action="/embedded/sms-login/verify" method="post">
+                <input type="hidden" name="email" value="${htmlEsc(email)}"/>
+                <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+                <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+                <input type="text" id="e2e-sms-code-input" name="code" placeholder="Enter code"/>
+                <button type="submit" id="e2e-sms-verify">Verify</button>
+                </form>"""
+            return html(200, "sms-code", b)
+        }
+        val b = """<h1>Login with SMS</h1>
+            <form action="/embedded/sms-login" method="get">
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <input type="hidden" name="step" value="code"/>
+            <input type="tel" id="e2e-phone-input" name="phone" placeholder="Phone number"/>
+            <input type="hidden" name="email" value="test-sms@frontegg.com"/>
+            <button type="submit" id="e2e-sms-submit-phone">Continue</button>
+            </form>"""
+        return html(200, "sms-login", b)
+    }
+
+    private fun smsLoginVerify(body: String): MockResponse {
+        val f = parseForm(body)
+        val email = f["email"] ?: "test-sms@frontegg.com"
+        val code = f["code"] ?: ""
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        if (!state.verifyMagicCode(email, code)) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">Invalid code</p>""")
+        }
+        val authCode = state.issueCode(email, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    private fun usernameLoginPage(q: Map<String, List<String>>): MockResponse {
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val b = """<h1>Login with username</h1>
+            <form action="/embedded/username-login/submit" method="post">
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <input type="text" id="e2e-username-input" name="username" placeholder="Username"/>
+            <input type="password" id="e2e-username-password-input" name="password" placeholder="Password"/>
+            <button type="submit" id="e2e-username-submit">Sign in</button>
+            </form>"""
+        return html(200, "username-login", b)
+    }
+
+    private fun usernameLoginSubmit(body: String): MockResponse {
+        val f = parseForm(body)
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        val email = "test-username@frontegg.com"
+        val authCode = state.issueCode(email, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    private fun signupPage(q: Map<String, List<String>>): MockResponse {
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val method = fq(q, "method", "email") // "email"|"sms"|"username"
+        val tosCheckbox = if (state.isTosRequired()) {
+            """<label><input type="checkbox" id="e2e-tos-checkbox" name="tos" value="true"/> I accept the Terms of Use and Privacy Policy</label>"""
+        } else ""
+        val fields = when (method) {
+            "sms" -> """<input type="tel" id="e2e-signup-phone" name="phone" placeholder="Phone number"/>
+                <input type="text" id="e2e-signup-name" name="name" placeholder="Name"/>
+                <input type="password" id="e2e-signup-password" name="password" placeholder="Password"/>"""
+            "username" -> """<input type="text" id="e2e-signup-username" name="username" placeholder="Username"/>
+                <input type="text" id="e2e-signup-name" name="name" placeholder="Name"/>
+                <input type="password" id="e2e-signup-password" name="password" placeholder="Password"/>"""
+            else -> """<input type="email" id="e2e-signup-email" name="email" placeholder="Email"/>
+                <input type="text" id="e2e-signup-name" name="name" placeholder="Name"/>
+                <input type="password" id="e2e-signup-password" name="password" placeholder="Password"/>
+                <input type="text" id="e2e-signup-company" name="company" placeholder="Company name"/>"""
+        }
+        val b = """<h1>Sign up</h1>
+            <form action="/embedded/signup/submit" method="post">
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <input type="hidden" name="method" value="${htmlEsc(method)}"/>
+            $fields
+            $tosCheckbox
+            <button type="submit" id="e2e-signup-submit">Sign up</button>
+            </form>"""
+        return html(200, "signup", b)
+    }
+
+    private fun signupSubmit(body: String): MockResponse {
+        val f = parseForm(body)
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        val method = f["method"] ?: "email"
+        val tos = f["tos"]
+        if (state.isTosRequired() && tos != "true") {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">You must accept the Terms of Use and Privacy Policy</p>
+                <a href="javascript:history.back()">Go back</a>""")
+        }
+        val email = when (method) {
+            "sms" -> "test-sms-signup@frontegg.com"
+            "username" -> "test-username-signup@frontegg.com"
+            else -> f["email"] ?: "test-signup@frontegg.com"
+        }
+        if (state.isEmailVerificationRedirect()) {
+            return redir("/embedded/signup/verify-email?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}")
+        }
+        val authCode = state.issueCode(email, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    private fun signupVerifyEmailPage(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val callbackUrl = "/embedded/signup/verify-email/callback?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}"
+        val tosRequired = state.isTosRequired()
+        val tosField = if (tosRequired) {
+            """<label><input type="checkbox" id="e2e-tos-checkbox" name="tos" value="true"/> I accept the Terms of Use and Privacy Policy</label>"""
+        } else ""
+        val b = """<h1>Verify your email</h1>
+            <p>We sent a verification link to $email</p>
+            <p id="e2e-verify-email-sent">Verification email sent</p>
+            $tosField
+            <script>setTimeout(function(){ window.location.href='$callbackUrl'; }, 3000);</script>"""
+        return html(200, "verify-email", b)
+    }
+
+    private fun signupVerifyEmailCallback(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val authCode = state.issueCode(email, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    private fun forgotPasswordPage(q: Map<String, List<String>>): MockResponse {
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val method = fq(q, "method", "email") // "email"|"sms"
+        val inputField = if (method == "sms") {
+            """<input type="tel" id="e2e-forgot-phone" name="phone" placeholder="Phone number"/>"""
+        } else {
+            """<input type="email" id="e2e-forgot-email" name="email" placeholder="Email"/>"""
+        }
+        val b = """<h1>Forgot password</h1>
+            <form action="/embedded/forgot-password/submit" method="post">
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <input type="hidden" name="method" value="${htmlEsc(method)}"/>
+            $inputField
+            <button type="submit" id="e2e-forgot-submit">Reset password</button>
+            </form>"""
+        return html(200, "forgot-password", b)
+    }
+
+    private fun forgotPasswordSubmit(body: String): MockResponse {
+        val f = parseForm(body)
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        val email = f["email"] ?: "test-forgot@frontegg.com"
+        val resetToken = "reset-${UUID.randomUUID().toString().lowercase()}"
+        return redir("/embedded/reset-password?token=${enc(resetToken)}&email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}")
+    }
+
+    private fun resetPasswordPage(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val token = fq(q, "token", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val complexity = state.getPasswordComplexity()
+        val hint = when (complexity) {
+            "hard" -> "Min 12 chars, uppercase, lowercase, digit, special char"
+            "medium" -> "Min 8 chars, uppercase, digit"
+            else -> "Min 6 chars"
+        }
+        val b = """<h1>Set new password</h1>
+            <p id="e2e-complexity-hint">$hint</p>
+            <form action="/embedded/reset-password/submit" method="post">
+            <input type="hidden" name="token" value="${htmlEsc(token)}"/>
+            <input type="hidden" name="email" value="${htmlEsc(email)}"/>
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <input type="password" id="e2e-new-password" name="password" placeholder="New password"/>
+            <button type="submit" id="e2e-reset-submit">Set password</button>
+            </form>"""
+        return html(200, "reset-password", b)
+    }
+
+    private fun resetPasswordSubmit(body: String): MockResponse {
+        val f = parseForm(body)
+        val pw = f["password"] ?: ""
+        @Suppress("UNUSED_VARIABLE") val email = f["email"] ?: ""
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        val complexity = state.getPasswordComplexity()
+        val error = validatePasswordComplexity(pw, complexity)
+        if (error != null) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">$error</p>
+                <a href="javascript:history.back()">Try again</a>""")
+        }
+        if (state.isBreachedPassword(pw)) {
+            return html(200, "error", """<h1>Error</h1><p id="e2e-error">Password has been breached</p>
+                <a href="javascript:history.back()">Try again</a>""")
+        }
+        return html(200, "success", """<h1>Password reset</h1><p id="e2e-success">Password changed successfully</p>
+            <script>setTimeout(function(){ window.location.href='/oauth/prelogin?redirect_uri=${enc(ru)}&state=${enc(st)}'; }, 2000);</script>""")
+    }
+
+    private fun validatePasswordComplexity(pw: String, complexity: String): String? {
+        return when (complexity) {
+            "hard" -> {
+                if (pw.length < 12) return "Password must be at least 12 characters"
+                if (!pw.any { it.isUpperCase() }) return "Password must contain an uppercase letter"
+                if (!pw.any { it.isLowerCase() }) return "Password must contain a lowercase letter"
+                if (!pw.any { it.isDigit() }) return "Password must contain a digit"
+                if (!pw.any { !it.isLetterOrDigit() }) return "Password must contain a special character"
+                null
+            }
+            "medium" -> {
+                if (pw.length < 8) return "Password must be at least 8 characters"
+                if (!pw.any { it.isUpperCase() }) return "Password must contain an uppercase letter"
+                if (!pw.any { it.isDigit() }) return "Password must contain a digit"
+                null
+            }
+            else -> {
+                if (pw.length < 6) return "Password must be at least 6 characters"
+                null
+            }
+        }
+    }
+
+    private fun passwordExpiringPage(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val days = fq(q, "days", "5")
+        val canRemind = fq(q, "can_remind", "true") == "true"
+        val remindBtn = if (canRemind) {
+            """<button type="button" id="e2e-remind-later" onclick="window.location.href='/embedded/password-expiring/skip?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}'">Remind me later</button>"""
+        } else ""
+        val b = """<h1>Password expiring</h1>
+            <p id="e2e-expiry-message">Your password will expire in $days days</p>
+            $remindBtn
+            <button type="button" id="e2e-change-password" onclick="window.location.href='/embedded/reset-password?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}&token=expiry-reset'">Change password</button>"""
+        return html(200, "password-expiring", b)
+    }
+
+    private fun passwordExpiringSkip(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val authCode = state.issueCode(email, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    private fun passwordExpiredPage(q: Map<String, List<String>>): MockResponse {
+        val email = fq(q, "email", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val b = """<h1>Password expired</h1>
+            <p id="e2e-expired-message">Your password has expired</p>
+            <button type="button" id="e2e-change-password" onclick="window.location.href='/embedded/reset-password?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}&token=expired-reset'">Change password</button>"""
+        return html(200, "password-expired", b)
+    }
+
+    private fun confirmationPage(type: String, q: Map<String, List<String>>): MockResponse {
+        val token = fq(q, "token", "")
+        val ru = fq(q, "redirect_uri", "")
+        val st = fq(q, "state", "")
+        val (title, message) = when (type) {
+            "activation" -> "Activate your account" to "Click below to activate your account"
+            "invitation" -> "Accept invitation" to "You have been invited to join a new account"
+            "unlock" -> "Unlock account" to "Click below to unlock your account"
+            else -> "Confirm" to "Please confirm"
+        }
+        val b = """<h1>$title</h1>
+            <p>$message</p>
+            <form action="/embedded/confirm/submit" method="post">
+            <input type="hidden" name="type" value="${htmlEsc(type)}"/>
+            <input type="hidden" name="token" value="${htmlEsc(token)}"/>
+            <input type="hidden" name="redirect_uri" value="${htmlEsc(ru)}"/>
+            <input type="hidden" name="state" value="${htmlEsc(st)}"/>
+            <button type="submit" id="e2e-confirm-submit">Confirm</button>
+            </form>"""
+        return html(200, type, b)
+    }
+
+    private fun confirmationSubmit(body: String): MockResponse {
+        val f = parseForm(body)
+        val type = f["type"] ?: "activation"
+        val ru = f["redirect_uri"] ?: ""
+        val st = f["state"] ?: ""
+        val email = when (type) {
+            "activation" -> "test-activation@frontegg.com"
+            "invitation" -> "test-invitation@frontegg.com"
+            "unlock" -> "test-unlock@frontegg.com"
+            else -> "test@frontegg.com"
+        }
+        val authCode = state.issueCode(email, ru, st)
+        return redir(cb(ru, authCode, st))
+    }
+
+    // ── End new route handlers ───────────────────────────────────────
+
     private fun decodeB64Json(b64: String): JsonObject? = try {
         var s = b64.replace('-', '+').replace('_', '/')
         while (s.length % 4 != 0) s += "="
@@ -768,8 +1300,29 @@ private class MockAuthState {
     private val pols = mutableMapOf<String, Pol>()
     private var oauthErr: Pair<String, String>? = null
 
+    private var passwordComplexity: String = "easy"
+    private val mfaConfig = mutableMapOf<String, String>() // email -> "authenticator"|"sms"
+    private val loginMethods = mutableMapOf<String, String>() // email -> "magic-code"|"magic-link"|"sms"|"username"
+    private val pwExpiration = mutableMapOf<String, Triple<Int, Boolean, Boolean>>() // email -> (daysLeft, canRemindLater, isExpired)
+    private val accountLockConfig = mutableMapOf<String, Int>() // email -> maxAttempts
+    private val failedAttempts = mutableMapOf<String, Int>() // email -> currentAttempts
+    private val breachedPasswords = mutableSetOf<String>()
+    private var tosRequired: Boolean = false
+    private var emailVerificationRedirect: Boolean = false
+    private var customLoginBox: Boolean = false
+    private var magicCodeExpirationMs: Long = 300_000
+    private var magicLinkExpirationMs: Long = 300_000
+    private val pendingMagicCodes = mutableMapOf<String, Pair<String, Long>>() // email -> (code, createdAtMs)
+    private val pendingMagicLinks = mutableMapOf<String, Pair<String, Long>>() // email -> (token, createdAtMs)
+
     fun reset() = lock.withLock {
         q.clear(); codes.clear(); hosted.clear(); latestH = null; done.clear(); pols.clear(); oauthErr = null; rts.clear()
+        passwordComplexity = "easy"
+        mfaConfig.clear(); loginMethods.clear(); pwExpiration.clear()
+        accountLockConfig.clear(); failedAttempts.clear(); breachedPasswords.clear()
+        tosRequired = false; emailVerificationRedirect = false; customLoginBox = false
+        magicCodeExpirationMs = 300_000; magicLinkExpirationMs = 300_000
+        pendingMagicCodes.clear(); pendingMagicLinks.clear()
         rts["signup-refresh-token"] = RtRec(
             "signup@frontegg.com",
             System.currentTimeMillis() / 1000.0 + Pol().refreshTokenTTL,
@@ -856,6 +1409,68 @@ private class MockAuthState {
         val x = oauthErr
         oauthErr = null
         x
+    }
+
+    fun setPasswordComplexity(c: String) = lock.withLock { passwordComplexity = c }
+    fun configureMfa(email: String, type: String) = lock.withLock { mfaConfig[email.lowercase()] = type }
+    fun configureLoginMethod(email: String, method: String) = lock.withLock { loginMethods[email.lowercase()] = method }
+    fun configurePasswordExpiration(email: String, daysLeft: Int, canRemindLater: Boolean) = lock.withLock {
+        pwExpiration[email.lowercase()] = Triple(daysLeft, canRemindLater, daysLeft <= 0)
+    }
+    fun configureAccountLocking(email: String, maxAttempts: Int) = lock.withLock { accountLockConfig[email.lowercase()] = maxAttempts }
+    fun addBreachedPassword(pw: String) = lock.withLock { breachedPasswords.add(pw) }
+    fun setTosRequired(r: Boolean) = lock.withLock { tosRequired = r }
+    fun setEmailVerificationRedirect(e: Boolean) = lock.withLock { emailVerificationRedirect = e }
+    fun setCustomLoginBox(e: Boolean) = lock.withLock { customLoginBox = e }
+    fun setMagicCodeExpiration(ms: Long) = lock.withLock { magicCodeExpirationMs = ms }
+    fun setMagicLinkExpiration(ms: Long) = lock.withLock { magicLinkExpirationMs = ms }
+
+    // Accessors for routing logic
+    fun loginMethod(email: String): String? = lock.withLock { loginMethods[email.lowercase()] }
+    fun mfaType(email: String): String? = lock.withLock { mfaConfig[email.lowercase()] }
+    fun isAccountLocked(email: String): Boolean = lock.withLock {
+        val max = accountLockConfig[email.lowercase()] ?: return@withLock false
+        (failedAttempts[email.lowercase()] ?: 0) >= max
+    }
+    fun recordFailedAttempt(email: String): Int = lock.withLock {
+        val count = (failedAttempts[email.lowercase()] ?: 0) + 1
+        failedAttempts[email.lowercase()] = count
+        count
+    }
+    fun isBreachedPassword(pw: String): Boolean = lock.withLock { pw in breachedPasswords }
+    fun isTosRequired(): Boolean = lock.withLock { tosRequired }
+    fun isEmailVerificationRedirect(): Boolean = lock.withLock { emailVerificationRedirect }
+    fun isCustomLoginBox(): Boolean = lock.withLock { customLoginBox }
+    fun passwordExpiration(email: String): Triple<Int, Boolean, Boolean>? = lock.withLock { pwExpiration[email.lowercase()] }
+    fun getPasswordComplexity(): String = lock.withLock { passwordComplexity }
+
+    fun issueMagicCode(email: String): String = lock.withLock {
+        val code = "123456"
+        pendingMagicCodes[email.lowercase()] = code to System.currentTimeMillis()
+        code
+    }
+    fun verifyMagicCode(email: String, code: String): Boolean = lock.withLock {
+        val pending = pendingMagicCodes[email.lowercase()] ?: return@withLock false
+        if (System.currentTimeMillis() - pending.second > magicCodeExpirationMs) return@withLock false
+        pending.first == code
+    }
+    fun isMagicCodeExpired(email: String): Boolean = lock.withLock {
+        val pending = pendingMagicCodes[email.lowercase()] ?: return@withLock true
+        System.currentTimeMillis() - pending.second > magicCodeExpirationMs
+    }
+    fun issueMagicLink(email: String): String = lock.withLock {
+        val token = "magic-link-${UUID.randomUUID().toString().lowercase()}"
+        pendingMagicLinks[email.lowercase()] = token to System.currentTimeMillis()
+        token
+    }
+    fun verifyMagicLink(token: String): String? = lock.withLock {
+        for ((email, pair) in pendingMagicLinks) {
+            if (pair.first == token) {
+                if (System.currentTimeMillis() - pair.second > magicLinkExpirationMs) return@withLock null
+                return@withLock email
+            }
+        }
+        null
     }
 
     private fun norm(p: String) = if (p.isEmpty() || p == "/") p else if (p.startsWith("/")) p else "/$p"
