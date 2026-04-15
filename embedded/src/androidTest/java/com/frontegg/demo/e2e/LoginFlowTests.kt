@@ -34,7 +34,7 @@ class LoginFlowTests : EmbeddedE2ETestCase() {
     @Test
     fun testLoginWithMfaAuthenticator() {
         mock.configureMfa(DemoEmbeddedTestMode.MFA_AUTHENTICATOR_EMAIL, "authenticator")
-        mock.configureLoginMethod(DemoEmbeddedTestMode.MFA_AUTHENTICATOR_EMAIL, "password")
+        // MFA is checked after password submit in hostedPostRedirect
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EMfaAuthenticatorButton")
@@ -45,9 +45,9 @@ class LoginFlowTests : EmbeddedE2ETestCase() {
             30_000,
         )
         Thread.sleep(10_000)
-        // Password page → submit → MFA page
+        // Password page → submit → hosted postlogin redirect → MFA page
         tapWebButtonIfPresent("Sign in", timeoutMs = 95_000)
-        Thread.sleep(5_000)
+        Thread.sleep(10_000)
         verifyMfaPage("authenticator")
         submitMfaCode("123456")
         waitForUserEmail(DemoEmbeddedTestMode.MFA_AUTHENTICATOR_EMAIL, timeoutMs = 120_000)
@@ -56,7 +56,7 @@ class LoginFlowTests : EmbeddedE2ETestCase() {
     @Test
     fun testLoginWithMfaSms() {
         mock.configureMfa(DemoEmbeddedTestMode.MFA_SMS_EMAIL, "sms")
-        mock.configureLoginMethod(DemoEmbeddedTestMode.MFA_SMS_EMAIL, "password")
+        // MFA is checked after password submit in hostedPostRedirect
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)
         tapDesc("E2EMfaSmsButton")
@@ -68,7 +68,7 @@ class LoginFlowTests : EmbeddedE2ETestCase() {
         )
         Thread.sleep(10_000)
         tapWebButtonIfPresent("Sign in", timeoutMs = 95_000)
-        Thread.sleep(5_000)
+        Thread.sleep(10_000)
         verifyMfaPage("sms")
         submitMfaCode("123456")
         waitForUserEmail(DemoEmbeddedTestMode.MFA_SMS_EMAIL, timeoutMs = 120_000)

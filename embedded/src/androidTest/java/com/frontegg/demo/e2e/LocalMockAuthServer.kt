@@ -386,6 +386,9 @@ class LocalMockAuthServer {
 
     private fun passwordPage(hs: String, email: String, prefill: Boolean): MockResponse {
         val pv = if (prefill) """ value="Testpassword1!"""" else ""
+        val ctx = state.hosted(hs)
+        val ru = ctx?.redirect ?: ""
+        val origSt = ctx?.origState ?: ""
         val b =
             """<h1>Password Login</h1><form id="f"><input id="e" type="email" value="${htmlEsc(email)}"/>
             <input id="p" type="password" name="password"$pv/><button type="submit" id="e2e-password-submit">Sign in</button></form>
@@ -394,6 +397,7 @@ class LocalMockAuthServer {
             const r=await fetch('/frontegg/identity/resources/auth/v1/user',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({email:document.getElementById('e').value,password:document.getElementById('p').value,invitationToken:''})});
             if(!r.ok)return;const j=await r.json();
+            if(j.mfaRequired){location='/embedded/mfa?email='+encodeURIComponent(j.email)+'&redirect_uri=${enc(ru)}&state=${enc(origSt)}&mfa_type='+encodeURIComponent(j.mfaType);return;}
             const p=await fetch('/oauth/postlogin',{method:'POST',headers:{'Content-Type':'application/json'},
             body:JSON.stringify({state:'${hs}',token:j.access_token})});
             if(!p.ok)return;await p.json();location='/oauth/postlogin/redirect?state=${enc(hs)}';};</script>"""
@@ -423,8 +427,10 @@ class LocalMockAuthServer {
             ctx.loginHint.isNotEmpty() -> ctx.loginHint
             else -> null
         } ?: return json(400, JSONObject().put("error", "missing_token"))
-        val code = state.issueCode(email, ctx.redirect, ctx.origState)
         state.recordDone(hs, email)
+        // If MFA or password expiration is pending, still return a redirect URL but
+        // the actual redirect happens in hostedPostRedirect which checks these.
+        val code = state.issueCode(email, ctx.redirect, ctx.origState)
         return json(200, JSONObject().put("redirectUrl", cb(ctx.redirect, code, ctx.origState)))
     }
 
@@ -433,6 +439,36 @@ class LocalMockAuthServer {
         val ctx = state.hosted(hs)
         val em = state.doneEmail(hs)
         if (ctx == null || em == null) return json(400, JSONObject().put("error", "missing_postlogin_completion"))
+        // MFA check: render MFA form inline before completing auth
+        val mfa = state.mfaType(em)
+        if (mfa != null) {
+            return mfaPage(mapOf(
+                "email" to listOf(em),
+                "redirect_uri" to listOf(ctx.redirect),
+                "state" to listOf(ctx.origState),
+                "mfa_type" to listOf(mfa),
+            ))
+        }
+        // Password expiration check: render inline
+        val expiry = state.passwordExpiration(em)
+        if (expiry != null) {
+            val (days, canRemind, isExpired) = expiry
+            if (isExpired) {
+                return passwordExpiredPage(mapOf(
+                    "email" to listOf(em),
+                    "redirect_uri" to listOf(ctx.redirect),
+                    "state" to listOf(ctx.origState),
+                ))
+            } else {
+                return passwordExpiringPage(mapOf(
+                    "email" to listOf(em),
+                    "redirect_uri" to listOf(ctx.redirect),
+                    "state" to listOf(ctx.origState),
+                    "days" to listOf(days.toString()),
+                    "can_remind" to listOf(canRemind.toString()),
+                ))
+            }
+        }
         val code = state.issueCode(em, ctx.redirect, ctx.origState)
         return redir(cb(ctx.redirect, code, ctx.origState))
     }
@@ -629,6 +665,14 @@ class LocalMockAuthServer {
         // Breached password check
         if (state.isBreachedPassword(pw)) {
             return json(400, JSONObject().put("errors", JSONArray().put("Password has been breached")))
+        }
+        // MFA check: return mfaRequired so the password page JS redirects to MFA form
+        val mfa = state.mfaType(em)
+        if (mfa != null) {
+            return json(200, JSONObject()
+                .put("mfaRequired", true)
+                .put("mfaType", mfa)
+                .put("email", em))
         }
         val iss = state.issueRefresh(em)
         return MockResponse()

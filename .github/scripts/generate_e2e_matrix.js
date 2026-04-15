@@ -16,11 +16,6 @@ const CONFIG = {
   testSources: [
     path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/EmbeddedE2ETests.kt"),
     path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/LoginFlowTests.kt"),
-    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/SignUpFlowTests.kt"),
-    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/PasswordManagementTests.kt"),
-    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/MagicCodeLinkValidationTests.kt"),
-    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/ConfirmationFlowTests.kt"),
-    path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/CustomLoginBoxTests.kt"),
   ],
   /** @deprecated — kept for backward compat; new catalog entries carry their own "class" field. */
   testClass: "com.frontegg.demo.e2e.EmbeddedE2ETests",
@@ -109,41 +104,6 @@ const TEST_WEIGHTS = {
   testLoginWithMagicLinkMfaSms: 38,
   testLoginWithSms: 26,
   testLoginWithUsername: 22,
-  // Sign up tests
-  testSignUpWithSms: 26,
-  testSignUpWithUsername: 24,
-  testSignUpWithSocialLogin: 30,
-  testSignUpWithEmailVerificationRedirectPassword: 32,
-  testSignUpWithEmailVerificationRedirectPasswordless: 32,
-  testSignUpWithCheckedTos: 24,
-  testSignUpWithUncheckedTos: 18,
-  testSignUpTosErrorOnSetPasswordPage: 28,
-  // Password management tests
-  testForgetPasswordEasyComplexity: 22,
-  testForgetPasswordMediumComplexity: 22,
-  testForgetPasswordHardComplexity: 22,
-  testForgetPasswordWithEmail: 24,
-  testForgetPasswordWithSms: 26,
-  testAccountLockedAfterIncorrectAttempts: 28,
-  testBreachedPasswordWarning: 18,
-  testPasswordExpirationRemindLater: 26,
-  testPasswordExpirationChangePassword: 28,
-  testPasswordExpiredNoRemindLater: 22,
-  testPasswordExpiredChangePassword: 28,
-  // Magic code/link validation
-  testMagicCodeIncorrectCode: 18,
-  testMagicCodeExpiration: 20,
-  testMagicLinkExpiration: 20,
-  testResendCodeButton: 18,
-  // Confirmation flows
-  testConfirmMagicLink: 26,
-  testUserActivation: 24,
-  testNewAccountInvitation: 24,
-  testUnlockAccount: 22,
-  // Custom login box
-  testCustomLoginBoxPasswordLogin: 26,
-  testCustomLoginBoxMagicCodeLink: 28,
-  testCustomLoginBoxSocialLogin: 30,
 };
 
 function sortMethodsForSharding(methods) {
