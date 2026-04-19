@@ -44,7 +44,7 @@ class RefreshTokenJobService : JobService() {
             var isError = false
             val service = fronteggAuth as FronteggAuthService
             try {
-                service.sendRefreshToken()
+                service.sendRefreshTokenInternal(FronteggAuthService.RefreshInvocationSource.INTERNAL_AUTO)
             } catch (e: Exception) {
                 isError = true
                 

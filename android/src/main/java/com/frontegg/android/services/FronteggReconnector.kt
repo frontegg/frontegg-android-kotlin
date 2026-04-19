@@ -117,7 +117,14 @@ object FronteggReconnector {
                     if (FronteggApp.instance != null) {
                         Log.d(TAG, "Attempting token refresh on network reconnect")
                         (context.applicationContext.fronteggAuth as? FronteggAuthService)?.evictSharedHttpConnectionPool()
-                        val refreshSuccess = context.fronteggAuth.refreshTokenAndWait()
+                        val authService = context.applicationContext.fronteggAuth as? FronteggAuthService
+                        if (authService?.isAutoRefreshDisabled() == true) {
+                            authService.clearOfflineModeOnReconnectIfAutoRefreshDisabled()
+                            Log.d(TAG, "Auto refresh disabled; cleared offline mode on validated reconnect")
+                        }
+                        val refreshSuccess = authService?.refreshTokenAndWaitInternal(
+                            FronteggAuthService.RefreshInvocationSource.INTERNAL_AUTO
+                        ) ?: context.fronteggAuth.refreshTokenAndWait()
                         if (refreshSuccess) {
                             Log.d(TAG, "Token refresh successful on network reconnect")
                         } else {
