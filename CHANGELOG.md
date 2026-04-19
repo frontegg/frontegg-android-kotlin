@@ -1,4 +1,21 @@
 ## v
+## Summary
+- Adds instrumented **embedded demo E2E** tests (MockWebServer, `EmbeddedE2ETests`), demo app hooks (bootstrap, offline / no-connection UI), and supporting SDK glue where needed.
+- Adds **GitHub Actions** workflow `Demo Embedded E2E (Android)` (`.github/workflows/demo-e2e.yml`) that runs on **pull requests** to `master` / `main` when the PR is **opened**, **updated** (`synchronize`), or **reopened**: builds `:embedded` and runs `:embedded:connectedDebugAndroidTest` on an API 34 emulator (sharded matrix).
+- Manual runs: **Actions → Demo Embedded E2E (Android) → Run workflow**.
+
+## Notes
+- This branch includes the **token refresh Mutex** commit from the prior base branch (`refresh-coroutine`). If you want E2E only on top of current `master`, say so and we can split/rebase.
+
+## How to verify
+- Open this PR → check **Checks** for **Embedded E2E** shards and JUnit report.
+- Locally: `./gradlew :embedded:connectedDebugAndroidTest` with a device/AVD.
+
+Made with [Cursor](https://cursor.com)
+Added full support for the FRONTEGG_DISABLE_AUTO_REFRESH flag.
+When enabled, automatic token refresh is disabled in all cases, including offline mode, initialization, and other refresh mechanisms.
+
+## v
 ### Added
 - Added offline mode config flags:
   - `FRONTEGG_ENABLE_OFFLINE_MODE` (default `false`)
