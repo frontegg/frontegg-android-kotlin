@@ -243,6 +243,43 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     }
 
     @Test
+    fun testAuthenticatedColdStartWithExpiredAccessTokenAndTransientProbeFailurePreservesSession() {
+        // Reproduces customer report: app backgrounded 5+ hours → FCM push wakes the
+        // process → user lands on login screen instead of authenticated state.
+        //
+        // FCM-triggered cold starts often fire while the radio is resuming from doze, so
+        // the SDK's network-quality probe (HEAD /<base>/test) can transiently fail even
+        // though the device is online and the refresh token is valid.
+        //
+        // With enableOfflineMode = false (the default), the network-gate branch at
+        // FronteggAuthService.kt:1216-1230 currently calls clearCredentials() on a single
+        // failed probe — wiping a perfectly good session. This test asserts the opposite:
+        // a transient probe failure must NOT destroy the session; the SDK should proceed
+        // to refresh-token validation and keep the user authenticated.
+        //
+        // Expected to fail until the bug at FronteggAuthService.kt:1226 is fixed.
+        mock.configureTokenPolicy(
+            email = "test@frontegg.com",
+            accessTTL = expiringAccessTokenTTL,
+            refreshTTL = longLivedRefreshTokenTTL,
+        )
+        launchApp(resetState = true, enableOfflineMode = false)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        terminateApp()
+        // Simulate the long background: access token expires before relaunch.
+        waitDurationSeconds((expiringAccessTokenTTL + 14).toLong())
+        // Simulate the FCM-wake-from-doze condition: the first network-quality probe
+        // after relaunch returns 503. Subsequent probes will succeed (only one queued).
+        mock.queueProbeFailures(listOf(503))
+        launchApp(resetState = false, enableOfflineMode = false)
+        dismissBrowserForegroundIfNeeded()
+        instrumentation.waitForIdleSync()
+        // Today: lands on LoginPageRoot. After fix: must stay authenticated.
+        waitForUserEmail("test@frontegg.com", timeoutMs = 300_000)
+    }
+
+    @Test
     fun testPasswordLoginWorksWithOfflineModeDisabled() {
         launchApp(resetState = true, enableOfflineMode = false)
         waitForDesc("LoginPageRoot", 120_000)

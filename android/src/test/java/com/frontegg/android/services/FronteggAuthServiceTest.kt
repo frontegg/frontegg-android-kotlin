@@ -730,4 +730,57 @@ class FronteggAuthServiceTest {
         auth.stepUp(mockActivity, duration, null)
         coVerify { stepUpAuthenticator.stepUp(any(), any(), any()) }
     }
+
+    @Test
+    fun `initializeSubscriptions preserves session when network probe transiently fails on cold start`() = runBlocking {
+        // Reproduces customer-reported bug: app backgrounded 5+ hours, FCM cold-start triggers
+        // initializeSubscriptions while the radio is still resuming from doze. The synchronous
+        // network-quality probe (HEAD /<base>/test) returns false for ~one cycle, even though
+        // the device is online and the refresh token is valid.
+        //
+        // With enableOfflineMode = false (default), FronteggAuthService.kt:1216-1230 currently
+        // calls clearCredentials() on a single failed probe — wiping a perfectly good session.
+        //
+        // Expected (post-fix): a transient probe failure must NOT destroy the session. Tokens
+        // remain on disk and in memory; the SDK proceeds to /me / refresh validation.
+        // This test currently FAILS and is the reproduction for the bug.
+
+        // Logged-in state: tokens were persisted on disk by a previous successful login.
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, null) } returns "saved-access-token"
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, null) } returns "saved-refresh-token"
+        every { credentialManagerMock.clear() } returns Unit
+        every { credentialManagerMock.clear(any()) } returns Unit
+        every { credentialManagerMock.clearOfflineUser() } returns true
+        every { credentialManagerMock.getOfflineUser() } returns null
+        every { credentialManagerMock.saveLastTenantIdForUser(any(), any()) } returns true
+        every { credentialManagerMock.setCurrentTenantId(any()) } returns true
+        every { credentialManagerMock.save(any(), any()) } returns true
+        every { credentialManagerMock.save(any(), any(), any()) } returns true
+
+        // The trigger: probe returns false (cached radio state during wake-from-doze).
+        every { NetworkGate.isNetworkLikelyGood(any()) } returns false
+
+        // The actual /me call would succeed if the SDK didn't short-circuit on the probe.
+        val user = User()
+        every { apiMock.me() } returns user
+        mockkObject(JWTHelper)
+        val jwt = JWT()
+        jwt.exp = (System.currentTimeMillis() / 1000) + 3600
+        every { JWTHelper.decode(any()) } returns jwt
+
+        auth.initializeSubscriptions()
+        delay(300) // bgScope.launch on Dispatchers.Unconfined; small slack for safety
+
+        // Post-fix expectations: session is preserved, credentials NOT wiped.
+        assert(auth.accessToken.value == "saved-access-token") {
+            "Access token should remain in memory after a transient probe failure, was ${auth.accessToken.value}"
+        }
+        assert(auth.refreshToken.value == "saved-refresh-token") {
+            "Refresh token should remain in memory after a transient probe failure, was ${auth.refreshToken.value}"
+        }
+        assert(auth.isAuthenticated.value) {
+            "isAuthenticated should remain true on a transient probe failure with valid stored tokens — currently flips to false because clearCredentials() is called"
+        }
+        verify(exactly = 0) { credentialManagerMock.clear(any()) }
+    }
 }
