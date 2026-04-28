@@ -1263,17 +1263,20 @@ class FronteggAuthService(
                 // Check network quality before attempting any network operations
                 if (!isNetworkGoodSync()) {
                     Log.w(TAG, "Network quality is poor during initialization, keeping tokens")
+                    // A transient probe failure (e.g., FCM cold start while the radio is
+                    // resuming from doze) is not an auth failure. Keep the cached session
+                    // optimistically — a real auth failure will be surfaced when the next
+                    // /me or /oauth/token call returns 401, not by a 5-second probe.
+                    this@FronteggAuthService.isAuthenticated.value = true
                     if (enableOfflineMode) {
-                        this@FronteggAuthService.isAuthenticated.value = true
                         credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
                         this@FronteggAuthService.setOfflineMode(true)
                         this@FronteggAuthService.isLoading.value = true
                         initializing.value = false
                         startUserDataMonitoring()
                     } else {
-                        clearCredentials()
-                        initializing.value = false
                         isLoading.value = false
+                        initializing.value = false
                     }
                     return@launch
                 }

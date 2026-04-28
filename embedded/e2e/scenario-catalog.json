@@ -97,6 +97,11 @@
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     },
     {
+      "method": "testAuthenticatedColdStartWithExpiredAccessTokenAndTransientProbeFailurePreservesSession",
+      "title": "Cold start with expired access token and transient probe failure preserves session",
+      "description": "Logs in with enableOfflineMode=false, terminates, waits past access-token expiry, queues a single probe failure, and relaunches — verifies the session is preserved instead of being wiped by the network gate (regression test for the FCM-cold-start bug)."
+    },
+    {
       "method": "testLogoutClearsSessionAndRelaunchShowsLogin",
       "title": "Logout clears session so relaunch shows login",
       "description": "Logs in, logs out, terminates, relaunches without reset, and verifies the login page appears (keychain cleared by logout).",
