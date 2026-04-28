@@ -16,6 +16,7 @@ const CONFIG = {
   testSources: [
     path.join(ROOT, "embedded/src/androidTest/java/com/frontegg/demo/e2e/EmbeddedE2ETests.kt"),
   ],
+  /** @deprecated — kept for backward compat; new catalog entries carry their own "class" field. */
   testClass: "com.frontegg.demo.e2e.EmbeddedE2ETests",
 };
 
@@ -26,6 +27,7 @@ function readCatalogMethods(catalogPath) {
     .map((entry) => entry.method)
     .filter((method) => typeof method === "string" && method.length > 0);
 }
+
 
 function readKotlinTestMethods(testSources) {
   const methods = new Set();
