@@ -1,3 +1,39 @@
+## v
+## Summary
+
+- A failed network-quality probe during `initializeSubscriptions()` was being treated as an auth failure when `enableOfflineMode` is disabled (the default), calling `clearCredentials()` and wiping a perfectly valid session.
+- Most visible on FCM-driven cold starts after long backgrounds: the radio is still resuming from doze, the 5-second HEAD probe to `/<base>/test` returns a stale negative, and the user lands on the login screen even though the refresh token is still valid.
+- Apply the same pattern as [86a5793](https://github.com/frontegg/frontegg-android-kotlin/commit/86a5793) (transient 5xx during refresh): keep cached tokens, mark the user authenticated, let the next `/me` or `/oauth/token` call surface a real 401 if the user was actually logged out server-side. A 5s HEAD probe is a hint, not auth state.
+
+## Reproduction
+
+Confirmed by a unit test that drives `initializeSubscriptions()` directly with persisted tokens + forced probe failure + `enableOfflineMode = false`. Before the fix, the test failed at:
+
+```
+java.lang.AssertionError: Access token should remain in memory
+after a transient probe failure, was null
+```
+
+Proving `clearCredentials()` had wiped the in-memory session. After the fix the test passes.
+
+## Test plan
+
+- [x] New unit test `FronteggAuthServiceTest.initializeSubscriptions preserves session when network probe transiently fails on cold start` — passes with the fix, fails on `master`
+- [x] Full `:android:testDebugUnitTest` suite green
+- [x] Full `FronteggAuthServiceTest`, `FronteggAuthServiceExtendedTest`, `FronteggAppServiceTest` suites green
+- [ ] New E2E test `EmbeddedE2ETests.testAuthenticatedColdStartWithExpiredAccessTokenAndTransientProbeFailurePreservesSession` — runs via the existing emulator CI matrix
+- [ ] Existing E2E tests covering `enableOfflineMode = false` paths (`testColdLaunchWithOfflineModeDisabledReachesLoginQuickly`, `testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers`, `testPasswordLoginWorksWithOfflineModeDisabled`) still pass
+
+## Behaviour matrix
+
+| Scenario | `enableOfflineMode` | Before | After |
+|---|---|---|---|
+| Cold start, no tokens, probe fails | any | login screen | login screen (unchanged) |
+| Cold start, valid tokens, probe fails | `true` | offline mode + authed | offline mode + authed (unchanged) |
+| Cold start, valid tokens, probe fails | `false` | **`clearCredentials()` → login screen** | authed; next `/me` decides |
+| `/oauth/token` returns 5xx during refresh | any | authed (since 86a5793) | authed (unchanged) |
+| `/oauth/token` returns 401 (real server logout) | any | login screen | login screen (unchanged) |
+
 
 - added full support for the FRONTEGG_DISABLE_AUTO_REFRESH flag.
 When enabled, automatic token refresh is disabled in all cases, including offline mode, initialization, and other refresh mechanisms.
