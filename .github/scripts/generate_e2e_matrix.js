@@ -60,6 +60,7 @@ const TEST_WEIGHTS = {
   testLogoutTerminateTransientNoConnectionThenCustomSSORecovers: 72,
   testScheduledTokenRefreshFiresBeforeExpiry: 68,
   testExpiredAccessTokenRefreshesOnAuthenticatedRelaunch: 62,
+  testAuthenticatedColdStartWithExpiredAccessTokenAndTransientProbeFailurePreservesSession: 62,
   testAuthenticatedRelaunchWithExpiredAccessTokenAndFreshRefreshToken: 60,
   testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken: 58,
   testPasswordLoginAndSessionRestore: 52,
@@ -117,6 +118,7 @@ const SOLO_SHARD_METHODS = new Set([
   "testAuthenticatedOfflineModeRecoversToOnlineAndRefreshesToken",
   "testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken",
   "testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers",
+  "testAuthenticatedColdStartWithExpiredAccessTokenAndTransientProbeFailurePreservesSession",
 ]);
 
 /**
