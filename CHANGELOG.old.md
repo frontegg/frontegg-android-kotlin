@@ -1,3 +1,7 @@
+
+- added full support for the FRONTEGG_DISABLE_AUTO_REFRESH flag.
+When enabled, automatic token refresh is disabled in all cases, including offline mode, initialization, and other refresh mechanisms.
+
 ## v
 ### Added
 - Added offline mode config flags:
