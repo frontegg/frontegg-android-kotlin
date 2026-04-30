@@ -1,13 +1,13 @@
 package com.frontegg.debug
 
 import android.content.Context
+import android.content.pm.ApplicationInfo
 import android.util.Log
 import kotlinx.coroutines.*
 import org.json.JSONArray
 import org.json.JSONException
 import java.net.HttpURLConnection
 import java.net.URL
-import com.frontegg.android.BuildConfig
 
 class AndroidDebugConfigurationChecker(
     private val context: Context,
@@ -20,8 +20,11 @@ class AndroidDebugConfigurationChecker(
     private val assetLinksUrl: String = "$baseUrl/.well-known/assetlinks.json"
     private val oauthPreloginEndpoint: String = "$baseUrl/oauth/prelogin"
 
+    private val isHostAppDebuggable: Boolean
+        get() = (context.applicationInfo.flags and ApplicationInfo.FLAG_DEBUGGABLE) != 0
+
     fun runChecks() {
-        if (!BuildConfig.DEBUG) {
+        if (!isHostAppDebuggable) {
             Log.d(TAG, "ℹ️ Skipping debug configuration checks in release mode.")
             return
         }
