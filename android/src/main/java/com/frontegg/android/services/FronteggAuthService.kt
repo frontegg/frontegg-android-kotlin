@@ -137,14 +137,6 @@ class FronteggAuthService(
         }
     }
 
-    private fun getCachedTenantIdForUser(user: User): String? {
-        return try {
-            credentialManager.getLastTenantIdForUser(user.id)
-        } catch (_: Exception) {
-            null
-        }
-    }
-    
     private val multiFactorAuthenticator =
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
     private val stepUpAuthenticator =
@@ -770,19 +762,17 @@ class FronteggAuthService(
 
                 if (enableSessionPerTenant) {
                     val serverTenantId = user.activeTenant.tenantId
-                    val cachedTenantId = getCachedTenantIdForUser(user)
-                    val cachedTenantValid =
-                        !cachedTenantId.isNullOrBlank() && user.tenants.any { it.tenantId == cachedTenantId }
+                    // Trust the server's active tenant on a fresh login (initialTenantId == null).
+                    // The per-user "last tenant" cache used to override server here, but that yanked
+                    // users back to a stale tenant after logout-then-relogin under a different
+                    // tenant — see FR-24632. The cache is still written below for diagnostic/host-app
+                    // use; callers who want "remember last tenant" should re-issue switchTenant.
+                    val desiredTenantId = initialTenantId ?: serverTenantId
 
-                    val desiredTenantId = when {
-                        initialTenantId != null -> initialTenantId
-                        cachedTenantValid -> cachedTenantId
-                        else -> serverTenantId
-                    }
-
-                    if (!desiredTenantId.isNullOrBlank() && desiredTenantId != serverTenantId) {
+                    if (desiredTenantId.isNotBlank() && desiredTenantId != serverTenantId) {
                         try {
-                            // Align server-side active tenant to the cached tenant for this user/device.
+                            // initialTenantId differs from server (e.g. mid-session token refresh
+                            // for the user's currently-selected tenant). Realign server-side.
                             api.switchTenant(desiredTenantId)
 
                             // Tokens are tenant-dependent; refresh to get tokens for the desired tenant.
@@ -800,7 +790,7 @@ class FronteggAuthService(
                         }
                     }
 
-                    val finalTenantId = desiredTenantId ?: user.activeTenant.tenantId
+                    val finalTenantId = desiredTenantId.ifBlank { user.activeTenant.tenantId }
                     credentialManager.setCurrentTenantId(finalTenantId)
                     credentialManager.save(CredentialKeys.REFRESH_TOKEN, finalRefreshToken, finalTenantId)
                     credentialManager.save(CredentialKeys.ACCESS_TOKEN, finalAccessToken, finalTenantId)
@@ -861,19 +851,17 @@ class FronteggAuthService(
 
                 if (enableSessionPerTenant) {
                     val serverTenantId = user.activeTenant.tenantId
-                    val cachedTenantId = getCachedTenantIdForUser(user)
-                    val cachedTenantValid =
-                        !cachedTenantId.isNullOrBlank() && user.tenants.any { it.tenantId == cachedTenantId }
+                    // Trust the server's active tenant on a fresh login (initialTenantId == null).
+                    // The per-user "last tenant" cache used to override server here, but that yanked
+                    // users back to a stale tenant after logout-then-relogin under a different
+                    // tenant — see FR-24632. The cache is still written below for diagnostic/host-app
+                    // use; callers who want "remember last tenant" should re-issue switchTenant.
+                    val desiredTenantId = initialTenantId ?: serverTenantId
 
-                    val desiredTenantId = when {
-                        initialTenantId != null -> initialTenantId
-                        cachedTenantValid -> cachedTenantId
-                        else -> serverTenantId
-                    }
-
-                    if (!desiredTenantId.isNullOrBlank() && desiredTenantId != serverTenantId) {
+                    if (desiredTenantId.isNotBlank() && desiredTenantId != serverTenantId) {
                         try {
-                            // Align server-side active tenant to the cached tenant for this user/device.
+                            // initialTenantId differs from server (e.g. mid-session token refresh
+                            // for the user's currently-selected tenant). Realign server-side.
                             api.switchTenant(desiredTenantId)
 
                             // Tokens are tenant-dependent; refresh to get tokens for the desired tenant.
@@ -891,7 +879,7 @@ class FronteggAuthService(
                         }
                     }
 
-                    val finalTenantId = desiredTenantId ?: user.activeTenant.tenantId
+                    val finalTenantId = desiredTenantId.ifBlank { user.activeTenant.tenantId }
                     credentialManager.setCurrentTenantId(finalTenantId)
                     credentialManager.save(CredentialKeys.REFRESH_TOKEN, finalRefreshToken, finalTenantId)
                     credentialManager.save(CredentialKeys.ACCESS_TOKEN, finalAccessToken, finalTenantId)

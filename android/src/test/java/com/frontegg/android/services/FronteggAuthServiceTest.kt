@@ -14,6 +14,7 @@ import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.models.AuthResponse
+import com.frontegg.android.models.Tenant
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
@@ -782,5 +783,71 @@ class FronteggAuthServiceTest {
             "isAuthenticated should remain true on a transient probe failure with valid stored tokens — currently flips to false because clearCredentials() is called"
         }
         verify(exactly = 0) { credentialManagerMock.clear(any()) }
+    }
+
+    @Test
+    fun `setCredentials does not reconcile to cached per-user tenant on fresh post-logout login`() {
+        // FR-24632: same human / same user.id with memberships in tenants A and B.
+        // Customer logs in under A, logs out, logs back in under B (e.g. via
+        // organization param or a tenant-specific login URL). After logout,
+        // last_tenant_id_user_<id> is intentionally preserved on disk
+        // (CredentialManager.kt:152-167). Pre-fix, setCredentials's reconciliation
+        // (FronteggAuthService.kt:773-801) saw initialTenantId=null + cachedTenantId=A
+        // valid for the user, picked A as desiredTenantId, and called
+        // api.switchTenant(A) + api.refreshToken — pinning state back to A even
+        // though the user just logged in under B. The customer's app then called
+        // switchTenant(B) to correct, which fell through to refreshIdempotent and
+        // hit the v1.3.23 skip-if-not-expired guard, so state stayed on A until
+        // the access token expired (~45s) and auto-refresh fired.
+        //
+        // Expected (post-fix): a fresh login lands on the server's active tenant.
+        // The "remember last tenant" cache is appropriate for cold-start with
+        // persisted tokens (handled by initialTenantId != null), not for fresh
+        // post-logout logins where the user has just made an explicit choice.
+
+        every { storageMock.enableSessionPerTenant }.returns(true)
+
+        // Post-logout state: in-memory tokens cleared, currentTenantId cleared,
+        // but per-user "last tenant" preserved (== "tenant-A").
+        every { credentialManagerMock.getCurrentTenantId() }.returns(null) andThen "tenant-B"
+        every { credentialManagerMock.getLastTenantIdForUser("user-1") }.returns("tenant-A")
+        every { credentialManagerMock.setCurrentTenantId(any()) }.returns(true)
+        every { credentialManagerMock.saveLastTenantIdForUser(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
+
+        // The user just logged in under tenant-B; the server confirms that.
+        val tenantA = Tenant().apply { id = "tenant-A"; tenantId = "tenant-A" }
+        val tenantB = Tenant().apply { id = "tenant-B"; tenantId = "tenant-B" }
+        val user = User().apply {
+            id = "user-1"
+            tenants = listOf(tenantA, tenantB)
+            activeTenant = tenantB
+        }
+        every { apiMock.me() }.returns(user)
+
+        mockkObject(JWTHelper)
+        val jwt = JWT()
+        jwt.exp = (System.currentTimeMillis() / 1000) + 3600
+        every { JWTHelper.decode(any()) }.returns(jwt)
+
+        every { Log.w(any(), any<String>()) } returns 0
+        every { Log.w(any(), any<String>(), any()) } returns 0
+
+        // Drives setCredentials(access, refresh) through the public surface.
+        auth.updateCredentials("access-token-for-B", "refresh-token-for-B")
+
+        // No spurious reconciliation: the SDK must not yank the user back to the cached tenant.
+        verify(exactly = 0) { apiMock.switchTenant(any()) }
+        verify(exactly = 0) { apiMock.refreshToken(any()) }
+
+        // State reflects the server's active tenant (B), not the cached tenant (A).
+        verify { credentialManagerMock.setCurrentTenantId("tenant-B") }
+        assert(auth.user.value?.activeTenant?.tenantId == "tenant-B") {
+            "user.activeTenant should be tenant-B (server's active tenant), was ${auth.user.value?.activeTenant?.tenantId}"
+        }
+        assert(auth.accessToken.value == "access-token-for-B") {
+            "accessToken.value should be the freshly-minted token for tenant-B, was ${auth.accessToken.value}"
+        }
     }
 }
