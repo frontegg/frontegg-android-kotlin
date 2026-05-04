@@ -1,3 +1,8 @@
+## v
+## Summary
+
+- A failed network-quality probe during `initializeSubscriptions()` was being treated as an auth failure when `enableOfflineMode` is disabled (the default), calling `clearCredentials()` and wiping a perfectly valid session.
+
 
 - added full support for the FRONTEGG_DISABLE_AUTO_REFRESH flag.
 When enabled, automatic token refresh is disabled in all cases, including offline mode, initialization, and other refresh mechanisms.

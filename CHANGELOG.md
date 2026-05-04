@@ -1,6 +1,42 @@
 ## v
 ## Summary
 
+- Pass the PR description into the CHANGELOG bash step via the step `env:` block instead of literal `${{ ... }}` interpolation, and write it with `printf '%s\n' "$DESCRIPTION"` instead of `echo -e '...'`.
+- Apply the same fix to the release-PR variant (`onReleasePullRequestUpdated.yaml`), and while there, fix a latent bug in the no-old-file branch that referenced a non-existent `steps.get_description.outputs.DESCRIPTION` instead of the local `$DESCRIPTION` variable.
+
+## Why
+
+The release-PR job for [#242](https://github.com/frontegg/frontegg-android-kotlin/pull/242) failed at the "Update CHANGELOG file" step with `syntax error near unexpected token '('` (run [25211285757](https://github.com/frontegg/frontegg-android-kotlin/actions/runs/25211285757/job/73922296752)).
+
+Root cause: the step body was literally —
+
+```bash
+echo -e '${{ steps.get_description.outputs.DESCRIPTION }}' > ./CHANGELOG.md
+```
+
+GitHub Actions substitutes the expression as raw text into the rendered shell script. The PR body for #242 contained apostrophes (`customer's`, `didn't`, `setCredentials's`); the first one closed the single-quoted string, and the next `(FR-24632)` then parsed as a subshell, blowing up the job. Any future PR with a `'`, backtick, or `\` in the description would hit the same crash. This isn't theoretical — the merged release for v1.3.27 silently lost its CHANGELOG entry because of this.
+
+The fix: route the description through the step's `env:` block (Actions handles escaping into the env, not the shell) and write it via `printf '%s\n' "$DESCRIPTION"`. With the variable double-quoted, all of `'`, `(`, backtick, `\` survive untouched.
+
+## Behaviour change
+
+| Scenario | Before | After |
+| --- | --- | --- |
+| PR body contains apostrophe / paren / backtick / single quote | Step crashes with shell syntax error, CHANGELOG not updated | CHANGELOG written verbatim |
+| PR body is plain ASCII without special chars | CHANGELOG written | Same — CHANGELOG written |
+| `release/next` flow with no `CHANGELOG.old.md` present | Wrote empty (referenced undefined `steps.get_description.outputs.DESCRIPTION`) | Writes the actual `$DESCRIPTION` |
+
+## Test plan
+
+- [x] YAML parses (`python3 -c "import yaml; yaml.safe_load(...)"`)
+- [x] Local repro: `DESCRIPTION="customer's (FR-24632)" printf '%s\n' "\$DESCRIPTION"` writes the string verbatim with no shell error.
+- [ ] Next merge to `master` exercises `onPullRequestMerged` end-to-end (will validate on first real release after merge).
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## v
+## Summary
+
 - A failed network-quality probe during `initializeSubscriptions()` was being treated as an auth failure when `enableOfflineMode` is disabled (the default), calling `clearCredentials()` and wiping a perfectly valid session.
 
 
