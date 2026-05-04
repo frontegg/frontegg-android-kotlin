@@ -122,6 +122,7 @@ jobs:
       - name: Update CHANGELOG file
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DESCRIPTION: ${{ steps.get_description.outputs.DESCRIPTION }}
         shell: bash
         run: |
           if [[ -f "${{ env.CHANGELOG_FILE }}" ]]; then
@@ -129,15 +130,17 @@ jobs:
           else
             echo "WARNING: CHANGELOG_FILE does not exist!"
           fi
-          
-          
-          # Append PR description to CHANGELOG_FILE safely
+
+
+          # Append PR description to CHANGELOG_FILE safely. The description is
+          # passed via env (which GitHub Actions properly escapes) rather than
+          # interpolated as a literal shell token, so apostrophes/backticks/
+          # parens in the PR body don't break shell quoting.
           if [[ -f "${{ env.CHANGELOG_FILE }}" ]]; then
-            CHANGELOG_FILE_CONTENT="$(cat ${{ env.CHANGELOG_FILE }})"
-            echo -e '${{ steps.get_description.outputs.DESCRIPTION }}' > ${{ env.CHANGELOG_FILE }}
-            echo -e "\n$CHANGELOG_FILE_CONTENT" >> ${{ env.CHANGELOG_FILE }}
+            CHANGELOG_FILE_CONTENT="$(cat "${{ env.CHANGELOG_FILE }}")"
+            printf '%s\n\n%s\n' "$DESCRIPTION" "$CHANGELOG_FILE_CONTENT" > "${{ env.CHANGELOG_FILE }}"
           else
-            echo -e '${{ steps.get_description.outputs.DESCRIPTION }}' > ${{ env.CHANGELOG_FILE }}
+            printf '%s\n' "$DESCRIPTION" > "${{ env.CHANGELOG_FILE }}"
           fi
 
       - name: Commit changes

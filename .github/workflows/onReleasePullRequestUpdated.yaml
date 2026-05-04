@@ -39,12 +39,16 @@ jobs:
           # Extract the description (body field)
           DESCRIPTION=$(echo "$pr_metadata" | jq -r '.body // ""')
           
-          # Check if DESCRIPTION is valid
+          # Check if DESCRIPTION is valid. Use printf with the variable in
+          # double quotes so apostrophes/backticks/parens in the PR body don't
+          # break shell quoting (the previous single-quoted echo would crash on
+          # any apostrophe in the description).
           if [[ -n "$DESCRIPTION" && "$DESCRIPTION" != "null" ]]; then
             if [[ -f "${{ env.CHANGELOG_OLD_FILE }}" ]]; then
-              echo -e "$DESCRIPTION\n\n$(cat ${{ env.CHANGELOG_OLD_FILE }})" > ${{ env.CHANGELOG_FILE }}
+              OLD_CONTENT="$(cat "${{ env.CHANGELOG_OLD_FILE }}")"
+              printf '%s\n\n%s\n' "$DESCRIPTION" "$OLD_CONTENT" > "${{ env.CHANGELOG_FILE }}"
             else
-              echo '${{ steps.get_description.outputs.DESCRIPTION }}' > ${{ env.CHANGELOG_FILE }}
+              printf '%s\n' "$DESCRIPTION" > "${{ env.CHANGELOG_FILE }}"
             fi
           else
             echo "No description provided in the pull request. The 'release/next' branch must provide a description for correct CHANGELOG.md generation."
