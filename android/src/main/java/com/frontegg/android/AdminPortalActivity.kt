@@ -52,6 +52,11 @@ class AdminPortalActivity : FronteggBaseActivity() {
             // persistent sidebar.
             useWideViewPort = true
             loadWithOverviewMode = true
+            // Pinch-to-zoom + pan-while-zoomed: without these the user can zoom
+            // (because user-scalable=yes) but cannot scroll around the zoomed page.
+            // displayZoomControls=false hides the legacy on-screen +/- buttons.
+            builtInZoomControls = true
+            displayZoomControls = false
             // Desktop Safari UA — backstop for any UA-sniffing branches in the
             // portal's responsive logic.
             userAgentString = DESKTOP_USER_AGENT
@@ -106,6 +111,24 @@ class AdminPortalActivity : FronteggBaseActivity() {
             // from mobile to desktop.
             view?.evaluateJavascript(VIEWPORT_OVERRIDE_JS, null)
         }
+
+        override fun onPageFinished(view: WebView?, url: String?) {
+            super.onPageFinished(view, url)
+            // Re-apply after the page's own JS has had a chance to overwrite the
+            // viewport meta. The script is idempotent and installs a
+            // MutationObserver, so a second invocation just refreshes its watch.
+            view?.evaluateJavascript(VIEWPORT_OVERRIDE_JS, null)
+        }
+
+        override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
+            super.doUpdateVisitedHistory(view, url, isReload)
+            // SPA route changes (pushState/replaceState/popstate) do not fire
+            // onPageStarted/Finished, but they do fire here. The portal swaps
+            // routes via React Router; without this hook a back+forward cycle
+            // sometimes lands us on a route whose own viewport meta clobbered
+            // ours and the layout drops to mobile.
+            view?.evaluateJavascript(VIEWPORT_OVERRIDE_JS, null)
+        }
     }
 
     companion object {
@@ -132,22 +155,39 @@ class AdminPortalActivity : FronteggBaseActivity() {
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
                 "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
 
-        private val VIEWPORT_OVERRIDE_JS = """
+        // Idempotent: safe to evaluate multiple times. Installs a MutationObserver
+        // on <head> exactly once (guarded by a window flag) that reverts any
+        // attempt by the portal's SPA to replace the viewport meta. This is what
+        // keeps the desktop layout sticky across React Router transitions and
+        // back/forward navigation — without it, the page renders desktop on
+        // first load and silently flips to mobile after a few SPA routes.
+        internal const val VIEWPORT_OVERRIDE_JS = """
             (function() {
+                var DESIRED = 'width=1024, user-scalable=yes';
                 var setViewport = function() {
+                    var head = document.head || document.documentElement;
                     var existing = document.querySelector('meta[name="viewport"]');
+                    if (existing && existing.getAttribute('content') === DESIRED) return;
                     if (existing) { existing.parentNode.removeChild(existing); }
                     var meta = document.createElement('meta');
                     meta.setAttribute('name', 'viewport');
-                    meta.setAttribute('content', 'width=1024, user-scalable=yes');
-                    (document.head || document.documentElement).appendChild(meta);
+                    meta.setAttribute('content', DESIRED);
+                    head.appendChild(meta);
                 };
                 setViewport();
                 if (document.readyState === 'loading') {
                     document.addEventListener('DOMContentLoaded', setViewport);
                 }
+                if (!window.__fronteggAdminPortalViewportObserver) {
+                    var head = document.head || document.documentElement;
+                    if (head && typeof MutationObserver !== 'undefined') {
+                        var observer = new MutationObserver(function() { setViewport(); });
+                        observer.observe(head, { childList: true, subtree: true, attributes: true, attributeFilter: ['content', 'name'] });
+                        window.__fronteggAdminPortalViewportObserver = observer;
+                    }
+                }
             })();
-        """.trimIndent()
+        """
 
         /**
          * Launch the embedded admin portal.

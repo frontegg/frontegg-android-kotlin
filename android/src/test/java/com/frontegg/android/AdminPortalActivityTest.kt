@@ -74,6 +74,39 @@ class AdminPortalActivityTest {
     }
 
     @Test
+    fun `viewport override JS targets desktop width`() {
+        // The portal renders mobile when window.innerWidth < ~960 — width=1024 is
+        // what flips Material-UI's responsive hooks back into desktop mode.
+        assertTrue(
+            "expected width=1024 in viewport JS",
+            AdminPortalActivity.VIEWPORT_OVERRIDE_JS.contains("width=1024")
+        )
+    }
+
+    @Test
+    fun `viewport override JS allows user scaling`() {
+        // user-scalable=yes lets the user pinch-zoom (paired with WebView
+        // builtInZoomControls). user-scalable=no would silently disable zoom.
+        assertTrue(
+            "expected user-scalable=yes in viewport JS",
+            AdminPortalActivity.VIEWPORT_OVERRIDE_JS.contains("user-scalable=yes")
+        )
+    }
+
+    @Test
+    fun `viewport override JS installs MutationObserver against SPA route changes`() {
+        // The portal's React Router rewrites the viewport meta on route change;
+        // without an observer, back/forward navigation silently flips the layout
+        // to mobile after a few hops.
+        val js = AdminPortalActivity.VIEWPORT_OVERRIDE_JS
+        assertTrue("expected MutationObserver in viewport JS", js.contains("MutationObserver"))
+        assertTrue(
+            "observer should be installed once and remembered on window",
+            js.contains("__fronteggAdminPortalViewportObserver")
+        )
+    }
+
+    @Test
     fun `open starts AdminPortalActivity with correct component`() {
         val activity = mockk<Activity>(relaxed = true)
         val intentSlot = slot<android.content.Intent>()
