@@ -7,10 +7,12 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.os.Bundle
 import android.util.Log
+import android.util.TypedValue
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import androidx.core.view.WindowCompat
 import com.frontegg.android.ui.FronteggBaseActivity
 
 /**
@@ -29,6 +31,10 @@ class AdminPortalActivity : FronteggBaseActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // Edge-to-edge: let the WebView extend under the system bars. The root
+        // FrameLayout has a solid background drawn under those areas, so there
+        // is no transparency where the system overlay sits.
+        WindowCompat.setDecorFitsSystemWindows(window, false)
         setContentView(R.layout.activity_admin_portal)
 
         webView = findViewById(R.id.admin_portal_webview)
@@ -52,11 +58,14 @@ class AdminPortalActivity : FronteggBaseActivity() {
             // persistent sidebar.
             useWideViewPort = true
             loadWithOverviewMode = true
-            // Pinch-to-zoom + pan-while-zoomed: without these the user can zoom
-            // (because user-scalable=yes) but cannot scroll around the zoomed page.
-            // displayZoomControls=false hides the legacy on-screen +/- buttons.
+            // Pinch-to-zoom + pan-while-zoomed: without builtInZoomControls the
+            // user can zoom (because user-scalable=yes) but cannot scroll around
+            // the zoomed page. displayZoomControls=false hides the legacy
+            // on-screen +/- buttons. setSupportZoom(true) is the default on most
+            // devices, but explicit is safer than relying on the default.
             builtInZoomControls = true
             displayZoomControls = false
+            setSupportZoom(true)
             // Desktop Safari UA — backstop for any UA-sniffing branches in the
             // portal's responsive logic.
             userAgentString = DESKTOP_USER_AGENT
@@ -66,7 +75,11 @@ class AdminPortalActivity : FronteggBaseActivity() {
         // third-party cookies for this WebView so embedded portal frames work.
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
 
-        webView.setBackgroundColor(0)
+        // Resolve the host theme's window background and paint the WebView with
+        // it directly. The WebView default is transparent — without this, any
+        // moment the page hasn't drawn yet (cold load, route transition, scroll
+        // overflow) lets the activity behind us bleed through.
+        webView.setBackgroundColor(resolveThemeBackground())
         webView.webViewClient = AdminPortalWebViewClient()
         webView.webChromeClient = object : WebChromeClient() {
             // The portal's X button calls window.close() — bridge to finish().
@@ -74,6 +87,16 @@ class AdminPortalActivity : FronteggBaseActivity() {
                 Log.d(TAG, "onCloseWindow — finishing")
                 finish()
             }
+        }
+    }
+
+    private fun resolveThemeBackground(): Int {
+        val typedValue = TypedValue()
+        // android.R.attr.colorBackground falls back to white on stock themes.
+        return if (theme.resolveAttribute(android.R.attr.colorBackground, typedValue, true)) {
+            typedValue.data
+        } else {
+            0xFFFFFFFF.toInt()
         }
     }
 
@@ -163,7 +186,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
         // first load and silently flips to mobile after a few SPA routes.
         internal const val VIEWPORT_OVERRIDE_JS = """
             (function() {
-                var DESIRED = 'width=1024, user-scalable=yes';
+                var DESIRED = 'width=1024, user-scalable=yes, minimum-scale=0.3, maximum-scale=3';
                 var setViewport = function() {
                     var head = document.head || document.documentElement;
                     var existing = document.querySelector('meta[name="viewport"]');

@@ -48,6 +48,21 @@ class AdminPortalActivityTest {
     }
 
     @Test
+    fun `buildPortalUrl preserves base url subpath`() {
+        // Some tenants are served from a subpath (e.g. when fronted by a reverse
+        // proxy). The portal endpoint must be appended onto whatever path the
+        // baseUrl already carries.
+        val url = AdminPortalActivity.buildPortalUrl(
+            baseUrl = "https://example.frontegg.com/tenant-a",
+            applicationId = "app-123"
+        )
+        assertEquals(
+            "https://example.frontegg.com/tenant-a/oauth/portal?appId=app-123",
+            url
+        )
+    }
+
+    @Test
     fun `buildPortalUrl preserves base url with trailing slash`() {
         val url = AdminPortalActivity.buildPortalUrl(
             baseUrl = "https://example.frontegg.com/",
@@ -91,6 +106,15 @@ class AdminPortalActivityTest {
             "expected user-scalable=yes in viewport JS",
             AdminPortalActivity.VIEWPORT_OVERRIDE_JS.contains("user-scalable=yes")
         )
+    }
+
+    @Test
+    fun `viewport override JS bounds zoom scale`() {
+        // Bounded zoom range keeps pan offsets sane at extremes — without these,
+        // wide zoom-out or aggressive zoom-in can break the WebView's pan math.
+        val js = AdminPortalActivity.VIEWPORT_OVERRIDE_JS
+        assertTrue("expected minimum-scale bound", js.contains("minimum-scale=0.3"))
+        assertTrue("expected maximum-scale bound", js.contains("maximum-scale=3"))
     }
 
     @Test
