@@ -14,6 +14,7 @@ import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
 import com.bumptech.glide.Glide
+import com.frontegg.android.AdminPortalActivity
 import com.frontegg.android.fronteggAuth
 import com.frontegg.demo.databinding.FragmentHomeBinding
 import java.util.Timer
@@ -159,6 +160,10 @@ class HomeFragment : Fragment() {
                     Toast.LENGTH_SHORT
                 ).show()
             }
+        }
+
+        binding.adminPortalButton.setOnClickListener {
+            activity?.let { AdminPortalActivity.open(it) }
         }
 
         /**

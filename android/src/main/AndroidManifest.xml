@@ -113,6 +113,11 @@
         </activity>
 
         <activity
+            android:name="com.frontegg.android.AdminPortalActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
+        <activity
             android:name="com.frontegg.android.AuthenticationActivity"
             android:exported="true"
             android:launchMode="singleTop">
