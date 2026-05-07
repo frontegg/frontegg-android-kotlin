@@ -23,6 +23,12 @@ import com.frontegg.android.ui.FronteggBaseActivity
  * Cookie strategy: pure pass-through. Cookies the SDK's login WebView wrote during
  * `/oauth/account/social/success` are already visible here — do not synthesize or
  * override them.
+ *
+ * **Beta — API may change in future minor releases.** The class name, [open] entry
+ * point, presentation style (currently a full-screen [Activity]), and Manifest
+ * registration are all subject to revision while this feature is in beta. Pin to
+ * an exact SDK version if you embed this in a shipping app, and watch the
+ * CHANGELOG when upgrading.
  */
 class AdminPortalActivity : FronteggBaseActivity() {
 
@@ -214,6 +220,9 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
         /**
          * Launch the embedded admin portal.
+         *
+         * **Beta — signature and behavior may change in future minor releases.**
+         * See [AdminPortalActivity] for the full beta caveat.
          */
         @JvmStatic
         fun open(activity: Activity) {
