@@ -1,50 +1,13 @@
 ## v
 ## Summary
 
-Adds an embedded **Admin Portal** to the SDK, mirroring the iOS POC on [`frontegg-ios-swift` branch `poc/admin-portal-webview`](https://github.com/frontegg/frontegg-ios-swift/tree/poc/admin-portal-webview). Opens `${baseUrl}/oauth/portal?appId=<applicationId>` in a `WebView` that shares the process-wide `CookieManager` with the SDK's login `WebView`, so authenticated users don't see a second login.
+Adds **Admin Portal BETA version** to the SDK. Opens `${baseUrl}/oauth/portal?appId=<applicationId>` in a `WebView` that shares the process-wide `CookieManager` with the SDK's login `WebView` so authenticated users don't see a second login.
 
 - New public surface: `AdminPortalActivity.open(activity)` from anywhere in the host app
 - Demo app: "Open Admin Portal" button on the home screen
-- ~285 LOC including layout, manifest, and tests
 
 ## Implementation details
-
-Each item below was a separate iteration on iOS — please don't optimize them away without the same rationale:
-
-1. **`?appId=` is required.** Without it, the portal renders "Application not found" after login when the SDK was configured with an application context.
-2. **Cookie strategy: pure pass-through.** Android's `CookieManager` is process-wide; cookies the SDK's login `WebView` placed during `/oauth/account/social/success` are already visible. We do **not** synthesize, override, or mutate cookies.
-3. **Force desktop layout (3-pronged).** Without all three, the portal collapses into a mobile hamburger drawer instead of showing its persistent sidebar:
-   - Desktop Safari `userAgentString`
-   - Viewport `<meta>` override injected via `evaluateJavascript` in `onPageStarted` (`width=1024, user-scalable=yes`, no `initial-scale`)
-   - `useWideViewPort = true` + `loadWithOverviewMode = true` (Android equivalent of iOS `preferredContentMode = .desktop`)
-4. **Edge-to-edge presentation.** No top bar, no Done button (the portal has its own X). `fitsSystemWindows="false"` on the WebView, transparent WebView background over `?colorBackground` on the host.
-5. **Bridge `window.close()`.** `WebChromeClient.onCloseWindow` calls `finish()` so the portal's X button dismisses the screen.
-
-## Known limitations (out of scope, identical to iOS)
-
-- **Google blocks OAuth in Android WebView** (`disallowed_useragent`). If a signed-out user is forced to log in via Google inside the portal, it will fail. Email/password, magic link, passkey work fine.
-- **Hosted-login mode users** (Custom Tabs / Chrome) will see a "log in once inside the portal" prompt the first time, because Custom Tabs cookies don't sync to WebView's `CookieManager`. The fix is a server-side cookie-bootstrap endpoint and is out of scope here.
-- **Embedded-login mode** works silently for ALL auth methods (including Google), because the SDK's login WebView already lands cookies in `CookieManager`.
-
-## Test plan
-
-- [x] `./gradlew :android:testDebugUnitTest --tests "com.frontegg.android.AdminPortalActivityTest"` — 6/6 pass
-- [x] `./gradlew :android:detekt`
-- [x] `./gradlew :android:assembleDebug :app:assembleDebug`
-- [ ] Manual: install demo on a fresh emulator, sign in (any method), tap **Open Admin Portal**, confirm:
-  - Persistent left sidebar visible (Profile / Users / etc.) — NOT a hamburger drawer
-  - No second login screen for embedded-mode users
-  - Sheet dismisses cleanly via system back **or** the portal's own X (`window.close`)
-
-## Out of scope
-
-- Theming the portal
-- Deep-linking to specific portal tabs
-- Step-up auth for sensitive portal actions
-- Multi-window / new-tab support inside the portal
-- BottomSheet-style presentation (current design is full-screen Activity; can revisit if product wants Airbnb/App-Store-style sheet)
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+**`?appId=` is required.** Without it, the portal renders "Application not found" after login when the SDK was configured with an application context
 
 ## v
 ## Summary
