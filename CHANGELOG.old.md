@@ -1,6 +1,12 @@
 ## v
 ## Summary
 
+- trust server tenant on fresh login instead of stale cache
+- gate AndroidDebugConfigurationChecker on host app debuggable flag
+
+## v
+## Summary
+
 - A failed network-quality probe during `initializeSubscriptions()` was being treated as an auth failure when `enableOfflineMode` is disabled (the default), calling `clearCredentials()` and wiping a perfectly valid session.
 
 
