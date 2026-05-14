@@ -1,6 +1,17 @@
 ## v
 ## Summary
 
+Adds **Admin Portal BETA version** to the SDK. Opens `${baseUrl}/oauth/portal?appId=<applicationId>` in a `WebView` that shares the process-wide `CookieManager` with the SDK's login `WebView` so authenticated users don't see a second login.
+
+- New public surface: `AdminPortalActivity.open(activity)` from anywhere in the host app
+- Demo app: "Open Admin Portal" button on the home screen
+
+## Implementation details
+**`?appId=` is required.** Without it, the portal renders "Application not found" after login when the SDK was configured with an application context
+
+## v
+## Summary
+
 - trust server tenant on fresh login instead of stale cache
 - gate AndroidDebugConfigurationChecker on host app debuggable flag
 
