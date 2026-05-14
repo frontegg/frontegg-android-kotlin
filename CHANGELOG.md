@@ -1,6 +1,51 @@
 ## v
 ## Summary
 
+- Threads a `force` flag through `refreshIdempotent` so callers that need a real refresh — even when the current access token has time on its TTL — can bypass the v1.3.23 skip-if-not-expired guard.
+- `switchTenant` now passes `force = true`. Frontegg access tokens are tenant-bound (tenantId is a JWT claim), so a tenant switch must always re-mint tokens.
+- Adds `switchTenant forces a token refresh even when the existing access token is still valid by TTL` to `FronteggAuthServiceTest` as the regression reproduction.
+
+## Why
+
+Retail Success report: `fronteggAuth.getFeatureEntitlements` kept returning `isEntitled: true` after switching to a tenant that did not have the feature — even when the host app explicitly called `loadEntitlements(forceRefresh = true)` before the check. Web behaved correctly; Android did not.
+
+Tracing the bug:
+1. `switchTenant(B)` → `api.switchTenant(B)` flips the user's active tenant on the server. The PUT does not return new tokens — the comment at [FronteggAuthService.kt:778](https://github.com/frontegg/frontegg-android-kotlin/blob/master/android/src/main/java/com/frontegg/android/services/FronteggAuthService.kt#L778) already calls this out: _"Tokens are tenant-dependent; refresh to get tokens for the desired tenant."_
+2. With `enableSessionPerTenant = false` (default), the flow falls through to `refreshIdempotent()` to obtain a tenant-B-bound token.
+3. `refreshIdempotent`'s [skip-if-not-expired guard](https://github.com/frontegg/frontegg-android-kotlin/blob/master/android/src/main/java/com/frontegg/android/services/FronteggAuthService.kt#L377-L386) (added in v1.3.23, commit `623b118`) sees that the existing access token still has time on its `exp` claim and equates "valid by TTL" with "already refreshed by a concurrent caller." That equivalence is wrong here: the token is still valid by TTL but carries the *previous* tenant's claims. The guard returns success without refreshing.
+4. `accessToken.value` stays pinned to the tenant-A token. `loadEntitlements(forceRefresh = true)` correctly bypasses the entitlement-layer cache but sends the stale tenant-A access token to `/frontegg/entitlements/api/v2/user-entitlements`. The entitlements API reads tenant from the JWT claims, so it returns tenant A's entitlement set — which (in the customer's scenario) includes `sso`.
+5. `getFeatureEntitlements("sso")` returns `isEntitled: true` for ~45s until the access token's TTL elapses and `refreshTokenTimer` fires `sendRefreshTokenInternal`, which refreshes unconditionally and finally produces a tenant-B token.
+
+This is pre-acknowledged in the test comment at [FronteggAuthServiceTest.kt:797-801](https://github.com/frontegg/frontegg-android-kotlin/blob/master/android/src/test/java/com/frontegg/android/services/FronteggAuthServiceTest.kt#L797-L801) ("…fell through to refreshIdempotent and hit the v1.3.23 skip-if-not-expired guard, so state stayed on A until the access token expired (~45s) and auto-refresh fired"). PR #242 closed an *upstream* path that wrongly triggered this same chain; this PR closes the underlying refresh guard for the explicit `switchTenant` entry point.
+
+## Behaviour change
+
+| Scenario | Before | After |
+| --- | --- | --- |
+| `switchTenant(B)` while current access token still has TTL left, `enableSessionPerTenant = false` | `refreshIdempotent` skipped the refresh; `accessToken.value` kept tenant-A claims for up to ~45s | `refreshIdempotent(force = true)` always refreshes; `accessToken.value` reflects tenant-B immediately |
+| `switchTenant(B)` while current access token already expired | Refreshed (guard not triggered) | Same — refreshes |
+| `switchTenant(B)` with `enableSessionPerTenant = true` and a per-tenant cached token for B | Used cached tenant-B token (path A) | Same — uses cached tenant-B token |
+| `switchTenant(B)` with `enableSessionPerTenant = true` but no cached tokens for B | Fell through to `refreshIdempotent` (same bug) | Now also force-refreshes |
+| Auto-refresh / concurrent-caller dedup via `refreshIdempotent` (default `force = false`) | Skip-if-not-expired guard active | Unchanged — guard still active |
+
+## Test plan
+
+- [x] New regression test fails on master at the `verify(exactly = 1) { apiMock.refreshToken(...) }` line (0 calls observed pre-fix).
+- [x] New regression test passes after the fix (1 call observed; `accessToken.value` reflects the freshly-minted tenant-B token).
+- [x] `./gradlew :android:testDebugUnitTest` — 496/496 pass.
+- [ ] Manual: reproduce the customer's setup (tenant A with `sso`, tenant B without). Sign in to A on Android, call `switchTenant(B)`, then `loadEntitlements(forceRefresh = true) { ... }`, then `getFeatureEntitlements("sso")`. Expect `isEntitled = false` immediately, not after a ~45s wait.
+- [ ] E2E suite (rerun on CI).
+
+## Out of scope
+
+- Auto-refreshing entitlements after a successful `switchTenant`. Host apps must still call `loadEntitlements(forceRefresh = true)` themselves — same contract as today. Wiring it into `switchTenant` (mirroring `updateStateWithCredentials` at line 936) would be a nice ergonomics follow-up.
+- Clearing `entitlements._state` at the start of `switchTenant` so `checkFeature` returns `ENTITLEMENTS_NOT_LOADED` during the transition instead of the stale tenant-A view. More honest signal, but a behaviour change for host apps that currently read entitlements during the switch.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## v
+## Summary
+
 Adds **Admin Portal BETA version** to the SDK. Opens `${baseUrl}/oauth/portal?appId=<applicationId>` in a `WebView` that shares the process-wide `CookieManager` with the SDK's login `WebView` so authenticated users don't see a second login.
 
 - New public surface: `AdminPortalActivity.open(activity)` from anywhere in the host app
