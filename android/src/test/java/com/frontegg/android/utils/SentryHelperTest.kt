@@ -136,6 +136,61 @@ class SentryHelperTest {
     }
 
     @Test
+    fun `sanitizeBreadcrumbPayload strips URL query`() {
+        val raw = mapOf("url" to "https://example.com/oauth/callback?code=secret&state=abc")
+        val out = SentryHelper.sanitizeBreadcrumbPayloadForTesting(raw)
+        assertEquals("https://example.com/oauth/callback", out["url"])
+    }
+
+    @Test
+    fun `sanitizeBreadcrumbPayload redacts sensitive keys`() {
+        val raw = mapOf(
+            "Authorization" to "Bearer x",
+            "x-amz-security-token" to "tok",
+            "safe" to "ok",
+        )
+        val out = SentryHelper.sanitizeBreadcrumbPayloadForTesting(raw)
+        assertEquals("[redacted]", out["Authorization"])
+        assertEquals("[redacted]", out["x-amz-security-token"])
+        assertEquals("ok", out["safe"])
+    }
+
+    @Test
+    fun `sanitizeBreadcrumbPayload redacts http query and fragment keys`() {
+        val raw = mapOf(
+            "http.query" to "token=1",
+            "http.fragment" to "frag",
+        )
+        val out = SentryHelper.sanitizeBreadcrumbPayloadForTesting(raw)
+        assertEquals("[redacted]", out["http.query"])
+        assertEquals("[redacted]", out["http.fragment"])
+    }
+
+    @Test
+    fun `sanitizeBreadcrumbPayload redacts PKCE and WebAuthn style keys`() {
+        val raw = mapOf(
+            "code_verifier" to "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk",
+            "clientDataJSON" to """{"type":"webauthn.get"}""",
+            "challenge" to "binary-challenge-material",
+            "userHandle" to "dXNlcg",
+        )
+        val out = SentryHelper.sanitizeBreadcrumbPayloadForTesting(raw)
+        assertEquals("[redacted]", out["code_verifier"])
+        assertEquals("[redacted]", out["clientDataJSON"])
+        assertEquals("[redacted]", out["challenge"])
+        assertEquals("[redacted]", out["userHandle"])
+    }
+
+    @Test
+    fun `sanitizeBreadcrumbPayload strips query from location`() {
+        val raw = mapOf(
+            "location" to "https://idp.example.com/callback?code=abc&session_state=xyz",
+        )
+        val out = SentryHelper.sanitizeBreadcrumbPayloadForTesting(raw)
+        assertEquals("https://idp.example.com/callback", out["location"])
+    }
+
+    @Test
     fun `prepare stores constants for later use`() {
         val constants = FronteggConstants(
             baseUrl = "https://test.frontegg.com",
