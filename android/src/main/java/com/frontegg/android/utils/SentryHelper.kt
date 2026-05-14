@@ -12,6 +12,8 @@ import io.sentry.Sentry
 import io.sentry.SentryLevel
 import io.sentry.android.core.SentryAndroid
 import io.sentry.protocol.User
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import java.util.Locale
 import java.util.concurrent.atomic.AtomicBoolean
 
 object SentryHelper {
@@ -32,6 +34,100 @@ object SentryHelper {
 
     @Volatile
     private var storedConstants: FronteggConstants? = null
+
+    // region Breadcrumb sanitization (align with frontegg-ios-swift SentryHelper)
+
+    private fun breadcrumbKeyIsSensitive(key: String): Boolean {
+        val k = key.lowercase(Locale.US)
+        if (k == "code" || k == "state") return true
+        if (k.startsWith("x-amz-")) return true
+        val needles = listOf(
+            "password", "passwd", "secret", "token", "authorization",
+            "credential", "signature", "cookie", "set-cookie", "apikey", "api_key",
+            "access_key", "bearer",
+            "refresh_token", "id_token", "client_secret", "access_token", "device_token",
+            "code_verifier", "verifier",
+            "challenge", "authenticator", "clientdata", "userhandle",
+            "nonce", "jwt", "mfa_token",
+        )
+        return needles.any { k.contains(it) }
+    }
+
+    private fun breadcrumbKeyHoldsUrl(key: String): Boolean {
+        val k = key.lowercase(Locale.US)
+        if (k == "url" || k == "href" || k == "location") return true
+        return k.endsWith("url") || k.endsWith("_uri") || k.endsWith("uri")
+    }
+
+    private fun redactUrlQueryAndFragment(raw: String): String {
+        val parsed = raw.toHttpUrlOrNull()
+            ?: return if (raw.contains("://") && (raw.contains("?") || raw.contains("#"))) {
+                "[redacted_url]"
+            } else {
+                raw
+            }
+        return parsed.newBuilder().query(null).fragment(null).build().toString()
+    }
+
+    private fun coerceToStringKeyMap(value: Any?): Map<String, Any?>? {
+        if (value !is Map<*, *>) return null
+        return value.entries.associate { it.key.toString() to it.value }
+    }
+
+    private fun sanitizeBreadcrumbPayload(input: Map<String, Any?>): MutableMap<String, Any> {
+        val out = LinkedHashMap<String, Any>()
+        for ((key, value) in input) {
+            when {
+                breadcrumbKeyIsSensitive(key) -> out[key] = "[redacted]"
+                key.equals("http.query", ignoreCase = true) ||
+                    key.equals("http.fragment", ignoreCase = true) -> out[key] = "[redacted]"
+                breadcrumbKeyHoldsUrl(key) && value != null ->
+                    out[key] = redactUrlQueryAndFragment(value.toString())
+                else -> when {
+                    value is Map<*, *> -> {
+                        val nested = coerceToStringKeyMap(value) ?: emptyMap()
+                        out[key] = sanitizeBreadcrumbPayload(nested)
+                    }
+                    value is String || value is Number || value is Boolean || value == null ->
+                        out[key] = value ?: "null"
+                    value is Iterable<*> -> {
+                        out[key] = value.map { elem ->
+                            when (elem) {
+                                is Map<*, *> -> sanitizeBreadcrumbPayload(
+                                    coerceToStringKeyMap(elem) ?: emptyMap(),
+                                )
+                                else -> elem?.toString() ?: "null"
+                            }
+                        }
+                    }
+                    else -> out[key] = value?.toString() ?: "null"
+                }
+            }
+        }
+        return out
+    }
+
+    private fun applyBreadcrumbSanitization(crumb: Breadcrumb) {
+        val data = crumb.data
+        if (data != null && data.isNotEmpty()) {
+            val copy = LinkedHashMap<String, Any?>()
+            data.forEach { (k, v) -> copy[k] = v }
+            val sanitized = sanitizeBreadcrumbPayload(copy)
+            data.clear()
+            sanitized.forEach { (k, v) -> data[k] = v }
+        }
+        val msg = crumb.message
+        if (!msg.isNullOrEmpty() && msg.contains("://") && (msg.contains("?") || msg.contains("#"))) {
+            crumb.message = redactUrlQueryAndFragment(msg)
+        }
+    }
+
+    /** For unit tests only. */
+    @VisibleForTesting
+    internal fun sanitizeBreadcrumbPayloadForTesting(data: Map<String, Any?>): Map<String, Any> =
+        sanitizeBreadcrumbPayload(LinkedHashMap(data))
+
+    // endregion
 
     fun isEnabled(): Boolean = enabled.get() && initialized.get()
 
@@ -96,6 +192,11 @@ object SentryHelper {
 
             // Avoid extra network instrumentation; we do our own lightweight breadcrumbs.
             options.isEnableNetworkEventBreadcrumbs = false
+
+            options.setBeforeBreadcrumb { crumb, _: Hint? ->
+                applyBreadcrumbSanitization(crumb)
+                crumb
+            }
 
             // Environment/release naming similar to iOS.
             options.environment = applicationContext.packageName
@@ -165,9 +266,11 @@ object SentryHelper {
         breadcrumb.message = message
         breadcrumb.category = category
         breadcrumb.level = level
-        data.forEach { (k, v) ->
-            breadcrumb.setData(k, v?.toString() ?: "null")
-        }
+        val stringKeyed = LinkedHashMap<String, Any?>(data.size)
+        data.forEach { (k, v) -> stringKeyed[k] = v }
+        val sanitized = sanitizeBreadcrumbPayload(stringKeyed)
+        sanitized.forEach { (k, v) -> breadcrumb.setData(k, v) }
+        applyBreadcrumbSanitization(breadcrumb)
         Sentry.addBreadcrumb(breadcrumb)
     }
 
