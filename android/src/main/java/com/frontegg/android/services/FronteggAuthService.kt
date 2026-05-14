@@ -335,8 +335,12 @@ class FronteggAuthService(
                 }
             }
 
+            // Tokens are tenant-bound (tenantId is a JWT claim), so a tenant switch must
+            // always issue a real refresh — even if the current access token's TTL has
+            // not elapsed. Otherwise the SDK keeps acting as the previous tenant until
+            // the next auto-refresh fires.
             val success = try {
-                refreshIdempotent()
+                refreshIdempotent(force = true)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to refresh token during tenant switch", e)
                 false
@@ -365,23 +369,32 @@ class FronteggAuthService(
      * Uses a coroutine Mutex so that concurrent callers suspend and wait for the
      * in-progress refresh instead of silently returning. After acquiring the lock
      * each caller re-checks token validity to avoid redundant API calls.
+     *
+     * Set [force] = true for callers (like tenant switch) that need a real refresh
+     * even when the current access token has time on its TTL. Frontegg access tokens
+     * are tenant-bound (tenantId is in the JWT claims), so after switching tenants
+     * the existing token is "still valid" by TTL but stale by tenant — skipping
+     * the refresh would leave the SDK acting as the previous tenant.
      */
     private suspend fun refreshIdempotent(
         source: RefreshInvocationSource = RefreshInvocationSource.MANUAL_USER,
-        processQueueAfterSuccess: Boolean = true
+        processQueueAfterSuccess: Boolean = true,
+        force: Boolean = false
     ): Boolean {
         if (isAutoRefreshBlocked(source)) {
             Log.d(TAG, "Skipping auto refresh (FRONTEGG_DISABLE_AUTO_REFRESH=true)")
             return false
         }
         val success = refreshMutex.withLock {
-            val currentAccessToken = accessToken.value
-            if (currentAccessToken != null) {
-                val decoded = JWTHelper.decode(currentAccessToken)
-                val offset = decoded.exp.calculateTimerOffset()
-                if (offset > 0) {
-                    Log.d(TAG, "refreshIdempotent: token already refreshed by concurrent call, skipping")
-                    return@withLock true
+            if (!force) {
+                val currentAccessToken = accessToken.value
+                if (currentAccessToken != null) {
+                    val decoded = JWTHelper.decode(currentAccessToken)
+                    val offset = decoded.exp.calculateTimerOffset()
+                    if (offset > 0) {
+                        Log.d(TAG, "refreshIdempotent: token already refreshed by concurrent call, skipping")
+                        return@withLock true
+                    }
                 }
             }
 
