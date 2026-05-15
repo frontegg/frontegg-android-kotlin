@@ -114,6 +114,33 @@ android {
 }
 ```
 
+## Admin Portal (Beta)
+
+The SDK ships an embedded admin portal that opens `${baseUrl}/oauth/portal?appId=<applicationId>` in a `WebView` sharing the process-wide `CookieManager` with the SDK's login `WebView`, so an already-authenticated user does not see a second login.
+
+> **Beta.** The class name, entry point, presentation style (currently a full-screen `Activity`), and Manifest registration are all subject to revision in future minor releases. Pin to an exact SDK version when embedding this in a shipping app and watch the CHANGELOG when upgrading.
+
+### Prerequisites
+
+- `applicationId` must be configured (see [Multi-apps support](#multi-apps-support)). Without `?appId=` the portal renders **"Application not found"** after login when the SDK was configured with an application context.
+- `AdminPortalActivity` is already declared in the SDK's `AndroidManifest.xml` and merged into your app at build time — no host-app manifest changes required.
+
+### Open the portal
+
+Call `AdminPortalActivity.open(activity)` from anywhere in your host app:
+
+```kotlin
+import com.frontegg.android.AdminPortalActivity
+
+// From an Activity
+AdminPortalActivity.open(this)
+
+// From a Fragment
+activity?.let { AdminPortalActivity.open(it) }
+```
+
+The portal's built-in close button (`window.close()`) finishes the activity automatically — you don't need to handle dismissal.
+
 ## Login per account (custom login box)
 
 When your Frontegg workspace uses **login per account**, each account (tenant) has its own login URL and branded login experience. To route users to a specific account’s login from the Android app, set the account alias via config or in code.
