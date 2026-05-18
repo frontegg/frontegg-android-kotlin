@@ -449,6 +449,64 @@ class FronteggAuthServiceTest {
     }
 
     @Test
+    fun `switchTenant with session per tenant refreshes cached tokens instead of reusing stale JWT`() {
+        // Regression: with enableSessionPerTenant, switchTenant loaded cached tenant tokens
+        // and returned after api.me() without OAuth refresh. Cached access tokens can still
+        // be valid by TTL but carry the previous tenant's JWT claims until auto-refresh (~45s).
+        every { storageMock.enableSessionPerTenant }.returns(true)
+
+        val tenantA = Tenant().apply { id = "tenant-A"; tenantId = "tenant-A" }
+        val tenantB = Tenant().apply { id = "tenant-B"; tenantId = "tenant-B" }
+        val userA = User().apply {
+            id = "user-1"
+            tenants = listOf(tenantA, tenantB)
+            activeTenant = tenantA
+        }
+        auth.user.value = userA
+        auth.accessToken.value = "stale-tenant-A-access-token"
+        auth.refreshToken.value = "tenant-A-refresh-token"
+
+        every { apiMock.switchTenant(any()) }.returns(Unit)
+        every { apiMock.evictIdleConnections() }.returns(Unit)
+        every { credentialManagerMock.setCurrentTenantId(any()) }.returns(true)
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-B") }.returns("cached-tenant-B-access")
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-B") }.returns("cached-tenant-B-refresh")
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-A") }.returns(null)
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-A") }.returns(null)
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
+        every { credentialManagerMock.getCurrentTenantId() }.returns("tenant-B")
+        every { credentialManagerMock.saveLastTenantIdForUser(any(), any()) }.returns(true)
+
+        val tenantBAuth = AuthResponse().apply {
+            access_token = "fresh-tenant-B-access-token"
+            refresh_token = "fresh-tenant-B-refresh-token"
+        }
+        every { apiMock.refreshToken("cached-tenant-B-refresh") }.returns(tenantBAuth)
+
+        val userB = User().apply {
+            id = "user-1"
+            tenants = listOf(tenantA, tenantB)
+            activeTenant = tenantB
+        }
+        every { apiMock.me() }.returns(userB)
+
+        mockkObject(JWTHelper)
+        val jwt = JWT()
+        jwt.exp = (System.currentTimeMillis() / 1000) + 3600
+        every { JWTHelper.decode(any()) }.returns(jwt)
+        every { Log.w(any(), any<String>()) } returns 0
+
+        auth.switchTenant("tenant-B")
+
+        verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("cached-tenant-B-refresh") }
+        verify(timeout = 2_000, exactly = 1) { apiMock.me() }
+        assert(auth.accessToken.value == "fresh-tenant-B-access-token") {
+            "accessToken.value must be the token returned by OAuth refresh, was ${auth.accessToken.value}"
+        }
+    }
+
+    @Test
     fun `loginWithPasskeys should call Api_webAuthnPrelogin`() {
         val request = WebAuthnAssertionRequest(
             cookie = "TestCookie",
