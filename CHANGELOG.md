@@ -1,4 +1,7 @@
 ## v
+Sentry's automatic network breadcrumbs have been disabled
+
+## v
 ## Summary
 
 - Threads a `force` flag through `refreshIdempotent` so callers that need a real refresh — even when the current access token has time on its TTL — can bypass the v1.3.23 skip-if-not-expired guard.
