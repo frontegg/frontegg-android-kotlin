@@ -1,4 +1,18 @@
 ## v
+Sentry's automatic network breadcrumbs have been disabled
+## Summary
+- Adds an **Admin Portal (Beta)** section to `docs/advanced.md` so consumers know how to use the embedded admin portal shipped in #245.
+- Covers the `applicationId` prerequisite (without `?appId=` the portal renders *"Application not found"*), the `AdminPortalActivity.open(activity)` entry point from both `Activity` and `Fragment`, and the auto-finish behavior when the portal's close button fires `window.close()`.
+- Section placed right after **Multi-apps support** since it depends on `applicationId` being configured; flags the Beta caveat from the source class docstring.
+
+## Test plan
+- [ ] Render `docs/advanced.md` and verify the new section appears between **Multi-apps support** and **Login per account**.
+- [ ] Confirm code snippets compile against the `AdminPortalActivity.open()` signature in `android/src/main/java/com/frontegg/android/AdminPortalActivity.kt`.
+- [ ] Verify the [Multi-apps support](#multi-apps-support) anchor link resolves.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## v
 ## Summary
 
 - Threads a `force` flag through `refreshIdempotent` so callers that need a real refresh — even when the current access token has time on its TTL — can bypass the v1.3.23 skip-if-not-expired guard.
