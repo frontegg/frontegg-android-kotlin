@@ -382,55 +382,44 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `switchTenant forces a token refresh even when the existing access token is still valid by TTL`() {
-        // Regression: Frontegg access tokens are tenant-bound (tenantId lives in the JWT
-        // claims), so any tenant switch must re-mint tokens. Pre-fix, switchTenant fell
-        // through to refreshIdempotent's skip-if-not-expired guard
-        // (FronteggAuthService.kt:377-386). When the existing access token still had time
-        // on its TTL the guard returned success without actually refreshing, leaving
-        // accessToken.value pinned to the OLD tenant's JWT. Subsequent calls to
-        // loadEntitlements(forceRefresh=true) sent the stale token to the entitlements
-        // API, which reads tenant from the JWT and returned the previous tenant's
-        // entitlement set — so getFeatureEntitlements("sso") kept reporting
-        // isEntitled=true even after a switch to a tenant that did not have SSO. The
-        // state only self-healed when the access token's TTL elapsed (~45s) and
-        // auto-refresh fired.
+    fun `switchTenant stale credentials regression while access token TTL is still valid`() {
+        // Customer regression (SDK > 1.0.20): switchTenant/await returned success but
+        // accessToken and entitlements still reflected the previous tenant for ~45s until
+        // the JWT expired and auto-refresh ran. Pre-fix: refresh was skipped when exp was
+        // still in the future, or (session-per-tenant) cached tokens were reused without
+        // OAuth refresh after api.switchTenant.
         //
-        // Expected (post-fix): switchTenant always issues a real refresh so the access
-        // token's tenantId claim matches the newly-switched tenant.
+        // This test fails pre-fix at verify (0 refresh calls) or at assertNotEquals (stale
+        // token still in memory). It passes once switchTenant always re-mints tokens.
 
         every { storageMock.enableSessionPerTenant }.returns(false)
 
-        // Existing session: access token whose `exp` is well in the future — this is the
-        // exact condition under which the skip-if-not-expired guard would have fired.
-        auth.accessToken.value = "stale-tenant-A-access-token"
+        val staleAccessToken = "stale-tenant-A-access-token"
+        auth.accessToken.value = staleAccessToken
         auth.refreshToken.value = "current-refresh-token"
 
         mockkObject(JWTHelper)
         val jwt = JWT()
-        jwt.exp = (System.currentTimeMillis() / 1000) + 3600 // 1 hour in the future
+        jwt.exp = (System.currentTimeMillis() / 1000) + 45
         every { JWTHelper.decode(any()) }.returns(jwt)
 
-        // Server-side switch succeeds.
-        every { apiMock.switchTenant(any()) }.returns(Unit)
+        every { apiMock.switchTenant("tenant-B") }.returns(Unit)
         every { apiMock.evictIdleConnections() }.returns(Unit)
 
-        // Server mints tenant-B-bound tokens on the next refresh.
         val tenantBAuth = AuthResponse().apply {
-            id_token = "id-token-for-B"
-            refresh_token = "refresh-token-for-B"
             access_token = "access-token-for-B"
-            token_type = "Bearer"
+            refresh_token = "refresh-token-for-B"
         }
-        every { apiMock.refreshToken(any()) }.returns(tenantBAuth)
+        every { apiMock.refreshToken("current-refresh-token") }.returns(tenantBAuth)
 
         val tenantB = Tenant().apply { id = "tenant-B"; tenantId = "tenant-B" }
-        val user = User().apply {
-            id = "user-1"
-            tenants = listOf(tenantB)
-            activeTenant = tenantB
-        }
-        every { apiMock.me() }.returns(user)
+        every { apiMock.me() }.returns(
+            User().apply {
+                id = "user-1"
+                tenants = listOf(tenantB)
+                activeTenant = tenantB
+            }
+        )
 
         every { credentialManagerMock.save(any(), any()) }.returns(true)
         every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
@@ -439,12 +428,72 @@ class FronteggAuthServiceTest {
 
         auth.switchTenant("tenant-B")
 
-        // Pre-fix: 0 calls (skip-if-not-expired guard hit, no real refresh). Post-fix: 1.
         verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("current-refresh-token") }
-
-        // And the freshly-minted tenant-B token must replace the stale tenant-A one in memory.
         assert(auth.accessToken.value == "access-token-for-B") {
-            "accessToken.value must reflect the freshly-issued tenant-B token, was ${auth.accessToken.value}"
+            "accessToken must be the freshly minted tenant-B token, was ${auth.accessToken.value}"
+        }
+        assert(auth.accessToken.value != staleAccessToken) {
+            "accessToken must not remain the pre-switch tenant-A JWT after switchTenant completes"
+        }
+        assert(auth.user.value?.activeTenant?.tenantId == "tenant-B") {
+            "activeTenant must be tenant-B after switchTenant, was ${auth.user.value?.activeTenant?.tenantId}"
+        }
+    }
+
+    @Test
+    fun `switchTenant session per tenant stale credentials regression`() {
+        // Pre-fix: with enableSessionPerTenant, switchTenant loaded cached tenant tokens and
+        // returned after api.me() without OAuth refresh, leaving a TTL-valid but stale JWT.
+        every { storageMock.enableSessionPerTenant }.returns(true)
+
+        val tenantA = Tenant().apply { id = "tenant-A"; tenantId = "tenant-A" }
+        val tenantB = Tenant().apply { id = "tenant-B"; tenantId = "tenant-B" }
+        val userA = User().apply {
+            id = "user-1"
+            tenants = listOf(tenantA, tenantB)
+            activeTenant = tenantA
+        }
+        auth.user.value = userA
+        auth.accessToken.value = "stale-tenant-A-access-token"
+        auth.refreshToken.value = "tenant-A-refresh-token"
+
+        every { apiMock.switchTenant(any()) }.returns(Unit)
+        every { apiMock.evictIdleConnections() }.returns(Unit)
+        every { credentialManagerMock.setCurrentTenantId(any()) }.returns(true)
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-B") }.returns("cached-tenant-B-access")
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-B") }.returns("cached-tenant-B-refresh")
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-A") }.returns(null)
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-A") }.returns(null)
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
+        every { credentialManagerMock.getCurrentTenantId() }.returns("tenant-B")
+        every { credentialManagerMock.saveLastTenantIdForUser(any(), any()) }.returns(true)
+
+        val tenantBAuth = AuthResponse().apply {
+            access_token = "fresh-tenant-B-access-token"
+            refresh_token = "fresh-tenant-B-refresh-token"
+        }
+        every { apiMock.refreshToken("cached-tenant-B-refresh") }.returns(tenantBAuth)
+
+        val userB = User().apply {
+            id = "user-1"
+            tenants = listOf(tenantA, tenantB)
+            activeTenant = tenantB
+        }
+        every { apiMock.me() }.returns(userB)
+
+        mockkObject(JWTHelper)
+        val jwt = JWT()
+        jwt.exp = (System.currentTimeMillis() / 1000) + 3600
+        every { JWTHelper.decode(any()) }.returns(jwt)
+        every { Log.w(any(), any<String>()) } returns 0
+
+        auth.switchTenant("tenant-B")
+
+        verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("cached-tenant-B-refresh") }
+        verify(timeout = 2_000, exactly = 1) { apiMock.me() }
+        assert(auth.accessToken.value == "fresh-tenant-B-access-token") {
+            "accessToken.value must be the token returned by OAuth refresh, was ${auth.accessToken.value}"
         }
     }
 

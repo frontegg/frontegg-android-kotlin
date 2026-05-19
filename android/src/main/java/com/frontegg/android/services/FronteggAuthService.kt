@@ -294,66 +294,72 @@ class FronteggAuthService(
 
             if (enableSessionPerTenant) {
                 credentialManager.setCurrentTenantId(tenantId)
-                
+
                 val tenantAccessToken = credentialManager.get(CredentialKeys.ACCESS_TOKEN, tenantId)
                 val tenantRefreshToken = credentialManager.get(CredentialKeys.REFRESH_TOKEN, tenantId)
-                
                 if (tenantAccessToken != null && tenantRefreshToken != null) {
                     accessToken.value = tenantAccessToken
                     refreshToken.value = tenantRefreshToken
-                    
-                    try {
-                        val user = api.me()
-                        if (user != null) {
-                            val storedTenant = user.tenants.find { it.tenantId == tenantId }
-                            if (storedTenant != null) {
-                                user.activeTenant = storedTenant
-                            }
-                            
-                            this@FronteggAuthService.user.value = user
-                            this@FronteggAuthService.isAuthenticated.value = true
-                            sessionTracker.trackSessionStart(tenantId)
-                            cacheLastTenantForUser(user, tenantId)
-                            
-                            refreshTokenTimer.cancelLastTimer()
-                            
-                            val decoded = JWTHelper.decode(tenantAccessToken)
-                            if (decoded.exp > 0) {
-                                val offset = decoded.exp.calculateTimerOffset()
-                                refreshTokenTimer.scheduleTimer(offset)
-                            }
-                            
-                            handler.post {
-                                isLoading.value = false
-                                callback(true)
-                            }
-                            return@launch
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "Failed to load user with tenant credentials, refreshing token", e)
-                    }
                 }
             }
 
-            // Tokens are tenant-bound (tenantId is a JWT claim), so a tenant switch must
-            // always issue a real refresh — even if the current access token's TTL has
-            // not elapsed. Otherwise the SDK keeps acting as the previous tenant until
-            // the next auto-refresh fires.
-            val success = try {
-                refreshIdempotent(force = true)
-            } catch (e: Exception) {
-                Log.e(TAG, "Failed to refresh token during tenant switch", e)
-                false
-            }
-
-            if (success && enableSessionPerTenant) {
-                cacheLastTenantForUser(currentUser, tenantId)
-            }
+            val success = refreshTokensAfterTenantSwitch(tenantId, enableSessionPerTenant)
 
             handler.post {
                 isLoading.value = false
                 callback(success)
             }
+        }
+    }
+
+    /**
+     * Re-mints access/refresh tokens after a server-side tenant switch.
+     * Uses a direct OAuth refresh (not [refreshIdempotent]) so we never skip refresh when
+     * the access token TTL has not elapsed, and we do not treat an in-flight auto-refresh
+     * as success while tokens are still bound to the previous tenant.
+     */
+    private suspend fun refreshTokensAfterTenantSwitch(
+        tenantId: String,
+        enableSessionPerTenant: Boolean,
+    ): Boolean {
+        val refreshToken = this.refreshToken.value
+        if (refreshToken.isNullOrBlank()) {
+            Log.e(TAG, "No refresh token available after tenant switch")
+            return false
+        }
+        return try {
+            api.evictIdleConnections()
+            val data = api.refreshToken(refreshToken)
+            val scopedTenantId = if (enableSessionPerTenant) tenantId else null
+            credentialManager.save(CredentialKeys.REFRESH_TOKEN, data.refresh_token, scopedTenantId)
+            credentialManager.save(CredentialKeys.ACCESS_TOKEN, data.access_token, scopedTenantId)
+            if (enableSessionPerTenant) {
+                credentialManager.setCurrentTenantId(tenantId)
+            }
+            val user = api.me() ?: run {
+                Log.e(TAG, "User is null after token refresh during tenant switch")
+                return false
+            }
+            if (enableSessionPerTenant) {
+                val storedTenant = user.tenants.find { it.tenantId == tenantId }
+                if (storedTenant != null) {
+                    user.activeTenant = storedTenant
+                }
+                if (user.activeTenant.tenantId != tenantId) {
+                    Log.w(
+                        TAG,
+                        "Token refresh after tenant switch returned tenant ${user.activeTenant.tenantId}, expected $tenantId"
+                    )
+                    return false
+                }
+                cacheLastTenantForUser(user, tenantId)
+            }
+            updateStateWithCredentials(data.access_token, data.refresh_token, user)
+            this.initializing.value = false
+            true
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to refresh token after tenant switch", e)
+            false
         }
     }
 
