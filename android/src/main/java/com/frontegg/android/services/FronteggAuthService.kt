@@ -952,6 +952,17 @@ class FronteggAuthService(
             val offset = decoded.exp.calculateTimerOffset()
             refreshTokenTimer.scheduleTimer(offset)
         }
+        // Drop any cached entitlements before kicking off the new load. Without this:
+        //   * during the in-flight reload, getFeatureEntitlements() keeps returning the
+        //     PREVIOUS tenant's verdict (state and hasLoadedOnce are unchanged until the
+        //     load finishes);
+        //   * if the reload fails (api.getUserEntitlements returns null on network/server
+        //     error — EntitlementsService.load returns false without touching _state),
+        //     the cache stays pinned to the previous tenant forever.
+        // For login/init paths the cache is already empty (in-memory, no persistence),
+        // so clear() is a no-op. The behavior change is scoped to switchTenant, where
+        // updateStateWithCredentials runs with a populated cache from the prior tenant.
+        entitlements.clear()
         loadEntitlements(forceRefresh = true)
     }
 
