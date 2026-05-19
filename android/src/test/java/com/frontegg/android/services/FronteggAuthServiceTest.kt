@@ -14,6 +14,7 @@ import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.models.AuthResponse
+import com.frontegg.android.models.EntitlementState
 import com.frontegg.android.models.Tenant
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
@@ -494,6 +495,221 @@ class FronteggAuthServiceTest {
         verify(timeout = 2_000, exactly = 1) { apiMock.me() }
         assert(auth.accessToken.value == "fresh-tenant-B-access-token") {
             "accessToken.value must be the token returned by OAuth refresh, was ${auth.accessToken.value}"
+        }
+    }
+
+    /**
+     * Shared setup for the three switchTenant-entitlements regression tests below.
+     *
+     * Re-builds [auth] with `entitlementsEnabled = true` (the flag is read at construction
+     * time and baked into the [EntitlementsService] instance — see
+     * FronteggAuthService.kt:116-117), seeds tenant A's cache with `{sso}`, and stubs the
+     * full switchTenant happy-path API surface (api.switchTenant, api.refreshToken minting
+     * tenant-B tokens, api.me returning tenant B as active, credentialManager saves).
+     *
+     * The tenant-B entitlements reload is intentionally left unmocked — each test sets it
+     * to return null, an empty state, or a state-capturing answer block depending on what
+     * it's exercising.
+     */
+    private fun setupSwitchTenantEntitlementsHarness() {
+        every { storageMock.enableSessionPerTenant }.returns(false)
+        every { storageMock.entitlementsEnabled }.returns(true)
+
+        val appLifecycle = mockk<FronteggAppLifecycle>()
+        every { appLifecycle.startApp }.returns(FronteggCallback())
+        every { appLifecycle.stopApp }.returns(FronteggCallback())
+        val refreshTokenTimer = mockk<FronteggRefreshTokenTimer>()
+        every { refreshTokenTimer.refreshTokenIfNeeded }.returns(FronteggCallback())
+        every { refreshTokenTimer.cancelLastTimer() }.returns(Unit)
+        every { refreshTokenTimer.scheduleTimer(any()) }.returns(Unit)
+        auth = FronteggAuthService(
+            credentialManager = credentialManagerMock,
+            appLifecycle = appLifecycle,
+            refreshTokenTimer = refreshTokenTimer,
+            ioDispatcher = Dispatchers.Unconfined,
+            mainDispatcher = Dispatchers.Unconfined,
+            disableAutoRefresh = false
+        )
+
+        auth.accessToken.value = "stale-tenant-A-access-token"
+        auth.refreshToken.value = "current-refresh-token"
+        auth.isAuthenticated.value = true
+
+        mockkObject(JWTHelper)
+        val jwt = JWT()
+        jwt.exp = (System.currentTimeMillis() / 1000) + 3600
+        every { JWTHelper.decode(any()) }.returns(jwt)
+
+        // Pre-populate cache for tenant A: SSO is entitled.
+        every {
+            apiMock.getUserEntitlements(accessTokenOverride = "stale-tenant-A-access-token")
+        }.returns(EntitlementState(featureKeys = setOf("sso"), permissionKeys = emptySet()))
+        auth.entitlements.load("stale-tenant-A-access-token")
+        assert(auth.entitlements.state.featureKeys.contains("sso")) {
+            "Sanity check: tenant A's cache must hold sso before switchTenant runs"
+        }
+
+        every { apiMock.switchTenant(any()) }.returns(Unit)
+        every { apiMock.evictIdleConnections() }.returns(Unit)
+        every { apiMock.refreshToken("current-refresh-token") }.returns(
+            AuthResponse().apply {
+                access_token = "access-token-for-B"
+                refresh_token = "refresh-token-for-B"
+            }
+        )
+
+        val tenantB = Tenant().apply { id = "tenant-B"; tenantId = "tenant-B" }
+        every { apiMock.me() }.returns(
+            User().apply {
+                id = "user-1"
+                tenants = listOf(tenantB)
+                activeTenant = tenantB
+            }
+        )
+
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
+        every { credentialManagerMock.getCurrentTenantId() }.returns(null)
+        every { Log.w(any(), any<String>()) } returns 0
+    }
+
+    @Test
+    fun `switchTenant reloads entitlements with the new tenant view (FR-24821 happy path)`() {
+        // Customer scenario from FR-24821 — the bug that started this whole thread:
+        // Tenant A has the "sso" feature; tenant B does not. After switching from A to B,
+        // fronteggAuth.getFeatureEntitlements("sso") was reporting isEntitled=true on
+        // Android (correct on web). This test reproduces that exact flow end-to-end and
+        // asserts the post-switch verdict matches tenant B's reality.
+        //
+        // On master (post-PR #252) this test already passes — updateStateWithCredentials
+        // fires loadEntitlements(forceRefresh = true) and the cache is replaced with
+        // tenant B's set. It's preserved here as a top-level regression guard for the
+        // customer-reported symptom: if either #252's wiring OR this PR's cache
+        // invalidation ever silently regresses, this test catches it.
+        setupSwitchTenantEntitlementsHarness()
+
+        // Tenant B has no entitlements (server returns empty featureKeys/permissionKeys).
+        every {
+            apiMock.getUserEntitlements(accessTokenOverride = "access-token-for-B")
+        }.returns(EntitlementState(featureKeys = emptySet(), permissionKeys = emptySet()))
+
+        auth.switchTenant("tenant-B")
+
+        verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("current-refresh-token") }
+        verify(timeout = 2_000) {
+            apiMock.getUserEntitlements(accessTokenOverride = "access-token-for-B")
+        }
+
+        // Cache reflects tenant B's reality, not tenant A's pre-switch view.
+        assert(auth.entitlements.state.featureKeys.isEmpty()) {
+            "entitlements cache must reflect tenant B's (empty) featureKeys after switchTenant; was ${auth.entitlements.state.featureKeys}"
+        }
+        assert(auth.entitlements.hasLoadedOnce) {
+            "hasLoadedOnce must be true after a successful reload on tenant B"
+        }
+
+        // The customer's exact reproduction: getFeatureEntitlements("sso") must now report
+        // not-entitled with MISSING_FEATURE (not ENTITLEMENTS_NOT_LOADED — the reload ran)
+        // and definitely not isEntitled = true.
+        val entitlement = auth.getFeatureEntitlements("sso")
+        assert(!entitlement.isEntitled) {
+            "FR-24821: getFeatureEntitlements(\"sso\") must be isEntitled=false after switching from tenant A (had sso) to tenant B (no sso); was ${entitlement.isEntitled}"
+        }
+        assert(entitlement.justification == "MISSING_FEATURE") {
+            "justification must be MISSING_FEATURE after a successful reload on tenant B (which lacks sso), was ${entitlement.justification}"
+        }
+    }
+
+    @Test
+    fun `switchTenant clears entitlements cache BEFORE triggering the reload (in-flight window)`() {
+        // Differential test for the specific behavior this PR adds: entitlements.clear()
+        // runs BEFORE loadEntitlements() inside updateStateWithCredentials. Without that
+        // ordering, getFeatureEntitlements() called during the in-flight load window
+        // (between loadEntitlements dispatch and api.getUserEntitlements completing)
+        // would return the PREVIOUS tenant's verdict — state and hasLoadedOnce are
+        // unchanged until EntitlementsService.load assigns _state.
+        //
+        // We capture the cache state at the exact moment api.getUserEntitlements is
+        // invoked. With the fix: state is already empty, hasLoadedOnce is already false
+        // (clear ran first). Without the fix: state still holds tenant A's {sso}.
+        setupSwitchTenantEntitlementsHarness()
+
+        var stateAtLoadTime: EntitlementState? = null
+        var hasLoadedOnceAtLoadTime: Boolean? = null
+        every {
+            apiMock.getUserEntitlements(accessTokenOverride = "access-token-for-B")
+        }.answers {
+            stateAtLoadTime = auth.entitlements.state
+            hasLoadedOnceAtLoadTime = auth.entitlements.hasLoadedOnce
+            EntitlementState(featureKeys = emptySet(), permissionKeys = emptySet())
+        }
+
+        auth.switchTenant("tenant-B")
+
+        verify(timeout = 2_000) {
+            apiMock.getUserEntitlements(accessTokenOverride = "access-token-for-B")
+        }
+
+        // Pre-fix: stateAtLoadTime would be {sso} (cache not cleared before load runs).
+        // Post-fix: stateAtLoadTime is empty (clear ran first).
+        assert(stateAtLoadTime?.featureKeys == emptySet<String>()) {
+            "entitlements cache must be cleared BEFORE the reload is triggered; cache held ${stateAtLoadTime?.featureKeys} at the moment api.getUserEntitlements was called"
+        }
+        assert(hasLoadedOnceAtLoadTime == false) {
+            "hasLoadedOnce must be false BEFORE the reload is triggered (clear resets it); was ${hasLoadedOnceAtLoadTime}"
+        }
+    }
+
+    @Test
+    fun `switchTenant clears stale entitlements cache so a failed reload does not leak the previous tenant view`() {
+        // Regression (FR-24821 follow-up): PR #252 routes switchTenant through
+        // updateStateWithCredentials, which fires loadEntitlements(forceRefresh = true).
+        // On the happy path that replaces the cache. But the cache is never explicitly
+        // invalidated, so if api.getUserEntitlements fails (5xx, network flake — the Api
+        // layer catches the exception and returns null; EntitlementsService.load returns
+        // false without touching _state), the cache keeps the PREVIOUS tenant's
+        // featureKeys/permissionKeys forever, and getFeatureEntitlements() silently
+        // reports the wrong verdict against the new tenant.
+        //
+        // Post-fix: updateStateWithCredentials calls entitlements.clear() before
+        // loadEntitlements, so a failed reload yields ENTITLEMENTS_NOT_LOADED — not stale.
+        setupSwitchTenantEntitlementsHarness()
+
+        // Tenant B's entitlements reload fails — 5xx, network flake, whatever. Api
+        // swallows the exception and returns null; EntitlementsService.load returns
+        // false without touching _state.
+        every {
+            apiMock.getUserEntitlements(accessTokenOverride = "access-token-for-B")
+        }.returns(null)
+
+        auth.switchTenant("tenant-B")
+
+        // Wait for the access-token rotation + entitlements reload attempt so we know
+        // switchTenant has reached updateStateWithCredentials.
+        verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("current-refresh-token") }
+        verify(timeout = 2_000) {
+            apiMock.getUserEntitlements(accessTokenOverride = "access-token-for-B")
+        }
+
+        // Pre-fix: the cache still holds tenant A's {sso} (load returned false without
+        // touching _state). Post-fix: clear() ran before loadEntitlements, so the cache
+        // is empty.
+        assert(auth.entitlements.state.featureKeys.isEmpty()) {
+            "entitlements cache must be cleared on tenant switch even when the reload fails; was ${auth.entitlements.state.featureKeys}"
+        }
+        assert(!auth.entitlements.hasLoadedOnce) {
+            "hasLoadedOnce must be false after a failed reload following clear()"
+        }
+
+        // The user-facing surface: getFeatureEntitlements must not silently leak tenant A's
+        // verdict. Pre-fix it returned isEntitled=true (tenant A had sso); post-fix it
+        // reports ENTITLEMENTS_NOT_LOADED.
+        val entitlement = auth.getFeatureEntitlements("sso")
+        assert(!entitlement.isEntitled) {
+            "After switching to tenant B with a failed entitlements reload, getFeatureEntitlements(\"sso\").isEntitled must be false; the cache is leaking tenant A's verdict"
+        }
+        assert(entitlement.justification == "ENTITLEMENTS_NOT_LOADED") {
+            "justification must be ENTITLEMENTS_NOT_LOADED after clear() + failed reload, was ${entitlement.justification}"
         }
     }
 
