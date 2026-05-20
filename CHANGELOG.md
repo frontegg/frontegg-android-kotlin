@@ -1,61 +1,6 @@
 ## v
-Minor enhance switch tenants logic.
-## Summary
-
-Follow-up to #252 (which routes `switchTenant` through `updateStateWithCredentials` and fires `loadEntitlements(forceRefresh = true)` on the new tenant's token). This adds the missing cache invalidation step.
-
-## Why
-
-`updateStateWithCredentials` never calls `entitlements.clear()`, so two windows still leak the previous tenant's view:
-
-1. **In-flight reload** — between `loadEntitlements()` being invoked and its `bgScope.launch` coroutine writing the new state, `getFeatureEntitlements()` keeps returning the PREVIOUS tenant's verdict.
-
-2. **Failed reload** — if `api.getUserEntitlements` returns `null` (the `Api` layer catches HTTP/network errors and returns `null`), [`EntitlementsService.load`](android/src/main/java/com/frontegg/android/services/EntitlementsService.kt#L21) returns `false` **without touching `_state`**. The cache is then pinned to the previous tenant indefinitely.
-
-**Customer-visible symptom (FR-24821):** #247 and #252 address the token-claim staleness. This addresses the cache-state staleness that survives a failed reload. With this change, `getFeatureEntitlements` after a tenant switch is one of:
-
-- the new tenant's verdict (reload succeeded — normal case), or
-- `Entitlement(isEntitled = false, justification = ENTITLEMENTS_NOT_LOADED)` (reload in flight or failed — honest).
-
-Never the previous tenant's verdict.
-
-## The fix
-
-One line in `updateStateWithCredentials`, immediately before `loadEntitlements(forceRefresh = true)`:
-
-```kotlin
-entitlements.clear()
-loadEntitlements(forceRefresh = true)
-```
-
-For login / restore-from-storage paths the cache is already empty (in-memory only, no persistence), so the clear is a no-op. The behavior change is scoped to `switchTenant`, where `updateStateWithCredentials` runs with a populated cache from the prior tenant.
-
-## Tests
-
-Three regression tests in [`FronteggAuthServiceTest`](android/src/test/java/com/frontegg/android/services/FronteggAuthServiceTest.kt), sharing a `setupSwitchTenantEntitlementsHarness()` helper that pre-loads tenant A's cache with `{sso}` and stubs the switchTenant happy-path API surface:
-
-| # | Test | What it covers | FAILS without fix? |
-|---|---|---|---|
-| 1 | `…(FR-24821 happy path)` | Successful reload returning empty entitlements for tenant B. Asserts `state.featureKeys` empty, `hasLoadedOnce` true, `getFeatureEntitlements("sso")` → `MISSING_FEATURE`. | No — PR #252 alone covers it. Kept as top-level guard for the customer-reported symptom. |
-| 2 | `…in-flight window` | Uses `answers { }` on `api.getUserEntitlements` to capture the cache state at the exact moment the API call fires. Asserts state is already empty + `hasLoadedOnce` is already false. | **Yes** — pre-fix, state still holds `{sso}` when the load API call goes out. |
-| 3 | `…failed reload` | Mocks `api.getUserEntitlements` to return `null` (server/network failure). Asserts cache is empty, `hasLoadedOnce` is false, `getFeatureEntitlements` reports `ENTITLEMENTS_NOT_LOADED`. | **Yes** — pre-fix, cache stays pinned to tenant A's set forever. |
-
-Differential verified by temporarily removing `entitlements.clear()` from `updateStateWithCredentials` and re-running: tests 2 and 3 fail, test 1 passes.
-
-## Test plan
-
-- [x] All 3 new tests pass with fix
-- [x] Tests 2 and 3 fail without fix (differential — temporarily reverted the production change and re-ran)
-- [x] Test 1 passes on bare master (top-level FR-24821 regression guard, complements PR #252)
-- [x] `./gradlew :android:testDebugUnitTest` — full suite green, **505 tests / 0 failures**
-- [ ] Manual: in the `:app` demo, force a tenant-B reload failure (e.g., kill network mid-switch) and confirm Load Entitlements no longer shows tenant A's `sso` as entitled
-
-## Diff
-
-- `+11 lines` in [FronteggAuthService.kt](android/src/main/java/com/frontegg/android/services/FronteggAuthService.kt) (1 line of code + 10-line explanatory comment).
-- `+216 lines` in [FronteggAuthServiceTest.kt](android/src/test/java/com/frontegg/android/services/FronteggAuthServiceTest.kt) (1 shared helper + 3 tests).
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+- Minor enhance switch tenants logic
+- route `switchTenant` through `updateStateWithCredentials` and fires `loadEntitlements(forceRefresh = true)` on the new tenant's token
 
 ## v
 Sentry's automatic network breadcrumbs have been disabled
