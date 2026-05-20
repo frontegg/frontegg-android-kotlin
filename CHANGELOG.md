@@ -1,4 +1,8 @@
 ## v
+- Minor enhance switch tenants logic
+- route `switchTenant` through `updateStateWithCredentials` and fires `loadEntitlements(forceRefresh = true)` on the new tenant's token
+
+## v
 Sentry's automatic network breadcrumbs have been disabled
 
 ## v
