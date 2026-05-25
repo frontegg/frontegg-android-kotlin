@@ -265,6 +265,8 @@ class FronteggAuthServiceTest {
         mockkStatic(CookieManager::class)
         every { CookieManager.getInstance() }.returns(mockCookieManager)
         every { mockCookieManager.getCookie(any()) }.returns("TestCoolies")
+        every { mockCookieManager.setCookie(any(), any<String>()) } returns Unit
+        every { mockCookieManager.flush() } returns Unit
         every { credentialManagerMock.clear() }.returns(Unit)
         every { storageMock.isEmbeddedMode }.returns(true)
 
@@ -276,6 +278,74 @@ class FronteggAuthServiceTest {
 
         delay(100)
         verify { apiMock.logout(any<String>()) }
+    }
+
+    @Test
+    fun `logout expires fe_refresh cookies but leaves other cookies alone`() = runBlocking {
+        // Setup: cookies for baseUrl contain two fe_refresh entries plus an
+        // unrelated cookie. After logout, only the fe_refresh ones should be
+        // expired (Max-Age=0). The unrelated cookie must not be touched.
+        val mockCookieManager = mockkClass(CookieManager::class)
+        mockkStatic(CookieManager::class)
+        every { CookieManager.getInstance() }.returns(mockCookieManager)
+        every {
+            mockCookieManager.getCookie(any())
+        }.returns("fe_refresh_TestClientId=value1; some_other=keep_me; fe_refresh_AppX=value2")
+        every { mockCookieManager.setCookie(any(), any<String>()) } returns Unit
+        every { mockCookieManager.flush() } returns Unit
+        every { credentialManagerMock.clear() }.returns(Unit)
+        every { credentialManagerMock.clearAllTokens() } returns Unit
+        every { credentialManagerMock.clearOfflineUser() } returns true
+        every { credentialManagerMock.setCurrentTenantId(any()) } returns true
+        every { storageMock.isEmbeddedMode } returns false
+
+        auth.logout()
+        delay(100)
+
+        verify(atLeast = 1) { mockCookieManager.getCookie(any()) }
+        verify(exactly = 1) {
+            mockCookieManager.setCookie(
+                any(),
+                match<String> { it.startsWith("fe_refresh_TestClientId=") && it.contains("Max-Age=0") }
+            )
+        }
+        verify(exactly = 1) {
+            mockCookieManager.setCookie(
+                any(),
+                match<String> { it.startsWith("fe_refresh_AppX=") && it.contains("Max-Age=0") }
+            )
+        }
+        verify(exactly = 0) {
+            mockCookieManager.setCookie(
+                any(),
+                match<String> { it.startsWith("some_other=") }
+            )
+        }
+        verify { mockCookieManager.flush() }
+    }
+
+    @Test
+    fun `logout no-ops cookie cleanup when no fe_refresh cookies are present`() = runBlocking {
+        val mockCookieManager = mockkClass(CookieManager::class)
+        mockkStatic(CookieManager::class)
+        every { CookieManager.getInstance() }.returns(mockCookieManager)
+        every {
+            mockCookieManager.getCookie(any())
+        }.returns("some_other=keep_me; unrelated=also_keep")
+        every { mockCookieManager.setCookie(any(), any<String>()) } returns Unit
+        every { mockCookieManager.flush() } returns Unit
+        every { credentialManagerMock.clear() }.returns(Unit)
+        every { credentialManagerMock.clearAllTokens() } returns Unit
+        every { credentialManagerMock.clearOfflineUser() } returns true
+        every { credentialManagerMock.setCurrentTenantId(any()) } returns true
+        every { storageMock.isEmbeddedMode } returns false
+
+        auth.logout()
+        delay(100)
+
+        // No fe_refresh cookies → no setCookie calls and no flush.
+        verify(exactly = 0) { mockCookieManager.setCookie(any(), any<String>()) }
+        verify(exactly = 0) { mockCookieManager.flush() }
     }
 
     @Test
