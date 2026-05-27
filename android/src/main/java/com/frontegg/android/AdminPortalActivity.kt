@@ -14,6 +14,12 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.view.WindowCompat
 import com.frontegg.android.ui.FronteggBaseActivity
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.MainScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Embedded Frontegg admin portal — opens `${baseUrl}/oauth/portal?appId=<applicationId>`
@@ -34,6 +40,11 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     private lateinit var webView: WebView
 
+    // Owned by this activity, cancelled in onDestroy. Used to await a
+    // forced token refresh before loading the portal URL — see
+    // refreshSessionThenLoad for the rationale.
+    private val activityScope: CoroutineScope = MainScope()
+
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -49,64 +60,64 @@ class AdminPortalActivity : FronteggBaseActivity() {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
-            bridgeRefreshCookieThenLoad(webView, buildPortalUrl())
+            refreshSessionThenLoad(webView, buildPortalUrl())
         }
     }
 
     /**
-     * If the SDK is authenticated, write its refresh token into the
-     * process-wide [CookieManager] as `fe_refresh_<appId-or-clientId>` and
-     * THEN load the portal URL. Without this bridge, users who logged in via
-     * Chrome Custom Tabs (the Android equivalent of iOS `ASWebAuthenticationSession`)
-     * are forced to log in a second time — Chrome Custom Tabs put cookies in
-     * Chrome's per-app cookie jar, which is not visible to this WebView.
+     * Force a token refresh BEFORE loading the portal. This is the mechanism
+     * that gets a valid session cookie into the process-wide [CookieManager]:
      *
-     * Users who logged in via the SDK's embedded WebView already have these
-     * cookies, because that flow shares the same process-wide CookieManager
-     * with the portal. The bridge is a no-op for that case (the cookie value
-     * we'd write matches what's already there).
+     *   1. `refreshTokenIfNeeded()` → `Api.refreshToken()` → POST `/oauth/token`
+     *   2. The Frontegg auth backend's response includes
+     *      `Set-Cookie: fe_refresh_<id>=<server-signed-value>` …
+     *   3. `Api.mirrorFronteggCookiesToWebViewStore()` captures every
+     *      `fe_*` cookie from that response and writes it into
+     *      `CookieManager.getInstance()` — the same store this WebView uses.
+     *   4. `webView.loadUrl(portalUrl)` then carries the cookie on its request,
+     *      the portal recognizes the session, no second login.
      *
-     * Timing matters: [CookieManager.setCookie] is asynchronous — the
-     * completion callback fires after the in-memory write lands. If we call
-     * `webView.loadUrl(...)` synchronously after `setCookie`, the HTTP GET
-     * for `/oauth/portal` can fire BEFORE the cookie is in the store, the
-     * server sees no session and 302s to `/oauth/account/login`, and the
-     * user sees a re-login prompt (the exact bug this method exists to fix).
-     * So [loadUrl] is called from inside the setCookie callback, posted back
-     * to the main thread (the callback fires on an internal CookieManager
-     * thread; WebView calls must come from the main thread).
+     * Why force a refresh here instead of relying on the SDK's natural
+     * refresh: on cold start with a non-expired access token, the SDK
+     * may not call `/oauth/token` at all before the user opens the portal.
+     * Without a refresh, the WebView has no session cookies for browser-login
+     * users (Chrome Custom Tabs cookies live in Chrome's isolated jar) and
+     * the portal bounces to `/oauth/account/login`.
      *
-     * No-op when the SDK has no refresh token to bridge — the portal is
-     * loaded directly and falls back to its own login form, the existing
-     * behavior before this bridge.
+     * Failure modes:
+     *  - User not logged in: skip the refresh, load the portal anyway —
+     *    its own login form renders, same as before any of this.
+     *  - Refresh fails (offline, server error): load the portal anyway,
+     *    same fallback.
+     *  - Refresh succeeds but server didn't emit cookies: load the portal
+     *    anyway, which then bounces to login (the original bug, which we
+     *    now treat as a server-side issue to investigate, not a client
+     *    bug to work around).
      */
-    private fun bridgeRefreshCookieThenLoad(webView: WebView, portalUrl: String) {
+    private fun refreshSessionThenLoad(webView: WebView, portalUrl: String) {
         val auth = applicationContext.fronteggAuth
-        val cookie = buildRefreshCookieValue(
-            refreshToken = auth.refreshToken.value,
-            baseUrl = auth.baseUrl,
-            clientId = auth.clientId,
-            applicationId = auth.applicationId
-        )
-
-        if (cookie == null) {
-            // No refresh token to bridge — load directly. Portal will render
-            // its own login form if no existing web cookies are present.
-            Log.d(TAG, "loading $portalUrl (no refresh token to bridge)")
+        if (auth.refreshToken.value.isNullOrEmpty()) {
+            Log.d(TAG, "loading $portalUrl (no refresh token; portal will render its own login)")
             webView.loadUrl(portalUrl)
             return
         }
 
-        val cookieManager = CookieManager.getInstance()
-        cookieManager.setCookie(cookie.urlForSetCookie, cookie.headerValue) {
-            // Completion fires on a CookieManager-internal thread. Flush the
-            // in-memory cookie to persistent storage, then post the WebView
-            // load to the main thread.
-            cookieManager.flush()
-            webView.post {
-                Log.i(TAG, "AdminPortal: bridged refresh cookie ${cookie.name}, loading $portalUrl")
-                webView.loadUrl(portalUrl)
+        Log.i(TAG, "AdminPortal: awaiting refresh before load to populate session cookies")
+        activityScope.launch {
+            try {
+                auth.refreshTokenAndWait()
+            } catch (e: Throwable) {
+                // Refresh failed (offline, server error, etc.) — load the
+                // portal anyway; it'll render its own login form, same
+                // fallback as before.
+                Log.w(TAG, "AdminPortal: pre-load refresh threw — loading portal anyway", e)
             }
+            // refreshTokenAndWait suspends until Api.refreshToken has
+            // returned AND mirrorFronteggCookiesToWebViewStore has written
+            // any captured cookies into CookieManager. The portal request
+            // now carries those cookies.
+            Log.i(TAG, "AdminPortal: loading $portalUrl after refresh")
+            webView.loadUrl(portalUrl)
         }
     }
 
@@ -177,6 +188,9 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Cancel any in-flight refresh so a slow network response can't try
+        // to call loadUrl on a destroyed WebView.
+        activityScope.cancel()
         // Best-effort cleanup; activity-scoped WebView so leak risk is bounded.
         try {
             webView.stopLoading()
@@ -235,86 +249,6 @@ class AdminPortalActivity : FronteggBaseActivity() {
                 builder.appendQueryParameter("appId", applicationId)
             }
             return builder.build().toString()
-        }
-
-        /**
-         * Builds the Frontegg backend refresh-token cookie name. Mirrors the
-         * Next.js SDK rule (frontegg-nextjs CookieManager.refreshTokenKey):
-         * prefer `appId` when present (multi-app workspaces), fall back to
-         * `clientId`. Dashes are stripped to match the auth-server's expected
-         * cookie name format.
-         */
-        @JvmStatic
-        internal fun refreshCookieName(clientId: String, applicationId: String?): String {
-            return if (!applicationId.isNullOrEmpty()) {
-                "fe_refresh_${applicationId.replace("-", "")}"
-            } else {
-                "fe_refresh_${clientId.replace("-", "")}"
-            }
-        }
-
-        /**
-         * Bundled output of [buildRefreshCookieValue]: the cookie name, the
-         * `Set-Cookie` header value to hand to [CookieManager.setCookie], and
-         * the URL that scopes the cookie. Keeping them together lets tests
-         * verify all three without re-deriving the URL.
-         */
-        internal data class RefreshCookie(
-            val name: String,
-            val headerValue: String,
-            val urlForSetCookie: String,
-        )
-
-        /**
-         * Constructs the cookie payload that lets the embedded portal recognize
-         * the SDK's existing authenticated session.
-         *
-         * Returns null when there is no refresh token to bridge (user is not
-         * logged in) or when the base URL is malformed. In both cases the
-         * portal falls back to its own login form — same as before this bridge.
-         *
-         * The `Set-Cookie`-style header includes `Path=/` and `Secure` (when
-         * baseUrl is HTTPS). [CookieManager.setCookie] requires the URL form,
-         * not domain form, so we return the baseUrl as the scoping URL — that
-         * yields a host-scoped cookie which is what we want.
-         */
-        @JvmStatic
-        internal fun buildRefreshCookieValue(
-            refreshToken: String?,
-            baseUrl: String,
-            clientId: String,
-            applicationId: String?,
-        ): RefreshCookie? {
-            if (refreshToken.isNullOrEmpty()) return null
-            val parsed = runCatching { Uri.parse(baseUrl) }.getOrNull() ?: return null
-            val scheme = parsed.scheme ?: return null
-            if (parsed.host.isNullOrEmpty()) return null
-
-            val name = refreshCookieName(clientId = clientId, applicationId = applicationId)
-            val isSecure = scheme.equals("https", ignoreCase = true)
-
-            val header = buildString {
-                append(name).append('=').append(refreshToken)
-                append("; Path=/")
-                if (isSecure) {
-                    append("; Secure")
-                }
-            }
-
-            // CookieManager.setCookie(url, value) scopes the cookie to the URL's
-            // host/scheme. Use the bare baseUrl (no extra path) so the cookie's
-            // Domain is the host, not a subpath.
-            val scopingUrl = Uri.Builder()
-                .scheme(scheme)
-                .authority(parsed.host)
-                .build()
-                .toString()
-
-            return RefreshCookie(
-                name = name,
-                headerValue = header,
-                urlForSetCookie = scopingUrl,
-            )
         }
 
         private const val DESKTOP_USER_AGENT =

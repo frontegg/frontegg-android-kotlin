@@ -2,6 +2,7 @@ package com.frontegg.android.services
 
 import kotlin.jvm.Throws
 import android.util.Log
+import android.webkit.CookieManager
 import com.frontegg.android.exceptions.CookieNotFoundException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToAuthenticatePasskeysException
@@ -343,10 +344,14 @@ open class Api(
         Log.d(TAG, "Executing refresh token request...")
         val response = call.execute()
         Log.d(TAG, "Refresh token response received: code=${response.code}")
-        
+
         if (response.isSuccessful) {
             val responseBody = response.body!!.string()
             Log.d(TAG, "Refresh token successful, parsing response")
+            // Mirror any session cookies the server emitted into the WebView
+            // store so AdminPortalActivity recognizes this session and doesn't
+            // force a second login.
+            mirrorFronteggCookiesToWebViewStore(response)
             return Gson().fromJson(responseBody, AuthResponse::class.java)
         }
         
@@ -392,7 +397,12 @@ open class Api(
         val response = call.execute()
         response.use { // Ensure body is closed to avoid connection leaks
             if (it.isSuccessful) {
-                return Gson().fromJson(it.body!!.string(), AuthResponse::class.java)
+                val parsed = Gson().fromJson(it.body!!.string(), AuthResponse::class.java)
+                // Mirror any session cookies the server emitted into the
+                // WebView store so AdminPortalActivity recognizes this
+                // session and doesn't force a second login.
+                mirrorFronteggCookiesToWebViewStore(it)
+                return parsed
             } else {
                 val errorBody = it.body?.string()
                 Log.e(TAG, "exchangeToken failed: code=${it.code}, body=$errorBody")
@@ -461,6 +471,57 @@ open class Api(
         } ?: throw CookieNotFoundException(prefix)
 
         return prefixedCookie.split(';')[0]
+    }
+
+    /**
+     * Mirror any `fe_*` Set-Cookie headers from this response into the
+     * process-wide [CookieManager] so [AdminPortalActivity] sees the same
+     * session the SDK just established.
+     *
+     * OkHttp (this class's HTTP client) and the WebView CookieManager are
+     * separate cookie stores on Android — without this bridge, a session
+     * established over OkHttp (e.g. social/SAML/OIDC login via Chrome Custom
+     * Tabs, or any programmatic `/oauth/token` refresh) is invisible to the
+     * portal WebView. The portal then renders its own login form and the
+     * user logs in twice.
+     *
+     * The raw refresh-token JWT is **not** a valid `fe_refresh_*` cookie
+     * value — the auth backend signs/wraps the value before placing it in
+     * `Set-Cookie`. So instead of synthesizing a cookie locally, we capture
+     * whatever cookies the server actually emitted and pass them through
+     * verbatim.
+     *
+     * Restricted to `fe_*`-prefixed cookies so unrelated server cookies
+     * (e.g. tracking) don't leak into the WebView store, and so the
+     * `fe_refresh` prefix in [FronteggAuthService.clearRefreshCookiesForBaseUrl]
+     * still owns the cleanup invariant on logout.
+     */
+    internal fun mirrorFronteggCookiesToWebViewStore(response: Response) {
+        val setCookieHeaders = response.headers("set-cookie")
+        if (setCookieHeaders.isEmpty()) return
+
+        val requestUrl = response.request.url.toString()
+        val cookieManager = CookieManager.getInstance()
+        var mirroredCount = 0
+
+        for (header in setCookieHeaders) {
+            // Cookie name is the substring before the first `=`. Skip
+            // anything that doesn't start with `fe_` so we don't pollute the
+            // WebView store with unrelated server cookies.
+            val name = header.substringBefore("=").trim()
+            if (!name.startsWith("fe_")) continue
+
+            cookieManager.setCookie(requestUrl, header)
+            mirroredCount++
+            Log.i(TAG, "Mirrored Frontegg cookie $name from $requestUrl into WebView store")
+        }
+
+        if (mirroredCount > 0) {
+            // flush() forces the in-memory write to be persisted, so a fresh
+            // WebView process (cold start, or restoring the activity) can
+            // read the cookie back.
+            cookieManager.flush()
+        }
     }
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class, CookieNotFoundException::class)
