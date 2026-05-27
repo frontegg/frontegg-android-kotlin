@@ -498,9 +498,20 @@ open class Api(
      */
     internal fun mirrorFronteggCookiesToWebViewStore(response: Response) {
         val setCookieHeaders = response.headers("set-cookie")
-        if (setCookieHeaders.isEmpty()) return
-
         val requestUrl = response.request.url.toString()
+
+        // Diagnostic: log every Set-Cookie name (not just the ones we mirror)
+        // so we can confirm whether the server is emitting `fe_*` cookies on
+        // mobile /oauth/token responses at all. If this log is empty, the
+        // server returned no Set-Cookie — Path A can't work without
+        // server-side support.
+        if (setCookieHeaders.isEmpty()) {
+            Log.i(TAG, "mirrorFronteggCookies: server returned NO Set-Cookie headers for $requestUrl")
+            return
+        }
+        val allNames = setCookieHeaders.map { it.substringBefore("=").trim() }
+        Log.i(TAG, "mirrorFronteggCookies: server returned ${allNames.size} Set-Cookie header(s): $allNames")
+
         val cookieManager = CookieManager.getInstance()
         var mirroredCount = 0
 
@@ -521,6 +532,8 @@ open class Api(
             // WebView process (cold start, or restoring the activity) can
             // read the cookie back.
             cookieManager.flush()
+        } else {
+            Log.i(TAG, "mirrorFronteggCookies: no fe_* cookies among ${allNames.size} Set-Cookie header(s) — nothing to mirror")
         }
     }
 

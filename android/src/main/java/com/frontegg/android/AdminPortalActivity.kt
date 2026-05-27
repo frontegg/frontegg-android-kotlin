@@ -102,10 +102,15 @@ class AdminPortalActivity : FronteggBaseActivity() {
             return
         }
 
-        Log.i(TAG, "AdminPortal: awaiting refresh before load to populate session cookies")
+        Log.i(TAG, "AdminPortal: awaiting forced refresh before load to populate session cookies")
         activityScope.launch {
             try {
-                auth.refreshTokenAndWait()
+                // force=true bypasses the "access token still valid" check in
+                // refreshIdempotent. Without it, on cold start with a still-valid
+                // access token the SDK short-circuits and never hits /oauth/token,
+                // so the server never emits Set-Cookie and we have no session
+                // cookie to mirror into the WebView store.
+                auth.refreshTokenAndWait(force = true)
             } catch (e: Throwable) {
                 // Refresh failed (offline, server error, etc.) — load the
                 // portal anyway; it'll render its own login form, same

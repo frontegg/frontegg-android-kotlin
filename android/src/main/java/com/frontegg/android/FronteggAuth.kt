@@ -158,9 +158,14 @@ interface FronteggAuth {
      * Use this when the caller must have the updated [accessToken] before proceeding
      * (e.g. Flutter plugin so that [state.accessToken] is current when the method channel returns).
      * Waits for network if needed (with timeout), then performs a single refresh.
+     * @param force when true, bypass the "access token still valid" short-circuit and
+     *              always hit `/oauth/token`. Useful when the caller needs the
+     *              server-issued session cookies (e.g. before opening the embedded
+     *              admin portal), not just a valid in-memory access token. Defaults
+     *              to false for backwards compatibility.
      * @return true if refresh succeeded, false if no network in time or refresh failed.
      */
-    suspend fun refreshTokenAndWait(): Boolean
+    suspend fun refreshTokenAndWait(force: Boolean = false): Boolean
 
     /**
      * Process queued requests when network becomes available.

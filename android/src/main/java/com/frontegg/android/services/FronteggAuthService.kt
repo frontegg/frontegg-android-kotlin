@@ -635,8 +635,8 @@ class FronteggAuthService(
         return true
     }
 
-    override suspend fun refreshTokenAndWait(): Boolean {
-        return refreshIdempotent(source = RefreshInvocationSource.MANUAL_USER)
+    override suspend fun refreshTokenAndWait(force: Boolean): Boolean {
+        return refreshIdempotent(source = RefreshInvocationSource.MANUAL_USER, force = force)
     }
 
     internal suspend fun refreshTokenAndWaitInternal(source: RefreshInvocationSource): Boolean {
