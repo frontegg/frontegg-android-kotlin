@@ -49,46 +49,65 @@ class AdminPortalActivity : FronteggBaseActivity() {
         if (savedInstanceState != null) {
             webView.restoreState(savedInstanceState)
         } else {
-            bridgeRefreshCookieIfPossible()
-            webView.loadUrl(buildPortalUrl())
+            bridgeRefreshCookieThenLoad(webView, buildPortalUrl())
         }
     }
 
     /**
      * If the SDK is authenticated, write its refresh token into the
-     * process-wide [CookieManager] as `fe_refresh_<appId-or-clientId>` before
-     * the WebView fetches `/oauth/portal`. Without this bridge, users who
-     * logged in via the Chrome Custom Tab flow (the Android equivalent of
-     * iOS `ASWebAuthenticationSession`) are forced to log in a second time
-     * — Chrome Custom Tabs put cookies in Chrome's per-app cookie jar, which
-     * is not visible to this WebView.
+     * process-wide [CookieManager] as `fe_refresh_<appId-or-clientId>` and
+     * THEN load the portal URL. Without this bridge, users who logged in via
+     * Chrome Custom Tabs (the Android equivalent of iOS `ASWebAuthenticationSession`)
+     * are forced to log in a second time — Chrome Custom Tabs put cookies in
+     * Chrome's per-app cookie jar, which is not visible to this WebView.
      *
      * Users who logged in via the SDK's embedded WebView already have these
      * cookies, because that flow shares the same process-wide CookieManager
      * with the portal. The bridge is a no-op for that case (the cookie value
      * we'd write matches what's already there).
      *
-     * No-op when the SDK has no refresh token to bridge — the portal falls
-     * back to its own login form, the existing behavior before this bridge.
+     * Timing matters: [CookieManager.setCookie] is asynchronous — the
+     * completion callback fires after the in-memory write lands. If we call
+     * `webView.loadUrl(...)` synchronously after `setCookie`, the HTTP GET
+     * for `/oauth/portal` can fire BEFORE the cookie is in the store, the
+     * server sees no session and 302s to `/oauth/account/login`, and the
+     * user sees a re-login prompt (the exact bug this method exists to fix).
+     * So [loadUrl] is called from inside the setCookie callback, posted back
+     * to the main thread (the callback fires on an internal CookieManager
+     * thread; WebView calls must come from the main thread).
+     *
+     * No-op when the SDK has no refresh token to bridge — the portal is
+     * loaded directly and falls back to its own login form, the existing
+     * behavior before this bridge.
      */
-    private fun bridgeRefreshCookieIfPossible() {
+    private fun bridgeRefreshCookieThenLoad(webView: WebView, portalUrl: String) {
         val auth = applicationContext.fronteggAuth
         val cookie = buildRefreshCookieValue(
             refreshToken = auth.refreshToken.value,
             baseUrl = auth.baseUrl,
             clientId = auth.clientId,
             applicationId = auth.applicationId
-        ) ?: return
+        )
+
+        if (cookie == null) {
+            // No refresh token to bridge — load directly. Portal will render
+            // its own login form if no existing web cookies are present.
+            Log.d(TAG, "loading $portalUrl (no refresh token to bridge)")
+            webView.loadUrl(portalUrl)
+            return
+        }
 
         val cookieManager = CookieManager.getInstance()
         cookieManager.setCookie(cookie.urlForSetCookie, cookie.headerValue) {
-            Log.i(TAG, "AdminPortal: bridged refresh cookie ${cookie.name} for ${cookie.urlForSetCookie}")
+            // Completion fires on a CookieManager-internal thread. Flush the
+            // in-memory cookie to persistent storage, then post the WebView
+            // load to the main thread.
+            cookieManager.flush()
+            webView.post {
+                Log.i(TAG, "AdminPortal: bridged refresh cookie ${cookie.name}, loading $portalUrl")
+                webView.loadUrl(portalUrl)
+            }
         }
-        // flush() forces the in-memory cookie to be persisted before we load
-        // the portal URL — setCookie's callback fires after the in-memory
-        // write but the WebView's networking layer reads from the persisted
-        // store on the next request.
-        cookieManager.flush()
     }
 
     @SuppressLint("SetJavaScriptEnabled")

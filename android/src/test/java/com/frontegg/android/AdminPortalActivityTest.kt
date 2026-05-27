@@ -290,4 +290,32 @@ class AdminPortalActivityTest {
         )
         assertEquals("https://app.frontegg.com", cookie?.urlForSetCookie)
     }
+
+    // MARK: - Cookie header format (regression: portal must see the cookie before the GET)
+
+    @Test
+    fun `cookie header value uses HTTP attribute syntax with semicolons`() {
+        // CookieManager.setCookie expects a `Name=Value; Attribute=...` header,
+        // exactly like a `Set-Cookie` HTTP response header. Anything else is
+        // silently discarded. This test fails if a future refactor breaks the
+        // header format — without it, a typo in the header string would only
+        // show up at runtime as a portal re-login (the original bug).
+        val cookie = AdminPortalActivity.buildRefreshCookieValue(
+            refreshToken = "rt-jwt-value",
+            baseUrl = "https://app.frontegg.com",
+            clientId = "client",
+            applicationId = null
+        )
+        val header = cookie?.headerValue ?: error("expected cookie")
+
+        // Name=Value comes first, separated by `=` (not `:`).
+        val firstSep = header.indexOf(';')
+        val nameValue = header.substring(0, firstSep)
+        assertTrue("first segment must be Name=Value", nameValue.contains("="))
+        assertFalse("must not use colon separator (that's the Set-Cookie format on the network, not what CookieManager.setCookie expects here)", nameValue.contains(":"))
+
+        // Attributes follow, separated by `; ` (semicolon + space).
+        assertTrue("attributes must be `; `-separated", header.contains("; Path="))
+        assertTrue("must include Secure for HTTPS", header.contains("; Secure"))
+    }
 }
