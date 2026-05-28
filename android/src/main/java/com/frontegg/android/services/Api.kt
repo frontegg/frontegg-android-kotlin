@@ -401,30 +401,6 @@ open class Api(
         }
     }
 
-    /**
-     * Performs a "silent authorize" round-trip — same endpoint the portal's
-     * React app calls on mount to bootstrap its session. Returns the raw
-     * [Response] (caller is responsible for closing it) so both the response
-     * body (a fresh [AuthResponse] with rotated tokens) AND the `Set-Cookie`
-     * headers (the server-issued `fe_refresh_*` / `fe_device_*` cookies) are
-     * available to the caller.
-     *
-     * Used by [com.frontegg.android.AdminPortalActivity] to seed the
-     * embedded portal WebView with server-signed session cookies BEFORE the
-     * portal HTML loads, so the portal recognizes the session immediately
-     * instead of redirecting to a second login page.
-     */
-    @Throws(IllegalArgumentException::class, IOException::class)
-    fun silentAuthorize(refreshToken: String): Response {
-        val cookieValue = "${refreshCookieName()}=$refreshToken"
-        val call = buildPostRequest(
-            ApiConstants.silentRefreshToken, JsonObject(), mapOf(
-                "cookie" to cookieValue
-            )
-        )
-        return call.execute()
-    }
-
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
     fun authorizeWithTokens(
         refreshToken: String,

@@ -15,49 +15,29 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import androidx.core.view.WindowCompat
-import com.frontegg.android.services.FronteggAuthService
 import com.frontegg.android.ui.FronteggBaseActivity
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.MainScope
-import kotlinx.coroutines.cancel
-import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 /**
  * Embedded Frontegg admin portal — opens `${baseUrl}/oauth/portal?appId=<applicationId>`
- * in a WebView with a server-issued session bootstrapped from the SDK's stored
- * refresh token.
+ * in a WebView.
  *
- * The challenge: the portal SPA at `/oauth/portal` calls
- * `/frontegg/oauth/authorize/silent` on mount to validate the session, and that
- * endpoint reads a `fe_refresh_<id>` cookie from the WebView. Users who logged
- * into the SDK via Chrome Custom Tabs have their refresh-token cookie in
- * Chrome's isolated jar — not visible to the WebView's [CookieManager] — so by
- * default the portal sees no cookie, can't validate, and renders its own
- * login form (the "second login" bug).
+ * ⚠️ DIAGNOSTIC BUILD — the cookie-bridge strategy is intentionally minimal
+ * here. Earlier attempts (synthetic-cookie bridge, silent-authorize-first) both
+ * failed for hosted-login users because the SDK's stored refresh token (from
+ * `/oauth/token` code exchange) and the cookie-auth `fe_refresh_*` value the
+ * portal expects are different identifier families on the auth backend. Until
+ * we have evidence of what cookies actually live in [CookieManager] at portal-
+ * open time across the various login flows, this class just:
  *
- * Fix: BEFORE loading `/oauth/portal`, the SDK itself calls
- * `/frontegg/oauth/authorize/silent` via OkHttp. The server's response
- * contains both:
- *   - a JSON body with a freshly-rotated `refresh_token` — we feed it through
- *     to [FronteggAuthService.applyOutOfBandSilentAuthorizeResult] so the SDK
- *     stays in sync, and
- *   - `Set-Cookie: fe_refresh_*; fe_device_*` headers — we mirror these into
- *     [CookieManager] so the WebView starts with server-signed cookies that
- *     are byte-identical to what the portal expects.
- * Then we load `/oauth/portal`. The portal's own silent-authorize on mount
- * will succeed (at most one rotation behind, which the auth backend's grace
- * window covers).
+ *   1. snapshots the existing `fe_refresh_*` / `fe_device_*` cookies for the
+ *      host (logging name + first 8 chars of value + the URL the WebView will
+ *      send them on),
+ *   2. logs the SDK's stored refresh-token prefix and the cookie name it would
+ *      map to (so we can correlate against the snapshot), and
+ *   3. loads `/oauth/portal` as-is.
  *
- * Before mirroring, we delete any existing `fe_refresh_*` / `fe_device_*`
- * cookies for the host. Without this cleanup, a stale (already-rotated)
- * cookie from a prior portal open can coexist with the fresh one in a
- * different scope (host-only vs. domain), and per RFC 6265 §5.4 the older
- * one ends up first in the `Cookie:` header — the server reads it and 401s
- * the silent-authorize request. That collision was the actual root cause of
- * Pavel's "first-open-on-iOS / second-open-on-Android logs the user out"
- * reproduction.
+ * No cookie writes, no deletes, no silent-authorize. Whatever the login WebView
+ * left behind stays.
  *
  * **Beta — API may change in future minor releases.** The class name, [open]
  * entry point, presentation style (currently a full-screen [Activity]), and
@@ -69,10 +49,6 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     private lateinit var webView: WebView
     private lateinit var loader: ProgressBar
-
-    // Owned by this activity, cancelled in onDestroy. Used to dispatch the
-    // silent-authorize round-trip on Dispatchers.IO without blocking Main.
-    private val activityScope: CoroutineScope = MainScope()
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -93,196 +69,47 @@ class AdminPortalActivity : FronteggBaseActivity() {
             loader.visibility = View.GONE
             webView.restoreState(savedInstanceState)
         } else {
-            silentAuthorizeThenLoad(webView, buildPortalUrl())
+            logCookieDiagnosticsAndLoad(webView, buildPortalUrl())
         }
     }
 
     /**
-     * Bootstrap a server-issued session via silent-authorize, then load
-     * `/oauth/portal` in the WebView.
+     * Diagnostic: snapshot the `fe_refresh_*` / `fe_device_*` cookies the
+     * WebView will send on its initial request, log the SDK's expected cookie
+     * name + token prefix for correlation, then load the portal.
      *
-     * Sequence:
-     *   1. Clear any stale `fe_refresh_*` / `fe_device_*` cookies for this
-     *      host from [CookieManager]. These would otherwise coexist with the
-     *      fresh server-issued cookies we're about to mirror, and the older
-     *      stale value would end up sorted first in the request's `Cookie:`
-     *      header (RFC 6265 §5.4) → server reads stale UUID → 401.
-     *   2. POST `/frontegg/oauth/authorize/silent` via [com.frontegg.android.services.Api.silentAuthorize]
-     *      with the SDK's current refresh-token UUID as the cookie. This is
-     *      the exact same call the portal's React app will make on mount —
-     *      doing it OkHttp-side first means by the time the WebView loads
-     *      `/oauth/portal`, [CookieManager] already has the rotated cookies
-     *      the portal expects.
-     *   3. On success: mirror the response's `Set-Cookie` headers into
-     *      [CookieManager], then update the SDK's stored tokens via
-     *      [FronteggAuthService.applyOutOfBandSilentAuthorizeResult] so the
-     *      SDK stays one-rotation-in-sync with what the server now considers
-     *      the user's valid session.
-     *   4. Regardless of success/failure, load `/oauth/portal`. If silent-
-     *      authorize failed, the portal will render its own login form —
-     *      same fallback as before any of this existed.
-     *
-     * Runs the network call off [Dispatchers.Main] (silent-authorize is a
-     * synchronous OkHttp request) and hops back to Main for the WebView call
-     * (WebView APIs are main-thread only).
+     * Does not modify cookies. If the login WebView left valid cookies in
+     * [CookieManager], the portal request will pick them up; if it didn't,
+     * the portal will redirect to its own login form (the original baseline
+     * behavior before any bridge attempts).
      */
-    private fun silentAuthorizeThenLoad(webView: WebView, portalUrl: String) {
+    private fun logCookieDiagnosticsAndLoad(webView: WebView, portalUrl: String) {
         val auth = applicationContext.fronteggAuth
         val baseUrl = auth.baseUrl
-        val refreshToken = auth.refreshToken.value
 
-        if (refreshToken.isNullOrEmpty()) {
-            Log.d(TAG, "silent-authorize: no refresh token — loading $portalUrl without bridge (portal will render its own login)")
-            webView.loadUrl(portalUrl)
-            return
-        }
+        val expectedCookieName = refreshCookieName(auth.clientId)
+        val sdkTokenPrefix = valuePrefix(auth.refreshToken.value ?: "")
+        Log.i(TAG, "AdminPortal: SDK expects cookie name=$expectedCookieName, SDK.refreshToken=$sdkTokenPrefix")
 
-        val host = try {
-            Uri.parse(baseUrl).host
-        } catch (_: Throwable) {
-            null
-        }
-        if (host.isNullOrEmpty()) {
-            Log.w(TAG, "silent-authorize: baseUrl=$baseUrl has no host — loading $portalUrl without bridge")
-            webView.loadUrl(portalUrl)
-            return
-        }
-
-        activityScope.launch {
-            // Step 1 — drop any stale fe_refresh_* / fe_device_* cookies the
-            // server might have set in a prior portal open. RFC 6265 §5.4
-            // would otherwise sort the older one first in the Cookie header.
-            val cleared = clearStaleSessionCookies(baseUrl)
-            Log.i(TAG, "silent-authorize: cleared $cleared stale fe_refresh_*/fe_device_* cookie(s) before bridge")
-
-            // Step 2 — silent-authorize on IO. The SDK's HTTP client is
-            // synchronous OkHttp; calling it on Main would block the UI.
-            val outcome = try {
-                withContext(Dispatchers.IO) {
-                    val service = auth as? FronteggAuthService
-                        ?: return@withContext SilentAuthorizeOutcome.NoService
-                    val response = service.silentAuthorizeForAdminPortal(refreshToken)
-                    response.use { resp ->
-                        if (!resp.isSuccessful) {
-                            return@withContext SilentAuthorizeOutcome.HttpError(resp.code)
-                        }
-                        // Body is intentionally ignored — see comment above
-                        // step 3 for why we don't sync credentialManager.
-                        // Filter Set-Cookie to fe_refresh_*/fe_device_* so
-                        // unrelated server cookies don't pollute the WebView
-                        // store.
-                        val setCookieHeaders = resp.headers("set-cookie").filter { header ->
-                            val name = header.substringBefore("=").trim()
-                            name.startsWith("fe_refresh_") || name.startsWith("fe_device_")
-                        }
-                        SilentAuthorizeOutcome.Success(setCookieHeaders)
-                    }
-                }
-            } catch (t: Throwable) {
-                Log.w(TAG, "silent-authorize: request threw — loading portal anyway", t)
-                SilentAuthorizeOutcome.Threw(t)
-            }
-
-            // Step 3 — mirror cookies into CookieManager. CookieManager.setCookie
-            // writes are fast in-memory ops; flush() at the end forces
-            // cross-process persistence.
-            //
-            // We deliberately DO NOT update the SDK's credentialManager from
-            // the response body. Empirical testing (curl against staging)
-            // shows the body's `refresh_token` field from silent-authorize is
-            // a different identifier than the Set-Cookie value, and is
-            // invalid for the SDK's existing refresh path. Trying to "keep
-            // the SDK in sync" by storing either value would break the SDK's
-            // existing refresh flow for at least some auth-flow combinations.
-            // If customer reports confirm a follow-up auth failure manifests
-            // in practice, the fix is to call applyOutOfBandSilentAuthorizeResult
-            // with the parsed Set-Cookie value (not the body field) here.
-            if (outcome is SilentAuthorizeOutcome.Success) {
-                val cookieManager = CookieManager.getInstance()
-                for (header in outcome.setCookieHeaders) {
-                    cookieManager.setCookie(baseUrl, header)
-                }
-                cookieManager.flush()
-                Log.i(TAG, "silent-authorize: mirrored ${outcome.setCookieHeaders.size} server cookie(s) into CookieManager")
-            } else {
-                Log.i(TAG, "silent-authorize: did not bootstrap session ($outcome) — portal will render its own login if no usable cookies remain")
-            }
-
-            // Step 4 — load the portal. WebView APIs are main-thread only;
-            // activityScope is Main, but be explicit.
-            Log.i(TAG, "silent-authorize: loading $portalUrl")
-            webView.loadUrl(portalUrl)
-        }
-    }
-
-    /**
-     * Outcome of the silent-authorize round-trip. Kept inside the activity
-     * (sealed class, not exposed) because it's only meaningful for this
-     * specific bootstrap flow.
-     */
-    private sealed class SilentAuthorizeOutcome {
-        data class Success(
-            val setCookieHeaders: List<String>,
-        ) : SilentAuthorizeOutcome()
-
-        data class HttpError(val statusCode: Int) : SilentAuthorizeOutcome() {
-            override fun toString(): String = "HTTP $statusCode"
-        }
-
-        data class Threw(val cause: Throwable) : SilentAuthorizeOutcome() {
-            override fun toString(): String = "threw ${cause.javaClass.simpleName}: ${cause.message}"
-        }
-
-        object NoService : SilentAuthorizeOutcome() {
-            override fun toString(): String = "FronteggAuth is not a FronteggAuthService (unexpected)"
-        }
-    }
-
-    /**
-     * Remove every existing `fe_refresh_` / `fe_device_` cookie scoped to
-     * the given baseUrl's host from [CookieManager]. Returns the count removed.
-     *
-     * Implementation: CookieManager doesn't expose a "list all cookies" API,
-     * but we know the cookies have a deterministic name prefix. The robust
-     * approach is to overwrite each candidate name with an expired value
-     * (Max-Age=0), which causes CookieManager to drop it.
-     *
-     * Since we don't know the clientId/userId suffix without parsing
-     * existing cookies, we use a different approach: fetch the current
-     * Cookie header for the URL (which lists everything the server would
-     * see), find every name starting with `fe_refresh_` or `fe_device_`,
-     * and overwrite each with Max-Age=0 in both host-only and domain
-     * scope (cookies may be stored in either scope; both must go).
-     */
-    private fun clearStaleSessionCookies(baseUrl: String): Int {
         val cookieManager = CookieManager.getInstance()
-        val existing = cookieManager.getCookie(baseUrl) ?: return 0
-        // getCookie returns a `; `-separated `name=value; name=value` string.
-        val staleNames = existing.split(";")
-            .map { it.trim() }
-            .mapNotNull { entry ->
-                val name = entry.substringBefore("=").trim()
-                if (name.startsWith("fe_refresh_") || name.startsWith("fe_device_")) name else null
-            }
-            .toSet()
+        // CookieManager.getCookie(url) returns the `; `-separated `name=value`
+        // string the WebView would send on a request to that URL — exactly
+        // what we want to see at portal-open time.
+        val portalCookieHeader = cookieManager.getCookie(portalUrl)
+        val baseCookieHeader = cookieManager.getCookie(baseUrl)
+        Log.i(TAG, "AdminPortal: CookieManager.getCookie(portalUrl) has ${countFeCookies(portalCookieHeader)} fe_* cookie(s)")
+        Log.i(TAG, "AdminPortal: CookieManager.getCookie(baseUrl) has ${countFeCookies(baseCookieHeader)} fe_* cookie(s)")
 
-        for (name in staleNames) {
-            // Setting Max-Age=0 (or Expires in the past) tells CookieManager
-            // to drop the cookie. We do this for BOTH host-only and
-            // domain-scoped versions because the cookie could be stored in
-            // either scope — the server's `Set-Cookie: Domain=...` makes it
-            // a domain cookie; a prior bridge's synthetic write made it
-            // host-only. Both must go.
-            cookieManager.setCookie(baseUrl, "$name=; Path=/; Max-Age=0")
-            val host = try { Uri.parse(baseUrl).host } catch (_: Throwable) { null }
-            if (host != null) {
-                cookieManager.setCookie(baseUrl, "$name=; Path=/; Domain=$host; Max-Age=0")
-            }
+        for (entry in (portalCookieHeader ?: "").split(";").map { it.trim() }) {
+            if (entry.isEmpty()) continue
+            val name = entry.substringBefore("=").trim()
+            if (!name.startsWith("fe_refresh_") && !name.startsWith("fe_device_")) continue
+            val value = entry.substringAfter("=", "")
+            Log.i(TAG, "AdminPortal:   $name value=${valuePrefix(value)}")
         }
-        if (staleNames.isNotEmpty()) {
-            cookieManager.flush()
-        }
-        return staleNames.size
+
+        Log.i(TAG, "AdminPortal: loading $portalUrl")
+        webView.loadUrl(portalUrl)
     }
 
     @SuppressLint("SetJavaScriptEnabled")
@@ -360,9 +187,6 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Cancel any in-flight silent-authorize so a slow network response
-        // can't try to call loadUrl on a destroyed WebView.
-        activityScope.cancel()
         // Best-effort cleanup; activity-scoped WebView so leak risk is bounded.
         try {
             webView.stopLoading()
@@ -429,6 +253,46 @@ class AdminPortalActivity : FronteggBaseActivity() {
                 builder.appendQueryParameter("appId", applicationId)
             }
             return builder.build().toString()
+        }
+
+        /**
+         * The cookie name format the Frontegg auth backend reads at
+         * `/frontegg/oauth/authorize/silent`. Strips ONLY the first dash of
+         * clientId — must match `Api.kt`'s `refreshCookieName()` exactly.
+         *
+         * Exposed (internal) for diagnostic logging in [logCookieDiagnosticsAndLoad]
+         * (so we can log the EXPECTED cookie name alongside what actually lives in
+         * [CookieManager]) and for tests pinning the format.
+         */
+        @JvmStatic
+        internal fun refreshCookieName(clientId: String): String {
+            val stripped = clientId.replaceFirst("-", "")
+            return "fe_refresh_$stripped"
+        }
+
+        /**
+         * Safe redacted prefix of a (potentially sensitive) token value, for
+         * log correlation only. Returns the first 8 chars + `... len=N`. NEVER
+         * returns the full value.
+         */
+        @JvmStatic
+        internal fun valuePrefix(s: String): String {
+            if (s.isEmpty()) return "<empty>"
+            if (s.length <= 8) return "<short len=${s.length}>"
+            return "${s.substring(0, 8)}... len=${s.length}"
+        }
+
+        /**
+         * Count `fe_*` cookies in a `getCookie()`-style `name=value; name=value`
+         * header. Returns 0 for null/empty input.
+         */
+        @JvmStatic
+        internal fun countFeCookies(header: String?): Int {
+            if (header.isNullOrEmpty()) return 0
+            return header.split(";").count { entry ->
+                val name = entry.substringBefore("=").trim()
+                name.startsWith("fe_refresh_") || name.startsWith("fe_device_")
+            }
         }
 
         private const val DESKTOP_USER_AGENT =
