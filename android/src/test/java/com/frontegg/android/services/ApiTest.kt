@@ -1,6 +1,7 @@
 package com.frontegg.android.services
 
 import android.util.Log
+import android.webkit.CookieManager
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import org.junit.jupiter.api.assertThrows
@@ -106,6 +107,115 @@ class ApiTest {
         assertThrows<FailedToAuthenticateException> {
             api.refreshToken("Test Token")
         }
+    }
+
+    // MARK: - mirrorFronteggCookiesToWebViewStore (Path A: capture server Set-Cookie)
+
+    @Test
+    fun `refreshToken mirrors fe_refresh server cookie into CookieManager`() {
+        // Server response includes a Set-Cookie header for `fe_refresh_<id>`
+        // — the genuine session-cookie format the Frontegg auth backend uses
+        // and the portal reads on /oauth/portal. Verify that we capture it
+        // and write it into the process-wide CookieManager (which the
+        // AdminPortalActivity WebView shares).
+        val mockCookieManager = mockkClass(CookieManager::class)
+        mockkStatic(CookieManager::class)
+        every { CookieManager.getInstance() }.returns(mockCookieManager)
+        every { mockCookieManager.setCookie(any(), any<String>()) } returns Unit
+        every { mockCookieManager.flush() } returns Unit
+
+        val refreshCookieHeader =
+            "fe_refresh_TestClientId=signed-server-value; Domain=.frontegg.com; Path=/; Secure; HttpOnly; SameSite=None"
+        mockWebServer.enqueue(
+            MockResponse()
+                .setBody(authResponseJson)
+                .setHeader("set-cookie", refreshCookieHeader)
+        )
+
+        api.refreshToken("Test Token")
+
+        // The full Set-Cookie header value is forwarded verbatim to
+        // CookieManager.setCookie scoped to the request URL.
+        verify(exactly = 1) {
+            mockCookieManager.setCookie(
+                match<String> { it.startsWith(mockWebServer.url("").toString().removeSuffix("/")) },
+                refreshCookieHeader
+            )
+        }
+        verify(exactly = 1) { mockCookieManager.flush() }
+    }
+
+    @Test
+    fun `refreshToken does not mirror non fe-prefixed cookies`() {
+        // Unrelated tracking cookies the server might also set must NOT
+        // pollute the WebView store — only `fe_*` are session-relevant.
+        val mockCookieManager = mockkClass(CookieManager::class)
+        mockkStatic(CookieManager::class)
+        every { CookieManager.getInstance() }.returns(mockCookieManager)
+        every { mockCookieManager.setCookie(any(), any<String>()) } returns Unit
+        every { mockCookieManager.flush() } returns Unit
+
+        mockWebServer.enqueue(
+            MockResponse()
+                .setBody(authResponseJson)
+                .addHeader("set-cookie", "_ga=GA1.1.xxx; Domain=.frontegg.com; Path=/")
+                .addHeader("set-cookie", "tracking_id=abc; Path=/")
+        )
+
+        api.refreshToken("Test Token")
+
+        // No fe_* cookie in the response → no setCookie and no flush.
+        verify(exactly = 0) { mockCookieManager.setCookie(any(), any<String>()) }
+        verify(exactly = 0) { mockCookieManager.flush() }
+    }
+
+    @Test
+    fun `refreshToken does not touch CookieManager when server returns no Set-Cookie`() {
+        // Most common case for the bug we're investigating: server response
+        // has no Set-Cookie at all. The mirror helper must early-return
+        // without touching the WebView store.
+        val mockCookieManager = mockkClass(CookieManager::class)
+        mockkStatic(CookieManager::class)
+        every { CookieManager.getInstance() }.returns(mockCookieManager)
+        every { mockCookieManager.setCookie(any(), any<String>()) } returns Unit
+        every { mockCookieManager.flush() } returns Unit
+
+        mockWebServer.enqueue(MockResponse().setBody(authResponseJson))
+
+        api.refreshToken("Test Token")
+
+        verify(exactly = 0) { mockCookieManager.setCookie(any(), any<String>()) }
+        verify(exactly = 0) { mockCookieManager.flush() }
+    }
+
+    @Test
+    fun `exchangeToken mirrors fe_refresh server cookie into CookieManager`() {
+        // Same invariant for the initial OAuth code exchange — first
+        // /oauth/token call after login should also populate the WebView
+        // cookie store.
+        val mockCookieManager = mockkClass(CookieManager::class)
+        mockkStatic(CookieManager::class)
+        every { CookieManager.getInstance() }.returns(mockCookieManager)
+        every { mockCookieManager.setCookie(any(), any<String>()) } returns Unit
+        every { mockCookieManager.flush() } returns Unit
+
+        val refreshCookieHeader =
+            "fe_refresh_TestClientId=signed-server-value; Path=/; Secure"
+        mockWebServer.enqueue(
+            MockResponse()
+                .setBody(authResponseJson)
+                .setHeader("set-cookie", refreshCookieHeader)
+        )
+
+        api.exchangeToken("Test Code", "Test Redirect Url", "Test Code Verifier")
+
+        verify(exactly = 1) {
+            mockCookieManager.setCookie(
+                any(),
+                refreshCookieHeader
+            )
+        }
+        verify(exactly = 1) { mockCookieManager.flush() }
     }
 
     @Test

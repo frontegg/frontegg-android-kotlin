@@ -1,19 +1,31 @@
 package com.frontegg.android
 
 import android.app.Activity
+import com.frontegg.android.utils.ReadOnlyObservableValue
+import org.robolectric.Robolectric
+import org.robolectric.android.controller.ActivityController
+import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
+import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(RobolectricTestRunner::class)
 class AdminPortalActivityTest {
+
+    @After
+    fun tearDown() {
+        FronteggApp.instance = null
+    }
 
     @Test
     fun `buildPortalUrl appends oauth_portal path`() {
@@ -146,5 +158,77 @@ class AdminPortalActivityTest {
         )
     }
 
+    // MARK: - Forced refresh runs off the Main dispatcher
 
+    @Test
+    fun `forced refresh runs off the Main dispatcher`() {
+        // Regression test for the endless-loader bug Pavel reported.
+        //
+        // Previously the activity ran `auth.refreshTokenAndWait(force = true)`
+        // directly on Main (via MainScope()). The refresh path includes
+        // NetworkGate.isNetworkLikelyGood, which does a synchronous OkHttp
+        // HEAD request — on Main that throws NetworkOnMainThreadException,
+        // the gate catches it and returns false, and the gate loop spins
+        // for the full 60-second timeout. The portal never loads.
+        //
+        // This test captures the calling thread inside `refreshTokenAndWait`
+        // and asserts it's NOT the Main thread. If a future refactor removes
+        // the `withContext(Dispatchers.IO)` wrap, this test fails before the
+        // change reaches a real device.
+
+        val mockAuth = mockk<FronteggAuth>(relaxed = true)
+        val mockRefreshToken = mockk<ReadOnlyObservableValue<String?>>(relaxed = true)
+        every { mockRefreshToken.value } returns "test-refresh-token"
+        every { mockAuth.refreshToken } returns mockRefreshToken
+        every { mockAuth.baseUrl } returns "https://test.example.com"
+        every { mockAuth.clientId } returns "test-client-id"
+        every { mockAuth.applicationId } returns null
+
+        // Capture the thread the refresh runs on. We compare against the
+        // thread of the activity's onCreate (Main) — if they match, the
+        // refresh ran on Main and the regression is back.
+        val mainThread = AtomicReference<Thread?>(null)
+        val refreshThread = AtomicReference<Thread?>(null)
+        coEvery { mockAuth.refreshTokenAndWait(force = true) } answers {
+            refreshThread.set(Thread.currentThread())
+            true
+        }
+
+        val mockFronteggApp = mockk<FronteggApp>(relaxed = true)
+        every { mockFronteggApp.auth } returns mockAuth
+        FronteggApp.instance = mockFronteggApp
+
+        // Use Robolectric.buildActivity (not ActivityScenario) so we don't
+        // depend on the activity being declared in the test manifest.
+        val controller: ActivityController<AdminPortalActivity> =
+            Robolectric.buildActivity(AdminPortalActivity::class.java)
+        controller.create().start().resume()
+
+        // Drain pending Main-thread runnables so the activity's
+        // onCreate-triggered coroutine launches and the withContext
+        // switch to IO completes. Then block briefly for the IO
+        // coroutine to actually run.
+        org.robolectric.shadows.ShadowLooper.idleMainLooper()
+        val deadline = System.currentTimeMillis() + 5_000
+        while (refreshThread.get() == null && System.currentTimeMillis() < deadline) {
+            org.robolectric.shadows.ShadowLooper.idleMainLooper()
+            Thread.sleep(50)
+        }
+        controller.pause().stop().destroy()
+
+        val captured = refreshThread.get()
+        val mainLooperThread = android.os.Looper.getMainLooper().thread
+        assertTrue(
+            "refreshTokenAndWait must run; captured no thread (test setup issue?)",
+            captured != null
+        )
+        assertNotEquals(
+            "refreshTokenAndWait must run OFF the Main thread, but ran on Main (${captured?.name}). " +
+                "Running on Main triggers NetworkOnMainThreadException inside NetworkGate.performPingTest, " +
+                "causing the refreshIdempotent network-gate loop to spin for the full 60s timeout " +
+                "(Pavel's endless-loader reproduction).",
+            mainLooperThread,
+            captured
+        )
+    }
 }
