@@ -1,6 +1,9 @@
 package com.frontegg.android.services
 
+import android.util.Log
 import com.frontegg.android.entitlements.Attributes
+import com.frontegg.android.entitlements.AttributesPreparer
+import com.frontegg.android.entitlements.EntitlementResult
 import com.frontegg.android.entitlements.IsEntitledToFeature
 import com.frontegg.android.entitlements.IsEntitledToPermission
 import com.frontegg.android.models.Entitlement
@@ -69,6 +72,7 @@ class EntitlementsService(
             justification = NotEntitledJustification.ENTITLEMENTS_NOT_LOADED
         )
         val result = IsEntitledToFeature.evaluate(featureKey, _state.context, attributes)
+        logCheckTrace(kind = "feature", key = featureKey, attributes = attributes, result = result)
         return Entitlement(isEntitled = result.isEntitled, justification = result.justification)
     }
 
@@ -82,6 +86,63 @@ class EntitlementsService(
             justification = NotEntitledJustification.ENTITLEMENTS_NOT_LOADED
         )
         val result = IsEntitledToPermission.evaluate(permissionKey, _state.context, attributes)
+        logCheckTrace(kind = "permission", key = permissionKey, attributes = attributes, result = result)
         return Entitlement(isEntitled = result.isEntitled, justification = result.justification)
+    }
+
+    /**
+     * Diagnostic trace for `getFeatureEntitlements` / `getPermissionEntitlements`.
+     * Shows the prepared attribute bag (so the caller can confirm
+     * `frontegg.tenantId` / `frontegg.email` / etc. actually came through from the
+     * JWT) and the verdict. Tagged `[ENT-DEBUG]` for easy logcat filtering.
+     * Sensitive claims (email, tenantId) only appear in your own test app's
+     * debug log, never leaving the device unless you copy them.
+     */
+    private fun logCheckTrace(
+        kind: String,
+        key: String,
+        attributes: Attributes,
+        result: EntitlementResult
+    ) {
+        val prepared = AttributesPreparer.prepare(attributes)
+        val attributeSummary = prepared.entries
+            .sortedBy { it.key }
+            .joinToString(", ") { "${it.key}=${it.value ?: "null"}" }
+        val ctx = _state.context
+        val contextStatus = if (ctx != null) {
+            "features=${ctx.features.size} plans=${ctx.plans.size} permissions=${ctx.permissions.size}"
+        } else {
+            "context=null"
+        }
+        Log.i(TAG, "[ENT-DEBUG] check$kind(\"$key\") → isEntitled=${result.isEntitled} justification=${result.justification ?: "null"}")
+        Log.i(TAG, "[ENT-DEBUG]   context: $contextStatus")
+        Log.i(TAG, "[ENT-DEBUG]   attributes: {$attributeSummary}")
+        // Print the relevant slice of the context for THIS feature/permission so
+        // the trace is self-contained — no need to cross-reference the load log.
+        if (kind == "feature" && ctx != null) {
+            val feature = ctx.features[key]
+            if (feature != null) {
+                val planIdsStr = if (feature.planIds.isEmpty()) "[]" else "[${feature.planIds.joinToString(",")}]"
+                val expireStr = feature.expireTime?.toString() ?: "null"
+                val flagStr = feature.featureFlag?.let {
+                    "on=${it.on} off=${it.offTreatment.wire} default=${it.defaultTreatment.wire} rules=${it.rules?.size ?: 0}"
+                } ?: "null"
+                Log.i(TAG, "[ENT-DEBUG]   feature slice: planIds=$planIdsStr expireTime=$expireStr featureFlag=$flagStr linkedPermissions=${feature.linkedPermissions}")
+                for (planId in feature.planIds) {
+                    val plan = ctx.plans[planId]
+                    if (plan != null) {
+                        Log.i(TAG, "[ENT-DEBUG]     linked plan[$planId]: defaultTreatment=${plan.defaultTreatment.wire} rules=${plan.rules?.size ?: 0}")
+                    } else {
+                        Log.i(TAG, "[ENT-DEBUG]     linked plan[$planId]: MISSING from plans map")
+                    }
+                }
+            } else {
+                Log.i(TAG, "[ENT-DEBUG]   feature[$key]: not present in catalog")
+            }
+        }
+    }
+
+    companion object {
+        private const val TAG = "EntitlementsService"
     }
 }
