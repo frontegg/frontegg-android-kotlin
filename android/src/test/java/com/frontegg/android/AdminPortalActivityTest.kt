@@ -1,31 +1,21 @@
 package com.frontegg.android
 
 import android.app.Activity
-import com.frontegg.android.utils.ReadOnlyObservableValue
-import org.robolectric.Robolectric
-import org.robolectric.android.controller.ActivityController
-import io.mockk.coEvery
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.slot
 import io.mockk.verify
-import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
-import java.util.concurrent.atomic.AtomicReference
 
 @RunWith(RobolectricTestRunner::class)
 class AdminPortalActivityTest {
-
-    @After
-    fun tearDown() {
-        FronteggApp.instance = null
-    }
 
     @Test
     fun `buildPortalUrl appends oauth_portal path`() {
@@ -158,77 +148,128 @@ class AdminPortalActivityTest {
         )
     }
 
-    // MARK: - Forced refresh runs off the Main dispatcher
+    // MARK: - refreshCookieName(clientId)
+    //
+    // CRITICAL: this format must match Api.kt's `refreshCookieName()`
+    // (clientId.replaceFirst("-", "")). The SDK's HTTP client sends
+    // `Cookie: fe_refresh_<that-id>=<refreshToken>` to the auth server on every
+    // refresh / logout call and the server accepts it. So writing the same
+    // name + value into CookieManager is what makes the portal recognize
+    // the session without backend changes.
+    //
+    // An earlier version of this code stripped ALL dashes — that produced a
+    // cookie name the server didn't recognize, and the portal bounced to
+    // login. These tests pin the right behavior.
 
     @Test
-    fun `forced refresh runs off the Main dispatcher`() {
-        // Regression test for the endless-loader bug Pavel reported.
-        //
-        // Previously the activity ran `auth.refreshTokenAndWait(force = true)`
-        // directly on Main (via MainScope()). The refresh path includes
-        // NetworkGate.isNetworkLikelyGood, which does a synchronous OkHttp
-        // HEAD request — on Main that throws NetworkOnMainThreadException,
-        // the gate catches it and returns false, and the gate loop spins
-        // for the full 60-second timeout. The portal never loads.
-        //
-        // This test captures the calling thread inside `refreshTokenAndWait`
-        // and asserts it's NOT the Main thread. If a future refactor removes
-        // the `withContext(Dispatchers.IO)` wrap, this test fails before the
-        // change reaches a real device.
-
-        val mockAuth = mockk<FronteggAuth>(relaxed = true)
-        val mockRefreshToken = mockk<ReadOnlyObservableValue<String?>>(relaxed = true)
-        every { mockRefreshToken.value } returns "test-refresh-token"
-        every { mockAuth.refreshToken } returns mockRefreshToken
-        every { mockAuth.baseUrl } returns "https://test.example.com"
-        every { mockAuth.clientId } returns "test-client-id"
-        every { mockAuth.applicationId } returns null
-
-        // Capture the thread the refresh runs on. We compare against the
-        // thread of the activity's onCreate (Main) — if they match, the
-        // refresh ran on Main and the regression is back.
-        val mainThread = AtomicReference<Thread?>(null)
-        val refreshThread = AtomicReference<Thread?>(null)
-        coEvery { mockAuth.refreshTokenAndWait(force = true) } answers {
-            refreshThread.set(Thread.currentThread())
-            true
-        }
-
-        val mockFronteggApp = mockk<FronteggApp>(relaxed = true)
-        every { mockFronteggApp.auth } returns mockAuth
-        FronteggApp.instance = mockFronteggApp
-
-        // Use Robolectric.buildActivity (not ActivityScenario) so we don't
-        // depend on the activity being declared in the test manifest.
-        val controller: ActivityController<AdminPortalActivity> =
-            Robolectric.buildActivity(AdminPortalActivity::class.java)
-        controller.create().start().resume()
-
-        // Drain pending Main-thread runnables so the activity's
-        // onCreate-triggered coroutine launches and the withContext
-        // switch to IO completes. Then block briefly for the IO
-        // coroutine to actually run.
-        org.robolectric.shadows.ShadowLooper.idleMainLooper()
-        val deadline = System.currentTimeMillis() + 5_000
-        while (refreshThread.get() == null && System.currentTimeMillis() < deadline) {
-            org.robolectric.shadows.ShadowLooper.idleMainLooper()
-            Thread.sleep(50)
-        }
-        controller.pause().stop().destroy()
-
-        val captured = refreshThread.get()
-        val mainLooperThread = android.os.Looper.getMainLooper().thread
-        assertTrue(
-            "refreshTokenAndWait must run; captured no thread (test setup issue?)",
-            captured != null
+    fun `refreshCookieName strips only first dash not all dashes`() {
+        val name = AdminPortalActivity.refreshCookieName(
+            "b1c2d3e4-1234-5678-9abc-deadbeef0000"
         )
-        assertNotEquals(
-            "refreshTokenAndWait must run OFF the Main thread, but ran on Main (${captured?.name}). " +
-                "Running on Main triggers NetworkOnMainThreadException inside NetworkGate.performPingTest, " +
-                "causing the refreshIdempotent network-gate loop to spin for the full 60s timeout " +
-                "(Pavel's endless-loader reproduction).",
-            mainLooperThread,
-            captured
+        assertEquals(
+            "Must strip ONLY the first dash to match Api.kt refreshCookieName format.",
+            "fe_refresh_b1c2d3e41234-5678-9abc-deadbeef0000",
+            name
+        )
+        assertTrue("Cookie name must keep the fe_refresh_ prefix", name.startsWith("fe_refresh_"))
+        assertTrue("Subsequent dashes must remain in the cookie name.", name.contains("-"))
+    }
+
+    @Test
+    fun `refreshCookieName handles client ids with no dashes`() {
+        val name = AdminPortalActivity.refreshCookieName("nodashesclient")
+        assertEquals("fe_refresh_nodashesclient", name)
+    }
+
+    @Test
+    fun `refreshCookieName matches default logout cleanup regex`() {
+        // FronteggAuthService.clearRefreshCookiesForBaseUrl uses a `^fe_refresh`
+        // prefix-match to clean up cookies on logout. The bridged cookie this
+        // activity writes must match that prefix so a logged-out session can't
+        // be resurrected in the portal via a stale cookie.
+        val names = listOf(
+            AdminPortalActivity.refreshCookieName("c-1"),
+            AdminPortalActivity.refreshCookieName("b1c2d3e4-1234-5678-9abc-deadbeef0000"),
+            AdminPortalActivity.refreshCookieName("nodashes"),
+        )
+        val logoutMatcher = Regex("^fe_refresh")
+        for (name in names) {
+            assertTrue(
+                "Bridged cookie name '$name' must match the default logout-cleanup regex '^fe_refresh'.",
+                logoutMatcher.containsMatchIn(name)
+            )
+        }
+    }
+
+    // MARK: - buildRefreshCookieHeader(refreshToken, baseUrl, clientId)
+
+    @Test
+    fun `buildRefreshCookieHeader returns null when refresh token is null`() {
+        assertNull(
+            AdminPortalActivity.buildRefreshCookieHeader(
+                refreshToken = null,
+                baseUrl = "https://app.frontegg.com",
+                clientId = "abc-def"
+            )
+        )
+    }
+
+    @Test
+    fun `buildRefreshCookieHeader returns null when refresh token is empty`() {
+        assertNull(
+            AdminPortalActivity.buildRefreshCookieHeader(
+                refreshToken = "",
+                baseUrl = "https://app.frontegg.com",
+                clientId = "abc-def"
+            )
+        )
+    }
+
+    @Test
+    fun `buildRefreshCookieHeader returns null when baseUrl has no host`() {
+        // Defensive — a misconfigured SDK shouldn't crash the portal; just skip
+        // the bridge and let the portal render its own login.
+        assertNull(
+            AdminPortalActivity.buildRefreshCookieHeader(
+                refreshToken = "rt-jwt",
+                baseUrl = "not a url",
+                clientId = "abc-def"
+            )
+        )
+    }
+
+    @Test
+    fun `buildRefreshCookieHeader builds https cookie header with Secure flag`() {
+        val header = AdminPortalActivity.buildRefreshCookieHeader(
+            refreshToken = "rt-jwt-value-abc",
+            baseUrl = "https://app.frontegg.com",
+            clientId = "b1c2d3e4-1234"
+        )
+        assertNotNull(header)
+        // Cookie name format matches Api.kt's `refreshCookieName()` exactly:
+        // first dash stripped, others preserved.
+        assertTrue(
+            "header should start with fe_refresh_<stripped>=, got: $header",
+            header!!.startsWith("fe_refresh_b1c2d3e41234=rt-jwt-value-abc")
+        )
+        // Path=/ scopes the cookie to the whole tenant so any portal route
+        // sees it, not just /oauth/portal.
+        assertTrue("header should include Path=/", header.contains("; Path=/"))
+        // Secure flag must be set on https so a downgrade attack can't strip it.
+        assertTrue("header should include Secure on https", header.contains("; Secure"))
+    }
+
+    @Test
+    fun `buildRefreshCookieHeader builds http cookie header without Secure flag`() {
+        val header = AdminPortalActivity.buildRefreshCookieHeader(
+            refreshToken = "rt-jwt",
+            baseUrl = "http://localhost:3000",
+            clientId = "client-1"
+        )
+        assertNotNull(header)
+        assertFalse(
+            "Secure flag must NOT be set on http (Secure cookies are dropped over http)",
+            header!!.contains("Secure")
         )
     }
 }
