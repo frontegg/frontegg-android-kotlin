@@ -800,6 +800,27 @@ class FronteggAuthService(
     }
 
 
+    /**
+     * Perform a silent-authorize round-trip for the admin portal bootstrap.
+     * Returns the raw OkHttp [okhttp3.Response] so the caller can extract
+     * BOTH the response body (a fresh [com.frontegg.android.models.AuthResponse]
+     * with rotated tokens) AND the `Set-Cookie` headers (the server-issued
+     * `fe_refresh_*` / `fe_device_*` cookies for the WebView store).
+     *
+     * Internal API for [com.frontegg.android.AdminPortalActivity]. Same
+     * underlying call as the auth backend's session-bootstrap path the
+     * portal's React app uses on mount — by doing it OkHttp-side first we
+     * pre-populate the WebView cookie jar so the portal recognizes the
+     * session immediately, no second login.
+     *
+     * Synchronous (the [api] uses synchronous OkHttp). Caller must invoke
+     * this off the main dispatcher — see [AdminPortalActivity] where this
+     * runs inside `withContext(Dispatchers.IO)`.
+     */
+    internal fun silentAuthorizeForAdminPortal(refreshToken: String): okhttp3.Response {
+        return api.silentAuthorize(refreshToken)
+    }
+
     private fun setCredentials(accessToken: String, refreshToken: String): Boolean {
         val enableSessionPerTenant = storage.enableSessionPerTenant
         val initialTenantId = if (enableSessionPerTenant) {
