@@ -315,15 +315,30 @@ open class Api(
         val body = response.body?.string() ?: return null
         return try {
             val json = JsonParser.parseString(body).asJsonObject
-            val featureKeys = mutableSetOf<String>()
-            json.getAsJsonObject("features")?.keySet()?.let { keys -> featureKeys.addAll(keys) }
-            val permissionKeys = mutableSetOf<String>()
-            for (entry in json.getAsJsonObject("permissions")?.entrySet().orEmpty()) {
-                if (!entry.value.isJsonPrimitive) continue
-                val prim = entry.value.asJsonPrimitive
-                if (prim.isBoolean && prim.asBoolean) permissionKeys.add(entry.key)
-            }
-            EntitlementState(featureKeys = featureKeys, permissionKeys = permissionKeys)
+
+            // Parse the full UserEntitlementsContext (features w/ planIds/expireTime/
+            // linkedPermissions/featureFlag, plans, permissions). Pre-fix the SDK
+            // only kept the feature keys + truthy permissions and threw away
+            // everything needed to make an actual entitlement decision (FR-24821).
+            val context = com.frontegg.android.entitlements.UserEntitlementsParser.parse(json)
+
+            // Keep populating featureKeys/permissionKeys for backwards compat with
+            // host apps that read them off auth.entitlements.state (the embedded
+            // demo's "Cached: N feature(s), M permission(s)" summary uses them).
+            // featureKeys is the catalog of feature keys seen in the response —
+            // matches the pre-fix population semantics. permissionKeys is the set
+            // of permission keys with value=true.
+            val featureKeys = context.features.keys.toSet()
+            val permissionKeys = context.permissions
+                .filterValues { it }
+                .keys
+                .toSet()
+
+            EntitlementState(
+                featureKeys = featureKeys,
+                permissionKeys = permissionKeys,
+                context = context
+            )
         } catch (e: Exception) {
             Log.w(TAG, "getUserEntitlements parse error", e)
             null

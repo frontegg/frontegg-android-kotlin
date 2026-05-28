@@ -1006,13 +1006,19 @@ class FronteggAuthService(
     }
 
     override fun getFeatureEntitlements(featureKey: String, customAttributes: Map<String, Any?>?): Entitlement {
-        if (user.value == null) return Entitlement(isEntitled = false, justification = "NOT_AUTHENTICATED")
-        return entitlements.checkFeature(featureKey)
+        if (user.value == null) return Entitlement(
+            isEntitled = false,
+            justification = com.frontegg.android.models.NotEntitledJustification.NOT_AUTHENTICATED
+        )
+        return entitlements.checkFeature(featureKey, attributesForEvaluation(customAttributes))
     }
 
     override fun getPermissionEntitlements(permissionKey: String, customAttributes: Map<String, Any?>?): Entitlement {
-        if (user.value == null) return Entitlement(isEntitled = false, justification = "NOT_AUTHENTICATED")
-        return entitlements.checkPermission(permissionKey)
+        if (user.value == null) return Entitlement(
+            isEntitled = false,
+            justification = com.frontegg.android.models.NotEntitledJustification.NOT_AUTHENTICATED
+        )
+        return entitlements.checkPermission(permissionKey, attributesForEvaluation(customAttributes))
     }
 
     override fun getEntitlements(options: EntitledToOptions, customAttributes: Map<String, Any?>?): Entitlement {
@@ -1020,6 +1026,32 @@ class FronteggAuthService(
             is EntitledToOptions.FeatureKey -> getFeatureEntitlements(options.key, customAttributes)
             is EntitledToOptions.PermissionKey -> getPermissionEntitlements(options.key, customAttributes)
         }
+    }
+
+    /**
+     * Builds the attribute bag rule conditions are evaluated against — JWT claims
+     * from the current access token plus any host-app `customAttributes`. The
+     * downstream [com.frontegg.android.entitlements.AttributesPreparer] adds the
+     * `frontegg.` and `jwt.` prefixes (e.g. `frontegg.tenantId`, `jwt.email`) so a
+     * server-emitted rule like `attribute = "frontegg.tenantId"` can look the value
+     * up directly.
+     *
+     * Decoding the JWT inline keeps each entitlement check honest against the
+     * current token — if the SDK just switched tenants and the JWT now carries
+     * `tenantId = "B"`, the check sees `B` immediately, without waiting for the
+     * entitlements reload to settle.
+     */
+    private fun attributesForEvaluation(
+        customAttributes: Map<String, Any?>?
+    ): com.frontegg.android.entitlements.Attributes {
+        val jwtClaims = accessToken.value
+            ?.takeIf { it.isNotBlank() }
+            ?.let { com.frontegg.android.utils.JWTHelper.decodeClaims(it) }
+            ?: emptyMap()
+        return com.frontegg.android.entitlements.Attributes(
+            custom = customAttributes,
+            jwt = jwtClaims
+        )
     }
 
     override fun updateCredentials(accessToken: String, refreshToken: String) {

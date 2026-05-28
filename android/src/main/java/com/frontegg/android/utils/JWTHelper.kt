@@ -69,4 +69,32 @@ object JWTHelper {
         val payload = String(decoder.decode(chunks[1]))
         return Gson().fromJson(payload, JWT::class.java)!!
     }
+
+    /**
+     * Decode the JWT payload into a raw claim map. Unlike [decode], which produces a
+     * fixed [JWT] POJO, this preserves every claim — including custom ones the
+     * entitlements rule engine may target (e.g. `tenantId`, `roles`, custom
+     * `metadata.*` claims).
+     *
+     * Used by `FronteggAuth.getFeatureEntitlements` / `getPermissionEntitlements` to
+     * build the JWT attribute bag that
+     * `@frontegg/entitlements-javascript-commons`-style condition rules read from.
+     *
+     * Returns an empty map on parse failure rather than throwing — entitlement
+     * checks must remain functional even when the access token is malformed (the
+     * SDK should report `NOT_AUTHENTICATED` / `MISSING_FEATURE` via the regular
+     * evaluator, not crash the host app).
+     */
+    fun decodeClaims(token: String): Map<String, Any?> {
+        return try {
+            val chunks = token.split(Regex("\\."), 0)
+            if (chunks.size < 2) return emptyMap()
+            val decoder: Base64.Decoder = Base64.getUrlDecoder()
+            val payload = String(decoder.decode(chunks[1]))
+            val type = object : com.google.gson.reflect.TypeToken<Map<String, Any?>>() {}.type
+            Gson().fromJson<Map<String, Any?>>(payload, type) ?: emptyMap()
+        } catch (_: Exception) {
+            emptyMap()
+        }
+    }
 }
