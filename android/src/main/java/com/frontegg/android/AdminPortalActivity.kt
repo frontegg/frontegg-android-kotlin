@@ -22,6 +22,7 @@ import kotlinx.coroutines.MainScope
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 /**
  * Embedded Frontegg admin portal — opens `${baseUrl}/oauth/portal?appId=<applicationId>`
@@ -112,29 +113,35 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
         Log.i(TAG, "AdminPortal: awaiting forced refresh before load to populate session cookies")
         activityScope.launch {
+            // The refresh path includes `NetworkGate.isNetworkLikelyGood`,
+            // which makes a synchronous OkHttp HEAD request inside
+            // `performPingTest`. On the Main dispatcher that throws
+            // NetworkOnMainThreadException, which the gate catches and
+            // returns false → the gate loop spins the full 60-second
+            // timeout and the portal never loads. Switch to IO for the
+            // suspending refresh, then return to Main for the WebView
+            // call (WebView APIs are main-thread only).
             try {
-                // force=true bypasses the "access token still valid" check in
-                // refreshIdempotent. Without it, on cold start with a still-valid
-                // access token the SDK short-circuits and never hits /oauth/token,
-                // so the server never emits Set-Cookie and we have no session
-                // cookie to mirror into the WebView store.
-                auth.refreshTokenAndWait(force = true)
+                withContext(Dispatchers.IO) {
+                    // force=true bypasses the "access token still valid"
+                    // check in refreshIdempotent. Without it, on cold start
+                    // with a still-valid access token the SDK short-circuits
+                    // and never hits /oauth/token, so the server never emits
+                    // Set-Cookie and we have no session cookie to mirror.
+                    auth.refreshTokenAndWait(force = true)
+                }
             } catch (e: Throwable) {
                 // Refresh failed (offline, server error, etc.) — load the
                 // portal anyway; it'll render its own login form, same
                 // fallback as before.
                 Log.w(TAG, "AdminPortal: pre-load refresh threw — loading portal anyway", e)
             }
-            // refreshTokenAndWait suspends until Api.refreshToken has
-            // returned AND mirrorFronteggCookiesToWebViewStore has written
-            // any captured cookies into CookieManager. The portal request
-            // now carries those cookies.
+            // Back on Main. refreshTokenAndWait has returned and any
+            // captured cookies are now in CookieManager.
             Log.i(TAG, "AdminPortal: loading $portalUrl after refresh")
             webView.loadUrl(portalUrl)
-            // Loader stays visible until the page reports it has rendered
-            // (AdminPortalWebViewClient.onPageFinished). The white-WebView
-            // window is from the moment we leave HomeFragment to the moment
-            // the page actually paints — a few seconds on cold start.
+            // Loader stays visible until the WebViewClient reports the
+            // first onPageFinished.
         }
     }
 
