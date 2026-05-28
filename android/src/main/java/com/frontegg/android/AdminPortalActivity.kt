@@ -8,10 +8,12 @@ import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import android.util.TypedValue
+import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.widget.ProgressBar
 import androidx.core.view.WindowCompat
 import com.frontegg.android.ui.FronteggBaseActivity
 import kotlinx.coroutines.CoroutineScope
@@ -39,6 +41,7 @@ import kotlinx.coroutines.launch
 class AdminPortalActivity : FronteggBaseActivity() {
 
     private lateinit var webView: WebView
+    private lateinit var loader: ProgressBar
 
     // Owned by this activity, cancelled in onDestroy. Used to await a
     // forced token refresh before loading the portal URL — see
@@ -55,9 +58,13 @@ class AdminPortalActivity : FronteggBaseActivity() {
         setContentView(R.layout.activity_admin_portal)
 
         webView = findViewById(R.id.admin_portal_webview)
+        loader = findViewById(R.id.admin_portal_loader)
         configureWebView(webView)
 
         if (savedInstanceState != null) {
+            // State-restoration path: the WebView already has its previous
+            // page rendered, no refresh needed, no loader needed.
+            loader.visibility = View.GONE
             webView.restoreState(savedInstanceState)
         } else {
             refreshSessionThenLoad(webView, buildPortalUrl())
@@ -98,6 +105,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
         val auth = applicationContext.fronteggAuth
         if (auth.refreshToken.value.isNullOrEmpty()) {
             Log.d(TAG, "loading $portalUrl (no refresh token; portal will render its own login)")
+            loader.visibility = View.GONE
             webView.loadUrl(portalUrl)
             return
         }
@@ -123,6 +131,10 @@ class AdminPortalActivity : FronteggBaseActivity() {
             // now carries those cookies.
             Log.i(TAG, "AdminPortal: loading $portalUrl after refresh")
             webView.loadUrl(portalUrl)
+            // Loader stays visible until the page reports it has rendered
+            // (AdminPortalWebViewClient.onPageFinished). The white-WebView
+            // window is from the moment we leave HomeFragment to the moment
+            // the page actually paints — a few seconds on cold start.
         }
     }
 
@@ -159,7 +171,15 @@ class AdminPortalActivity : FronteggBaseActivity() {
         // moment the page hasn't drawn yet (cold load, route transition, scroll
         // overflow) lets the activity behind us bleed through.
         webView.setBackgroundColor(resolveThemeBackground())
-        webView.webViewClient = AdminPortalWebViewClient()
+        webView.webViewClient = AdminPortalWebViewClient(
+            onFirstPaint = {
+                // Hide the loader once the page has rendered (or at least
+                // reported finished). Idempotent: subsequent in-page
+                // navigations also call onPageFinished but the loader is
+                // already gone.
+                loader.visibility = View.GONE
+            }
+        )
         webView.webChromeClient = object : WebChromeClient() {
             // The portal's X button calls window.close() — bridge to finish().
             override fun onCloseWindow(window: WebView?) {
@@ -207,7 +227,11 @@ class AdminPortalActivity : FronteggBaseActivity() {
         }
     }
 
-    private class AdminPortalWebViewClient : WebViewClient() {
+    private class AdminPortalWebViewClient(
+        private val onFirstPaint: () -> Unit,
+    ) : WebViewClient() {
+        private var firstPaintReported = false
+
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
             super.onPageStarted(view, url, favicon)
             // Force the viewport meta to a desktop width before the page's CSS
@@ -219,6 +243,10 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
         override fun onPageFinished(view: WebView?, url: String?) {
             super.onPageFinished(view, url)
+            if (!firstPaintReported) {
+                firstPaintReported = true
+                onFirstPaint()
+            }
             // Re-apply after the page's own JS has had a chance to overwrite the
             // viewport meta. The script is idempotent and installs a
             // MutationObserver, so a second invocation just refreshes its watch.

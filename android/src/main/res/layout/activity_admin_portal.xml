@@ -11,4 +11,21 @@
         android:layout_height="match_parent"
         android:fitsSystemWindows="false" />
 
+    <!--
+        Centered progress indicator shown over the WebView during the
+        pre-load token refresh. The WebView is blank until loadUrl fires
+        (which we defer until refreshTokenAndWait completes so the session
+        cookie can be captured into CookieManager). Without this indicator
+        the user sees a blank white surface for the duration of the refresh
+        round-trip.
+
+        Hidden in code as soon as loadUrl is called.
+    -->
+    <ProgressBar
+        android:id="@+id/admin_portal_loader"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:indeterminate="true" />
+
 </FrameLayout>
