@@ -89,7 +89,12 @@ class HomeFragment : Fragment() {
                 // refresh the UI rows. Without this, "Load Entitlements" has to be
                 // tapped manually after each switch (FR-24821 QA finding).
                 val activeTenantId = user.activeTenant.tenantId
+                Log.i(
+                    TAG,
+                    "[ENT-DEBUG] user.observe fired: activeTenantId=$activeTenantId lastRendered=$lastRenderedTenantId willRefresh=${lastRenderedTenantId != null && lastRenderedTenantId != activeTenantId}"
+                )
                 if (lastRenderedTenantId != null && lastRenderedTenantId != activeTenantId) {
+                    Log.i(TAG, "[ENT-DEBUG] tenant change detected → invoking refreshEntitlementsDisplay()")
                     refreshEntitlementsDisplay()
                 }
                 lastRenderedTenantId = activeTenantId
@@ -404,13 +409,16 @@ class HomeFragment : Fragment() {
      *      verdict methods so the UI rows reflect the new tenant.
      */
     private fun refreshEntitlementsDisplay() {
+        Log.i(TAG, "[ENT-DEBUG] refreshEntitlementsDisplay: entered (_binding null? ${_binding == null})")
         if (_binding == null) return
         binding.loadEntitlementsButton.isEnabled = false
         binding.entitlementsLoading.visibility = View.VISIBLE
         binding.entitlementsLoadStatus.visibility = View.GONE
         binding.entitlementsStateSummary.visibility = View.GONE
         binding.entitlementsResults.removeAllViews()
+        Log.i(TAG, "[ENT-DEBUG] refreshEntitlementsDisplay: calling loadEntitlements(forceRefresh=false)")
         requireContext().fronteggAuth.loadEntitlements(forceRefresh = false) { success ->
+            Log.i(TAG, "[ENT-DEBUG] refreshEntitlementsDisplay: loadEntitlements completion success=$success")
             activity?.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 binding.loadEntitlementsButton.isEnabled = true
