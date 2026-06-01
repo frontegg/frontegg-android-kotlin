@@ -52,6 +52,14 @@ class HomeFragment : Fragment() {
     // It gives access to the views from the fragment's layout.
     private val binding get() = _binding!!
 
+    // Active tenant on the most recent entitlements render. Used by the
+    // `homeViewModel.user.observe` handler to detect tenant switches and
+    // trigger an automatic re-render — without this, the user has to manually
+    // tap "Load Entitlements" again after `switchTenant` to see the new
+    // tenant's verdicts (the SDK cache is correct, but the UI is stale until
+    // someone re-calls getFeatureEntitlements). See FR-24821.
+    private var lastRenderedTenantId: String? = null
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -73,6 +81,27 @@ class HomeFragment : Fragment() {
         // Observe the user data from the ViewModel to update the UI with user info
         homeViewModel.user.observe(viewLifecycleOwner) { user ->
             // When the user data changes, update the UI with profile picture, name, email, and active tenant
+            if (user != null) {
+                // Auto-refresh entitlements display on tenant switch. switchTenant
+                // (via setCredentialsInternal → updateStateWithCredentials) already
+                // clears the SDK cache and re-fires loadEntitlements; we just need
+                // to re-call getFeatureEntitlements/getPermissionEntitlements to
+                // refresh the UI rows. Without this, "Load Entitlements" has to be
+                // tapped manually after each switch (FR-24821 QA finding).
+                val activeTenantId = user.activeTenant.tenantId
+                Log.i(
+                    TAG,
+                    "[ENT-DEBUG] user.observe fired: activeTenantId=$activeTenantId lastRendered=$lastRenderedTenantId willRefresh=${lastRenderedTenantId != null && lastRenderedTenantId != activeTenantId}"
+                )
+                if (lastRenderedTenantId != null && lastRenderedTenantId != activeTenantId) {
+                    Log.i(TAG, "[ENT-DEBUG] tenant change detected → invoking refreshEntitlementsDisplay(forceRefresh=true)")
+                    // forceRefresh = true is REQUIRED here — see refreshEntitlementsDisplay
+                    // docs. A plain cache read races the SDK's clear()+reload and renders
+                    // the new tenant as not-entitled (FR-24821).
+                    refreshEntitlementsDisplay(forceRefresh = true)
+                }
+                lastRenderedTenantId = activeTenantId
+            }
             if (user != null) {
                 binding.helloText.text = "Hello, ${user.name.split(" ")[0]}!"
                 binding.userInfo.apply {
@@ -229,62 +258,7 @@ class HomeFragment : Fragment() {
         }
 
         binding.loadEntitlementsButton.setOnClickListener {
-            binding.loadEntitlementsButton.isEnabled = false
-            binding.entitlementsLoading.visibility = View.VISIBLE
-            binding.entitlementsLoadStatus.visibility = View.GONE
-            binding.entitlementsStateSummary.visibility = View.GONE
-            binding.entitlementsResults.removeAllViews()
-            requireContext().fronteggAuth.loadEntitlements(forceRefresh = false) { success ->
-                activity?.runOnUiThread {
-                    binding.loadEntitlementsButton.isEnabled = true
-                    binding.entitlementsLoading.visibility = View.GONE
-                    binding.entitlementsLoadStatus.visibility = View.VISIBLE
-                    binding.entitlementsLoadStatus.text = if (success) "Load succeeded" else "Load failed"
-                    binding.entitlementsLoadStatus.setTextColor(
-                        resources.getColor(
-                            if (success) R.color.greenForeground else R.color.redForeground,
-                            null
-                        )
-                    )
-                    val auth = requireContext().fronteggAuth
-                    val state = auth.entitlements.state
-                    if (state.featureKeys.isNotEmpty() || state.permissionKeys.isNotEmpty()) {
-                        binding.entitlementsStateSummary.visibility = View.VISIBLE
-                        binding.entitlementsStateSummary.text =
-                            "Cached: ${state.featureKeys.size} feature(s), ${state.permissionKeys.size} permission(s)"
-                    }
-                    val results = listOf(
-                        "getFeatureEntitlements(\"sso\")" to auth.getFeatureEntitlements("sso"),
-                        "getFeatureEntitlements(\"sso\", customAttributes: [\"env\": \"dev\"])" to auth.getFeatureEntitlements("sso", mapOf("env" to "dev")),
-                        "getEntitlements(.featureKey(\"proteins.*\"), customAttributes: [\"pro\": \"20gr\"])" to auth.getEntitlements(EntitledToOptions.FeatureKey("proteins.*"), mapOf("pro" to "20gr")),
-                        "getPermissionEntitlements(\"dora.protein.*\")" to auth.getPermissionEntitlements("dora.protein.*"),
-                        "getEntitlements(.permissionKey(\"fe.secure.*\"))" to auth.getEntitlements(EntitledToOptions.PermissionKey("fe.secure.*")),
-                        "getPermissionEntitlements(\"fe.secure.*\", customAttributes: [\"env\": \"dev\"])" to auth.getPermissionEntitlements("fe.secure.*", mapOf("env" to "dev"))
-                    )
-                    results.forEach { (label, entitlement) ->
-                        val rowBinding = LayoutEntitlementRowBinding.inflate(layoutInflater, binding.entitlementsResults, false)
-                        rowBinding.entitlementLabel.text = label
-                        rowBinding.entitlementStatus.text = if (entitlement.isEntitled) "Entitled" else "Not entitled${entitlement.justification?.let { " ($it)" } ?: ""}"
-                        rowBinding.entitlementStatus.setTextColor(
-                            resources.getColor(
-                                if (entitlement.isEntitled) R.color.greenForeground else R.color.redForeground,
-                                null
-                            )
-                        )
-                        rowBinding.entitlementIcon.setImageResource(
-                            if (entitlement.isEntitled) R.drawable.ic_check_circle else R.drawable.ic_error
-                        )
-                        rowBinding.entitlementIcon.setColorFilter(
-                            resources.getColor(
-                                if (entitlement.isEntitled) R.color.greenForeground else R.color.redForeground,
-                                null
-                            ),
-                            android.graphics.PorterDuff.Mode.SRC_IN
-                        )
-                        binding.entitlementsResults.addView(rowBinding.root)
-                    }
-                }
-            }
+            refreshEntitlementsDisplay()
         }
 
         /**
@@ -421,6 +395,93 @@ class HomeFragment : Fragment() {
         e2eHandler.removeCallbacks(e2eTicker)
         // Set the binding to null to avoid memory leaks
         _binding = null
+    }
+
+    /**
+     * Triggers an entitlements load, then re-renders the "Cached: N feature(s),
+     * M permission(s)" summary plus each `getFeatureEntitlements` /
+     * `getPermissionEntitlements` verdict row.
+     *
+     * [forceRefresh] MUST be `true` when called in reaction to a tenant switch.
+     * Here's why (FR-24821): switchTenant runs
+     * `user.value = newTenant` → `entitlements.clear()` →
+     * `loadEntitlements(forceRefresh = true)` (an async reload). The user
+     * observer below fires on the FIRST step, while the cache is about to be
+     * cleared. If we then call `loadEntitlements(forceRefresh = false)` it
+     * short-circuits on the still-true `hasLoadedOnce`, posts its completion to
+     * the main thread, and by the time that completion reads
+     * `getFeatureEntitlements` the cache has been cleared but the new tenant's
+     * reload hasn't finished — so every feature reads as ENTITLEMENTS_NOT_LOADED
+     * / not-entitled. `forceRefresh = true` avoids the short-circuit: its
+     * completion only fires after a real reload has populated the cache, so the
+     * verdict reflects the new tenant. Proven by
+     * EntitlementsSwitchWindowTest in the SDK module.
+     *
+     * The "Load Entitlements" button keeps `forceRefresh = false` (cache read)
+     * since there's no in-flight clear racing it.
+     */
+    private fun refreshEntitlementsDisplay(forceRefresh: Boolean = false) {
+        Log.i(TAG, "[ENT-DEBUG] refreshEntitlementsDisplay: entered (forceRefresh=$forceRefresh, _binding null? ${_binding == null})")
+        if (_binding == null) return
+        binding.loadEntitlementsButton.isEnabled = false
+        binding.entitlementsLoading.visibility = View.VISIBLE
+        binding.entitlementsLoadStatus.visibility = View.GONE
+        binding.entitlementsStateSummary.visibility = View.GONE
+        binding.entitlementsResults.removeAllViews()
+        Log.i(TAG, "[ENT-DEBUG] refreshEntitlementsDisplay: calling loadEntitlements(forceRefresh=$forceRefresh)")
+        requireContext().fronteggAuth.loadEntitlements(forceRefresh = forceRefresh) { success ->
+            Log.i(TAG, "[ENT-DEBUG] refreshEntitlementsDisplay: loadEntitlements completion success=$success")
+            activity?.runOnUiThread {
+                if (_binding == null) return@runOnUiThread
+                binding.loadEntitlementsButton.isEnabled = true
+                binding.entitlementsLoading.visibility = View.GONE
+                binding.entitlementsLoadStatus.visibility = View.VISIBLE
+                binding.entitlementsLoadStatus.text = if (success) "Load succeeded" else "Load failed"
+                binding.entitlementsLoadStatus.setTextColor(
+                    resources.getColor(
+                        if (success) R.color.greenForeground else R.color.redForeground,
+                        null
+                    )
+                )
+                val auth = requireContext().fronteggAuth
+                val state = auth.entitlements.state
+                if (state.featureKeys.isNotEmpty() || state.permissionKeys.isNotEmpty()) {
+                    binding.entitlementsStateSummary.visibility = View.VISIBLE
+                    binding.entitlementsStateSummary.text =
+                        "Cached: ${state.featureKeys.size} feature(s), ${state.permissionKeys.size} permission(s)"
+                }
+                val results = listOf(
+                    "getFeatureEntitlements(\"sso\")" to auth.getFeatureEntitlements("sso"),
+                    "getFeatureEntitlements(\"sso\", customAttributes: [\"env\": \"dev\"])" to auth.getFeatureEntitlements("sso", mapOf("env" to "dev")),
+                    "getEntitlements(.featureKey(\"proteins.*\"), customAttributes: [\"pro\": \"20gr\"])" to auth.getEntitlements(EntitledToOptions.FeatureKey("proteins.*"), mapOf("pro" to "20gr")),
+                    "getPermissionEntitlements(\"dora.protein.*\")" to auth.getPermissionEntitlements("dora.protein.*"),
+                    "getEntitlements(.permissionKey(\"fe.secure.*\"))" to auth.getEntitlements(EntitledToOptions.PermissionKey("fe.secure.*")),
+                    "getPermissionEntitlements(\"fe.secure.*\", customAttributes: [\"env\": \"dev\"])" to auth.getPermissionEntitlements("fe.secure.*", mapOf("env" to "dev"))
+                )
+                results.forEach { (label, entitlement) ->
+                    val rowBinding = LayoutEntitlementRowBinding.inflate(layoutInflater, binding.entitlementsResults, false)
+                    rowBinding.entitlementLabel.text = label
+                    rowBinding.entitlementStatus.text = if (entitlement.isEntitled) "Entitled" else "Not entitled${entitlement.justification?.let { " ($it)" } ?: ""}"
+                    rowBinding.entitlementStatus.setTextColor(
+                        resources.getColor(
+                            if (entitlement.isEntitled) R.color.greenForeground else R.color.redForeground,
+                            null
+                        )
+                    )
+                    rowBinding.entitlementIcon.setImageResource(
+                        if (entitlement.isEntitled) R.drawable.ic_check_circle else R.drawable.ic_error
+                    )
+                    rowBinding.entitlementIcon.setColorFilter(
+                        resources.getColor(
+                            if (entitlement.isEntitled) R.color.greenForeground else R.color.redForeground,
+                            null
+                        ),
+                        android.graphics.PorterDuff.Mode.SRC_IN
+                    )
+                    binding.entitlementsResults.addView(rowBinding.root)
+                }
+            }
+        }
     }
 
     private fun showSuccessMessage(message: String) =

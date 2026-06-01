@@ -1,6 +1,8 @@
 package com.frontegg.android.services
 
 import android.util.Log
+import com.frontegg.android.entitlements.FeatureDetail
+import com.frontegg.android.entitlements.UserEntitlementsContext
 import com.frontegg.android.models.EntitlementState
 import io.mockk.every
 import io.mockk.mockk
@@ -118,10 +120,28 @@ class EntitlementsServiceTest {
     }
 
     @Test
-    fun `checkFeature when enabled and feature present returns entitled`() {
+    fun `checkFeature when enabled and feature directly entitled returns entitled`() {
+        // FR-24821: the verdict is driven by the full UserEntitlementsContext now
+        // (features w/ planIds/expireTime/featureFlag + plans + permissions), NOT
+        // by the legacy featureKeys set. Construct a context where "sso" is
+        // directly assigned with NO_EXPIRATION_TIME — the direct-entitlement
+        // evaluator short-circuits the chain and returns isEntitled = true.
+        val context = UserEntitlementsContext(
+            features = mapOf(
+                "sso" to FeatureDetail(
+                    planIds = emptyList(),
+                    expireTime = FeatureDetail.NO_EXPIRATION_TIME,
+                    linkedPermissions = emptyList(),
+                    featureFlag = null
+                )
+            ),
+            plans = emptyMap(),
+            permissions = emptyMap()
+        )
         every { mockApi.getUserEntitlements(any()) } returns EntitlementState(
             featureKeys = setOf("sso"),
-            permissionKeys = emptySet()
+            permissionKeys = emptySet(),
+            context = context
         )
         service = EntitlementsService(mockApi, enabled = true)
         service.load("token")
@@ -160,14 +180,24 @@ class EntitlementsServiceTest {
     }
 
     @Test
-    fun `checkPermission when enabled and permission present returns entitled`() {
+    fun `checkPermission when enabled and permission granted with no linked features returns entitled`() {
+        // Same FR-24821 shift: the verdict comes from the full context's
+        // permissions map (with wildcard matching) and the linked-feature
+        // chain — not the legacy permissionKeys set. A permission with no
+        // linked features should pass once the wildcard match succeeds.
+        val context = UserEntitlementsContext(
+            features = emptyMap(),
+            plans = emptyMap(),
+            permissions = mapOf("fe.secure.*" to true)
+        )
         every { mockApi.getUserEntitlements(any()) } returns EntitlementState(
             featureKeys = emptySet(),
-            permissionKeys = setOf("fe.secure.*")
+            permissionKeys = setOf("fe.secure.*"),
+            context = context
         )
         service = EntitlementsService(mockApi, enabled = true)
         service.load("token")
-        val result = service.checkPermission("fe.secure.*")
+        val result = service.checkPermission("fe.secure.read.users")
         assertTrue(result.isEntitled)
         assertEquals(null, result.justification)
     }

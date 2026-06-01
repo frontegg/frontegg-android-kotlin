@@ -315,15 +315,56 @@ open class Api(
         val body = response.body?.string() ?: return null
         return try {
             val json = JsonParser.parseString(body).asJsonObject
-            val featureKeys = mutableSetOf<String>()
-            json.getAsJsonObject("features")?.keySet()?.let { keys -> featureKeys.addAll(keys) }
-            val permissionKeys = mutableSetOf<String>()
-            for (entry in json.getAsJsonObject("permissions")?.entrySet().orEmpty()) {
-                if (!entry.value.isJsonPrimitive) continue
-                val prim = entry.value.asJsonPrimitive
-                if (prim.isBoolean && prim.asBoolean) permissionKeys.add(entry.key)
+
+            // Parse the full UserEntitlementsContext (features w/ planIds/expireTime/
+            // linkedPermissions/featureFlag, plans, permissions). Pre-fix the SDK
+            // only kept the feature keys + truthy permissions and threw away
+            // everything needed to make an actual entitlement decision (FR-24821).
+            val context = com.frontegg.android.entitlements.UserEntitlementsParser.parse(json)
+
+            // Diagnostic logging — full RAW response body. Tagged `[ENT-DEBUG]` so
+            // it's easy to filter logcat for entitlement diagnostics while
+            // triaging FR-24821-style "verdict doesn't match web" reports.
+            Log.i(TAG, "[ENT-DEBUG] RAW /user-entitlements response: $body")
+            Log.i(
+                TAG,
+                "[ENT-DEBUG] Parsed context — features: ${context.features.size}, plans: ${context.plans.size}, permissions: ${context.permissions.size}"
+            )
+            for ((key, detail) in context.features) {
+                val planIdsStr = if (detail.planIds.isEmpty()) "[]" else "[${detail.planIds.joinToString(",")}]"
+                val expireStr = detail.expireTime?.toString() ?: "null"
+                val flagStr = detail.featureFlag?.let {
+                    "on=${it.on} off=${it.offTreatment.wire} default=${it.defaultTreatment.wire} rules=${it.rules?.size ?: 0}"
+                } ?: "null"
+                Log.i(
+                    TAG,
+                    "[ENT-DEBUG]   feature[$key]: planIds=$planIdsStr expireTime=$expireStr featureFlag=$flagStr linkedPermissions=${detail.linkedPermissions}"
+                )
             }
-            EntitlementState(featureKeys = featureKeys, permissionKeys = permissionKeys)
+            for ((key, plan) in context.plans) {
+                Log.i(
+                    TAG,
+                    "[ENT-DEBUG]   plan[$key]: defaultTreatment=${plan.defaultTreatment.wire} rules=${plan.rules?.size ?: 0}"
+                )
+            }
+
+            // Keep populating featureKeys/permissionKeys for backwards compat with
+            // host apps that read them off auth.entitlements.state (the embedded
+            // demo's "Cached: N feature(s), M permission(s)" summary uses them).
+            // featureKeys is the catalog of feature keys seen in the response —
+            // matches the pre-fix population semantics. permissionKeys is the set
+            // of permission keys with value=true.
+            val featureKeys = context.features.keys.toSet()
+            val permissionKeys = context.permissions
+                .filterValues { it }
+                .keys
+                .toSet()
+
+            EntitlementState(
+                featureKeys = featureKeys,
+                permissionKeys = permissionKeys,
+                context = context
+            )
         } catch (e: Exception) {
             Log.w(TAG, "getUserEntitlements parse error", e)
             null
