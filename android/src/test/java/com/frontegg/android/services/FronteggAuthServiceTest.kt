@@ -12,6 +12,7 @@ import androidx.lifecycle.MutableLiveData
 import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggApp
+import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
@@ -442,9 +443,17 @@ class FronteggAuthServiceTest {
     }
 
     @Test
-    fun `switchTenant session per tenant stale credentials regression`() {
-        // Pre-fix: with enableSessionPerTenant, switchTenant loaded cached tenant tokens and
-        // returned after api.me() without OAuth refresh, leaving a TTL-valid but stale JWT.
+    fun `switchTenant session per tenant refreshes the LIVE re-scoped token, not the stored one`() {
+        // With enableSessionPerTenant, switchTenant must still OAuth-refresh (not reuse a
+        // TTL-valid token) — that was #252's fix. But it must refresh the LIVE token that
+        // api.switchTenant just re-scoped, NOT a per-tenant *stored* refresh token.
+        //
+        // Frontegg refresh tokens are single-use / rotating. A stored per-tenant refresh
+        // token was already consumed the first time we switched away from that tenant, so
+        // restoring + refreshing it 401s on the 2nd+ switch back ("Refresh token is not
+        // valid"). See `switchTenant repeated switches…` below for the multi-switch repro;
+        // this test pins the single-switch contract: the live token is refreshed and the
+        // stored token is NOT touched.
         every { storageMock.enableSessionPerTenant }.returns(true)
 
         val tenantA = Tenant().apply { id = "tenant-A"; tenantId = "tenant-A" }
@@ -456,25 +465,26 @@ class FronteggAuthServiceTest {
         }
         auth.user.value = userA
         auth.accessToken.value = "stale-tenant-A-access-token"
-        auth.refreshToken.value = "tenant-A-refresh-token"
+        auth.refreshToken.value = "live-refresh-token"
 
         every { apiMock.switchTenant(any()) }.returns(Unit)
         every { apiMock.evictIdleConnections() }.returns(Unit)
         every { credentialManagerMock.setCurrentTenantId(any()) }.returns(true)
-        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-B") }.returns("cached-tenant-B-access")
-        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-B") }.returns("cached-tenant-B-refresh")
-        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-A") }.returns(null)
-        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-A") }.returns(null)
+        // A stale stored refresh token exists for tenant-B; the SDK must NOT use it.
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-B") }.returns("stale-stored-tenant-B-access")
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-B") }.returns("stale-stored-tenant-B-refresh")
         every { credentialManagerMock.save(any(), any()) }.returns(true)
         every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
         every { credentialManagerMock.getCurrentTenantId() }.returns("tenant-B")
         every { credentialManagerMock.saveLastTenantIdForUser(any(), any()) }.returns(true)
 
+        // api.switchTenant re-scoped the live session to tenant-B, so refreshing the LIVE
+        // token yields tenant-B's tokens.
         val tenantBAuth = AuthResponse().apply {
             access_token = "fresh-tenant-B-access-token"
             refresh_token = "fresh-tenant-B-refresh-token"
         }
-        every { apiMock.refreshToken("cached-tenant-B-refresh") }.returns(tenantBAuth)
+        every { apiMock.refreshToken("live-refresh-token") }.returns(tenantBAuth)
 
         val userB = User().apply {
             id = "user-1"
@@ -491,10 +501,96 @@ class FronteggAuthServiceTest {
 
         auth.switchTenant("tenant-B")
 
-        verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("cached-tenant-B-refresh") }
+        // Refreshes the LIVE token...
+        verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("live-refresh-token") }
+        // ...and never the stale stored one.
+        verify(exactly = 0) { apiMock.refreshToken("stale-stored-tenant-B-refresh") }
         verify(timeout = 2_000, exactly = 1) { apiMock.me() }
         assert(auth.accessToken.value == "fresh-tenant-B-access-token") {
-            "accessToken.value must be the token returned by OAuth refresh, was ${auth.accessToken.value}"
+            "accessToken.value must be the token returned by refreshing the live token, was ${auth.accessToken.value}"
+        }
+    }
+
+    @Test
+    fun `switchTenant repeated switches refresh the live token and never reuse a rotated stored token`() {
+        // Regression for the FR-24821 follow-up Pavel hit: the SECOND switch failed with
+        // 401 "Refresh token is not valid". Cause: per-tenant stored refresh tokens are
+        // single-use; switching away from a tenant consumes its refresh token (rotation),
+        // and switching back restored + refreshed that now-dead stored token.
+        //
+        // This test models single-use rotation faithfully (reusing any refresh token
+        // throws FailedToAuthenticateException, exactly as the server 401s) and performs
+        // two consecutive switches. Pre-fix the 2nd switch re-refreshes the consumed
+        // tenant-A token and fails; post-fix each switch refreshes the LIVE token and both
+        // succeed.
+        every { storageMock.enableSessionPerTenant }.returns(true)
+
+        val tenantA = Tenant().apply { id = "tenant-A"; tenantId = "tenant-A" }
+        val tenantB = Tenant().apply { id = "tenant-B"; tenantId = "tenant-B" }
+        fun userOn(active: Tenant) = User().apply {
+            id = "user-1"
+            tenants = listOf(tenantA, tenantB)
+            activeTenant = active
+        }
+
+        auth.user.value = userOn(tenantA)
+        auth.accessToken.value = "AT0"
+        auth.refreshToken.value = "RT0"
+
+        every { apiMock.switchTenant(any()) }.returns(Unit)
+        every { apiMock.evictIdleConnections() }.returns(Unit)
+        every { credentialManagerMock.setCurrentTenantId(any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
+        every { credentialManagerMock.getCurrentTenantId() }.returns(null)
+        every { credentialManagerMock.saveLastTenantIdForUser(any(), any()) }.returns(true)
+        // Stale stored refresh tokens exist for BOTH tenants — the bug restored and
+        // refreshed them. Stub them so that IF the buggy code reads them, the
+        // single-use model below will 401 on reuse.
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-A") }.returns("AT0")
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-A") }.returns("RT0")
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, "tenant-B") }.returns(null)
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, "tenant-B") }.returns(null)
+
+        // Single-use / rotating refresh tokens: reusing one throws, exactly like the
+        // server's 401 "Refresh token is not valid".
+        val consumed = java.util.Collections.synchronizedSet(mutableSetOf<String>())
+        every { apiMock.refreshToken(any()) }.answers {
+            val token = firstArg<String>()
+            if (!consumed.add(token)) {
+                throw FailedToAuthenticateException(error = "Refresh token is not valid")
+            }
+            when (token) {
+                "RT0" -> AuthResponse().apply { access_token = "AT1-tenantB"; refresh_token = "RT1" }
+                "RT1" -> AuthResponse().apply { access_token = "AT2-tenantA"; refresh_token = "RT2" }
+                else -> throw FailedToAuthenticateException(error = "Refresh token is not valid")
+            }
+        }
+
+        // me() returns the user scoped to whichever tenant the switch targets, in order.
+        every { apiMock.me() }.returnsMany(listOf(userOn(tenantB), userOn(tenantA)))
+
+        mockkObject(JWTHelper)
+        val jwt = JWT()
+        jwt.exp = (System.currentTimeMillis() / 1000) + 3600
+        every { JWTHelper.decode(any()) }.returns(jwt)
+        every { Log.w(any(), any<String>()) } returns 0
+
+        // Switch 1: A → B. Refreshes live RT0 → AT1.
+        auth.switchTenant("tenant-B")
+        verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("RT0") }
+        assert(auth.accessToken.value == "AT1-tenantB") {
+            "after switch 1, accessToken must be AT1-tenantB, was ${auth.accessToken.value}"
+        }
+
+        // Switch 2: B → A. Must refresh the LIVE token (RT1), NOT re-refresh the consumed
+        // RT0. Pre-fix this refreshed RT0 again → FailedToAuthenticateException → switch
+        // fails and accessToken stays AT1-tenantB.
+        auth.switchTenant("tenant-A")
+        verify(timeout = 2_000, exactly = 1) { apiMock.refreshToken("RT1") }
+        verify(exactly = 1) { apiMock.refreshToken("RT0") } // still only the one legit use
+        assert(auth.accessToken.value == "AT2-tenantA") {
+            "after switch 2, accessToken must be AT2-tenantA (live-token refresh), was ${auth.accessToken.value}"
         }
     }
 
