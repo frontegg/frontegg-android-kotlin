@@ -17,6 +17,7 @@ import com.frontegg.android.ui.DefaultLoader
 import com.frontegg.android.ui.FronteggBaseActivity
 import com.frontegg.android.utils.AppIdHeaderHelper
 import com.frontegg.android.utils.AuthorizeUrlGenerator
+import com.frontegg.android.utils.LogUrlSanitizer
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
@@ -209,7 +210,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             webViewUrl = intentUrl.toString()
         }
 
-        Log.d(TAG, "webViewUrl: $webViewUrl")
+        Log.d(TAG, "webViewUrl: ${LogUrlSanitizer.sanitize(webViewUrl)}")
         
         if (webViewUrl == null) {
             Log.d(TAG, "webViewUrl is null, returning")
@@ -239,7 +240,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
         
         // If it's an account action URL (reset-password, etc.), load immediately without checking auth state
         if (isPasswordResetOrAccountAction || isSocialLoginRedirect) {
-            Log.d(TAG, "loadUrl (account action/social redirect): $webViewUrl")
+            Log.d(TAG, "loadUrl (account action/social redirect): ${LogUrlSanitizer.sanitize(webViewUrl)}")
             webView.loadUrl(webViewUrl!!, AppIdHeaderHelper.getHeaders())
             webViewUrl = null
             return
@@ -252,7 +253,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
                 (!fronteggAuth.initializing.value &&
                         !fronteggAuth.isAuthenticated.value)
         ) {
-            Log.d(TAG, "loadUrl $webViewUrl")
+            Log.d(TAG, "loadUrl ${LogUrlSanitizer.sanitize(webViewUrl)}")
             webView.loadUrl(webViewUrl!!, AppIdHeaderHelper.getHeaders())
             webViewUrl = null
         } else {
@@ -352,7 +353,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             if (isPasswordResetOrAccountAction || 
                 fronteggAuth.isStepUpAuthorization.value ||
                 (!fronteggAuth.initializing.value && !fronteggAuth.isAuthenticated.value)) {
-                Log.d(TAG, "Retrying loadUrl in onResume: $webViewUrl")
+                Log.d(TAG, "Retrying loadUrl in onResume: ${LogUrlSanitizer.sanitize(webViewUrl)}")
                 webView.loadUrl(webViewUrl!!, AppIdHeaderHelper.getHeaders())
                 webViewUrl = null
             }

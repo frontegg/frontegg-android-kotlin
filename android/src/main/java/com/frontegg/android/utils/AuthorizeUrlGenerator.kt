@@ -132,7 +132,7 @@ class AuthorizeUrlGenerator(
         }
 
         val url = authorizeUrlBuilder.build().toString()
-        Log.d(TAG, "Generated url: $url")
+        Log.d(TAG, "Generated url: ${LogUrlSanitizer.sanitize(url)}")
 
         return Pair(url, codeVerifier)
     }

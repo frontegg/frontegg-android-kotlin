@@ -14,6 +14,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.core.view.WindowCompat
 import com.frontegg.android.ui.FronteggBaseActivity
+import com.frontegg.android.utils.LogUrlSanitizer
 
 /**
  * Embedded Frontegg admin portal — opens `${baseUrl}/oauth/portal?appId=<applicationId>`
@@ -109,7 +110,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
     private fun buildPortalUrl(): String {
         val auth = applicationContext.fronteggAuth
         val url = buildPortalUrl(auth.baseUrl, auth.applicationId)
-        Log.d(TAG, "loading $url")
+        Log.d(TAG, "loading ${LogUrlSanitizer.sanitize(url)}")
         return url
     }
 

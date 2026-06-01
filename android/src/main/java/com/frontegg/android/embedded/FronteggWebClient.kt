@@ -29,6 +29,7 @@ import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.Constants.Companion.loginRoutes
 import com.frontegg.android.utils.Constants.Companion.socialLoginRedirectUrl
 import com.frontegg.android.utils.Constants.Companion.successLoginRoutes
+import com.frontegg.android.utils.LogUrlSanitizer
 import com.frontegg.android.utils.generateErrorPage
 import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineDispatcher
@@ -463,14 +464,15 @@ class FronteggWebClient(
         if (storage.useDiskCacheWebview) {
             request?.let {
                 val url = it.url.toString()
-                Log.d(TAG, "shouldInterceptRequest: $url")
+                val sanitizedUrl = LogUrlSanitizer.sanitize(url)
+                Log.d(TAG, "shouldInterceptRequest: $sanitizedUrl")
                 if (cache.shouldCache(url)) {
-                    Log.d(TAG, "shouldInterceptRequest: cacheable $url")
+                    Log.d(TAG, "shouldInterceptRequest: cacheable $sanitizedUrl")
                     cache.get(url)?.let { response ->
                         return response
                     }
                 } else {
-                    Log.d(TAG, "shouldInterceptRequest: not cacheable $url")
+                    Log.d(TAG, "shouldInterceptRequest: not cacheable $sanitizedUrl")
                 }
             }
         }
