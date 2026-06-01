@@ -69,7 +69,10 @@ class HomeFragment : Fragment() {
                 // tapped manually after each switch (FR-24821 QA finding).
                 val activeTenantId = user.activeTenant.tenantId
                 if (lastRenderedTenantId != null && lastRenderedTenantId != activeTenantId) {
-                    refreshEntitlementsDisplay()
+                    // forceRefresh = true is REQUIRED here — see refreshEntitlementsDisplay
+                    // docs. A plain cache read races the SDK's clear()+reload and renders
+                    // the new tenant as not-entitled (FR-24821).
+                    refreshEntitlementsDisplay(forceRefresh = true)
                 }
                 lastRenderedTenantId = activeTenantId
             }
@@ -291,27 +294,35 @@ class HomeFragment : Fragment() {
     }
 
     /**
-     * Triggers a fresh entitlements load (or hits the cache if already loaded),
-     * then re-renders the "Cached: N feature(s), M permission(s)" summary plus
-     * each `getFeatureEntitlements` / `getPermissionEntitlements` verdict row.
+     * Triggers an entitlements load, then re-renders the "Cached: N feature(s),
+     * M permission(s)" summary plus each `getFeatureEntitlements` /
+     * `getPermissionEntitlements` verdict row.
      *
-     * Called from two places:
-     *   1. The "Load Entitlements" button — explicit user trigger.
-     *   2. The `homeViewModel.user.observe` handler when the active tenant
-     *      changes — so the UI auto-refreshes after `switchTenant` instead of
-     *      showing stale verdicts from the previous tenant. The SDK cache is
-     *      already correct after switchTenant (FR-24821 fix invalidates and
-     *      reloads in updateStateWithCredentials); we just need to re-call the
-     *      verdict methods so the UI rows reflect the new tenant.
+     * [forceRefresh] MUST be `true` when called in reaction to a tenant switch.
+     * Here's why (FR-24821): switchTenant runs
+     * `user.value = newTenant` → `entitlements.clear()` →
+     * `loadEntitlements(forceRefresh = true)` (an async reload). The user
+     * observer fires on the FIRST step, while the cache is about to be cleared.
+     * If we then call `loadEntitlements(forceRefresh = false)` it short-circuits
+     * on the still-true `hasLoadedOnce`, posts its completion to the main
+     * thread, and by the time that completion reads `getFeatureEntitlements` the
+     * cache has been cleared but the new tenant's reload hasn't finished — so
+     * every feature reads as ENTITLEMENTS_NOT_LOADED / not-entitled.
+     * `forceRefresh = true` avoids the short-circuit: its completion only fires
+     * after a real reload has populated the cache. Proven by
+     * EntitlementsSwitchWindowTest in the SDK module.
+     *
+     * The "Load Entitlements" button keeps `forceRefresh = false` (cache read)
+     * since there's no in-flight clear racing it.
      */
-    private fun refreshEntitlementsDisplay() {
+    private fun refreshEntitlementsDisplay(forceRefresh: Boolean = false) {
         if (_binding == null) return
         binding.loadEntitlementsButton.isEnabled = false
         binding.entitlementsLoading.visibility = View.VISIBLE
         binding.entitlementsLoadStatus.visibility = View.GONE
         binding.entitlementsStateSummary.visibility = View.GONE
         binding.entitlementsResults.removeAllViews()
-        requireContext().fronteggAuth.loadEntitlements(forceRefresh = false) { success ->
+        requireContext().fronteggAuth.loadEntitlements(forceRefresh = forceRefresh) { success ->
             activity?.runOnUiThread {
                 if (_binding == null) return@runOnUiThread
                 binding.loadEntitlementsButton.isEnabled = true
