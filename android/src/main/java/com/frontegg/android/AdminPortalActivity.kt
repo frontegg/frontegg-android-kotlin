@@ -187,6 +187,20 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
+        // Persist the cookie jar as the portal closes. The portal's React app
+        // calls /oauth/authorize/silent on mount, which ROTATES the single-use
+        // fe_refresh cookie server-side; the new value lands in the (process-
+        // wide) CookieManager in memory. If the app is then killed before that
+        // rotation is flushed to disk, the next cold start loads the STALE
+        // pre-rotation cookie and the portal bounces to login — even though a
+        // cookie is present. Flushing here writes the rotated value to disk
+        // immediately when the portal closes, so the next launch reads a fresh,
+        // server-valid cookie. (Complements the login-time and ON_STOP flushes.)
+        try {
+            CookieManager.getInstance().flush()
+        } catch (_: Throwable) {
+            // best-effort
+        }
         // Best-effort cleanup; activity-scoped WebView so leak risk is bounded.
         try {
             webView.stopLoading()
