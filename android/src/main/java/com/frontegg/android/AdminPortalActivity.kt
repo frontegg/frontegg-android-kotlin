@@ -219,6 +219,10 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
             super.onPageStarted(view, url, favicon)
+            // Diagnostic: log every navigation so a captured logcat unambiguously
+            // shows whether the portal session was recognized (stays on
+            // /oauth/portal) or bounced to login (/oauth/account/login).
+            Log.i(TAG, "AdminPortal: navigation → $url")
             // Force the viewport meta to a desktop width before the page's CSS
             // and JS evaluate. Material-UI's responsive hooks read
             // window.innerWidth, so this is what actually flips the breakpoint
