@@ -233,6 +233,14 @@ class FronteggAuthService(
             credentialManager.clearOfflineUser()
             credentialManager.setCurrentTenantId(null)
 
+            // Clear any `fe_refresh_*` cookies the process-wide CookieManager
+            // is holding for this tenant's baseUrl. Two reasons:
+            //   1) The embedded login WebView writes them during /oauth/account/social/success.
+            //   2) AdminPortalActivity bridges the SDK refresh token into them.
+            // Either way, a stale cookie left after logout would silently
+            // resurrect the session next time the user opens the admin portal.
+            clearRefreshCookiesForBaseUrl(baseUrl)
+
             withContext(mainDispatcher) {
                 isLoading.value = false
                 setOfflineMode(false)
@@ -240,6 +248,43 @@ class FronteggAuthService(
             }
 
         }
+    }
+
+    /**
+     * Removes every cookie in the process-wide [CookieManager] whose name
+     * starts with `fe_refresh` and whose URL matches [baseUrl]'s host.
+     *
+     * Implementation note: Android's [CookieManager] doesn't expose a "list
+     * cookies for URL" API like iOS's `WKHTTPCookieStore`, so we can't
+     * iterate-and-delete. Instead we read the cookie header for the URL,
+     * parse it for `fe_refresh_*` entries, and expire each one by setting it
+     * with `Max-Age=0` scoped to the same URL.
+     */
+    @VisibleForTesting
+    internal fun clearRefreshCookiesForBaseUrl(baseUrl: String) {
+        val cookieManager = CookieManager.getInstance()
+        val cookieHeader = cookieManager.getCookie(baseUrl) ?: return
+        if (cookieHeader.isEmpty()) return
+
+        val refreshNames = cookieHeader.split(';')
+            .map { it.trim() }
+            .mapNotNull { entry ->
+                val eq = entry.indexOf('=')
+                if (eq <= 0) null else entry.substring(0, eq)
+            }
+            .filter { it.startsWith("fe_refresh") }
+            .distinct()
+
+        if (refreshNames.isEmpty()) return
+
+        for (name in refreshNames) {
+            // Setting `Max-Age=0` expires the cookie immediately. Path=/
+            // matches what AdminPortalActivity.buildRefreshCookieValue sets,
+            // and what the auth server typically sets via Set-Cookie.
+            cookieManager.setCookie(baseUrl, "$name=; Path=/; Max-Age=0")
+        }
+        cookieManager.flush()
+        Log.i(TAG, "Cleared ${refreshNames.size} refresh cookie(s) on logout: $refreshNames")
     }
 
 
@@ -598,8 +643,8 @@ class FronteggAuthService(
         return true
     }
 
-    override suspend fun refreshTokenAndWait(): Boolean {
-        return refreshIdempotent(source = RefreshInvocationSource.MANUAL_USER)
+    override suspend fun refreshTokenAndWait(force: Boolean): Boolean {
+        return refreshIdempotent(source = RefreshInvocationSource.MANUAL_USER, force = force)
     }
 
     internal suspend fun refreshTokenAndWaitInternal(source: RefreshInvocationSource): Boolean {
@@ -941,6 +986,25 @@ class FronteggAuthService(
         this.user.value = user
         this.isAuthenticated.value = true
         setOfflineMode(false)
+
+        // Persist the WebView cookie jar to disk on every successful
+        // login / credential update.
+        //
+        // During embedded login the hosted-login page sets the session cookies
+        // (fe_refresh_*, fe_device_*) into the process-wide CookieManager via
+        // Set-Cookie — those are exactly what AdminPortalActivity reads to open
+        // the admin portal without a second login. Android writes CookieManager
+        // to disk lazily, so on a hard kill (cold start / swipe-away) cookies
+        // that were never flushed are lost; after relaunch the portal sees zero
+        // fe_* cookies and bounces to login. flush() forces them to disk now so
+        // they survive a cold start. Verified on-device: without this,
+        // getCookie(portalUrl) returns 0 fe_* cookies after force-stop+relaunch;
+        // with it, the cookies persist and the portal opens.
+        try {
+            CookieManager.getInstance().flush()
+        } catch (e: Throwable) {
+            Log.w(TAG, "Failed to flush CookieManager after login", e)
+        }
 
         val enableSessionPerTenant = storage.enableSessionPerTenant
         val tenantId = if (enableSessionPerTenant) {

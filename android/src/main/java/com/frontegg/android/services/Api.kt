@@ -384,7 +384,7 @@ open class Api(
         Log.d(TAG, "Executing refresh token request...")
         val response = call.execute()
         Log.d(TAG, "Refresh token response received: code=${response.code}")
-        
+
         if (response.isSuccessful) {
             val responseBody = response.body!!.string()
             Log.d(TAG, "Refresh token successful, parsing response")
