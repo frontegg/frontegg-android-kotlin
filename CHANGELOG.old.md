@@ -1,4 +1,19 @@
 ## v
+## Summary
+
+Redact OAuth-sensitive query parameters from URLs before they reach `Log.d`.
+
+A customer pentest report flagged that the SDK emits the OAuth authorization code (and PKCE `code_verifier` / `code_challenge`, `nonce`, `state`) in plaintext to logcat during the login flow. The leak occurred in the embedded WebView path — host apps that suppress their own logs in production (e.g. Capacitor's `loggingBehavior: 'production'`) had no way to silence the SDK's output, so the code remained visible to anything with ADB access.
+
+- New `LogUrlSanitizer` utility strips sensitive query-parameter values (`code`, `state`, `code_verifier`, `code_challenge`, `nonce`, `access_token`, `refresh_token`, `id_token`, bearer / authorization tokens, etc.) and replaces them with `[redacted]` before logging.
+- Applied at every `Log.d` call site that prints a URL: `EmbeddedAuthActivity`, `AuthorizeUrlGenerator`, `FronteggWebClient.shouldInterceptRequest`, `AdminPortalActivity`.
+- Key set kept in sync with `SentryHelper` so logcat and Sentry redact the same parameters.
+
+## v
+- Minor enhance switch tenants logic
+- route `switchTenant` through `updateStateWithCredentials` and fires `loadEntitlements(forceRefresh = true)` on the new tenant's token
+
+## v
 Sentry's automatic network breadcrumbs have been disabled
 
 ## v

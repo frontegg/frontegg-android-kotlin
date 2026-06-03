@@ -1,6 +1,186 @@
 ## v
 ## Summary
 
+A customer pentest found the Frontegg Android SDK emits the OAuth authorization code in plaintext to logcat during the embedded WebView login flow (e.g. `code=<value>` visible in `Log.d` output). The customer's host app suppresses its own logs in production via Capacitor's `loggingBehavior: 'production'`, but the SDK was logging unconditionally — exposing the authorization code to anything with ADB access on a device that's been compromised or left in dev mode.
+
+This PR redacts OAuth-sensitive query-parameter values from URLs before they reach `Log.d`.
+
+## What was leaking
+
+| File | Line | What was logged |
+|---|---|---|
+| `EmbeddedAuthActivity.kt` | 212 | full callback URL with `?code=...&state=...` |
+| `EmbeddedAuthActivity.kt` | 242 | same, for social-login redirect path |
+| `EmbeddedAuthActivity.kt` | 255 | same, for OAuth callback path |
+| `EmbeddedAuthActivity.kt` | 355 | same, for the `onResume` retry path |
+| `AuthorizeUrlGenerator.kt` | 135 | generated authorize URL with `code_challenge` + `nonce` |
+| `FronteggWebClient.kt` | 466/468/473 | every URL the WebView loads (incl. OAuth callback redirects) |
+| `AdminPortalActivity.kt` | 112 | admin portal URL (precautionary) |
+
+Sentry breadcrumbs were already redacted via `SentryHelper` — only logcat was leaky.
+
+## Approach
+
+New `internal object LogUrlSanitizer` in `com.frontegg.android.utils`:
+- Pure-Kotlin string ops (no `android.net.Uri` dep) → cheap, unit-testable on the JVM, safe to call during early SDK startup.
+- Strips values for `code`, `state`, `code_verifier`, `code_challenge`, `nonce`, `access_token`, `refresh_token`, `id_token`, `device_token`, `mfa_token`, plus any key containing `token`, `secret`, `password`, `authorization`, `credential`, `signature`, `apikey`, `access_key`.
+- No-op on URLs without a query → can be applied unconditionally without losing diagnostic value.
+- Key set mirrors `SentryHelper.breadcrumbKeyIsSensitive` so logcat and Sentry redact the same set going forward.
+
+Applied at every URL `Log.d` site listed above.
+
+## Why not just gate on `BuildConfig.DEBUG`?
+
+Two reasons:
+1. The SDK module's `BuildConfig.DEBUG` is always `false` in published artifacts — gating on it would silence the logs entirely, including in customer apps' debug builds, where the SDK logs are genuinely useful for diagnosing integration issues.
+2. Defense-in-depth: even a developer using a debug build of their own app shouldn't be able to accidentally screenshot / share a log line containing a real OAuth code.
+
+A runtime `enableDebugLogging` flag is a reasonable follow-up but is out of scope here — this PR is the focused leak fix.
+
+## Test plan
+
+- [x] New unit test `LogUrlSanitizerTest` (11 cases): null/empty, no query, OAuth callback, PKCE, tokens, case-insensitive, fragment preservation, key-without-value, mixed safe + sensitive params
+- [x] `./gradlew :android:testDebugUnitTest --tests "com.frontegg.android.utils.LogUrlSanitizerTest"` passes
+- [x] `./gradlew :android:testDebugUnitTest --tests "com.frontegg.android.utils.*"` (including `AuthorizeUrlGeneratorTest`, `SentryHelperTest`) still passes
+- [ ] Manual: capture logcat during embedded login and confirm the previously-leaking lines now show `code=[redacted]`
+
+## Risk
+
+- Sanitizer is purely additive at log sites — none of the actual URL handling, navigation, or token-exchange logic is touched.
+- For URLs without a query string, sanitizer is a pass-through.
+## Summary
+
+Closes the decision-logic gap behind FR-24821. The mobile SDK was only checking whether a feature/permission *key* was present in the `/user-entitlements` response — but the response is a **catalog** (features + their linked plans, expiry, feature flags, and per-rule condition graphs), not a list of "what the user has." Web does the full evaluation; mobile didn't. Result: a feature like `sso` linked to a plan with `defaultTreatment: "false"` came back as `isEntitled = true` on mobile even though web (correctly) said the user wasn't entitled.
+
+This PR ports [`@frontegg/entitlements-javascript-commons`](https://www.npmjs.com/package/@frontegg/entitlements-javascript-commons) (the canonical evaluator the React / JS / Next.js SDKs all run on) to Kotlin.
+
+**Complementary to [#254](https://github.com/frontegg/frontegg-android-kotlin/pull/254)** — that PR handles cache invalidation on tenant switch and remains valid. This PR closes a different gap (the decision logic itself).
+
+## Why
+
+Yonatan's reproduction from FR-24821:
+
+```json
+{
+  "features": {
+    "sso": {"planIds": ["ID_1"], "expireTime": null}
+  },
+  "plans": {
+    "ID_1": {"defaultTreatment": "false"}
+  }
+}
+```
+
+Pre-fix mobile saw `"sso"` in `features` → `isEntitled = true`. Web (correctly) follows `sso.planIds[0]` → `plans.ID_1.defaultTreatment` → `"false"` → not entitled.
+
+## What landed
+
+| Layer | Files |
+|---|---|
+| Models (TS shapes ported 1:1) | `entitlements/UserEntitlementsContext.kt` — `FeatureDetail`, `Plan`, `FeatureFlag`, `Rule`, `Condition`, `Treatment`, `ConditionLogic`, `Operation` |
+| Operations matrix | `entitlements/operations/Operations.kt` — string (`in_list`/`starts_with`/`ends_with`/`contains`/`matches`), numeric (`equal`/`gt`/`gte`/`lt`/`lte`/`between`), boolean (`is`), date (`on`/`on_or_after`/`on_or_before`/`between`); sanitizer + handler pair per op, fails closed on type mismatch |
+| Evaluators | `entitlements/ConditionEvaluator.kt` → `RuleEvaluator.kt` → `PlanEvaluator.kt` / `FeatureFlagEvaluator.kt` → `IsEntitledToFeature.kt` (direct + flag + plan-targeting chain) → `IsEntitledToPermission.kt` (wildcard match + linked-feature roll-up) |
+| Attribute prep | `entitlements/AttributesPreparer.kt` — merges custom + JWT claims with the same `frontegg.` / `jwt.` prefix scheme web uses; a rule with `attribute = "frontegg.tenantId"` reads `jwt.tenantId` via the mapper |
+| Permission matching | `entitlements/PermissionMatcher.kt` — anchored wildcard regex with metachar escaping (`fe.secure.*` matches `fe.secure.read.users`; `fe.secure` does NOT match `feXsecure`) |
+| Parser | `entitlements/UserEntitlementsParser.kt` — lenient JSON → context; drops malformed sub-objects rather than failing the whole parse |
+| Wiring | `Api.kt` (parse full context, keep legacy `featureKeys`/`permissionKeys` for backcompat), `EntitlementsService.kt` (`checkFeature`/`checkPermission` now route through the chain with an `Attributes` bag), `FronteggAuthService.kt` (decode JWT claims from current access token via new `JWTHelper.decodeClaims`, thread them + host-app `customAttributes` through `Attributes` — per Yonatan: attributes "should be in JWT") |
+
+## Backwards compatibility
+
+- Existing host-app code reading `auth.entitlements.state.featureKeys` / `permissionKeys` still works — those sets are still populated (now from the catalog rather than "what the user has"; the demo's count badge still renders).
+- `Entitlement.justification` adds `BUNDLE_EXPIRED` to match web's `NotEntitledJustification` enum. The existing values (`NOT_AUTHENTICATED`, `ENTITLEMENTS_DISABLED`, `ENTITLEMENTS_NOT_LOADED`, `MISSING_FEATURE`, `MISSING_PERMISSION`) are unchanged.
+
+## Tests
+
+Five new test files. The FR-24821 reproduction lives in `IsEntitledToFeatureTest.fr_24821 sso with defaultTreatment false is not entitled` and `UserEntitlementsParserTest.FR_24821 minimal response`.
+
+| Test | What it covers |
+|---|---|
+| `ConditionEvaluatorTest` | every operation kind + negate + malformed-payload + type-mismatch + null-attribute |
+| `PlanAndFeatureFlagEvaluatorTest` | `defaultTreatment`, rule precedence, flag on/off |
+| `IsEntitledToFeatureTest` | direct / flag / plan chain priorities, `BUNDLE_EXPIRED` aggregation, **FR-24821 repro** |
+| `IsEntitledToPermissionTest` | wildcard matching, regex-meta escaping, linked-feature roll-up (granted permission on a not-entitled feature is denied) |
+| `UserEntitlementsParserTest` | happy path (FR-24821 shape), `expireTime` nulls, unknown operations dropped, malformed sub-objects dropped without crashing the parse |
+
+Existing `EntitlementsServiceTest` tests for "key present = entitled" updated to use the new `UserEntitlementsContext` path (those old tests literally encoded the bug).
+
+## Verification
+
+- [x] `./gradlew :android:testDebugUnitTest --tests "com.frontegg.android.entitlements.*"` — 43 new tests, 0 failures
+- [x] `./gradlew :android:testDebugUnitTest` — full suite **548 tests / 0 failures**
+- [ ] Manual repro in `:app` demo (Tenant A with SSO → switch to Tenant B without SSO → tap Load Entitlements → expect `Not entitled (MISSING_FEATURE)` for `sso`)
+
+## Related
+
+- [#254](https://github.com/frontegg/frontegg-android-kotlin/pull/254) — cache invalidation on tenant switch (complementary, still valid)
+- iOS port forthcoming as a separate PR mirroring this structure
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+## Problem
+
+Customers reported being forced to log in a second time when opening the embedded admin portal, even though the SDK already had a valid session. Reproduced on Android (and iOS — see companion PR).
+
+## Root cause
+
+`AdminPortalActivity`'s WebView shares the process-wide `CookieManager`, which contains:
+
+- ✅ Cookies set by the SDK's embedded login WebView (password / embedded social)
+- ❌ **Not** cookies from Chrome Custom Tabs (used for social / SAML / OIDC / browser SSO)
+
+Android deliberately walls Chrome's per-app cookie jar off from the host app's WebView. Users on a browser flow had no `fe_refresh_*` cookie in CookieManager → portal rendered its own login form.
+
+Additionally, `FronteggAuthService.logout()` did not clear any cookies — so a stale `fe_refresh_*` cookie from any prior flow (embedded login OR the bridge below) could silently resurrect the session next time the portal opened.
+
+## Fix
+
+Two changes:
+
+### 1. Bridge on portal open (`AdminPortalActivity.kt`)
+
+Before `webView.loadUrl("/oauth/portal")`, if the SDK is authenticated, write `fe_refresh_<appId-or-clientId>` into `CookieManager` scoped to the baseUrl host. Cookie-name format matches the Frontegg Next.js SDK (`frontegg-nextjs/packages/nextjs/src/utils/cookies/index.ts`) and the iOS SDK's `AdminPortalWebView.refreshCookieName` — all three platforms now agree on a single cookie format the auth server reads.
+
+- `refreshCookieName(clientId, applicationId)` — prefers `appId` when present (multi-app workspaces), falls back to `clientId`. Dashes stripped.
+- `buildRefreshCookieValue(...)` — returns the cookie header + scoping URL. Returns null when there is no refresh token (user not logged in) or baseUrl is malformed; the portal falls back to its own login.
+- `flush()` is called after `setCookie` so the in-memory cookie is persisted before the WebView reads it.
+
+### 2. Clear on logout (`FronteggAuthService.kt`)
+
+New `clearRefreshCookiesForBaseUrl(baseUrl)`:
+- Reads the cookie header for baseUrl
+- Picks out every entry whose name starts with `fe_refresh`
+- Expires each one by setting it with `Max-Age=0` scoped to the same URL
+- Flushes
+
+This is the Android equivalent of the iOS logout flow's existing regex-based cookie cleanup.
+
+## Companion iOS PR
+
+[frontegg/frontegg-ios-swift#267](https://github.com/frontegg/frontegg-ios-swift/pull/267) — same fix shape on iOS. iOS already had a regex-based logout cookie sweep matching `^fe_refresh`, so it didn't need a new logout path — just a regression test confirming the bridged cookie name matches the existing regex.
+
+## Tests
+
+- 12 new unit tests in `AdminPortalActivityTest` covering cookie name computation, nil/empty/malformed inputs, HTTPS vs HTTP, appId-vs-clientId precedence, and subpath-stripping in the scoping URL.
+- 2 new unit tests in `FronteggAuthServiceTest` verifying that logout expires every `fe_refresh_*` cookie (and only those — unrelated cookies are untouched) and that the no-op path doesn't call `setCookie` or `flush`.
+
+All existing tests still pass.
+
+## Test plan
+
+- [ ] CI: full unit-test suite passes
+- [ ] Manual: log in via Google social (Chrome Custom Tabs) → open admin portal → confirm no second login prompt
+- [ ] Manual: log in via embedded password → open admin portal → still works (regression check)
+- [ ] Manual: open admin portal while logged out → portal's own login form appears (current behavior preserved)
+- [ ] Manual: log in → open portal → close → logout → re-open portal → portal's login form (not the previously-bridged session)
+
+## Out of scope (follow-ups)
+
+- Custom `cookieDomain` support — current implementation scopes to baseUrl host.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## v
+## Summary
+
 Redact OAuth-sensitive query parameters from URLs before they reach `Log.d`.
 
 A customer pentest report flagged that the SDK emits the OAuth authorization code (and PKCE `code_verifier` / `code_challenge`, `nonce`, `state`) in plaintext to logcat during the login flow. The leak occurred in the embedded WebView path — host apps that suppress their own logs in production (e.g. Capacitor's `loggingBehavior: 'production'`) had no way to silence the SDK's output, so the code remained visible to anything with ADB access.
