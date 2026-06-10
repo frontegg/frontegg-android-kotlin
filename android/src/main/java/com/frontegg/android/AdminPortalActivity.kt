@@ -10,34 +10,35 @@ import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.webkit.CookieManager
+import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import androidx.core.view.WindowCompat
 import com.frontegg.android.ui.FronteggBaseActivity
+import com.frontegg.android.utils.DefaultDispatcherProvider
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import org.json.JSONObject
 
 /**
  * Embedded Frontegg admin portal — opens `${baseUrl}/oauth/portal?appId=<applicationId>`
  * in a WebView.
  *
- * ⚠️ DIAGNOSTIC BUILD — the cookie-bridge strategy is intentionally minimal
- * here. Earlier attempts (synthetic-cookie bridge, silent-authorize-first) both
- * failed for hosted-login users because the SDK's stored refresh token (from
- * `/oauth/token` code exchange) and the cookie-auth `fe_refresh_*` value the
- * portal expects are different identifier families on the auth backend. Until
- * we have evidence of what cookies actually live in [CookieManager] at portal-
- * open time across the various login flows, this class just:
+ * The portal opens without a second login by handing the SDK's OAuth tokens to
+ * the hosted admin-box app through a JS bridge ([AdminPortalBridge]), rather
+ * than relying on the WebView cookie jar.
  *
- *   1. snapshots the existing `fe_refresh_*` / `fe_device_*` cookies for the
- *      host (logging name + first 8 chars of value + the URL the WebView will
- *      send them on),
- *   2. logs the SDK's stored refresh-token prefix and the cookie name it would
- *      map to (so we can correlate against the snapshot), and
- *   3. loads `/oauth/portal` as-is.
- *
- * No cookie writes, no deletes, no silent-authorize. Whatever the login WebView
- * left behind stays.
+ * Why the bridge instead of cookies: the Frontegg refresh cookie is single-use
+ * and rotates on every read, and in hosted-login mode it's created in the
+ * system browser (Custom Tabs) where this app's WebView can't reach it. So
+ * seeding the cookie jar is either stale (embedded) or impossible (hosted).
+ * Instead the portal detects the SDK via `window.FronteggNativeBridgeFunctions`
+ * and calls `getTokens()`; native (the single source of truth) returns the
+ * current access/refresh token, which the portal exchanges for its session.
  *
  * **Beta — API may change in future minor releases.** The class name, [open]
  * entry point, presentation style (currently a full-screen [Activity]), and
@@ -49,6 +50,14 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     private lateinit var webView: WebView
     private lateinit var loader: ProgressBar
+
+    /** Origin of the page currently loaded in [webView]; updated on every main-
+     *  frame navigation and read (off-thread) by the bridge's origin gate. */
+    @Volatile
+    private var currentPageUrl: String? = null
+
+    /** Scope for the bridge's token work (refresh + read), cancelled in onDestroy. */
+    private val bridgeScope = CoroutineScope(DefaultDispatcherProvider.io + SupervisorJob())
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -69,45 +78,17 @@ class AdminPortalActivity : FronteggBaseActivity() {
             loader.visibility = View.GONE
             webView.restoreState(savedInstanceState)
         } else {
-            logCookieDiagnosticsAndLoad(webView, buildPortalUrl())
+            loadPortal()
         }
     }
 
     /**
-     * Diagnostic: snapshot the `fe_refresh_*` / `fe_device_*` cookies the
-     * WebView will send on its initial request, log the SDK's expected cookie
-     * name + token prefix for correlation, then load the portal.
-     *
-     * Does not modify cookies. If the login WebView left valid cookies in
-     * [CookieManager], the portal request will pick them up; if it didn't,
-     * the portal will redirect to its own login form (the original baseline
-     * behavior before any bridge attempts).
+     * Load the portal. It authenticates via the native token bridge
+     * ([AdminPortalBridge.getTokens]), not the WebView cookie jar, so there's
+     * nothing to seed — just load the URL.
      */
-    private fun logCookieDiagnosticsAndLoad(webView: WebView, portalUrl: String) {
-        val auth = applicationContext.fronteggAuth
-        val baseUrl = auth.baseUrl
-
-        val expectedCookieName = refreshCookieName(auth.clientId)
-        val sdkTokenPrefix = valuePrefix(auth.refreshToken.value ?: "")
-        Log.i(TAG, "AdminPortal: SDK expects cookie name=$expectedCookieName, SDK.refreshToken=$sdkTokenPrefix")
-
-        val cookieManager = CookieManager.getInstance()
-        // CookieManager.getCookie(url) returns the `; `-separated `name=value`
-        // string the WebView would send on a request to that URL — exactly
-        // what we want to see at portal-open time.
-        val portalCookieHeader = cookieManager.getCookie(portalUrl)
-        val baseCookieHeader = cookieManager.getCookie(baseUrl)
-        Log.i(TAG, "AdminPortal: CookieManager.getCookie(portalUrl) has ${countFeCookies(portalCookieHeader)} fe_* cookie(s)")
-        Log.i(TAG, "AdminPortal: CookieManager.getCookie(baseUrl) has ${countFeCookies(baseCookieHeader)} fe_* cookie(s)")
-
-        for (entry in (portalCookieHeader ?: "").split(";").map { it.trim() }) {
-            if (entry.isEmpty()) continue
-            val name = entry.substringBefore("=").trim()
-            if (!name.startsWith("fe_refresh_") && !name.startsWith("fe_device_")) continue
-            val value = entry.substringAfter("=", "")
-            Log.i(TAG, "AdminPortal:   $name value=${valuePrefix(value)}")
-        }
-
+    private fun loadPortal() {
+        val portalUrl = buildPortalUrl()
         Log.i(TAG, "AdminPortal: loading $portalUrl")
         webView.loadUrl(portalUrl)
     }
@@ -136,9 +117,16 @@ class AdminPortalActivity : FronteggBaseActivity() {
             userAgentString = DESKTOP_USER_AGENT
         }
 
-        // Process-wide CookieManager already holds the SDK's cookies; just enable
-        // third-party cookies for this WebView so embedded portal frames work.
+        // Enable third-party cookies so embedded portal frames work (portal
+        // session auth itself goes through the native token bridge, not cookies).
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
+
+        // JS <-> native bridge: lets the hosted admin-box app pull the SDK's
+        // OAuth tokens (and request authorize / close) instead of depending on
+        // the WebView cookie jar. Same interface name as the login-box bridge
+        // so FronteggNativeModule detects it; the capability map is injected per
+        // navigation in AdminPortalWebViewClient.onPageStarted.
+        webView.addJavascriptInterface(AdminPortalBridge(), "FronteggNativeBridge")
 
         // Resolve the host theme's window background and paint the WebView with
         // it directly. The WebView default is transparent — without this, any
@@ -152,7 +140,8 @@ class AdminPortalActivity : FronteggBaseActivity() {
                 // navigations also call onPageFinished but the loader is
                 // already gone.
                 loader.visibility = View.GONE
-            }
+            },
+            onNavigate = { url -> currentPageUrl = url }
         )
         webView.webChromeClient = object : WebChromeClient() {
             // The portal's X button calls window.close() — bridge to finish().
@@ -187,20 +176,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     override fun onDestroy() {
         super.onDestroy()
-        // Persist the cookie jar as the portal closes. The portal's React app
-        // calls /oauth/authorize/silent on mount, which ROTATES the single-use
-        // fe_refresh cookie server-side; the new value lands in the (process-
-        // wide) CookieManager in memory. If the app is then killed before that
-        // rotation is flushed to disk, the next cold start loads the STALE
-        // pre-rotation cookie and the portal bounces to login — even though a
-        // cookie is present. Flushing here writes the rotated value to disk
-        // immediately when the portal closes, so the next launch reads a fresh,
-        // server-valid cookie. (Complements the login-time and ON_STOP flushes.)
-        try {
-            CookieManager.getInstance().flush()
-        } catch (_: Throwable) {
-            // best-effort
-        }
+        bridgeScope.cancel()
         // Best-effort cleanup; activity-scoped WebView so leak risk is bounded.
         try {
             webView.stopLoading()
@@ -212,17 +188,127 @@ class AdminPortalActivity : FronteggBaseActivity() {
         }
     }
 
+    /**
+     * JS <-> native bridge exposed to the portal as `window.FronteggNativeBridge`.
+     * Mirrors the iOS AdminPortalBridge contract: the hosted admin-box app calls
+     * these instead of running its own cookie-based silent-authorize.
+     *
+     * Security: [getTokens] hands the keychain-backed refresh token to web JS,
+     * so it is only honored when the WebView's current origin matches the
+     * configured Frontegg baseUrl. Any other origin is rejected.
+     */
+    private inner class AdminPortalBridge {
+
+        @JavascriptInterface
+        fun isMobileSDK(): Boolean = true
+
+        /**
+         * Resolve the JS promise registered under [callbackId] with the SDK's
+         * current OAuth tokens. Runs off the JS thread (coroutine) so the token
+         * refresh never blocks the WebView, then resolves via the shared
+         * `window.FronteggNativeBridgeCallbacks` registry.
+         */
+        @JavascriptInterface
+        fun getTokens(callbackId: String) {
+            bridgeScope.launch {
+                if (!isTrustedOrigin()) {
+                    Log.e(TAG, "AdminPortal: getTokens refused — untrusted origin $currentPageUrl")
+                    rejectCallback(callbackId, "untrusted_origin")
+                    return@launch
+                }
+                // The SDK owns refresh; make sure the access token is valid
+                // before the portal uses it to load /me + /tenants.
+                try {
+                    applicationContext.fronteggAuth.refreshTokenAndWait()
+                } catch (_: Throwable) {
+                    // best-effort; fall through to whatever tokens we hold
+                }
+                val auth = applicationContext.fronteggAuth
+                val access = auth.accessToken.value
+                val refresh = auth.refreshToken.value
+                if (access.isNullOrEmpty() || refresh.isNullOrEmpty()) {
+                    rejectCallback(callbackId, "no_tokens")
+                    return@launch
+                }
+                val json = JSONObject()
+                    .put("accessToken", access)
+                    .put("refreshToken", refresh)
+                    .toString()
+                resolveCallback(callbackId, json)
+            }
+        }
+
+        @JavascriptInterface
+        fun requestAuthorize(payload: String?) {
+            // Portal's silent path failed or it explicitly wants a fresh login.
+            // Native owns authorization: dismiss back to the app so the SDK's
+            // normal login flow re-authenticates. (In the common case the user
+            // is already authenticated, so getTokens succeeds and this is unused.)
+            Log.i(TAG, "AdminPortal: portal requested authorize — dismissing to app")
+            runOnUiThread { finish() }
+        }
+
+        @JavascriptInterface
+        fun closeWindow(reason: String?) {
+            Log.i(TAG, "AdminPortal: portal requested closeWindow ($reason)")
+            runOnUiThread { finish() }
+        }
+    }
+
+    /** True when the page currently loaded is on the trusted Frontegg origin. */
+    private fun isTrustedOrigin(): Boolean {
+        val current = originOf(currentPageUrl ?: return false) ?: return false
+        val trusted = originOf(applicationContext.fronteggAuth.baseUrl) ?: return false
+        return current == trusted
+    }
+
+    private fun originOf(url: String): String? = try {
+        val u = Uri.parse(url)
+        if (u.scheme == null || u.host == null) null else "${u.scheme}://${u.host}:${u.port}"
+    } catch (_: Throwable) {
+        null
+    }
+
+    private fun resolveCallback(callbackId: String, json: String) {
+        runOnUiThread {
+            webView.evaluateJavascript(
+                "(function(){var r=window.FronteggNativeBridgeCallbacks;" +
+                    "if(r&&r['$callbackId']){r['$callbackId'].resolve($json);delete r['$callbackId'];}})();",
+                null
+            )
+        }
+    }
+
+    private fun rejectCallback(callbackId: String, message: String) {
+        val safe = message.replace("\\", "\\\\").replace("'", "\\'")
+        runOnUiThread {
+            webView.evaluateJavascript(
+                "(function(){var r=window.FronteggNativeBridgeCallbacks;" +
+                    "if(r&&r['$callbackId']){r['$callbackId'].reject('$safe');delete r['$callbackId'];}})();",
+                null
+            )
+        }
+    }
+
     private class AdminPortalWebViewClient(
         private val onFirstPaint: () -> Unit,
+        private val onNavigate: (String?) -> Unit,
     ) : WebViewClient() {
         private var firstPaintReported = false
 
         override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
             super.onPageStarted(view, url, favicon)
-            // Diagnostic: log every navigation so a captured logcat unambiguously
-            // shows whether the portal session was recognized (stays on
-            // /oauth/portal) or bounced to login (/oauth/account/login).
+            // Track the current origin for the bridge's security gate, and log
+            // every navigation so a captured logcat shows whether the portal
+            // session was recognized (stays on /oauth/portal) or bounced to
+            // login (/oauth/account/login).
+            onNavigate(url)
             Log.i(TAG, "AdminPortal: navigation → $url")
+            // Advertise the native bridge capabilities to the portal as early as
+            // possible (window.FronteggNativeBridge is already injected by
+            // addJavascriptInterface; this is the capability map the web's
+            // isAvailable() checks).
+            view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = $ADMIN_PORTAL_BRIDGE_FUNCTIONS;", null)
             // Force the viewport meta to a desktop width before the page's CSS
             // and JS evaluate. Material-UI's responsive hooks read
             // window.innerWidth, so this is what actually flips the breakpoint
@@ -273,49 +359,19 @@ class AdminPortalActivity : FronteggBaseActivity() {
             return builder.build().toString()
         }
 
-        /**
-         * The cookie name format the Frontegg auth backend reads at
-         * `/frontegg/oauth/authorize/silent`. Strips ONLY the first dash of
-         * clientId — must match `Api.kt`'s `refreshCookieName()` exactly.
-         *
-         * Exposed (internal) for diagnostic logging in [logCookieDiagnosticsAndLoad]
-         * (so we can log the EXPECTED cookie name alongside what actually lives in
-         * [CookieManager]) and for tests pinning the format.
-         */
-        @JvmStatic
-        internal fun refreshCookieName(clientId: String): String {
-            val stripped = clientId.replaceFirst("-", "")
-            return "fe_refresh_$stripped"
-        }
-
-        /**
-         * Safe redacted prefix of a (potentially sensitive) token value, for
-         * log correlation only. Returns the first 8 chars + `... len=N`. NEVER
-         * returns the full value.
-         */
-        @JvmStatic
-        internal fun valuePrefix(s: String): String {
-            if (s.isEmpty()) return "<empty>"
-            if (s.length <= 8) return "<short len=${s.length}>"
-            return "${s.substring(0, 8)}... len=${s.length}"
-        }
-
-        /**
-         * Count `fe_*` cookies in a `getCookie()`-style `name=value; name=value`
-         * header. Returns 0 for null/empty input.
-         */
-        @JvmStatic
-        internal fun countFeCookies(header: String?): Int {
-            if (header.isNullOrEmpty()) return 0
-            return header.split(";").count { entry ->
-                val name = entry.substringBefore("=").trim()
-                name.startsWith("fe_refresh_") || name.startsWith("fe_device_")
-            }
-        }
-
         private const val DESKTOP_USER_AGENT =
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
                 "AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Safari/605.1.15"
+
+        /**
+         * Capability map advertised to the portal via
+         * `window.FronteggNativeBridgeFunctions`, so the web's
+         * `FronteggNativeModule.isAvailable(method)` resolves true for the
+         * bridge methods the portal needs.
+         */
+        private const val ADMIN_PORTAL_BRIDGE_FUNCTIONS =
+            "{\"getTokens\":true,\"requestAuthorize\":true,\"closeWindow\":true," +
+                "\"isMobileSDK\":true,\"useNativeLoader\":true}"
 
         // Idempotent: safe to evaluate multiple times. Installs a MutationObserver
         // on <head> exactly once (guarded by a window flag) that reverts any

@@ -979,25 +979,6 @@ class FronteggAuthService(
         this.isAuthenticated.value = true
         setOfflineMode(false)
 
-        // Persist the WebView cookie jar to disk on every successful
-        // login / credential update.
-        //
-        // During embedded login the hosted-login page sets the session cookies
-        // (fe_refresh_*, fe_device_*) into the process-wide CookieManager via
-        // Set-Cookie — those are exactly what AdminPortalActivity reads to open
-        // the admin portal without a second login. Android writes CookieManager
-        // to disk lazily, so on a hard kill (cold start / swipe-away) cookies
-        // that were never flushed are lost; after relaunch the portal sees zero
-        // fe_* cookies and bounces to login. flush() forces them to disk now so
-        // they survive a cold start. Verified on-device: without this,
-        // getCookie(portalUrl) returns 0 fe_* cookies after force-stop+relaunch;
-        // with it, the cookies persist and the portal opens.
-        try {
-            CookieManager.getInstance().flush()
-        } catch (e: Throwable) {
-            Log.w(TAG, "Failed to flush CookieManager after login", e)
-        }
-
         val enableSessionPerTenant = storage.enableSessionPerTenant
         val tenantId = if (enableSessionPerTenant) {
             credentialManager.getCurrentTenantId() ?: user.activeTenant.tenantId
