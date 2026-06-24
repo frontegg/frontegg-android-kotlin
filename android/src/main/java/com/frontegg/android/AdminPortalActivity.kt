@@ -16,6 +16,8 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
 import androidx.core.view.WindowCompat
+import androidx.webkit.WebViewCompat
+import androidx.webkit.WebViewFeature
 import com.frontegg.android.ui.FronteggBaseActivity
 import com.frontegg.android.utils.DefaultDispatcherProvider
 import com.frontegg.android.utils.LogUrlSanitizer
@@ -102,12 +104,34 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
         webView.addJavascriptInterface(AdminPortalBridge(), "FronteggNativeBridge")
 
+        // Inject the bridge capability map BEFORE any page script runs, so the
+        // hosted portal's isGetTokensAvailable() sees `getTokens` on its very
+        // first evaluation. Injecting from onPageStarted via evaluateJavascript
+        // races the portal bundle: when it lands after the bundle has already
+        // read the flag, the portal never calls getTokens and falls back to the
+        // cookie refresh — invisible on embedded (the shared session cookie makes
+        // that refresh succeed) but a blank page on hosted (no cookie in this
+        // WebView; login happened in a Custom Tab). This is the Android
+        // equivalent of iOS's WKUserScript at .atDocumentStart.
+        val bridgeFunctionsInjectedAtDocumentStart =
+            if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+                WebViewCompat.addDocumentStartJavaScript(
+                    webView,
+                    "window.FronteggNativeBridgeFunctions = $ADMIN_PORTAL_BRIDGE_FUNCTIONS;",
+                    setOf("*"),
+                )
+                true
+            } else {
+                false
+            }
+
         // Resolve the host theme's window background and paint the WebView with
         // it directly. The WebView default is transparent — without this, any
         // moment the page hasn't drawn yet (cold load, route transition, scroll
         // overflow) lets the activity behind us bleed through.
         webView.setBackgroundColor(resolveThemeBackground())
         webView.webViewClient = AdminPortalWebViewClient(
+            injectBridgeFunctionsOnPageStart = !bridgeFunctionsInjectedAtDocumentStart,
             onFirstPaint = {
                 // Hide the loader once the page has rendered (or at least
                 // reported finished). Idempotent: subsequent in-page
@@ -169,6 +193,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
         @JavascriptInterface
         fun getTokens(callbackId: String) {
+            Log.i(TAG, "AdminPortal: getTokens called (callbackId=$callbackId)")
             bridgeScope.launch {
                 if (!isTrustedOrigin()) {
                     Log.e(TAG, "AdminPortal: getTokens refused — untrusted origin $currentPageUrl")
@@ -242,6 +267,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
     }
 
     private class AdminPortalWebViewClient(
+        private val injectBridgeFunctionsOnPageStart: Boolean,
         private val onFirstPaint: () -> Unit,
         private val onNavigate: (String?) -> Unit,
     ) : WebViewClient() {
@@ -251,7 +277,13 @@ class AdminPortalActivity : FronteggBaseActivity() {
             super.onPageStarted(view, url, favicon)
             onNavigate(url)
             Log.i(TAG, "AdminPortal: navigation → $url")
-            view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = $ADMIN_PORTAL_BRIDGE_FUNCTIONS;", null)
+            // Fallback only when DOCUMENT_START_SCRIPT is unsupported (legacy
+            // WebView). On supported devices the flag is already injected at
+            // document start in configureWebView, which is race-free; injecting
+            // again here would risk landing after the bundle already read it.
+            if (injectBridgeFunctionsOnPageStart) {
+                view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = $ADMIN_PORTAL_BRIDGE_FUNCTIONS;", null)
+            }
             // Force the viewport meta to a desktop width before the page's CSS
             // and JS evaluate. Material-UI's responsive hooks read
             // window.innerWidth, so this is what actually flips the breakpoint
