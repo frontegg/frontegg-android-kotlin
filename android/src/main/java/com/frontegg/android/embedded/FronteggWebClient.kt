@@ -55,6 +55,23 @@ class FronteggWebClient(
     WebViewClient() {
     companion object {
         private val TAG = FronteggWebClient::class.java.simpleName
+
+        /**
+         * Builds the `window.FronteggNativeBridgeFunctions` capability map injected into
+         * the embedded login WebView. `getTokens` lets the login box (step-up / re-auth)
+         * bootstrap from native tokens instead of the cookie refresh that 401s.
+         */
+        internal fun buildNativeBridgeFunctions(storage: FronteggInnerStorage): JSONObject {
+            return JSONObject().apply {
+                put("loginWithSocialLogin", storage.handleLoginWithSocialLogin)
+                put("loginWithSocialLoginProvider", storage.handleLoginWithSocialLoginProvider)
+                put("loginWithCustomSocialLoginProvider", storage.handleLoginWithCustomSocialLoginProvider)
+                put("loginWithSSO", storage.handleLoginWithSSO)
+                put("shouldPromptSocialLoginConsent", storage.shouldPromptSocialLoginConsent)
+                put("useNativeLoader", true)
+                put("getTokens", true)
+            }
+        }
     }
 
     private val bgScope = CoroutineScope(ioDispatcher + SupervisorJob())
@@ -220,27 +237,7 @@ class FronteggWebClient(
             lastErrorResponse = null
         } else {
 
-            val nativeModuleFunctions = JSONObject()
-            nativeModuleFunctions.put(
-                "loginWithSocialLogin",
-                storage.handleLoginWithSocialLogin
-            )
-            nativeModuleFunctions.put(
-                "loginWithSocialLoginProvider",
-                storage.handleLoginWithSocialLoginProvider
-            )
-            nativeModuleFunctions.put(
-                "loginWithCustomSocialLoginProvider",
-                storage.handleLoginWithCustomSocialLoginProvider
-            )
-            nativeModuleFunctions.put("loginWithSSO", storage.handleLoginWithSSO)
-            nativeModuleFunctions.put(
-                "shouldPromptSocialLoginConsent",
-                storage.shouldPromptSocialLoginConsent
-            )
-            nativeModuleFunctions.put("useNativeLoader", true)
-            nativeModuleFunctions.put("getTokens", true)
-            val jsObject = nativeModuleFunctions.toString()
+            val jsObject = buildNativeBridgeFunctions(storage).toString()
             view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
         }
 
