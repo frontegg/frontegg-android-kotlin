@@ -133,6 +133,39 @@ class FronteggWebClient(
         }
     }
 
+    /** Main-thread-safe read of the current page URL (used by the getTokens bridge). */
+    internal fun currentUrlMainSafe(): String? {
+        return try {
+            if (Looper.myLooper() == Looper.getMainLooper()) {
+                currentWebView?.url
+            } else {
+                var result: String? = null
+                val latch = java.util.concurrent.CountDownLatch(1)
+                Handler(Looper.getMainLooper()).post {
+                    try {
+                        result = currentWebView?.url
+                    } finally {
+                        latch.countDown()
+                    }
+                }
+                latch.await(500, java.util.concurrent.TimeUnit.MILLISECONDS)
+                result
+            }
+        } catch (e: Exception) {
+            null
+        }
+    }
+
+    /** Evaluate JS on the embedded WebView on the main thread (used for bridge callbacks). */
+    internal fun evaluateJavascriptOnMain(js: String) {
+        Handler(Looper.getMainLooper()).post {
+            try {
+                currentWebView?.evaluateJavascript(js, null)
+            } catch (_: Throwable) {
+            }
+        }
+    }
+
     override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {
         super.onPageStarted(view, url, favicon)
         
@@ -206,6 +239,7 @@ class FronteggWebClient(
                 storage.shouldPromptSocialLoginConsent
             )
             nativeModuleFunctions.put("useNativeLoader", true)
+            nativeModuleFunctions.put("getTokens", true)
             val jsObject = nativeModuleFunctions.toString()
             view?.evaluateJavascript("window.FronteggNativeBridgeFunctions = ${jsObject};", null)
         }

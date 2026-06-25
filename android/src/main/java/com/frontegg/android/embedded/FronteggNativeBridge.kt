@@ -38,6 +38,71 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
     }
 
 
+    // Native token bridge (getTokens): lets the embedded login box (e.g. step-up /
+    // re-auth) bootstrap from the existing native session instead of the cookie
+    // token-refresh that 401s in the WebView, mirroring the Admin Portal bridge.
+    // Resolves into the redux-store window.FronteggNativeBridgeCallbacks registry.
+    @JavascriptInterface
+    fun getTokens(callbackId: String) {
+        Log.i("FronteggNativeBridge", "getTokens called (callbackId=$callbackId)")
+        val client = webClient
+        if (client == null) {
+            Log.e("FronteggNativeBridge", "getTokens: no webClient available")
+            return
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            if (!isTrustedOrigin(client.currentUrlMainSafe())) {
+                Log.e("FronteggNativeBridge", "getTokens refused — untrusted origin")
+                rejectCallback(client, callbackId, "untrusted_origin")
+                return@launch
+            }
+            try {
+                context.fronteggAuth.refreshTokenAndWait()
+            } catch (_: Throwable) {
+            }
+            val auth = context.fronteggAuth
+            val access = auth.accessToken.value
+            val refresh = auth.refreshToken.value
+            if (access.isNullOrEmpty() || refresh.isNullOrEmpty()) {
+                rejectCallback(client, callbackId, "no_tokens")
+                return@launch
+            }
+            val json = JSONObject()
+                .put("accessToken", access)
+                .put("refreshToken", refresh)
+                .toString()
+            resolveCallback(client, callbackId, json)
+        }
+    }
+
+    private fun isTrustedOrigin(currentUrl: String?): Boolean {
+        val current = originOf(currentUrl ?: return false) ?: return false
+        val trusted = originOf(context.fronteggAuth.baseUrl) ?: return false
+        return current == trusted
+    }
+
+    private fun originOf(url: String): String? = try {
+        val u = Uri.parse(url)
+        if (u.scheme == null || u.host == null) null else "${u.scheme}://${u.host}:${u.port}"
+    } catch (_: Throwable) {
+        null
+    }
+
+    private fun resolveCallback(client: FronteggWebClient, callbackId: String, json: String) {
+        client.evaluateJavascriptOnMain(
+            "(function(){var r=window.FronteggNativeBridgeCallbacks;" +
+                "if(r&&r['$callbackId']){r['$callbackId'].resolve($json);delete r['$callbackId'];}})();"
+        )
+    }
+
+    private fun rejectCallback(client: FronteggWebClient, callbackId: String, message: String) {
+        val safe = message.replace("\\", "\\\\").replace("'", "\\'")
+        client.evaluateJavascriptOnMain(
+            "(function(){var r=window.FronteggNativeBridgeCallbacks;" +
+                "if(r&&r['$callbackId']){r['$callbackId'].reject('$safe');delete r['$callbackId'];}})();"
+        )
+    }
+
     companion object {
         fun directLoginWithContext(
             context: Context,
