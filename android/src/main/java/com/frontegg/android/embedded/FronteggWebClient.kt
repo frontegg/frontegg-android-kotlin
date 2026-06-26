@@ -249,7 +249,7 @@ class FronteggWebClient(
         error: WebResourceError?
     ) {
 
-        Log.e(TAG, "onReceivedError: ${error?.description}")
+        Log.e(TAG, "onReceivedError: ${error?.description} url=${request?.url} mainFrame=${request?.isForMainFrame}")
         if (error == null) {
             super.onReceivedError(view, request, error)
             return
