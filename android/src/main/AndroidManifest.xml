@@ -117,6 +117,19 @@
             android:exported="false"
             android:configChanges="orientation|screenSize|keyboardHidden" />
 
+        <!--
+          Always-enabled embedded WebView activity for step-up. It has no intent-filter
+          and is not toggled by the host app (unlike EmbeddedAuthActivity, which apps
+          disable to select hosted login), so step-up can always present the embedded
+          bridge WebView and reuse the native session via the getTokens bridge — even in
+          hosted-login apps.
+        -->
+        <activity
+            android:name="com.frontegg.android.StepUpAuthActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|keyboardHidden" />
+
         <activity
             android:name="com.frontegg.android.AuthenticationActivity"
             android:exported="true"
