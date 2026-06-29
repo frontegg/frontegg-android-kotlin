@@ -42,6 +42,9 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
     // re-auth) bootstrap from the existing native session instead of the cookie
     // token-refresh that 401s in the WebView, mirroring the Admin Portal bridge.
     // Resolves into the redux-store window.FronteggNativeBridgeCallbacks registry.
+    // Dispatchers.IO is used directly here (mirrors DispatcherProvider); this bridge is
+    // constructed by the WebView setup, not via DI, so there's no dispatcher to inject.
+    @Suppress("InjectDispatcher")
     @JavascriptInterface
     fun getTokens(callbackId: String) {
         Log.i("FronteggNativeBridge", "getTokens called (callbackId=$callbackId)")
