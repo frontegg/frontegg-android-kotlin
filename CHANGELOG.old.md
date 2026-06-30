@@ -1,4 +1,7 @@
 ## v
+- Admin Portal hosted mode support
+
+## v
 - Bridge the SDK refresh token into the embedded admin portal WebView so users on browser-based login flows (social / SAML / OIDC) are no longer prompted to log in a second time; clear `fe_refresh_*` cookies on logout 
 - Port the full entitlement decision logic from the web SDK — evaluate the `/user-entitlements` catalog (linked plans, feature flags, and per-rule condition graphs) instead of only checking whether a feature/permission key is present
 - Redact OAuth authorization code, PKCE values, and tokens from URL log lines before they reach logcat 
