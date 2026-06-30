@@ -1,4 +1,48 @@
 ## v
+## Context — FR-25496
+
+[FR-25496](https://frontegg.atlassian.net/browse/FR-25496) reports: *"Android build fails on AGP 8.x / JDK 17+ environments, due to hardcoded JVM target 11 in SDK."*
+
+**The published SDK module is not the culprit.** `android/build.gradle` already targets `1.8` (`sourceCompatibility/targetCompatibility VERSION_1_8`, `kotlinOptions.jvmTarget '1.8'`) — it was lowered from 11 → 1.8 back in Jan 2023 (commit `e7aa5c8`). Java-8 bytecode runs fine on JDK 17+, so the consumer-facing AAR is not what fails.
+
+The **only** place in the repo still pinned to JVM target 11 was the internal `detekt-rules` static-analysis module:
+
+```groovy
+java {
+    sourceCompatibility = JavaVersion.VERSION_11
+    targetCompatibility = JavaVersion.VERSION_11
+}
+compileKotlin {
+    kotlinOptions { jvmTarget = "11" }
+}
+```
+
+This is build tooling — it is **not** part of the published `com.frontegg.sdk:android` artifact, so it does not affect a customer's app build. But it was an inconsistent outlier (every other module, and the detekt task itself at `android/build.gradle:95`, uses `1.8`), and it's the literal "hardcoded JVM target 11" the ticket points at.
+
+## Change
+
+Lower `detekt-rules` to JVM target `1.8`, matching every sibling module.
+
+The `detekt-api:1.23.8` dependency is compiled to **Java 8 bytecode (class major version 52)** — verified directly — so nothing required target 11; Kotlin will not hit an inline-bytecode mismatch. The value was gratuitous.
+
+## Verification
+
+```
+JAVA_HOME=<openjdk@17> ./gradlew :detekt-rules:compileKotlin
+BUILD SUCCESSFUL
+```
+
+Compiles cleanly on **JDK 17** (the environment in the ticket) and emits Java 8 bytecode (major version 52).
+
+## Scope note
+
+This is a tooling-consistency cleanup. It does **not** change the published SDK, which already targets 1.8. If customers are still seeing real AGP 8.x / JDK 17 build failures, the root cause is almost certainly elsewhere (e.g. a JVM-target *consistency* mismatch in the consumer's own project, or an AGP/Gradle/Kotlin/`compileSdk` constraint) and should be reproduced with the exact Gradle error before any further change.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+[FR-25496]: https://frontegg.atlassian.net/browse/FR-25496?atlOrigin=eyJpIjoiNWRkNTljNzYxNjVmNDY3MDlhMDU5Y2ZhYzA5YTRkZjUiLCJwIjoiZ2l0aHViLWNvbS1KU1cifQ
+
+## v
 - Admin Portal hosted mode support
 
 ## v
