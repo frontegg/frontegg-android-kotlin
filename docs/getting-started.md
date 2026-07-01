@@ -119,6 +119,12 @@ def fronteggClientId = "{{FRONTEGG_CLIENT_ID}}"
 android {
     defaultConfig {
 
+        // applicationId must be set before manifestPlaceholders, because the
+        // "package_name" placeholder below reads it. defaultConfig is evaluated
+        // top-to-bottom, so if manifestPlaceholders comes first applicationId is
+        // still null and the manifest merge fails.
+        applicationId "com.example.myapp"
+
         manifestPlaceholders = [
                 "package_name"      : applicationId,
                 "frontegg_domain"   : fronteggDomain,
@@ -146,6 +152,12 @@ val fronteggClientId = "{{FRONTEGG_CLIENT_ID}}"
 
 android {
     defaultConfig {
+
+        // applicationId must be set before manifestPlaceholders, because the
+        // "package_name" placeholder below reads it. defaultConfig is evaluated
+        // top-to-bottom, so if manifestPlaceholders comes first applicationId is
+        // still null and the manifest merge fails.
+        applicationId = "com.example.myapp"
 
         manifestPlaceholders["package_name"] = applicationId.toString()
         manifestPlaceholders["frontegg_domain"] = fronteggDomain
