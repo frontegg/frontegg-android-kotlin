@@ -244,6 +244,92 @@ class FronteggAuthServiceTest {
         assert(result)
     }
 
+    /**
+     * Regression for the token-refresh-timer death (reported by Retail Success — Dev env,
+     * 5-minute token TTL).
+     *
+     * The refresh timer is scheduled at 80% of TTL, so it fires with ~20% of the TTL still
+     * on the clock. The "already refreshed by concurrent call" guard in [refreshIdempotent]
+     * used to key off *remaining TTL* (`calculateTimerOffset() > 0`, i.e. > 20s left) instead
+     * of *token identity*. For any TTL > 100s, 20% of TTL is still > 20s, so the timer mistook
+     * the very token it was scheduled for as a concurrent refresh, skipped the network call,
+     * and — because the next timer is only ever rescheduled inside sendRefreshTokenInternal —
+     * never rescheduled. Auto-refresh died silently and the session expired.
+     *
+     * A 5-minute (300s) token that is NOT changed by anyone else must actually refresh and
+     * reschedule the timer.
+     */
+    @Test
+    fun `auto refresh does not skip a long-TTL token as a phantom concurrent refresh`() = runBlocking {
+        val refreshTokenTimer = mockk<FronteggRefreshTokenTimer>()
+        every { refreshTokenTimer.refreshTokenIfNeeded }.returns(FronteggCallback())
+        every { refreshTokenTimer.cancelLastTimer() }.returns(Unit)
+        every { refreshTokenTimer.scheduleTimer(any()) }.returns(Unit)
+        val appLifecycle = mockk<FronteggAppLifecycle>()
+        every { appLifecycle.startApp }.returns(FronteggCallback())
+        every { appLifecycle.stopApp }.returns(FronteggCallback())
+        auth = FronteggAuthService(
+            credentialManager = credentialManagerMock,
+            appLifecycle = appLifecycle,
+            refreshTokenTimer = refreshTokenTimer,
+            ioDispatcher = Dispatchers.Unconfined,
+            mainDispatcher = Dispatchers.Unconfined,
+            disableAutoRefresh = false
+        )
+
+        auth.accessToken.value = "current-access-token"
+        auth.refreshToken.value = "current-refresh-token"
+        auth.isAuthenticated.value = true
+
+        mockkObject(JWTHelper)
+        val jwt = JWT()
+        jwt.exp = (System.currentTimeMillis() / 1000) + 300 // 5-minute TTL, well above the 100s threshold
+        every { JWTHelper.decode(any()) }.returns(jwt)
+
+        every { NetworkGate.isNetworkLikelyGood(any()) }.returns(true)
+        every { apiMock.evictIdleConnections() }.returns(Unit)
+        every { apiMock.refreshToken("current-refresh-token") }.returns(
+            AuthResponse().apply {
+                access_token = "new-access-token"
+                refresh_token = "new-refresh-token"
+            }
+        )
+        every { apiMock.me() }.returns(mockk<User>(relaxed = true))
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+
+        val result = auth.refreshTokenAndWaitInternal(
+            source = FronteggAuthService.RefreshInvocationSource.INTERNAL_AUTO
+        )
+
+        assert(result) { "auto refresh must report success, was $result" }
+        // The refresh must hit the network instead of being skipped as a phantom concurrent refresh.
+        verify(exactly = 1) { apiMock.refreshToken("current-refresh-token") }
+        // And the next timer must be scheduled so auto-refresh keeps looping.
+        verify(atLeast = 1) { refreshTokenTimer.scheduleTimer(any()) }
+    }
+
+    @Test
+    fun `wasRefreshedConcurrently is false when the token is unchanged since the refresh was requested`() {
+        // The core of the bug: a token that nobody else touched must NOT be treated as
+        // "already refreshed" — otherwise the scheduled refresh is skipped forever.
+        assert(!auth.wasRefreshedConcurrently("same-token", "same-token"))
+    }
+
+    @Test
+    fun `wasRefreshedConcurrently is true when another caller swapped the token while we waited`() {
+        // Genuine concurrent refresh: the live token differs from the one we snapshotted
+        // before taking the mutex, so we correctly skip our redundant network call.
+        assert(auth.wasRefreshedConcurrently("token-at-request", "token-from-concurrent-refresh"))
+    }
+
+    @Test
+    fun `wasRefreshedConcurrently is false when there was no token to compare against`() {
+        // No baseline (cold start / logged-out) means there is nothing to dedup against;
+        // never skip on a null token.
+        assert(!auth.wasRefreshedConcurrently(null, "any-token"))
+        assert(!auth.wasRefreshedConcurrently("token-at-request", null))
+    }
+
     @Test
     fun `logout should refresh FronteggAuth`() = runBlocking {
         val mockCookieManager = mockkClass(CookieManager::class)
