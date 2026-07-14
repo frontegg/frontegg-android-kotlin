@@ -768,6 +768,27 @@ open class EmbeddedE2ETestCase {
         clickWebElement("e2e-mfa-submit")
     }
 
+    /**
+     * Poll the SDK WebView for the step-up stub's challenge button (mirrors [verifyMfaPage]).
+     * The stub renders #e2e-stepup-complete ONLY when the native StepUpWebDriver honored its
+     * contract (seeded SHOULD_STEP_UP and replaceState'd the path to /account/step-up), so a
+     * timeout here means the driver did not inject/route — the production blank-page bug.
+     */
+    protected fun waitForStepUpChallenge(timeoutMs: Long = 30_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                authWebView().withElement(findElement(Locator.ID, "e2e-stepup-complete"))
+                return
+            } catch (_: Throwable) {
+                Thread.sleep(2_000)
+            }
+        }
+        throw AssertionError(
+            "Step-up MFA challenge not rendered (#e2e-stepup-complete absent) — driver contract not honored",
+        )
+    }
+
     /** Verify an error message is visible in the WebView or accessibility tree. */
     protected fun verifyErrorMessage(expectedText: String) {
         if (waitForTextOrDescContains(expectedText, 15_000)) return

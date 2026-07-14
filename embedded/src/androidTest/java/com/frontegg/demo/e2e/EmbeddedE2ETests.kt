@@ -49,6 +49,44 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     }
 
     @Test
+    fun testEmbeddedStepUpMfaChallenge() {
+        // Reach the authenticated Home screen via the embedded password flow.
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        val tokenExchangesBeforeStepUp = mock.requestCount("POST", "/oauth/token")
+
+        // Trigger a native step-up (acr_values + max_age). The embedded box bootstraps on its
+        // prelogin path; the native StepUpWebDriver must route it to /account/step-up so the
+        // (fixed) box renders the MFA challenge instead of a blank page.
+        tapDesc("Sensitive action")
+
+        // The step-up stub injects #e2e-stepup-complete ONLY when the driver seeded
+        // SHOULD_STEP_UP and rewrote the path to /account/step-up — so this fails if the driver
+        // did not inject/route (the production blank-page bug).
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        waitForStepUpChallenge()
+
+        // Completing the challenge navigates to the driver-seeded after-auth authorize URL, which
+        // issues an elevated code that the existing OAuth callback exchanges for a token.
+        clickWebElement("e2e-stepup-complete")
+
+        // Definitive success signal: the elevated authorization code is exchanged for a token
+        // (only reachable because the driver drove the stub challenge and seeded the after-auth
+        // redirect), and the step-up activity tears down back to the authenticated profile.
+        val exchangeDeadline = System.currentTimeMillis() + 60_000
+        while (mock.requestCount("POST", "/oauth/token") <= tokenExchangesBeforeStepUp &&
+            System.currentTimeMillis() < exchangeDeadline
+        ) {
+            Thread.sleep(500)
+        }
+        if (mock.requestCount("POST", "/oauth/token") <= tokenExchangesBeforeStepUp) {
+            throw AssertionError("Expected the elevated step-up code to be exchanged for a token")
+        }
+        waitForDesc("UserPageRoot", 120_000)
+    }
+
+    @Test
     fun testRequestAuthorizeFlow() {
         launchApp(resetState = true)
         waitForDesc("LoginPageRoot", 120_000)

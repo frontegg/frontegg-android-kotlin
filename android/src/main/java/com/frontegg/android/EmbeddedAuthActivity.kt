@@ -9,6 +9,7 @@ import android.util.Log
 import android.view.View
 import android.widget.LinearLayout
 import com.frontegg.android.embedded.FronteggWebView
+import com.frontegg.android.embedded.StepUpWebDriver
 import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
@@ -143,6 +144,15 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
                 return
             }
             webViewUrl = url
+
+            // FR-24939: a native step-up authorize URL bootstraps the box on its prelogin
+            // path and never reaches the step-up route on its own, so the box renders blank
+            // instead of the MFA challenge. Install the document-start driver that routes it
+            // to the step-up page (see StepUpWebDriver). Registered before any loadUrl and
+            // gated to the step-up flow so normal login is untouched.
+            if (fronteggAuth.isStepUpAuthorization.value && url.contains("acr_values")) {
+                StepUpWebDriver.install(webView, url)
+            }
         } else if (directLoginLaunched) {
             val type = intent.extras!!.getString(DIRECT_LOGIN_ACTION_TYPE)
             val data = intent.extras!!.getString(DIRECT_LOGIN_ACTION_DATA)
