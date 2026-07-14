@@ -339,6 +339,29 @@ class LocalMockAuthServer {
             </script>"""
             return html(200, ti, htmlBody)
         }
+
+        // FR-24939 step-up: a native step-up authorize URL carries acr_values (+ max_age).
+        val acr = fq(q, "acr_values")
+        if (acr.isNotEmpty()) {
+            // Second pass — the mock MFA challenge completed (the stub navigated back to this
+            // authorize URL with stepUpCompleted=1). Issue an elevated code and hand it to the
+            // existing OAuth callback, exactly like the browser/password flows. The original
+            // `state` is echoed so the SDK matches its registered pending step-up request.
+            if (fq(q, "stepUpCompleted") == "1") {
+                val code = state.issueCode("test@frontegg.com", redirect, st)
+                return redir(cb(redirect, code, st))
+            }
+            // First pass — 302 to prelogin, carrying acr_values (+ max_age) so the native
+            // StepUpWebDriver's document-start guard fires on the prelogin document and routes
+            // the box to its /account/step-up page.
+            val maxAge = fq(q, "max_age")
+            val stepUpHs = state.issueHosted(redirect, st, hint)
+            val stepUpLoc = "${urlRoot()}/oauth/prelogin?" +
+                "client_id=${enc(cid)}&redirect_uri=${enc(redirect)}&state=${enc(stepUpHs)}&acr_values=${enc(acr)}" +
+                if (maxAge.isNotEmpty()) "&max_age=${enc(maxAge)}" else ""
+            return redir(stepUpLoc)
+        }
+
         val hs = state.issueHosted(redirect, st, hint)
         val loc = "${urlRoot()}/oauth/prelogin?" +
             "client_id=${enc(cid)}&redirect_uri=${enc(redirect)}&state=${enc(hs)}" +
@@ -349,6 +372,12 @@ class LocalMockAuthServer {
     private fun hostedPrelogin(q: Map<String, List<String>>): MockResponse {
         val hs = fq(q, "state")
         val ctx = state.hosted(hs) ?: return html(400, "err", "<h1>Invalid</h1>")
+        // FR-24939 step-up: the box bootstraps here for a step-up authorize. Serve a step-up
+        // aware stub that stands in for the (fixed) hosted box — it renders its MFA challenge
+        // ONLY when the native StepUpWebDriver has seeded SHOULD_STEP_UP and rewritten the path
+        // to /account/step-up. A driver that failed to inject leaves the page blank, exactly
+        // reproducing the production bug this driver fixes.
+        if (fq(q, "acr_values").isNotEmpty()) return stepUpPreloginStub()
         var email = fq(q, "email", ctx.loginHint)
         if (email.isEmpty()) {
             val b =
@@ -402,6 +431,43 @@ class LocalMockAuthServer {
             body:JSON.stringify({state:'${hs}',token:j.access_token})});
             if(!p.ok)return;await p.json();location='/oauth/postlogin/redirect?state=${enc(hs)}';};</script>"""
         return html(200, "pwd", b)
+    }
+
+    /**
+     * FR-24939 step-up stub — the offline stand-in for the fixed hosted box's step-up (MFA) page.
+     * The native StepUpWebDriver's document-start script runs BEFORE this page's script: it seeds
+     * localStorage (SHOULD_STEP_UP, FRONTEGG_OAUTH_STEP_UP_MAX_AGE, FRONTEGG_AFTER_AUTH_REDIRECT_URL)
+     * and history.replaceState's the path to /account/step-up. This page injects its MFA challenge
+     * (#e2e-stepup-complete) ONLY when that contract is honored; otherwise the root stays empty and
+     * the E2E fails — the very blank-page bug the driver fixes. The Complete button navigates to the
+     * driver-seeded after-auth authorize URL with stepUpCompleted=1 to elevate the session.
+     */
+    private fun stepUpPreloginStub(): MockResponse {
+        val b = """
+            <div id="e2e-stepup-root"></div>
+            <p id="e2e-stepup-fallback">Loading…</p>
+            <script>
+            (function () {
+              var ls = window.localStorage;
+              var routed = ls.getItem('SHOULD_STEP_UP') === 'true'
+                        && window.location.pathname.indexOf('/account/step-up') !== -1;
+              if (!routed) { return; }
+              var after = ls.getItem('FRONTEGG_AFTER_AUTH_REDIRECT_URL');
+              var root = document.getElementById('e2e-stepup-root');
+              root.innerHTML =
+                '<h1 id="e2e-stepup-title">Step-Up MFA Mock</h1>' +
+                '<button id="e2e-stepup-complete" type="button">Complete Step-Up</button>';
+              var fb = document.getElementById('e2e-stepup-fallback');
+              if (fb) { fb.parentNode.removeChild(fb); }
+              document.getElementById('e2e-stepup-complete').addEventListener('click', function () {
+                if (!after) { return; }
+                var sep = after.indexOf('?') !== -1 ? '&' : '?';
+                window.location.href = after + sep + 'stepUpCompleted=1';
+              });
+            })();
+            </script>
+        """.trimIndent()
+        return html(200, "step-up", b)
     }
 
     private fun providerPage(title: String, buttonText: String, hs: String, email: String): MockResponse {

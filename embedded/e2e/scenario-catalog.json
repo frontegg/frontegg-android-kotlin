@@ -19,6 +19,12 @@
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     },
     {
+      "method": "testEmbeddedStepUpMfaChallenge",
+      "title": "Embedded step-up routes to the MFA challenge",
+      "description": "Logs in, starts a native step-up (acr_values + max_age), and verifies the StepUpWebDriver seeds the box's step-up localStorage contract and rewrites the URL to the /account/step-up route so the hosted box renders its MFA challenge instead of a blank page, then completes the challenge and verifies the app reports step-up success.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
       "method": "testRequestAuthorizeFlow",
       "title": "Request authorize flow signs in seeded user",
       "description": "Seeds the request-authorize token, starts the authorize flow, and verifies the seeded signup user is authenticated.",
