@@ -25,7 +25,7 @@ import io.reactivex.rxjava3.functions.Consumer
 import kotlin.time.Duration
 
 
-class EmbeddedAuthActivity : FronteggBaseActivity() {
+open class EmbeddedAuthActivity : FronteggBaseActivity() {
 
     private val storage = FronteggInnerStorage()
     private lateinit var webView: FronteggWebView
@@ -492,7 +492,9 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             callback: ((error: Exception?) -> Unit)? = null,
         ) {
             Log.d(TAG, "authenticateWithStepUp")
-            val intent = Intent(activity, EmbeddedAuthActivity::class.java)
+            // Step-up always uses StepUpAuthActivity (an always-enabled subclass) so it
+            // works in hosted-login apps where EmbeddedAuthActivity is disabled.
+            val intent = Intent(activity, StepUpAuthActivity::class.java)
 
             val authorizeUri = AuthorizeUrlGenerator(activity).generate(
                 stepUp = true,

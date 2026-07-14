@@ -84,6 +84,19 @@ open class FronteggWebView : WebView {
                 this, PasskeyWebListener.INTERFACE_NAME, rules, passkeyWebListener
             )
         }
+
+        // Advertise the native bridge capabilities at DOCUMENT START so the login
+        // box's bootstrap (isGetTokensAvailable -> getTokens) sees getTokens before
+        // it runs. FronteggWebClient.onPageFinished injects them too late for that
+        // bootstrap check — this mirrors the Admin Portal's document-start injection.
+        if (WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            val bridgeFunctions = FronteggWebClient.buildNativeBridgeFunctions(storage).toString()
+            WebViewCompat.addDocumentStartJavaScript(
+                this,
+                "window.FronteggNativeBridgeFunctions = $bridgeFunctions;",
+                rules
+            )
+        }
     }
 
 

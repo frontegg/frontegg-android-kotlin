@@ -77,11 +77,12 @@ class StepUpAuthenticator(
         maxAge: Duration?,
         callback: ((Exception?) -> Unit),
     ) {
-        if (storage.isEmbeddedMode) {
-            EmbeddedAuthActivity.authenticateWithStepUp(activity, maxAge, callback)
-        } else {
-            AuthenticationActivity.authenticateWithStepUp(activity, maxAge, callback)
-        }
+        // Always present step-up in the embedded bridge WebView (StepUpAuthActivity,
+        // an always-enabled subclass of EmbeddedAuthActivity), regardless of login
+        // mode — like the Admin Portal. The embedded WebView reuses the native session
+        // via the getTokens bridge; a Chrome Custom Tab cannot, which white-pages /
+        // errors step-up for hosted-login apps.
+        EmbeddedAuthActivity.authenticateWithStepUp(activity, maxAge, callback)
     }
 
     fun handleHostedLoginCallback(

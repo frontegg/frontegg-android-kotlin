@@ -37,7 +37,77 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
     }
 
 
+    // Native token bridge (getTokens): lets the embedded login box (e.g. step-up /
+    // re-auth) bootstrap from the existing native session instead of the cookie
+    // token-refresh that 401s in the WebView, mirroring the Admin Portal bridge.
+    // Resolves into the redux-store window.FronteggNativeBridgeCallbacks registry.
+    // Dispatchers.IO is used directly here (mirrors DispatcherProvider); this bridge is
+    // constructed by the WebView setup, not via DI, so there's no dispatcher to inject.
+    @Suppress("InjectDispatcher")
+    @JavascriptInterface
+    fun getTokens(callbackId: String) {
+        Log.i("FronteggNativeBridge", "getTokens called (callbackId=$callbackId)")
+        val client = webClient
+        if (client == null) {
+            Log.e("FronteggNativeBridge", "getTokens: no webClient available")
+            return
+        }
+        CoroutineScope(Dispatchers.IO).launch {
+            if (!isTrustedOrigin(client.currentUrlMainSafe(), context.fronteggAuth.baseUrl)) {
+                Log.e("FronteggNativeBridge", "getTokens refused — untrusted origin")
+                client.evaluateJavascriptOnMain(rejectCallbackJs(callbackId, "untrusted_origin"))
+                return@launch
+            }
+            try {
+                context.fronteggAuth.refreshTokenAndWait()
+            } catch (_: Throwable) {
+            }
+            val auth = context.fronteggAuth
+            val access = auth.accessToken.value
+            val refresh = auth.refreshToken.value
+            if (access.isNullOrEmpty() || refresh.isNullOrEmpty()) {
+                client.evaluateJavascriptOnMain(rejectCallbackJs(callbackId, "no_tokens"))
+                return@launch
+            }
+            val json = JSONObject()
+                .put("accessToken", access)
+                .put("refreshToken", refresh)
+                .toString()
+            client.evaluateJavascriptOnMain(resolveCallbackJs(callbackId, json))
+        }
+    }
+
     companion object {
+
+        /** Same-origin check (scheme + host + port) gating the getTokens bridge. */
+        internal fun isTrustedOrigin(currentUrl: String?, baseUrl: String): Boolean {
+            val current = originOf(currentUrl) ?: return false
+            val trusted = originOf(baseUrl) ?: return false
+            return current == trusted
+        }
+
+        internal fun originOf(url: String?): String? {
+            if (url == null) return null
+            return try {
+                val u = Uri.parse(url)
+                if (u.scheme == null || u.host == null) null else "${u.scheme}://${u.host}:${u.port}"
+            } catch (_: Throwable) {
+                null
+            }
+        }
+
+        /** JS that resolves the redux-store getTokens callback with the native tokens. */
+        internal fun resolveCallbackJs(callbackId: String, json: String): String =
+            "(function(){var r=window.FronteggNativeBridgeCallbacks;" +
+                "if(r&&r['$callbackId']){r['$callbackId'].resolve($json);delete r['$callbackId'];}})();"
+
+        /** JS that rejects the redux-store getTokens callback (single quotes escaped). */
+        internal fun rejectCallbackJs(callbackId: String, message: String): String {
+            val safe = message.replace("\\", "\\\\").replace("'", "\\'")
+            return "(function(){var r=window.FronteggNativeBridgeCallbacks;" +
+                "if(r&&r['$callbackId']){r['$callbackId'].reject('$safe');delete r['$callbackId'];}})();"
+        }
+
         fun directLoginWithContext(
             context: Context,
             directLogin: Map<String, Any>,
