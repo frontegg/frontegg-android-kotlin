@@ -202,7 +202,6 @@ class AuthenticationActivity : FronteggBaseActivity() {
     }
 
     companion object {
-        const val OAUTH_LOGIN_REQUEST = 100001
         const val AUTHORIZE_URI = "com.frontegg.android.AUTHORIZE_URI"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private const val CUSTOM_TAB_LAUNCHED = "com.frontegg.android.CUSTOM_TAB_LAUNCHED"
@@ -234,7 +233,7 @@ class AuthenticationActivity : FronteggBaseActivity() {
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             onAuthFinishedCallback = callback
-            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            activity.startActivity(intent)
         }
 
         fun authenticateWithMultiFactor(
@@ -249,7 +248,7 @@ class AuthenticationActivity : FronteggBaseActivity() {
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             onAuthFinishedCallback = callback
-            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            activity.startActivity(intent)
         }
 
         fun authenticateWithStepUp(
@@ -266,7 +265,7 @@ class AuthenticationActivity : FronteggBaseActivity() {
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP)
             onAuthFinishedCallback = callback
-            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            activity.startActivity(intent)
         }
     }
 }

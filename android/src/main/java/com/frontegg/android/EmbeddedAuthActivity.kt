@@ -387,7 +387,6 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
     }
 
     companion object {
-        const val OAUTH_LOGIN_REQUEST = 100001
         const val AUTHORIZE_URI = "com.frontegg.android.AUTHORIZE_URI"
         const val DIRECT_LOGIN_ACTION_LAUNCHED = "com.frontegg.android.DIRECT_LOGIN_ACTION_LAUNCHED"
         const val DIRECT_LOGIN_ACTION_LAUNCHED_DONE =
@@ -426,7 +425,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             onAuthFinishedCallback = callback
-            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            activity.startActivity(intent)
         }
 
         fun directLoginAction(
@@ -442,7 +441,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             intent.putExtra(DIRECT_LOGIN_ACTION_TYPE, type)
             intent.putExtra(DIRECT_LOGIN_ACTION_DATA, data)
             onAuthFinishedCallback = callback
-            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            activity.startActivity(intent)
 
 
             /**
@@ -457,7 +456,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
              * val authorizeUri = AuthorizeUrlGenerator().generate(null, directActionBase64)
              * intent.putExtra(AUTH_LAUNCHED, true)
              * intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
-             * activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+             * activity.startActivity(intent)
              */
         }
 
@@ -474,7 +473,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             onAuthFinishedCallback = callback
-            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            activity.startActivity(intent)
         }
 
         fun authenticateWithStepUp(
@@ -492,7 +491,7 @@ class EmbeddedAuthActivity : FronteggBaseActivity() {
             intent.putExtra(AUTH_LAUNCHED, true)
             intent.putExtra(AUTHORIZE_URI, authorizeUri.first)
             onAuthFinishedCallback = callback
-            activity.startActivityForResult(intent, OAUTH_LOGIN_REQUEST)
+            activity.startActivity(intent)
         }
 
         fun afterAuthentication(activity: Activity) {

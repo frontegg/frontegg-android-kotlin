@@ -8,7 +8,6 @@ import android.util.Base64
 import android.util.Log
 import android.webkit.JavascriptInterface
 import androidx.browser.customtabs.CustomTabsIntent
-import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.fronteggAuth
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
@@ -79,10 +78,7 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
                 val customTabsIntent = CustomTabsIntent.Builder().setShowTitle(false).build()
                 customTabsIntent.intent.setPackage("com.android.chrome")
                 customTabsIntent.intent.setData(authorizationUrl)
-                (context as Activity).startActivityForResult(
-                    customTabsIntent.intent,
-                    EmbeddedAuthActivity.OAUTH_LOGIN_REQUEST
-                )
+                (context as Activity).startActivity(customTabsIntent.intent)
             } else {
                 val browserIntent = Intent(Intent.ACTION_VIEW, authorizationUrl)
                 browserIntent.addCategory(Intent.CATEGORY_BROWSABLE)
