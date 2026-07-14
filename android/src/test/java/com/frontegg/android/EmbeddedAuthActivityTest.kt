@@ -100,13 +100,16 @@ class EmbeddedAuthActivityTest {
     }
 
     @Test
-    fun `authenticateWithStepUp launches EmbeddedAuthActivity via startActivity without a request code`() {
+    fun `authenticateWithStepUp launches StepUpAuthActivity via startActivity without a request code`() {
         EmbeddedAuthActivity.authenticateWithStepUp(activity, null)
 
         verify(exactly = 1) { activity.startActivity(any()) }
         verify(exactly = 0) { activity.startActivityForResult(any(), any()) }
+        // Step-up launches StepUpAuthActivity — the always-enabled EmbeddedAuthActivity
+        // subclass — so it works in hosted-login apps where EmbeddedAuthActivity is
+        // disabled in the manifest (FR-24939).
         assertEquals(
-            EmbeddedAuthActivity::class.java.name,
+            StepUpAuthActivity::class.java.name,
             intentSlot.captured.component?.className
         )
     }
