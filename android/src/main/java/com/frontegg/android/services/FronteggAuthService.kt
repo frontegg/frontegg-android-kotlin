@@ -423,6 +423,27 @@ class FronteggAuthService(
     private fun isAutoRefreshBlocked(source: RefreshInvocationSource): Boolean {
         return disableAutoRefresh && source == RefreshInvocationSource.INTERNAL_AUTO
     }
+
+    /**
+     * Decides whether an in-flight [refreshIdempotent] call should treat the token as
+     * already refreshed by a *concurrent* caller and skip its own network refresh.
+     *
+     * The signal is **token identity**, not remaining TTL: a caller snapshots the access
+     * token before contending for [refreshMutex]; if, after acquiring the lock, the live
+     * token differs from that snapshot, some other caller refreshed it while we waited and
+     * we can safely skip.
+     *
+     * Keying this off remaining TTL (the previous `calculateTimerOffset() > 0` check) was
+     * the bug: the refresh timer is scheduled at 80% of TTL, so it fires with ~20% of the
+     * TTL still on the clock. For any TTL > 100s that remaining 20% is still > the 20s
+     * refresh floor, so a healthy, not-yet-refreshed token looked "already refreshed" and
+     * the scheduled refresh was skipped — and never rescheduled, since the next timer is
+     * only armed after a real refresh in [sendRefreshTokenInternal]. Auto-refresh died and
+     * the session silently expired.
+     */
+    internal fun wasRefreshedConcurrently(tokenAtRequest: String?, currentToken: String?): Boolean {
+        return tokenAtRequest != null && currentToken != null && tokenAtRequest != currentToken
+    }
     /**
      * Idempotent refresh token with network quality check.
      * Uses a coroutine Mutex so that concurrent callers suspend and wait for the
@@ -444,17 +465,15 @@ class FronteggAuthService(
             Log.d(TAG, "Skipping auto refresh (FRONTEGG_DISABLE_AUTO_REFRESH=true)")
             return false
         }
+        // Snapshot the access token before contending for the mutex, so that after we
+        // acquire it we can tell whether a *concurrent* caller refreshed while we waited
+        // (token changed) versus this being the refresh we were scheduled to perform
+        // (token unchanged). See [wasRefreshedConcurrently] for why identity, not TTL.
+        val tokenAtRequest = accessToken.value
         val success = refreshMutex.withLock {
-            if (!force) {
-                val currentAccessToken = accessToken.value
-                if (currentAccessToken != null) {
-                    val decoded = JWTHelper.decode(currentAccessToken)
-                    val offset = decoded.exp.calculateTimerOffset()
-                    if (offset > 0) {
-                        Log.d(TAG, "refreshIdempotent: token already refreshed by concurrent call, skipping")
-                        return@withLock true
-                    }
-                }
+            if (!force && wasRefreshedConcurrently(tokenAtRequest, accessToken.value)) {
+                Log.d(TAG, "refreshIdempotent: token already refreshed by concurrent call, skipping")
+                return@withLock true
             }
 
             try {
