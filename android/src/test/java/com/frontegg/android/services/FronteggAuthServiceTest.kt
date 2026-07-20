@@ -21,6 +21,7 @@ import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.testUtils.BlockCoroutineDispatcher
+import com.frontegg.android.testUtils.QueueingCoroutineDispatcher
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.FronteggCallback
@@ -1433,5 +1434,74 @@ class FronteggAuthServiceTest {
         assert(auth.accessToken.value == "access-token-for-B") {
             "accessToken.value should be the freshly-minted token for tenant-B, was ${auth.accessToken.value}"
         }
+    }
+
+    private fun buildAuthWith(dispatcher: kotlinx.coroutines.CoroutineDispatcher): FronteggAuthService {
+        val refreshTokenTimer = mockk<FronteggRefreshTokenTimer>()
+        every { refreshTokenTimer.refreshTokenIfNeeded }.returns(FronteggCallback())
+        every { refreshTokenTimer.cancelLastTimer() }.returns(Unit)
+        every { refreshTokenTimer.scheduleTimer(any()) }.returns(Unit)
+        val appLifecycle = mockk<FronteggAppLifecycle>()
+        every { appLifecycle.startApp }.returns(FronteggCallback())
+        every { appLifecycle.stopApp }.returns(FronteggCallback())
+        return FronteggAuthService(
+            credentialManager = credentialManagerMock,
+            appLifecycle = appLifecycle,
+            refreshTokenTimer = refreshTokenTimer,
+            ioDispatcher = dispatcher,
+            mainDispatcher = dispatcher,
+            disableAutoRefresh = false
+        )
+    }
+
+    /**
+     * FR-25932: refreshTokenIfNeeded() is documented as "returns immediately" but used to
+     * run NetworkGate's blocking OkHttp ping synchronously on the caller's thread — a
+     * NetworkOnMainThreadException / crash when called from the main thread. The blocking
+     * network work must be offloaded to the background dispatcher.
+     */
+    @Test
+    fun `refreshTokenIfNeeded does not touch the network on the calling thread`() {
+        val dispatcher = QueueingCoroutineDispatcher()
+        val auth = buildAuthWith(dispatcher)
+        dispatcher.clearQueue() // drop construction-time launches
+
+        every { NetworkGate.isNetworkLikelyGood(any()) }.returns(true)
+        every { apiMock.refreshToken(any()) }.returns(authResponse)
+        every { apiMock.me() }.returns(mockk<User>(relaxed = true))
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
+
+        val result = auth.refreshTokenIfNeeded()
+
+        // Contract preserved: a refresh was scheduled.
+        assert(result)
+        // The blocking network-quality check must NOT have run on this (calling) thread...
+        verify(exactly = 0) { NetworkGate.isNetworkLikelyGood(any()) }
+        // ...it must have been offloaded to the background dispatcher instead.
+        assert(dispatcher.size >= 1) { "expected blocking work to be dispatched to background, queue was empty" }
+    }
+
+    /**
+     * FR-25932: updateCredentials() -> setCredentials() called api.me() (blocking OkHttp
+     * .execute()) inline on the caller's thread. It must be offloaded, while blank-token
+     * validation stays synchronous.
+     */
+    @Test
+    fun `updateCredentials does not call api_me on the calling thread`() {
+        val dispatcher = QueueingCoroutineDispatcher()
+        val auth = buildAuthWith(dispatcher)
+        dispatcher.clearQueue() // drop construction-time launches
+
+        every { credentialManagerMock.save(any(), any()) }.returns(true)
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
+        every { apiMock.me() }.returns(mockk<User>(relaxed = true))
+
+        auth.updateCredentials("valid-access-token", "valid-refresh-token")
+
+        // The blocking api.me() call must NOT have run on this (calling) thread...
+        verify(exactly = 0) { apiMock.me() }
+        // ...it must have been offloaded to the background dispatcher instead.
+        assert(dispatcher.size >= 1) { "expected blocking work to be dispatched to background, queue was empty" }
     }
 }

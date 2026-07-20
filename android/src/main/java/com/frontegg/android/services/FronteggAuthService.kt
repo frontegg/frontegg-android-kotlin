@@ -633,10 +633,14 @@ class FronteggAuthService(
             Log.d(TAG, "Skipping auto refresh (FRONTEGG_DISABLE_AUTO_REFRESH=true)")
             return false
         }
-        if (!isNetworkGoodSync()) {
-            if (enableOfflineMode) {
-                setOfflineMode(true)
-                bgScope.launch {
+        // The network-quality probe (isNetworkGoodSync -> NetworkGate) performs blocking
+        // OkHttp I/O. Run the whole decision on the background dispatcher so this method
+        // honours its "returns immediately" contract and never throws
+        // NetworkOnMainThreadException when called from the main thread (FR-25932).
+        bgScope.launch {
+            if (!isNetworkGoodSync()) {
+                if (enableOfflineMode) {
+                    setOfflineMode(true)
                     requestQueue.enqueue(
                         requestId = "refresh_token_${System.currentTimeMillis()}",
                         request = {
@@ -649,13 +653,9 @@ class FronteggAuthService(
                     )
                     startNetworkMonitoring()
                 }
-                return true
+                return@launch
             }
-            return false
-        }
-        setOfflineMode(false)
-
-        bgScope.launch {
+            setOfflineMode(false)
             refreshIdempotent(source = source)
         }
 
@@ -1130,7 +1130,12 @@ class FronteggAuthService(
         if (accessToken.isBlank() || refreshToken.isBlank()) {
             throw IllegalArgumentException("Access token and refresh token must not be blank")
         }
-        setCredentials(accessToken, refreshToken)
+        // setCredentials performs blocking network (api.me()); offload it so this does not
+        // run network on the caller's thread and crash with NetworkOnMainThreadException
+        // (FR-25932). Blank-token validation above stays synchronous.
+        bgScope.launch {
+            setCredentials(accessToken, refreshToken)
+        }
     }
 
     override fun getSessionStartTime(): Long {
