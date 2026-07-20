@@ -2,6 +2,7 @@ package com.frontegg.android.services
 
 import kotlin.jvm.Throws
 import android.util.Log
+import com.frontegg.android.BuildConfig
 import com.frontegg.android.exceptions.CookieNotFoundException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToAuthenticatePasskeysException
@@ -322,30 +323,32 @@ open class Api(
             // everything needed to make an actual entitlement decision (FR-24821).
             val context = com.frontegg.android.entitlements.UserEntitlementsParser.parse(json)
 
-            // Diagnostic logging — full RAW response body. Tagged `[ENT-DEBUG]` so
-            // it's easy to filter logcat for entitlement diagnostics while
-            // triaging FR-24821-style "verdict doesn't match web" reports.
-            Log.i(TAG, "[ENT-DEBUG] RAW /user-entitlements response: $body")
-            Log.i(
-                TAG,
-                "[ENT-DEBUG] Parsed context — features: ${context.features.size}, plans: ${context.plans.size}, permissions: ${context.permissions.size}"
-            )
-            for ((key, detail) in context.features) {
-                val planIdsStr = if (detail.planIds.isEmpty()) "[]" else "[${detail.planIds.joinToString(",")}]"
-                val expireStr = detail.expireTime?.toString() ?: "null"
-                val flagStr = detail.featureFlag?.let {
-                    "on=${it.on} off=${it.offTreatment.wire} default=${it.defaultTreatment.wire} rules=${it.rules?.size ?: 0}"
-                } ?: "null"
-                Log.i(
+            // Diagnostic logging for entitlement decisions (FR-24821 triage). Gated behind
+            // BuildConfig.DEBUG and reduced to structural shape only — the full raw response
+            // body is never logged, as it carries sensitive entitlement data to device logs
+            // (FR-25935).
+            if (BuildConfig.DEBUG) {
+                Log.d(
                     TAG,
-                    "[ENT-DEBUG]   feature[$key]: planIds=$planIdsStr expireTime=$expireStr featureFlag=$flagStr linkedPermissions=${detail.linkedPermissions}"
+                    "[ENT-DEBUG] Parsed context — features: ${context.features.size}, plans: ${context.plans.size}, permissions: ${context.permissions.size}"
                 )
-            }
-            for ((key, plan) in context.plans) {
-                Log.i(
-                    TAG,
-                    "[ENT-DEBUG]   plan[$key]: defaultTreatment=${plan.defaultTreatment.wire} rules=${plan.rules?.size ?: 0}"
-                )
+                for ((key, detail) in context.features) {
+                    val planIdsStr = if (detail.planIds.isEmpty()) "[]" else "[${detail.planIds.joinToString(",")}]"
+                    val expireStr = detail.expireTime?.toString() ?: "null"
+                    val flagStr = detail.featureFlag?.let {
+                        "on=${it.on} off=${it.offTreatment.wire} default=${it.defaultTreatment.wire} rules=${it.rules?.size ?: 0}"
+                    } ?: "null"
+                    Log.d(
+                        TAG,
+                        "[ENT-DEBUG]   feature[$key]: planIds=$planIdsStr expireTime=$expireStr featureFlag=$flagStr linkedPermissions=${detail.linkedPermissions}"
+                    )
+                }
+                for ((key, plan) in context.plans) {
+                    Log.d(
+                        TAG,
+                        "[ENT-DEBUG]   plan[$key]: defaultTreatment=${plan.defaultTreatment.wire} rules=${plan.rules?.size ?: 0}"
+                    )
+                }
             }
 
             // Keep populating featureKeys/permissionKeys for backwards compat with
