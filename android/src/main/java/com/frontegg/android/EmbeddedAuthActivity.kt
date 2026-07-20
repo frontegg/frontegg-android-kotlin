@@ -57,6 +57,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
             directLoginLaunchedDone =
                 savedInstanceState.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, false)
             webViewUrl = savedInstanceState.getString(BUNDLE_KEY_WEBVIEW_URL)
+            authCompleted = readAuthCompleted(savedInstanceState)
         } else {
             consumeIntent(intent)
         }
@@ -67,6 +68,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, this.directLoginLaunched)
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, this.directLoginLaunchedDone)
         outState.putString(BUNDLE_KEY_WEBVIEW_URL, this.webViewUrl)
+        writeAuthCompleted(outState, this.authCompleted)
         webView.saveState(outState)
     }
 
@@ -389,8 +391,9 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         super.onDestroy()
         FronteggState.webLoading.value = false
         // Only treat as user-cancelled when the activity is truly finishing,
-        // not during configuration changes or system-driven recreation.
-        if (!authCompleted && isFinishing && !isChangingConfigurations) {
+        // not during configuration changes or system-driven recreation — and not when
+        // auth already completed (the flag is now persisted across recreation, FR-25934).
+        if (shouldDeliverUserCancellation(authCompleted, isFinishing, isChangingConfigurations)) {
             onAuthFinishedCallback?.invoke(CanceledByUserException())
             onAuthFinishedCallback = null
         }
@@ -405,8 +408,31 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
         private const val BUNDLE_KEY_WEBVIEW_URL = "com.frontegg.android.WEBVIEW_URL"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
+        private const val BUNDLE_KEY_AUTH_COMPLETED = "com.frontegg.android.AUTH_COMPLETED"
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
         var onAuthFinishedCallback: ((error: Exception?) -> Unit)? = null // Store callback
+
+        /**
+         * Whether [onDestroy] should report a user cancellation: only when the activity is
+         * truly finishing (not a configuration change / system recreation) and auth did not
+         * already complete. Extracted and unit-tested (FR-25934) so the persisted completion
+         * state is honoured after a process-death recreation instead of firing a spurious
+         * cancel with a reset `authCompleted`.
+         */
+        internal fun shouldDeliverUserCancellation(
+            authCompleted: Boolean,
+            isFinishing: Boolean,
+            isChangingConfigurations: Boolean
+        ): Boolean = !authCompleted && isFinishing && !isChangingConfigurations
+
+        /** Persists the auth-completion flag so it survives process death / recreation (FR-25934). */
+        internal fun writeAuthCompleted(outState: Bundle, authCompleted: Boolean) {
+            outState.putBoolean(BUNDLE_KEY_AUTH_COMPLETED, authCompleted)
+        }
+
+        /** Restores the flag saved by [writeAuthCompleted]; false when absent. */
+        internal fun readAuthCompleted(savedInstanceState: Bundle): Boolean =
+            savedInstanceState.getBoolean(BUNDLE_KEY_AUTH_COMPLETED, false)
 
         /**
          * Authenticates the user using the Frontegg embedded login experience.
