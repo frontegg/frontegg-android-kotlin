@@ -209,4 +209,13 @@ class AuthorizeUrlGeneratorTest {
 
         verify { credentialManager.saveCodeVerifier(any()) }
     }
+
+    @Test
+    fun `code verifier length should comply with RFC 7636 (43 to 128 chars)`() {
+        val (_, codeVerifier) = authorizeUrlGenerator.generate()
+
+        assert(codeVerifier.length in 43..128) {
+            "PKCE code_verifier must be 43-128 characters per RFC 7636 §4.1, was ${codeVerifier.length}"
+        }
+    }
 }

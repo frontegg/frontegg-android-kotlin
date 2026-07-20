@@ -15,6 +15,10 @@ class AuthorizeUrlGenerator(
 ) {
     companion object {
         private val TAG = AuthorizeUrlGenerator::class.java.simpleName
+
+        // PKCE code-verifier length. RFC 7636 §4.1 allows 43–128 characters;
+        // 64 gives a comfortable ~380 bits of entropy over the 62-char alphabet.
+        private const val CODE_VERIFIER_LENGTH = 64
     }
 
     private var storage = StorageProvider.getInnerStorage()
@@ -75,7 +79,8 @@ class AuthorizeUrlGenerator(
         val codeVerifier: String = if (preserveCodeVerifier == true) {
             credentialManager.getCodeVerifier()!!
         } else {
-            val code = createRandomString()
+            // RFC 7636 §4.1 requires a 43–128 character code verifier.
+            val code = createRandomString(CODE_VERIFIER_LENGTH)
             credentialManager.saveCodeVerifier(code)
             code
         }
