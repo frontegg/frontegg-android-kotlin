@@ -67,6 +67,14 @@ class EntitlementsSwitchWindowTest {
     private val invitebugToken = "invitebug-access-token"
     private val alphaToken = "alpha-access-token"
 
+    private companion object {
+        // Generous upper bound for cross-thread waits. These are the ceiling for
+        // operations that normally complete in milliseconds; a large value only
+        // matters on a heavily loaded CI runner, where a 5s bound produced spurious
+        // timeouts. Correctness is enforced by the gating below, not by the clock.
+        const val AWAIT_TIMEOUT_SECONDS = 30L
+    }
+
     /** invitebug: feature_a linked to a plan with defaultTreatment=false → NOT entitled. */
     private val invitebugState = EntitlementState(
         featureKeys = setOf("feature_a"),
@@ -181,20 +189,32 @@ class EntitlementsSwitchWindowTest {
      *
      * The alpha entitlements load blocks on [releaseAlphaReload] so the test can
      * hold the reload "in flight" while it inspects what the demo observer read.
+     *
+     * [holdClearUntil], when provided, pauses the switch thread *after* firing the
+     * demo observer but *before* `entitlements.clear()`. This lets a test drive the
+     * demo's `forceRefresh = true` reload+read to completion first, so the shared
+     * cache can't be cleared out from under the demo's read — removing the wall-clock
+     * race that made this test flaky on slower CI runners.
+     *
+     * @return the switch thread, so tests can join it for deterministic teardown.
      */
-    private fun simulateSwitchToAlphaInternals(releaseAlphaReload: CountDownLatch) {
+    private fun simulateSwitchToAlphaInternals(
+        releaseAlphaReload: CountDownLatch,
+        holdClearUntil: CountDownLatch? = null
+    ): Thread {
         every { apiMock.getUserEntitlements(accessTokenOverride = alphaToken) }.answers {
             // Block until the test allows the reload to complete.
-            releaseAlphaReload.await(5, TimeUnit.SECONDS)
+            releaseAlphaReload.await(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             alphaState
         }
-        Thread {
+        return Thread {
             // Order copied verbatim from updateStateWithCredentials.
             auth.accessToken.value = alphaToken
             auth.user.value = makeUser("alpha-tenant-id")   // fires the demo observer
+            holdClearUntil?.await(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             auth.entitlements.clear()
             auth.loadEntitlements(forceRefresh = true)
-        }.start()
+        }.apply { start() }
     }
 
     private fun makeUser(tenantId: String): com.frontegg.android.models.User {
@@ -239,7 +259,10 @@ class EntitlementsSwitchWindowTest {
         simulateSwitchToAlphaInternals(releaseAlphaReload)
 
         // The demo's read completes while alpha's reload is still blocked.
-        assertTrue("demo read did not happen", demoRead.await(5, TimeUnit.SECONDS))
+        assertTrue(
+            "demo read did not happen",
+            demoRead.await(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        )
 
         val verdict = captured.get()
         // BUG: the demo observed feature_a as NOT entitled even though we are
@@ -254,7 +277,7 @@ class EntitlementsSwitchWindowTest {
         // Prove the data itself is fine: once the reload completes, the verdict is
         // correct. Only the demo's read TIMING was wrong.
         releaseAlphaReload.countDown()
-        val deadline = System.currentTimeMillis() + 5000
+        val deadline = System.currentTimeMillis() + TimeUnit.SECONDS.toMillis(AWAIT_TIMEOUT_SECONDS)
         while (System.currentTimeMillis() < deadline &&
             !auth.getFeatureEntitlements("feature_a").isEntitled
         ) {
@@ -271,12 +294,17 @@ class EntitlementsSwitchWindowTest {
         primeWithInvitebug()
 
         // forceRefresh=true does not block on a server round-trip in this harness
-        // (apiMock returns immediately once released), so release up-front; the
-        // point is that loadEntitlements(forceRefresh=true) does NOT short-circuit
-        // and its completion only fires after a real (re)load populates the cache.
+        // (apiMock returns immediately), so release up-front; the point is that
+        // loadEntitlements(forceRefresh=true) does NOT short-circuit and its
+        // completion only fires after a real (re)load populates the cache.
         val releaseAlphaReload = CountDownLatch(0)
         val captured = AtomicReference<Entitlement>()
         val demoRead = CountDownLatch(1)
+        // Hold the SDK's own clear()+reload until the demo's forceRefresh=true
+        // reload+read has finished, so the shared cache the demo re-reads can't be
+        // cleared mid-read. This removes the wall-clock race (previously the clear
+        // could land between the demo's reload and its read on a slow runner).
+        val allowSdkClear = CountDownLatch(1)
 
         var lastTenantId: String? = "invitebug-tenant-id"
         auth.user.subscribe { nullable ->
@@ -292,9 +320,12 @@ class EntitlementsSwitchWindowTest {
             lastTenantId = tid
         }
 
-        simulateSwitchToAlphaInternals(releaseAlphaReload)
+        val switchThread = simulateSwitchToAlphaInternals(releaseAlphaReload, holdClearUntil = allowSdkClear)
 
-        assertTrue("demo read did not happen", demoRead.await(5, TimeUnit.SECONDS))
+        assertTrue(
+            "demo read did not happen",
+            demoRead.await(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        )
 
         val verdict = captured.get()
         assertTrue(
@@ -302,5 +333,9 @@ class EntitlementsSwitchWindowTest {
             verdict.isEntitled
         )
         assertEquals(null, verdict.justification)
+
+        // Let the SDK's clear()+reload proceed and settle deterministically.
+        allowSdkClear.countDown()
+        switchThread.join(TimeUnit.SECONDS.toMillis(AWAIT_TIMEOUT_SECONDS))
     }
 }
