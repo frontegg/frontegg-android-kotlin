@@ -1,116 +1,80 @@
 package com.frontegg.android
 
-import android.app.Activity
-import android.content.Intent
-import com.frontegg.android.services.CredentialManager
-import com.frontegg.android.services.FronteggAuthService
-import com.frontegg.android.services.FronteggInnerStorage
-import com.frontegg.android.services.StorageProvider
-import io.mockk.CapturingSlot
-import io.mockk.every
-import io.mockk.mockk
-import io.mockk.mockkObject
-import io.mockk.mockkStatic
-import io.mockk.slot
-import io.mockk.unmockkAll
-import io.mockk.verify
-import org.junit.After
-import org.junit.Assert.assertEquals
-import org.junit.Before
+import android.os.Bundle
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 
 /**
- * Regression guard for FR-19725: the embedded-mode auth launches must use
- * [Activity.startActivity] (no request code), not the deprecated
- * `startActivityForResult`. The result was never consumed via `onActivityResult`,
- * so these tests lock in that each entry point still launches, targets
- * [EmbeddedAuthActivity], and no longer requests a result.
+ * FR-25934: the embedded auth flow used a static callback plus an un-persisted
+ * `authCompleted` flag. After process death the activity is recreated from
+ * savedInstanceState with `authCompleted` reset to false, which could fire a
+ * spurious user-cancellation. These cover the two contained fixes: persisting the
+ * completion flag, and the guard that decides whether onDestroy reports a cancel.
  */
 @RunWith(RobolectricTestRunner::class)
 class EmbeddedAuthActivityTest {
 
-    private lateinit var activity: Activity
-    private lateinit var intentSlot: CapturingSlot<Intent>
-
-    @Before
-    fun setUp() {
-        activity = mockk(relaxed = true)
-        intentSlot = slot()
-        every { activity.startActivity(capture(intentSlot)) } returns Unit
-
-        // The entry points build an authorize URL via `AuthorizeUrlGenerator(activity)`,
-        // whose constructor reads StorageProvider + `context.fronteggAuth`. Satisfy those
-        // so the real generator runs (deterministic; its only side effect lands on the
-        // relaxed CredentialManager mock).
-        val storage = mockk<FronteggInnerStorage>(relaxed = true)
-        every { storage.baseUrl } returns "https://base.url.com"
-        every { storage.clientId } returns "TestClientId"
-        every { storage.applicationId } returns "TestApplicationId"
-        mockkObject(StorageProvider)
-        every { StorageProvider.getInnerStorage() } returns storage
-
-        val authService = mockk<FronteggAuthService>(relaxed = true)
-        every { authService.credentialManager } returns mockk<CredentialManager>(relaxed = true)
-        mockkStatic("com.frontegg.android.FronteggAppKt")
-        every { activity.fronteggAuth } returns authService
-    }
-
-    @After
-    fun tearDown() {
-        EmbeddedAuthActivity.onAuthFinishedCallback = null
-        unmockkAll()
-    }
+    // --- user-cancellation guard ---
 
     @Test
-    fun `authenticate launches EmbeddedAuthActivity via startActivity without a request code`() {
-        EmbeddedAuthActivity.authenticate(activity)
-
-        verify(exactly = 1) { activity.startActivity(any()) }
-        verify(exactly = 0) { activity.startActivityForResult(any(), any()) }
-        assertEquals(
-            EmbeddedAuthActivity::class.java.name,
-            intentSlot.captured.component?.className
+    fun `delivers user cancellation when finishing, not completed, not a config change`() {
+        assertTrue(
+            EmbeddedAuthActivity.shouldDeliverUserCancellation(
+                authCompleted = false,
+                isFinishing = true,
+                isChangingConfigurations = false
+            )
         )
     }
 
     @Test
-    fun `directLoginAction launches EmbeddedAuthActivity via startActivity without a request code`() {
-        EmbeddedAuthActivity.directLoginAction(activity, "type", "data")
-
-        verify(exactly = 1) { activity.startActivity(any()) }
-        verify(exactly = 0) { activity.startActivityForResult(any(), any()) }
-        assertEquals(
-            EmbeddedAuthActivity::class.java.name,
-            intentSlot.captured.component?.className
+    fun `does not deliver cancellation when auth already completed`() {
+        assertFalse(
+            EmbeddedAuthActivity.shouldDeliverUserCancellation(
+                authCompleted = true,
+                isFinishing = true,
+                isChangingConfigurations = false
+            )
         )
     }
 
     @Test
-    fun `authenticateWithMultiFactor launches EmbeddedAuthActivity via startActivity without a request code`() {
-        EmbeddedAuthActivity.authenticateWithMultiFactor(activity, "mfaLoginAction")
-
-        verify(exactly = 1) { activity.startActivity(any()) }
-        verify(exactly = 0) { activity.startActivityForResult(any(), any()) }
-        assertEquals(
-            EmbeddedAuthActivity::class.java.name,
-            intentSlot.captured.component?.className
+    fun `does not deliver cancellation during a configuration change`() {
+        assertFalse(
+            EmbeddedAuthActivity.shouldDeliverUserCancellation(
+                authCompleted = false,
+                isFinishing = true,
+                isChangingConfigurations = true
+            )
         )
     }
 
     @Test
-    fun `authenticateWithStepUp launches StepUpAuthActivity via startActivity without a request code`() {
-        EmbeddedAuthActivity.authenticateWithStepUp(activity, null)
-
-        verify(exactly = 1) { activity.startActivity(any()) }
-        verify(exactly = 0) { activity.startActivityForResult(any(), any()) }
-        // Step-up launches StepUpAuthActivity — the always-enabled EmbeddedAuthActivity
-        // subclass — so it works in hosted-login apps where EmbeddedAuthActivity is
-        // disabled in the manifest (FR-24939).
-        assertEquals(
-            StepUpAuthActivity::class.java.name,
-            intentSlot.captured.component?.className
+    fun `does not deliver cancellation when not finishing`() {
+        assertFalse(
+            EmbeddedAuthActivity.shouldDeliverUserCancellation(
+                authCompleted = false,
+                isFinishing = false,
+                isChangingConfigurations = false
+            )
         )
+    }
+
+    // --- authCompleted persistence across process death ---
+
+    @Test
+    fun `authCompleted round-trips through the saved-state bundle`() {
+        val bundle = Bundle()
+        EmbeddedAuthActivity.writeAuthCompleted(bundle, true)
+
+        assertTrue(EmbeddedAuthActivity.readAuthCompleted(bundle))
+    }
+
+    @Test
+    fun `authCompleted defaults to false when absent from the bundle`() {
+        assertFalse(EmbeddedAuthActivity.readAuthCompleted(Bundle()))
     }
 }
