@@ -1,4 +1,4 @@
-# v1.3.36
+## v1.3.36
 
 Bug fixes:
 
@@ -6,9 +6,6 @@ Bug fixes:
 - Fixed embedded login getting permanently stuck after the app was killed and reopened mid-login.
 - Hardened the embedded login webview: native login actions are now restricted to trusted content, and sensitive response data is no longer written to device logs.
 - Strengthened login security with a longer, standards-compliant PKCE code verifier.
-
----
-> ⚠️ Note for reviewers: the committed `CHANGELOG.md` in this PR only lists the first fix (FR-25932). The other three (FR-25933 / FR-25934 / FR-25935, PRs #270/#272/#273) were merged to `master` after this release commit was cut, so they ship in v1.3.36 but aren't in the generated changelog yet. The release commit's `CHANGELOG.md` should be regenerated to match before tagging.
 
 ## v1.3.35
 
