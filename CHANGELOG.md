@@ -1,3 +1,12 @@
+## v1.3.36
+
+Bug fixes:
+
+- Fixed a crash that could occur when refreshing tokens or updating credentials from the app's main thread.
+- Fixed embedded login getting permanently stuck after the app was killed and reopened mid-login.
+- Hardened the embedded login webview: native login actions are now restricted to trusted content, and sensitive response data is no longer written to device logs.
+- Strengthened login security with a longer, standards-compliant PKCE code verifier.
+
 ## v1.3.35
 
 - Fixed: embedded step-up renders the MFA challenge instead of a blank page — the embedded login WebView now exposes the native `getTokens` token bridge (the same protocol the Admin Portal uses), and a new step-up web driver routes the hosted login box to its step-up page and completes with an elevated (stepped-up) token via the existing OAuth callback. Requires hosted login box ≥ 7.118.0. (FR-24939 — [#262](https://github.com/frontegg/frontegg-android-kotlin/pull/262), [#268](https://github.com/frontegg/frontegg-android-kotlin/pull/268))

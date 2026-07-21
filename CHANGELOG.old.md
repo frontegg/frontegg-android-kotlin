@@ -1,3 +1,12 @@
+## v1.3.35
+
+- Fixed: embedded step-up renders the MFA challenge instead of a blank page — the embedded login WebView now exposes the native `getTokens` token bridge (the same protocol the Admin Portal uses), and a new step-up web driver routes the hosted login box to its step-up page and completes with an elevated (stepped-up) token via the existing OAuth callback. Requires hosted login box ≥ 7.118.0. (FR-24939 — [#262](https://github.com/frontegg/frontegg-android-kotlin/pull/262), [#268](https://github.com/frontegg/frontegg-android-kotlin/pull/268))
+- Fixed: token refresh no longer stalls on short-TTL environments — the concurrent-refresh guard in `refreshIdempotent` now keys on token identity instead of remaining TTL, so the refresh timer is always rescheduled. ([#267](https://github.com/frontegg/frontegg-android-kotlin/pull/267))
+- Changed: removed the deprecated `startActivityForResult` usage — auth activities now launch with `startActivity`; auth results were already delivered via callbacks, so there is no integrator-facing change. (FR-19725 — [#266](https://github.com/frontegg/frontegg-android-kotlin/pull/266))
+- Changed: the internal `detekt-rules` tooling module now targets JVM 1.8, matching all other modules (tooling-only; the published SDK already targeted 1.8). (FR-25496 — [#264](https://github.com/frontegg/frontegg-android-kotlin/pull/264))
+- Added: embedded step-up E2E coverage (`testEmbeddedStepUpMfaChallenge`) exercising the full `acr_values` → step-up page → elevated-token flow against the mock auth server. ([#268](https://github.com/frontegg/frontegg-android-kotlin/pull/268))
+- Docs: getting-started now declares `applicationId` before `manifestPlaceholders`, avoiding unresolved-placeholder build errors. ([#263](https://github.com/frontegg/frontegg-android-kotlin/pull/263))
+
 ## v
 - Admin Portal hosted mode support
 
