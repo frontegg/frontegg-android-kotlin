@@ -1,73 +1,14 @@
-## v
-## Problem (FR-25932)
+# v1.3.36
 
-Two public methods ran synchronous network work **before** any coroutine launched, so calling them from the main thread (natural, given the "returns immediately" contract) throws `NetworkOnMainThreadException` and crashes:
+Bug fixes:
 
-- `refreshTokenIfNeeded()` → `refreshTokenIfNeededInternal` → `isNetworkGoodSync()` → `NetworkGate.performPingTest()` runs a synchronous OkHttp `.execute()` HEAD inline.
-- `updateCredentials()` → `setCredentials` calls `api.me()` (`.execute()`) inline.
+- Fixed a crash that could occur when refreshing tokens or updating credentials from the app's main thread.
+- Fixed embedded login getting permanently stuck after the app was killed and reopened mid-login.
+- Hardened the embedded login webview: native login actions are now restricted to trusted content, and sensitive response data is no longer written to device logs.
+- Strengthened login security with a longer, standards-compliant PKCE code verifier.
 
-## Fix
-
-Offload the blocking work to the background dispatcher, keeping the public contract non-blocking:
-
-- `refreshTokenIfNeededInternal`: the cheap `isAutoRefreshBlocked` guard stays synchronous; the network-quality probe and refresh dispatch move inside `bgScope.launch`. Still returns immediately with `true` (a refresh attempt is scheduled), per the "true if a refresh was started or already in progress" KDoc.
-- `updateCredentials`: blank-token validation stays synchronous (still throws `IllegalArgumentException`); `setCredentials` is offloaded to `bgScope.launch`.
-
-## Tests
-
-New `QueueingCoroutineDispatcher` test util (captures dispatched work instead of running it inline). Two new `FronteggAuthServiceTest` cases assert that, at the moment each method returns, the blocking call (`NetworkGate.isNetworkLikelyGood` / `api.me()`) has **not** run on the calling thread and the work was dispatched to the background. Both failed RED on the pre-fix inline calls. Full `:android` unit-test suite green.
-## Problem (FR-25935)
-
-The new `getTokens` bridge validates the caller's origin via `isTrustedOrigin` (scheme+host+port), but the other `@JavascriptInterface` methods on `FronteggNativeBridge` — `loginWithSSO`, `loginWithSocialLogin`, `loginWithSocialLoginProvider`, `loginWithCustomSocialLoginProvider`, `setLoading` — had **no** origin check, and the bridge is injected for every page load (`FronteggWebView.kt:80`). If the WebView is ever navigated/redirected to non-Frontegg content, that content could trigger native SSO/social-login intents or flip the loader.
-
-Separately, `Api.kt` logged the **full raw** `/user-entitlements` response body at `Log.i` unconditionally (`[ENT-DEBUG] RAW …`) plus per-feature/plan detail — sensitive data on device logs.
-
-## Fix
-
-- Add a shared `isFromTrustedOrigin(action)` same-origin gate (reusing the existing `isTrustedOrigin` helper) at the top of every bridge method. Content served from anywhere other than the Frontegg base URL is refused.
-- Drop the raw-body dump entirely; gate the remaining **structural** entitlement diagnostics (counts, feature/plan shape — no values) behind `BuildConfig.DEBUG` at `Log.d`.
-
-## Tests
-
-New `FronteggNativeBridgeTest`:
-- `setLoading` refused from an untrusted origin / applied from a trusted origin
-- `loginWithSSO` starts an activity from a trusted origin but not from an untrusted one
-- `loginWithSocialLogin` / `loginWithCustomSocialLoginProvider` don't start an activity from an untrusted origin
-- `loginWithSocialLoginProvider` doesn't even read the form action from an untrusted origin
-
-All untrusted-origin cases failed RED before the guard, pass after. Full `:android` unit-test suite green. (The logging change is compile-time gated on `BuildConfig.DEBUG`, so it isn't unit-tested.)
-## Problem (FR-25933)
-
-`AuthorizeUrlGenerator.createRandomString(length: Int = 16)` was used to build the PKCE **code verifier**, producing a 16-character string. RFC 7636 §4.1 mandates a verifier of **43–128 characters**.
-
-**Impact:** non-compliant and materially weaker than spec (~95 bits). A stricter/updated authorization server or a pen-test/security review can reject it, breaking all logins.
-
-## Fix
-
-Generate the code verifier at **64 characters** (~380 bits over the 62-char alphabet), via a named `CODE_VERIFIER_LENGTH` constant. Nonce generation is unaffected.
-
-## Tests
-
-`AuthorizeUrlGeneratorTest`: new `code verifier length should comply with RFC 7636 (43 to 128 chars)` — asserts the returned verifier is in `43..128`. Failed RED at 16 chars, passes at 64. Full `:android` unit-test suite green.
-## Problem (FR-25934)
-
-`EmbeddedAuthActivity.onAuthFinishedCallback` is a static companion `var`, and `authCompleted` was a plain instance field **not** persisted in `onSaveInstanceState` (only the direct-login flags / webView state were). After process death the activity is recreated from `savedInstanceState` with `authCompleted` reset to `false`, so a finishing `onDestroy` could fire a spurious `CanceledByUserException` even though auth had completed before the process was killed.
-
-## Fix (contained)
-
-- Persist `authCompleted` in the saved-state bundle (`writeAuthCompleted`) and restore it in `onCreate` (`readAuthCompleted`).
-- Route the `onDestroy` cancel decision through a small, unit-tested `shouldDeliverUserCancellation(authCompleted, isFinishing, isChangingConfigurations)` guard.
-
-### Scope note
-The static `onAuthFinishedCallback` is a **lambda held in the host app's memory** and genuinely cannot survive process death — it can't be restored from a `Bundle`. Fully re-delivering the login result across process death requires changing the **result-delivery contract** (`setResult`/`onActivityResult`, or having host apps observe the durable `FronteggState.isAuthenticated`). That's a host-app-facing change and is intentionally **out of scope** for this PR; this change removes the spurious-cancel / mis-sequencing surface without a contract change.
-
-## Tests
-
-New `EmbeddedAuthActivityTest` (pure companion functions, mirroring `AdminPortalActivityTest`):
-- the cancel guard across all four `authCompleted` × `isFinishing` × `isChangingConfigurations` cases
-- the `authCompleted` save/restore bundle round-trip + default-false
-
-Full `:android` unit-test suite green.
+---
+> ⚠️ Note for reviewers: the committed `CHANGELOG.md` in this PR only lists the first fix (FR-25932). The other three (FR-25933 / FR-25934 / FR-25935, PRs #270/#272/#273) were merged to `master` after this release commit was cut, so they ship in v1.3.36 but aren't in the generated changelog yet. The release commit's `CHANGELOG.md` should be regenerated to match before tagging.
 
 ## v1.3.35
 
