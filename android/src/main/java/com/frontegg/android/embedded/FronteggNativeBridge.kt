@@ -26,8 +26,23 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
         return webClient?.getFormAction() ?: "login"
     }
 
+    /**
+     * Same-origin gate for the @JavascriptInterface methods (FR-25935). The bridge is
+     * injected for every page load, so only content served from the Frontegg base URL may
+     * drive native login/SSO/social intents or the loader. If the WebView is navigated or
+     * redirected elsewhere, its scripts must not reach these methods.
+     */
+    private fun isFromTrustedOrigin(action: String): Boolean {
+        val trusted = isTrustedOrigin(webClient?.currentUrlMainSafe(), context.fronteggAuth.baseUrl)
+        if (!trusted) {
+            Log.e("FronteggNativeBridge", "$action refused — untrusted origin")
+        }
+        return trusted
+    }
+
     @JavascriptInterface
     fun loginWithSSO(email: String) {
+        if (!isFromTrustedOrigin("loginWithSSO")) return
         Log.d("FronteggNativeBridge", "loginWithSSO(${email})")
         val generatedUrl = AuthorizeUrlGenerator(context).generate(email)
         val authorizationUrl = Uri.parse(generatedUrl.first)
@@ -160,6 +175,7 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
     @JavascriptInterface
     @Suppress("UNUSED")
     fun loginWithSocialLogin(socialLoginUrl: String) {
+        if (!isFromTrustedOrigin("loginWithSocialLogin")) return
         Log.d("FronteggNativeBridge", "loginWithSocialLogin(${socialLoginUrl})")
 
         val directLogin: Map<String, Any> = mapOf(
@@ -173,6 +189,7 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
     @JavascriptInterface
     @Suppress("UNUSED")
     fun loginWithSocialLoginProvider(provider: String) {
+        if (!isFromTrustedOrigin("loginWithSocialLoginProvider")) return
         Log.d("FronteggNativeBridge", "loginWithSocialLoginProvider(${provider})")
 
         val formAction = getFormAction()
@@ -242,6 +259,7 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
     @JavascriptInterface
     @Suppress("UNUSED")
     fun loginWithCustomSocialLoginProvider(provider: String) {
+        if (!isFromTrustedOrigin("loginWithCustomSocialLoginProvider")) return
         Log.d("FronteggNativeBridge", "loginWithCustomSocialLoginProvider(${provider})")
 
         val formAction = getFormAction()
@@ -256,6 +274,7 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
 
     @JavascriptInterface
     fun setLoading(value: Boolean) {
+        if (!isFromTrustedOrigin("setLoading")) return
         Log.d("FronteggNativeBridge", "setLoading(${if (value) "true" else "false"})")
         FronteggState.webLoading.value = value
     }
