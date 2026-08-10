@@ -18,6 +18,7 @@ import com.frontegg.android.ui.DefaultLoader
 import com.frontegg.android.ui.FronteggBaseActivity
 import com.frontegg.android.utils.AppIdHeaderHelper
 import com.frontegg.android.utils.AuthorizeUrlGenerator
+import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.LogUrlSanitizer
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
@@ -238,13 +239,8 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         // These URLs should be accessible regardless of auth state (initializing/authenticated)
         // This is especially important for Flutter apps where initialization may complete after activity starts
         // Check this FIRST before accessing fronteggAuth properties to avoid initialization issues
-        val isPasswordResetOrAccountAction = webViewUrl?.contains("/oauth/account/reset-password") == true ||
-                webViewUrl?.contains("/oauth/account/verify-email") == true ||
-                webViewUrl?.contains("/oauth/account/verify-phone") == true ||
-                webViewUrl?.contains("/oauth/account/accept-invitation") == true ||
-                webViewUrl?.contains("/oauth/account/activate") == true ||
-                webViewUrl?.contains("/oauth/account/invitation/accept") == true
-        
+        val isPasswordResetOrAccountAction = Constants.isAccountActionUrl(webViewUrl)
+
         // Always load URL for social login redirects (oauth/account/social/success)
         val isSocialLoginRedirect = webViewUrl?.contains("/oauth/account/social/success") == true
         
@@ -353,12 +349,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         // This can happen when app is opened from terminated state in Flutter
         // Even though reset-password URLs should load immediately, this ensures they load once initialization completes
         if (webViewUrl != null) {
-            val isPasswordResetOrAccountAction = webViewUrl?.contains("/oauth/account/reset-password") == true ||
-                    webViewUrl?.contains("/oauth/account/verify-email") == true ||
-                    webViewUrl?.contains("/oauth/account/verify-phone") == true ||
-                    webViewUrl?.contains("/oauth/account/accept-invitation") == true ||
-                    webViewUrl?.contains("/oauth/account/activate") == true ||
-                    webViewUrl?.contains("/oauth/account/invitation/accept") == true ||
+            val isPasswordResetOrAccountAction = Constants.isAccountActionUrl(webViewUrl) ||
                     webViewUrl?.contains("/oauth/account/social/success") == true
             
             // Always load account action URLs regardless of auth state
