@@ -44,17 +44,6 @@ class Constants {
             "/oauth/account/",
         )
 
-        /**
-         * Account actions that must load regardless of auth state.
-         *
-         * These arrive as deep links and are valid while the SDK is still initializing or
-         * while a user is already authenticated, so they bypass the usual auth-state gate.
-         * `unlock` was missing here (FR-26330), leaving the link to be dropped whenever the
-         * activity opened in either of those states.
-         *
-         * Social-login redirects are deliberately not in this list — the caller gates those
-         * separately.
-         */
         val accountActionRoutes = listOf(
             "/oauth/account/reset-password",
             "/oauth/account/verify-email",

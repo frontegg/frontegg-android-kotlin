@@ -9,13 +9,6 @@ import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.RuntimeEnvironment
 
-/**
- * FR-26330: the unlock-account link was resolved by the OS to a browser rather than the app,
- * because EmbeddedAuthActivity declared no intent filter for /oauth/account/unlock.
- *
- * These resolve real VIEW intents through the package manager against the manifest, so they
- * exercise the declaration itself rather than a copy of the path list.
- */
 @RunWith(RobolectricTestRunner::class)
 class UnlockDeepLinkResolutionTest {
     private val host = "app-x4gr8g28fxr5.frontegg.com"

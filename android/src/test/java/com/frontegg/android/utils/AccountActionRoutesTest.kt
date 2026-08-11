@@ -4,11 +4,6 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * FR-26330: the unlock-account deep link was missing from the account-action routes, so even
- * once the link reaches the app the URL is withheld whenever the SDK is still initializing or
- * the user is already authenticated.
- */
 class AccountActionRoutesTest {
     private val baseUrl = "https://base.url.com"
 
@@ -33,8 +28,6 @@ class AccountActionRoutesTest {
 
     @Test
     fun `social login success is not an account action`() {
-        // Social redirects are gated separately by the caller; folding them in here would
-        // change which branch handles them.
         assertFalse(Constants.isAccountActionUrl("$baseUrl/oauth/account/social/success?code=abc"))
     }
 

@@ -6,20 +6,9 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.w3c.dom.Element
 
-/**
- * FR-26330: guards the deep-link path prefixes declared on EmbeddedAuthActivity in the
- * *library* manifest — the one merged into consumer apps.
- *
- * [UnlockDeepLinkResolutionTest] resolves intents through Robolectric, but Robolectric runs
- * against `src/test/AndroidManifest.xml`, so it keeps passing when the shipped declaration is
- * missing. Verified by removing the filter from `src/main/AndroidManifest.xml` alone: that
- * test still passed, this one fails. The two are complementary — that one covers matching
- * behaviour, this one covers what consumers actually get.
- */
 class LibraryManifestDeepLinkTest {
 
     private fun declaredPathPrefixes(): List<String> {
-        // Gradle runs unit tests with the module directory as the working directory.
         val manifest = File("src/main/AndroidManifest.xml")
         assertTrue(
             "library manifest not found at ${manifest.absolutePath}",
