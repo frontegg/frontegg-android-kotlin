@@ -1,3 +1,20 @@
+## v
+### The unlock-account email link opened a browser instead of the app
+
+Tapping the unlock link from an account-lockout email opened a web browser rather than the app, so the user could not complete the unlock and return to signing in.
+
+`EmbeddedAuthActivity` declared intent filters for account activation, invitation acceptance, password reset and magic links, but not for account unlock, so Android resolved the link at the OS level. A second gap sat behind it: unlock was also missing from the set of account actions the SDK loads regardless of authentication state, so even once routed the link would have been ignored whenever the app opened while still initialising or with a user already signed in. Both are fixed.
+
+Apps consuming the SDK pick this up automatically through manifest merging; no app or configuration changes are needed.
+
+**Scope:** adds one deep-link route and one entry to the account-action list. Social-login redirects keep their existing separate handling.
+
+**Verified:** the unlock link now resolves to the embedded auth activity, and the published library manifest declares the route. Full suite: 640 tests.
+
+The same report affects iOS for an unrelated reason and is fixed separately in frontegg/frontegg-ios-swift#307.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## v1.3.36
 
 Bug fixes:
