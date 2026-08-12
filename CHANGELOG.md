@@ -2,7 +2,7 @@
 
 Bug fixes:
 
-- Fixed the account-unlock link in a lockout email opening a web browser instead of the app, which left the user unable to complete the unlock and get back to signing in. Apps pick this up automatically; no app or configuration changes are needed.
+- Fixed the account-unlock link in a lockout email opening a web browser instead of the app, which left the user unable to complete the unlock and get back to signing in. Apps pick this up automatically; no app or configuration changes are needed. (FR-26330 — [#276](https://github.com/frontegg/frontegg-android-kotlin/pull/276))
 
 ## v1.3.36
 
