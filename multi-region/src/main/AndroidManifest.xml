@@ -52,6 +52,9 @@
                 <data
                     android:host="${frontegg_domain_2}"
                     android:pathPrefix="/oauth/account/login/magic-link" />
+                <data
+                    android:host="${frontegg_domain_2}"
+                    android:pathPrefix="/oauth/account/unlock" />
             </intent-filter>
         </activity>
         <activity

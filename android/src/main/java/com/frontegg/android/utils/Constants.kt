@@ -44,6 +44,21 @@ class Constants {
             "/oauth/account/",
         )
 
+        val accountActionRoutes = listOf(
+            "/oauth/account/reset-password",
+            "/oauth/account/verify-email",
+            "/oauth/account/verify-phone",
+            "/oauth/account/accept-invitation",
+            "/oauth/account/activate",
+            "/oauth/account/invitation/accept",
+            "/oauth/account/unlock",
+        )
+
+        fun isAccountActionUrl(url: String?): Boolean {
+            if (url == null) return false
+            return accountActionRoutes.any { url.contains(it) }
+        }
+
         fun oauthCallbackUrl(baseUrl: String): String {
             // Use java.net.URI so JVM unit tests work; android.net.Uri.parse is often null under stubs.
             val uri = try {
