@@ -1,15 +1,8 @@
-## v
-### A transient DNS failure could crash the host app
+## v1.3.38
 
-Loading entitlements issued a network call whose `IOException` was never caught. It travelled from `Api.getUserEntitlements` through `EntitlementsService.load` into a root coroutine, where nothing handles it — so a routine name-resolution failure terminated the app. The customer logged ~948 crashes across 390 users since July 9, 99% of them while the app was in the background.
+Bug fixes:
 
-The call now returns `null` on `IOException`, which is the contract callers already expect (`load` maps `null` to `false`) and matches iOS, which is unaffected.
-
-**Scope:** one call site. I checked the other three unguarded `bgScope.launch` blocks that touch the network — `api.logout` catches internally, `setCredentials` wraps `api.me()`, and the refresh path is guarded — so entitlements was the only one missed. No blanket exception handler was added, since that would mask genuine failures elsewhere.
-
-**Verified:** a new test drives the real `Api` against an unresolvable host (`.invalid`, RFC 2606) and reproduces `java.net.UnknownHostException` with no network. It fails before this change and passes after. Full suite: 642 tests, 0 failures.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
+- Fixed the app crashing when the device could not reach the network while the SDK was loading entitlements. A routine DNS failure — most often while the app was in the background — was left unhandled and terminated the host app instead of being treated as a failed load. No app or configuration changes are needed.
 
 ## v1.3.37
 
