@@ -308,7 +308,12 @@ open class Api(
 
     fun getUserEntitlements(accessTokenOverride: String? = null): EntitlementState? {
         val call = buildGetRequest(ApiConstants.userEntitlements, accessTokenOverride)
-        val response = call.execute()
+        val response = try {
+            call.execute()
+        } catch (e: IOException) {
+            Log.w(TAG, "getUserEntitlements failed: ${e.javaClass.simpleName}")
+            return null
+        }
         if (!response.isSuccessful) {
             Log.w(TAG, "getUserEntitlements failed: ${response.code}")
             return null
