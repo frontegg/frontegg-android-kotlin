@@ -504,3 +504,11 @@ class RegionSelectionActivity : AppCompatActivity() {
     }
 }
 ```
+
+## Entitlements
+
+The SDK can load and check user entitlements — features and permissions — from the Frontegg Entitlements API. Enable them by adding `FRONTEGG_ENTITLEMENTS_ENABLED` to your app's BuildConfig (for example `buildConfigField "boolean", 'FRONTEGG_ENTITLEMENTS_ENABLED', "true"` in `build.gradle`), then:
+
+1. Entitlements are fetched automatically on login. You can also call `fronteggAuth.loadEntitlements(forceRefresh, completion)`. By default (`forceRefresh = false`) the SDK uses the cached entitlements when available and makes no network call; pass `forceRefresh = true` to always fetch from `GET .../frontegg/entitlements/api/v2/user-entitlements`.
+2. Check against the cached state with `getFeatureEntitlements(featureKey)`, `getPermissionEntitlements(permissionKey)`, or `getEntitlements(options)` using `EntitledToOptions.FeatureKey(key)` or `EntitledToOptions.PermissionKey(key)`.
+3. Every check after loading reads in-memory state only. The cache is cleared on logout. The raw state is available via `fronteggAuth.entitlements.state` (`EntitlementState`: `featureKeys`, `permissionKeys`).
