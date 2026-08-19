@@ -1,3 +1,9 @@
+## v1.3.38
+
+Bug fixes:
+
+- Fixed the app crashing when the device could not reach the network while the SDK was loading entitlements. A routine DNS failure — most often while the app was in the background — was left unhandled and terminated the host app instead of being treated as a failed load. No app or configuration changes are needed
+
 ## v1.3.37
 
 Bug fixes:
