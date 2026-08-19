@@ -1,3 +1,23 @@
+## v
+### The landing page buried the on-ramp
+
+`README.md` is a symlink to `docs/README.md`, so one file serves both the GitHub landing page and [android-kotlin-guide.frontegg.com](https://android-kotlin-guide.frontegg.com). It opened with a list of documentation links and then dropped straight into the entitlements API, so a reader never saw the minimum API level, the Gradle dependency or a working snippet without leaving the page.
+
+**Now reads:** what it is → install → quick start → documentation → examples → support. Same structure as [frontegg-ios-swift#316](https://github.com/frontegg/frontegg-ios-swift/pull/316), with Android's own content.
+
+- **Header** — logo, tagline and badges. Release, Maven Central and licence read from the repository, so they cannot go stale.
+- **Install** — the Gradle dependency, with the API 26 minimum stated inline.
+- **Quick start** — redirect URLs, `buildConfigField` and `manifestPlaceholders`, then `fronteggAuth` in an Activity. Includes the `applicationId` ordering constraint, since getting it wrong fails the manifest merge.
+- **Documentation** — the six guides as a table saying what each covers, rather than a flat list.
+
+**Moved out:** *Entitlements* now lives in [Advanced Topics](https://android-kotlin-guide.frontegg.com/#/advanced) alongside the other complex integration material. It was not previously documented there, so this fills a gap in that guide as well as removing detail the landing page did not need. Text preserved, not rewritten.
+
+**Also fixed:** the documentation list said "Migration Gide".
+
+All content is taken from this repo's own Get Started guide, so the two cannot drift into contradicting each other. Every sidebar target still resolves.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## v1.3.38
 
 Bug fixes:
