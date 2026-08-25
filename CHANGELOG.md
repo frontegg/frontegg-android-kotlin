@@ -1,3 +1,11 @@
+## v1.3.39
+
+Bug fixes:
+
+- Fixed sign-in failing to return to the app for environments whose Frontegg base URL includes a path — for example `https://api.example.com/fe-auth`, where a shared domain routes a prefix through to Frontegg. The OAuth callback was built without that path, so it matched neither the asset links published for the app nor the redirect URI registered for it, and the user was left in the browser on a page the shared domain does not serve after already authenticating. The callback now carries the path, and the previous form keeps working so sessions issued before upgrading are unaffected. Environments whose base URL has no path are unchanged. (FR-26743 — [#282](https://github.com/frontegg/frontegg-android-kotlin/pull/282))
+
+  Note for apps on such an environment: the SDK now sends the right callback, but the App Links intent filter is still declared with `android:host` and a root path, which cannot express the prefix. Until that is addressed those apps also need an intent filter matching their own prefixed callback. Tracked in FR-26743.
+
 ## v1.3.38
 
 Bug fixes:
