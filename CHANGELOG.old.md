@@ -6,6 +6,12 @@ Bug fixes:
 
   Note for apps on such an environment: the SDK now sends the right callback, but the App Links intent filter is still declared with `android:host` and a root path, which cannot express the prefix. Until that is addressed those apps also need an intent filter matching their own prefixed callback. Tracked in FR-26743.
 
+## v1.3.38
+
+Bug fixes:
+
+- Fixed the app crashing when the device could not reach the network while the SDK was loading entitlements. A routine DNS failure — most often while the app was in the background — was left unhandled and terminated the host app instead of being treated as a failed load. No app or configuration changes are needed
+
 ## v1.3.37
 
 Bug fixes:
