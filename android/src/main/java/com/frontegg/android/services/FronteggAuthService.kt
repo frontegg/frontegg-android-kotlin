@@ -1827,12 +1827,12 @@ class FronteggAuthService(
                 return null
             }
             
-            // 2) Path: /oauth/account/redirect/android/{packageName}/{provider} or /android/oauth/callback
+            // 2) Path: /oauth/account/redirect/android/{packageName}/{provider} or
+            // /android/oauth/callback, either of which may sit behind the vendor's
+            // public path prefix when Frontegg is exposed under one.
             val packageName = storage.packageName
-            val expectedPrefix = "/oauth/account/redirect/android/"
-            val expectedPrefix2 = "/android/oauth/callback"
-            
-            if (!path.startsWith(expectedPrefix) && !path.startsWith(expectedPrefix2)) {
+
+            if (!Constants.isGeneratedCallbackPath(path, Constants.normalizedBasePath(baseUrl))) {
                 Log.e(TAG, "Invalid callback path: $path")
                 return null
             }
@@ -1996,6 +1996,10 @@ class FronteggAuthService(
     fun defaultRedirectUri(): String {
         val baseUrl = storage.baseUrl
         val packageName = storage.packageName
+        // Always the App-Link form, regardless of useAssetsLinks: social login
+        // appends /{provider} to this and needs an https URL the browser can follow,
+        // not a custom scheme. Built from the whole base URL, so a vendor's public
+        // path prefix is already carried through.
         val baseRedirectUri = "$baseUrl/oauth/account/redirect/android/$packageName"
         // Return raw; encoding is applied where used as query param
         return baseRedirectUri
