@@ -59,6 +59,38 @@ class Constants {
             return accountActionRoutes.any { url.contains(it) }
         }
 
+        /**
+         * The path component of the configured base URL, without a trailing slash.
+         *
+         * A vendor can expose Frontegg under a prefix on a shared domain, with an
+         * edge worker translating `api.example.com/fe-auth/oauth/...` onto the real
+         * Frontegg host. It serves the association files through the same prefix, so
+         * every callback it publishes carries the prefix and the SDK has to send
+         * that exact form.
+         */
+        fun normalizedBasePath(baseUrl: String): String {
+            val path = try {
+                URI(baseUrl).path.orEmpty()
+            } catch (_: Exception) {
+                ""
+            }
+            return path.trimEnd('/').takeIf { it != "/" }.orEmpty()
+        }
+
+        /**
+         * Whether a callback path is one the SDK generates, allowing for the vendor's
+         * public path prefix.
+         *
+         * The root form stays acceptable regardless: apps already in the field were
+         * issued it and their allow-list entries still carry it.
+         */
+        fun isGeneratedCallbackPath(path: String, basePath: String = ""): Boolean {
+            val suffixes = listOf(APP_LINK_CALLBACK_PATH, CUSTOM_SCHEME_CALLBACK_PATH)
+            val prefixes = if (basePath.isEmpty()) listOf("") else listOf(basePath, "")
+
+            return prefixes.any { prefix -> suffixes.any { path.startsWith("$prefix$it") } }
+        }
+
         fun oauthCallbackUrl(baseUrl: String): String {
             // Use java.net.URI so JVM unit tests work; android.net.Uri.parse is often null under stubs.
             val uri = try {
@@ -74,12 +106,16 @@ class Constants {
             val storage = StorageProvider.getInnerStorage()
             val packageName = storage.packageName
             val useAssetsLinks = storage.useAssetsLinks
+            val basePath = normalizedBasePath(baseUrl)
             return if (useAssetsLinks) {
-                "$scheme://$hostPart/oauth/account/redirect/android/$packageName"
+                "$scheme://$hostPart$basePath$APP_LINK_CALLBACK_PATH/$packageName"
             } else {
-                "$packageName://$hostPart/android/oauth/callback"
+                "$packageName://$hostPart$basePath$CUSTOM_SCHEME_CALLBACK_PATH"
             }
         }
+
+        const val APP_LINK_CALLBACK_PATH = "/oauth/account/redirect/android"
+        const val CUSTOM_SCHEME_CALLBACK_PATH = "/android/oauth/callback"
 
         fun socialLoginRedirectUrl(baseUrl: String): String {
             return "$baseUrl/oauth/account/social/success"
