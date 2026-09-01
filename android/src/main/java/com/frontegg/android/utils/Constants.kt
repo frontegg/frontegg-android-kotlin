@@ -1,5 +1,6 @@
 package com.frontegg.android.utils
 
+import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.StorageProvider
 import java.net.URI
 
@@ -54,9 +55,60 @@ class Constants {
             "/oauth/account/unlock",
         )
 
+        const val SOCIAL_LOGIN_SUCCESS_ROUTE = "/oauth/account/social/success"
+
+        fun hostOf(url: String?): String? {
+            if (url.isNullOrBlank()) return null
+            return try {
+                URI(url).host?.lowercase()?.takeIf { it.isNotBlank() }
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        private fun pathOf(url: String?): String? {
+            if (url.isNullOrBlank()) return null
+            return try {
+                URI(url).path
+            } catch (_: Exception) {
+                null
+            }
+        }
+
+        fun allowedAuthHosts(storage: FronteggInnerStorage): Set<String> {
+            val hosts = LinkedHashSet<String>()
+            hostOf(storage.baseUrl)?.let { hosts.add(it) }
+            storage.selectedRegion?.let { region -> hostOf(region.baseUrl)?.let { hosts.add(it) } }
+            storage.regions.forEach { region -> hostOf(region.baseUrl)?.let { hosts.add(it) } }
+            return hosts
+        }
+
+        fun isAllowedAuthHost(url: String?, allowedHosts: Collection<String>): Boolean {
+            val host = hostOf(url) ?: return false
+            return allowedHosts.any { it.equals(host, ignoreCase = true) }
+        }
+
+        fun isAllowedAuthUrl(url: String?, storage: FronteggInnerStorage): Boolean =
+            isAllowedAuthHost(url, allowedAuthHosts(storage))
+
+        private fun pathMatchesRoute(path: String, route: String): Boolean {
+            var index = path.indexOf(route)
+            while (index >= 0) {
+                val end = index + route.length
+                if (end == path.length || path[end] == '/') return true
+                index = path.indexOf(route, index + 1)
+            }
+            return false
+        }
+
         fun isAccountActionUrl(url: String?): Boolean {
-            if (url == null) return false
-            return accountActionRoutes.any { url.contains(it) }
+            val path = pathOf(url) ?: return false
+            return accountActionRoutes.any { pathMatchesRoute(path, it) }
+        }
+
+        fun isSocialLoginSuccessUrl(url: String?): Boolean {
+            val path = pathOf(url) ?: return false
+            return pathMatchesRoute(path, SOCIAL_LOGIN_SUCCESS_ROUTE)
         }
 
         /**
@@ -118,7 +170,7 @@ class Constants {
         const val CUSTOM_SCHEME_CALLBACK_PATH = "/android/oauth/callback"
 
         fun socialLoginRedirectUrl(baseUrl: String): String {
-            return "$baseUrl/oauth/account/social/success"
+            return "$baseUrl$SOCIAL_LOGIN_SUCCESS_ROUTE"
         }
 
     }
