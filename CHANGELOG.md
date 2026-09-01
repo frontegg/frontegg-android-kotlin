@@ -1,3 +1,87 @@
+## v
+### The landing page buried the on-ramp
+
+`README.md` is a symlink to `docs/README.md`, so one file serves both the GitHub landing page and [android-kotlin-guide.frontegg.com](https://android-kotlin-guide.frontegg.com). It opened with a list of documentation links and then dropped straight into the entitlements API, so a reader never saw the minimum API level, the Gradle dependency or a working snippet without leaving the page.
+
+**Now reads:** what it is → install → quick start → documentation → examples → support. Same structure as [frontegg-ios-swift#316](https://github.com/frontegg/frontegg-ios-swift/pull/316), with Android's own content.
+
+- **Header** — logo, tagline and badges. Release, Maven Central and licence read from the repository, so they cannot go stale.
+- **Install** — the Gradle dependency, with the API 26 minimum stated inline.
+- **Quick start** — redirect URLs, `buildConfigField` and `manifestPlaceholders`, then `fronteggAuth` in an Activity. Includes the `applicationId` ordering constraint, since getting it wrong fails the manifest merge.
+- **Documentation** — the six guides as a table saying what each covers, rather than a flat list.
+
+**Moved out:** *Entitlements* now lives in [Advanced Topics](https://android-kotlin-guide.frontegg.com/#/advanced) alongside the other complex integration material. It was not previously documented there, so this fills a gap in that guide as well as removing detail the landing page did not need. Text preserved, not rewritten.
+
+**Also fixed:** the documentation list said "Migration Gide".
+
+All content is taken from this repo's own Get Started guide, so the two cannot drift into contradicting each other. Every sidebar target still resolves.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+Android counterpart to frontegg/frontegg-ios-swift#318 (merged).
+
+## The bug
+
+A vendor can expose Frontegg under a path prefix on a shared domain - an edge worker translating `api.example.com/fe-auth/oauth/...` onto the real Frontegg host. It serves the association files through the same prefix and rewrites their nested paths, so every callback it publishes carries the prefix.
+
+`Constants.oauthCallbackUrl` rebuilt the URI from host and port and never read the path:
+
+```kotlin
+val hostPart = if (port != -1 && port != 80 && port != 443) "$host:$port" else host
+return if (useAssetsLinks) {
+    "$scheme://$hostPart/oauth/account/redirect/android/$packageName"   // prefix lost
+} else {
+    "$packageName://$hostPart/android/oauth/callback"                   // prefix lost
+}
+```
+
+So the prefix was dropped in **both** branches - worse than iOS, where the custom-scheme branch was correct and only the App-Link one was wrong. Those vendors sent a callback matching neither their assetlinks binding nor the allow-list entry derived from it, and the redirect died in the browser on a path the shared domain doesn't route to Frontegg - *after* the user had already authenticated.
+
+## The fix
+
+Read the base path and carry it into both forms. The callback matcher tolerates it too and still accepts the root form, so callbacks issued before this keep matching.
+
+**`defaultRedirectUri()` is left alone.** It already built from the whole base URL, so it already carried the prefix - the two constructions disagreed only because `oauthCallbackUrl` was wrong. It keeps its own construction because it always returns the App-Link form regardless of `useAssetsLinks`: social login appends `/{provider}` and needs an https URL the browser can follow. I first folded it into `oauthCallbackUrl` and the existing suite caught the regression.
+
+## Testing
+
+8 new tests in `ConstantsBasePathTest` covering both branches, no-base-path vendors, a trailing slash, a port alongside the prefix, and the matcher accepting both the prefixed and root forms.
+
+Verified these actually catch the bug rather than describing current behaviour: with the fix reverted, **5 of the 8 fail**. Full suite **650 tests, 0 failures**.
+
+## What this does *not* do
+
+**Prefixed vendors still won't work end to end on Android.** Intent filters bind `android:host="${frontegg_domain}"` with a root `pathPrefix`, and `android:host` cannot carry a path - so the app has no filter matching its own published callback even though the SDK now sends the right URI.
+
+Closing that needs a manifest placeholder for the prefix and a real device to validate, which is out of scope here and tracked on FR-26743. This PR removes one of the two blockers; it does not claim the flow works.
+
+frontegg/oauth-service#848 (merged) already accepts the prefixed callback server-side.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+## v1.3.39
+
+Bug fixes:
+
+- Fixed sign-in failing to return to the app for environments whose Frontegg base URL includes a path — for example `https://api.example.com/fe-auth`, where a shared domain routes a prefix through to Frontegg. The OAuth callback was built without that path, so it matched neither the asset links published for the app nor the redirect URI registered for it, and the user was left in the browser on a page the shared domain does not serve after already authenticating. The callback now carries the path, and the previous form keeps working so sessions issued before upgrading are unaffected. Environments whose base URL has no path are unchanged. (FR-26743 — [#282](https://github.com/frontegg/frontegg-android-kotlin/pull/282))
+
+  Note for apps on such an environment: the SDK now sends the right callback, but the App Links intent filter is still declared with `android:host` and a root path, which cannot express the prefix. Until that is addressed those apps also need an intent filter matching their own prefixed callback. Tracked in FR-26743.
+Fixes [FR-26895](https://frontegg.atlassian.net/browse/FR-26895) (reported via HackerOne).
+
+`EmbeddedAuthActivity` and `AuthenticationActivity` are both exported, so the Intent each receives is not necessarily from a trusted source. The Intent data URI was used as a navigation target without an origin check, and account-action routes were matched against the whole URL rather than its path.
+
+## What was done
+
+- Reject Intent URIs whose host is not one the SDK is configured for — in `EmbeddedAuthActivity` before the WebView or browser forward, in `AuthenticationActivity` before the Custom Tab or callback handlers.
+- Allowed hosts are the base URL **plus every configured region**: with `initWithRegions` and no region selected the base URL is empty while the regions hold the real hosts.
+- Hosts compared exactly; URIs with no usable authority fail closed.
+- Route detection now runs on the parsed path, anchored at a segment boundary — still tolerating a vendor path prefix.
+
+## Tests
+
+31 new cases across the URL helpers and both activities, the latter launched by explicit Intent. Full suite green: 681 tests. Each guard was checked by disabling it and confirming the refusal tests fail.
+
+
+[FR-26895]: https://frontegg.atlassian.net/browse/FR-26895?atlOrigin=eyJpIjoiNWRkNTljNzYxNjVmNDY3MDlhMDU5Y2ZhYzA5YTRkZjUiLCJwIjoiZ2l0aHViLWNvbS1KU1cifQ
+
 ## v1.3.39
 
 Bug fixes:
@@ -457,14 +541,3 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
-
-
-
-
-
-
-
-
-
-
-
