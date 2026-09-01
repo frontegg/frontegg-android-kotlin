@@ -32,6 +32,30 @@ class FronteggInnerStorage {
         get() = data["handleLoginWithCustomSocialLoginProvider"] as Boolean? ?: true
     val customUserAgent: String?
         get() = data["customUserAgent"] as String?
+
+    /**
+     * Theme overrides for the embedded login box, in the same shape as `themeV2` from
+     * `/frontegg/metadata?entityName=adminBox`. Deep-merged over the environment's
+     * configuration. Settable at runtime (unlike the init-time values above) because a
+     * multi-brand host resolves appearance per brand after init.
+     */
+    @Suppress("UNCHECKED_CAST")
+    var loginBoxThemeOptions: Map<String, Any?>?
+        get() = data["loginBoxThemeOptions"] as Map<String, Any?>?
+        set(value) {
+            data["loginBoxThemeOptions"] = value
+        }
+
+    /**
+     * Copy overrides for the embedded login box, in the same shape as `localizations` from
+     * `/frontegg/metadata?entityName=adminBox`. Deep-merged, like [loginBoxThemeOptions].
+     */
+    @Suppress("UNCHECKED_CAST")
+    var loginBoxLocalizations: Map<String, Any?>?
+        get() = data["loginBoxLocalizations"] as Map<String, Any?>?
+        set(value) {
+            data["loginBoxLocalizations"] = value
+        }
     val handleLoginWithSSO: Boolean
         get() = data["handleLoginWithSSO"] as Boolean? ?: false
     val shouldPromptSocialLoginConsent: Boolean
