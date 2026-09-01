@@ -16,6 +16,7 @@ import com.frontegg.android.services.FronteggState
 import com.frontegg.android.services.StepUpAuthenticator
 import com.frontegg.android.ui.FronteggBaseActivity
 import com.frontegg.android.utils.AuthorizeUrlGenerator
+import com.frontegg.android.utils.Constants
 import kotlin.time.Duration
 
 class AuthenticationActivity : FronteggBaseActivity() {
@@ -60,6 +61,12 @@ class AuthenticationActivity : FronteggBaseActivity() {
             val intentUrl = intent.data
             if (intentUrl == null) {
                 safeFinishActivity(RESULT_CANCELED, CanceledByUserException())
+                return
+            }
+
+            if (!Constants.isAllowedAuthUrl(intentUrl.toString(), storage)) {
+                Log.w(TAG, "Rejected intent URL for untrusted host")
+                safeFinishActivity(RESULT_CANCELED)
                 return
             }
 

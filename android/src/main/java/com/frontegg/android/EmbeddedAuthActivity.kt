@@ -198,6 +198,16 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
                 return
             }
 
+            if (!Constants.isAllowedAuthUrl(intentUrl.toString(), storage)) {
+                Log.w(
+                    TAG,
+                    "Rejected intent URL for untrusted host: ${LogUrlSanitizer.sanitize(intentUrl.toString())}"
+                )
+                setResult(RESULT_CANCELED)
+                finish()
+                return
+            }
+
             if (!storage.isEmbeddedMode) {
                 try {
                     if (storage.useChromeCustomTabs) {
@@ -242,7 +252,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         val isPasswordResetOrAccountAction = Constants.isAccountActionUrl(webViewUrl)
 
         // Always load URL for social login redirects (oauth/account/social/success)
-        val isSocialLoginRedirect = webViewUrl?.contains("/oauth/account/social/success") == true
+        val isSocialLoginRedirect = Constants.isSocialLoginSuccessUrl(webViewUrl)
         
         Log.d(TAG, "isPasswordResetOrAccountAction: $isPasswordResetOrAccountAction, isSocialLoginRedirect: $isSocialLoginRedirect")
         
@@ -350,7 +360,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         // Even though reset-password URLs should load immediately, this ensures they load once initialization completes
         if (webViewUrl != null) {
             val isPasswordResetOrAccountAction = Constants.isAccountActionUrl(webViewUrl) ||
-                    webViewUrl?.contains("/oauth/account/social/success") == true
+                    Constants.isSocialLoginSuccessUrl(webViewUrl)
             
             // Always load account action URLs regardless of auth state
             if (isPasswordResetOrAccountAction || 
