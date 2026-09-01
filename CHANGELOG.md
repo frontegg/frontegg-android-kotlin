@@ -1,3 +1,15 @@
+## v1.3.40
+
+Bug fixes:
+
+- Hardened the authentication screens against deep links from untrusted sources. An incoming link is now checked against the Frontegg domain the app is configured for before anything is opened, and the account links (password reset, invitation, unlock and the rest) are recognised by their address path rather than by matching text anywhere in the link. Apps pick this up automatically; no app or configuration changes are needed. (FR-26895 — [#285](https://github.com/frontegg/frontegg-android-kotlin/pull/285))
+
+## v1.3.40
+
+Bug fixes:
+
+- Hardened the authentication screens against deep links from untrusted sources. An incoming link is now checked against the Frontegg domain the app is configured for before anything is opened, and the account links (password reset, invitation, unlock and the rest) are recognised by their address path rather than by matching text anywhere in the link. Apps pick this up automatically; no app or configuration changes are needed. (FR-26895 — [#285](https://github.com/frontegg/frontegg-android-kotlin/pull/285))
+
 ## v1.3.39
 
 Bug fixes:
@@ -457,14 +469,3 @@ Add trigger to e2e test on pull request
 ## v1.2.34
 - Added automation of generation `CHANGELOG.md`
 - added `DefaultLoader` to `EmbeddedAuthActivity` and customization mechanism
-
-
-
-
-
-
-
-
-
-
-
