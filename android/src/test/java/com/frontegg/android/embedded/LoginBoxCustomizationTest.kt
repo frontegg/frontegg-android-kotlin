@@ -143,4 +143,39 @@ class LoginBoxCustomizationTest {
     }
 
     // endregion
+
+    // region origin scoping
+
+    @Test
+    fun `auth origin drops path and query`() {
+        assertEquals(
+            "https://auth.example.com",
+            LoginBoxCustomization.authOrigin("https://auth.example.com/oauth/account/login?x=1")
+        )
+    }
+
+    @Test
+    fun `auth origin preserves a non-default port`() {
+        assertEquals(
+            "https://auth.example.com:8443",
+            LoginBoxCustomization.authOrigin("https://auth.example.com:8443")
+        )
+    }
+
+    @Test
+    fun `auth origin is null for unusable input`() {
+        assertNull(LoginBoxCustomization.authOrigin(""))
+        assertNull(LoginBoxCustomization.authOrigin("not a url"))
+    }
+
+    @Test
+    fun `script reads a URL object request as well as a string`() {
+        val script = LoginBoxCustomization.script(mapOf("loginBox" to mapOf("themeName" to "modern")), null)
+
+        // Parity with iOS: fetch(new URL(...)) must resolve via .href, not just .url.
+        assertTrue(script!!.contains("input.href"))
+        assertTrue(script.contains("input.url"))
+    }
+
+    // endregion
 }

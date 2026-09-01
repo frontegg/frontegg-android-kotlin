@@ -6,6 +6,7 @@ import androidx.webkit.WebViewCompat
 import androidx.webkit.WebViewFeature
 import com.frontegg.android.services.FronteggInnerStorage
 import org.json.JSONObject
+import java.net.URI
 
 /**
  * Runtime theme and copy overrides for the embedded login box.
@@ -44,7 +45,28 @@ object LoginBoxCustomization {
             return
         }
 
-        WebViewCompat.addDocumentStartJavaScript(webView, script, setOf("*"))
+        // Scope to the auth origin so third-party frames (captcha, social providers) keep
+        // an untouched `fetch` and never receive the host's branding payload. iOS achieves
+        // the same with `forMainFrameOnly: true`.
+        val origin = authOrigin(storage.baseUrl)
+        if (origin == null) {
+            Log.w(TAG, "baseUrl has no usable origin; login box overrides not installed")
+            return
+        }
+
+        WebViewCompat.addDocumentStartJavaScript(webView, script, setOf(origin))
+    }
+
+    /** `scheme://host[:port]` for [baseUrl], or null when it cannot be parsed. */
+    internal fun authOrigin(baseUrl: String): String? {
+        val uri = try {
+            URI(baseUrl)
+        } catch (e: Exception) {
+            return null
+        }
+        val scheme = uri.scheme ?: return null
+        val host = uri.host ?: return null
+        return if (uri.port != -1) "$scheme://$host:${uri.port}" else "$scheme://$host"
     }
 
     /**
@@ -100,6 +122,7 @@ object LoginBoxCustomization {
           function requestUrl(input) {
             if (typeof input === 'string') { return input; }
             if (input && typeof input.url === 'string') { return input.url; }
+            if (input && typeof input.href === 'string') { return input.href; }
             return '';
           }
 
