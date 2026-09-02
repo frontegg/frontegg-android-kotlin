@@ -76,6 +76,9 @@ open class FronteggWebView : WebView {
         // Set webview reference in FronteggAuth
         (context.fronteggAuth as com.frontegg.android.services.FronteggAuthService).webview = this
 
+        // Apply host-supplied login box theme/copy overrides. No-op unless the host set any.
+        LoginBoxCustomization.install(this, storage)
+
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         this.addJavascriptInterface(FronteggNativeBridge(context, webClient), "FronteggNativeBridge")
         val rules = setOf("*")
