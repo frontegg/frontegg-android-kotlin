@@ -510,6 +510,14 @@ class FronteggAuthService(
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to perform idempotent refresh", e)
                 isReconnecting.postValue(false)
+                if (e is FailedToAuthenticateException) {
+                    // The refresh token itself was rejected, so no retry can ever succeed.
+                    // End the session here instead of re-enqueueing, matching
+                    // RefreshTokenJobService and RefreshTokenAlarmReceiver.
+                    Log.w(TAG, "Refresh token rejected, clearing credentials")
+                    clearCredentials()
+                    return@withLock false
+                }
                 if (enableOfflineMode) {
                     requestQueue.enqueue(
                         requestId = "refresh_token_retry_${System.currentTimeMillis()}",
