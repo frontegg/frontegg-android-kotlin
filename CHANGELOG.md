@@ -1,3 +1,61 @@
+## v
+Resolves [FR-26903](https://frontegg.atlassian.net/browse/FR-26903).
+
+## Problem
+
+On RN-Android, a 401 from `/oauth/token` never ended the session. The client retried indefinitely — two customer Proxyman captures show 823 failed refreshes in 4 minutes, and ~1,780 over 14 minutes with the rate climbing toward their rate limit.
+
+`refreshIdempotent` caught every refresh failure the same way. A 401 means the refresh token itself was rejected, so no retry can ever succeed, but it was handled as if it were transient:
+
+- credentials were never cleared and `isAuthenticated` was never set false, leaving the session in a "has refresh token, no valid access token" state that every later trigger retried;
+- with offline mode on, a HIGH-priority retry was enqueued that **re-enqueues a replacement on each failure**, with no attempt cap and no backoff.
+
+`isRetryableRefreshFailure` already classifies `FailedToAuthenticateException` as non-retryable, but it was only consulted for the inner single retry — never for the outer queue retry.
+
+## Why iOS didn't do this
+
+The divergence was foreground-only, which is why it surfaces in an actively-used app. Our own background paths were already correct — `RefreshTokenJobService` and `RefreshTokenAlarmReceiver` both call `clearCredentials()` on exactly this exception. Only the foreground timer path was missing the branch. iOS clears the keychain and goes unauthenticated on a refresh 401 (`FronteggAuth+Refresh.swift`), and separately caps at `attempts > 10`.
+
+## Fix
+
+Treat a rejected refresh token as terminal in `refreshIdempotent`, matching the two background paths:
+
+```kotlin
+if (e is FailedToAuthenticateException) {
+    clearCredentials()
+    return@withLock false
+}
+```
+
+`clearCredentials()` also cancels the refresh timer and clears the request queue, so retries already scheduled are drained rather than left to fire.
+
+Transient failures (network errors, 5xx → `IOException`) keep their existing offline-mode retry behaviour — unchanged.
+
+## Tests
+
+Written first, both failing for the right reasons before the fix (session stayed authenticated; a `refresh_token_retry_<ts>` entry was enqueued):
+
+- `auto refresh 401 clears credentials and leaves the session unauthenticated`
+- `auto refresh 401 does not enqueue a retry`
+
+Configured with `enableOfflineMode = true`, the setup that arms the self-replacing enqueue.
+
+```
+./gradlew :android:testDebugUnitTest
+→ 683 tests, 0 failures
+```
+
+## Follow-up, not in this PR
+
+The retry queue still has no attempt cap and no backoff for transient failures, where iOS has its `attempts > 10` logout. Probing that path, a single trigger produces 4 refresh calls and leaves a residual queue entry — so it amplifies ~4× per trigger without self-sustaining. A persistent 5xx could still climb. Worth its own ticket rather than bundling here.
+
+React Native needs no change; it inherits this through the native SDK and will want a version bump once this lands.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+
+[FR-26903]: https://frontegg.atlassian.net/browse/FR-26903?atlOrigin=eyJpIjoiNWRkNTljNzYxNjVmNDY3MDlhMDU5Y2ZhYzA5YTRkZjUiLCJwIjoiZ2l0aHViLWNvbS1KU1cifQ
+
 ## v1.3.40
 
 Bug fixes:
