@@ -119,6 +119,10 @@ jobs:
             DESCRIPTION="$DESCRIPTION"$'\n'"$CURRENT_PR_BODY"
           fi
 
+          # Review bots append their summary to PR bodies; keep it out of the changelog.
+          DESCRIPTION=$(printf '%s\n' "$DESCRIPTION" \
+            | sed '/<!-- CURSOR_SUMMARY -->/,/<!-- \/CURSOR_SUMMARY -->/d')
+
           # Store in GitHub Actions output
           {
             echo 'DESCRIPTION<<EOF'

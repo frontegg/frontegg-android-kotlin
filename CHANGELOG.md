@@ -1,8 +1,12 @@
-## v1.3.40
+## v1.3.41
+
+Features:
+
+- Added runtime theme and copy overrides for the embedded login box. `FronteggInnerStorage.loginBoxThemeOptions` and `.loginBoxLocalizations` take the same shapes as `themeV2` and `localizations` in the environment's login-box configuration, and are deep-merged over it — keys the override does not mention keep whatever the environment defines. This covers appearance that is only known at runtime, such as a white-labeled app resolving each brand's logo and colours from its own backend, which per-environment configuration cannot express. Both default to `null`, and setting `null` clears an override, so apps that do not set them are unaffected. Embedded mode only. `LoginBoxCustomization.isSupported()` reports whether the device's WebView provider can apply overrides; on one that cannot, the login box renders the environment's own branding. Requires a hosted login box that applies host-supplied overrides. ([#286](https://github.com/frontegg/frontegg-android-kotlin/pull/286))
 
 Bug fixes:
 
-- Hardened the authentication screens against deep links from untrusted sources. An incoming link is now checked against the Frontegg domain the app is configured for before anything is opened, and the account links (password reset, invitation, unlock and the rest) are recognised by their address path rather than by matching text anywhere in the link. Apps pick this up automatically; no app or configuration changes are needed. (FR-26895 — [#285](https://github.com/frontegg/frontegg-android-kotlin/pull/285))
+- Fixed the SDK retrying forever when a refresh token was rejected. A 401 from the token endpoint means the refresh token itself is no longer valid, so no retry can succeed, but it was treated as a temporary failure: the session stayed marked as signed in, and with offline mode enabled each failed attempt queued another, with no limit and no backoff — one captured case reached around 1,780 failed refreshes in 14 minutes with the rate still climbing. A rejected refresh token now ends the session immediately, which also cancels the refresh timer and drains any queued retries. Temporary failures such as network errors keep their existing retry behaviour. No app or configuration changes are needed. 
 
 ## v1.3.40
 
