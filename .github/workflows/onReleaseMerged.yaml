@@ -9,9 +9,7 @@ env:
   LANG: en_US.UTF-8
   API_LEVEL: 29
 
-# This job creates the version tag and the GitHub release, and comments the release
-# link on the PR. GITHUB_TOKEN is read-only under the tightened org default, so the
-# tag step fails with a 403 before the publish ever runs unless these are granted.
+# Least privilege for the tag, the release and the PR comment this job creates.
 permissions:
   contents: write
   issues: write
@@ -124,6 +122,20 @@ jobs:
             --no-daemon --no-parallel
 
 
+      - name: Build release notes
+        id: release_notes
+        shell: bash
+        env:
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          # Review bots append their summary to the body; keep it out of the published notes.
+          {
+            echo 'body<<RELEASE_NOTES_EOF'
+            printf '%s\n' "$PR_BODY" \
+              | sed '/<!-- CURSOR_SUMMARY -->/,/<!-- \/CURSOR_SUMMARY -->/d'
+            echo RELEASE_NOTES_EOF
+          } >> "$GITHUB_OUTPUT"
+
       - name: Create Release
         id: create_release
         if: steps.tag_check.outputs.exists_tag == 'false'
@@ -134,7 +146,7 @@ jobs:
           tag_name: v${{ steps.set_current_version.outputs.result }}
           release_name: ${{ github.event.pull_request.title }}
           body: |
-            ${{ github.event.pull_request.body }}
+            ${{ steps.release_notes.outputs.body }}
           draft: false
           prerelease: false
 
