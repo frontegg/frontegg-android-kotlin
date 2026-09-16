@@ -38,6 +38,14 @@ jobs:
           
           # Extract the description (body field)
           DESCRIPTION=$(echo "$pr_metadata" | jq -r '.body // ""')
+
+          # Review bots append their summary to the pull request body, and this job
+          # copies the body verbatim into CHANGELOG.md. Without stripping it the
+          # summary lands in the changelog, that commit is reviewed, a fresh summary
+          # is appended, and the job runs again on the edit -- each pass writing the
+          # previous review into the release notes.
+          DESCRIPTION=$(printf '%s' "$DESCRIPTION" \
+            | sed '/<!-- CURSOR_SUMMARY -->/,/<!-- \/CURSOR_SUMMARY -->/d')
           
           # Check if DESCRIPTION is valid. Use printf with the variable in
           # double quotes so apostrophes/backticks/parens in the PR body don't
