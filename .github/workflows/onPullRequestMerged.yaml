@@ -9,6 +9,13 @@ env:
   LANG: en_US.UTF-8
   API_LEVEL: 34
 
+# Creating the release PR pushes the release/next branch and opens a pull request.
+# GITHUB_TOKEN is read-only under the tightened org default, so both are granted
+# explicitly; without them the push fails with a 403 and no release PR is produced.
+permissions:
+  contents: write
+  pull-requests: write
+
 jobs:
   createReleasePullRequest:
     if: "!contains(join(github.event.pull_request.labels.*.name, ','), 'Release') && github.event.pull_request.merged == true"
@@ -99,7 +106,7 @@ jobs:
             DESCRIPTION="$PR_BODY"
           else
             echo "No PR found with label '$TARGET_LABEL'"
-            DESCRIPTION="## v${{ steps.incremented-version.outputs.result }}"
+            DESCRIPTION="## v${{ steps.incremented-patch-version.outputs.version }}"
           fi
 
           # Append current PR description if available
@@ -164,26 +171,6 @@ jobs:
 
           labels: "Type: Release"
           branch: "release/next"
-
-      - name: Set Alpha Version
-        id: incremented-version
-        uses: ./.github/actions/update-gradle-version
-        with:
-          type: alpha
-
-      - name: Publish → Close → Release to OSSRH
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          NEXUS_USERNAME: ${{ secrets.NEXUS_USERNAME }}
-          NEXUS_PASSWORD: ${{ secrets.NEXUS_PASSWORD }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_SIGNING_KEY }}
-        run: |
-          ./gradlew \
-            publishToSonatype \
-            closeSonatypeStagingRepository \
-            releaseSonatypeStagingRepository \
-            --no-daemon --no-parallel
 
       - name: "Call trigger-e2e-test action"
         uses: ./.github/actions/trigger-e2e-test

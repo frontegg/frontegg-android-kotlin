@@ -9,6 +9,13 @@ env:
   LANG: en_US.UTF-8
   API_LEVEL: 29
 
+# This job creates the version tag and the GitHub release, and comments the release
+# link on the PR. GITHUB_TOKEN is read-only under the tightened org default, so the
+# tag step fails with a 403 before the publish ever runs unless these are granted.
+permissions:
+  contents: write
+  issues: write
+
 jobs:
   publish:
     if: "contains(join(github.event.pull_request.labels.*.name, ','), 'Release') && github.event.pull_request.merged == true"
