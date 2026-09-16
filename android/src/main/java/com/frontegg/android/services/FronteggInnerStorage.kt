@@ -32,6 +32,32 @@ class FronteggInnerStorage {
         get() = data["handleLoginWithCustomSocialLoginProvider"] as Boolean? ?: true
     val customUserAgent: String?
         get() = data["customUserAgent"] as String?
+
+    /**
+     * Theme overrides for the embedded login box, in the same shape as `themeV2` from
+     * `/frontegg/metadata?entityName=adminBox`. Deep-merged over the environment's
+     * configuration; `null` clears the override.
+     *
+     * Held in a @Volatile field rather than [data] because it is set at runtime (a
+     * multi-brand host resolves appearance per brand after init) and read on the WebView
+     * thread, whereas every other member is written once during init.
+     */
+    var loginBoxThemeOptions: Map<String, Any?>?
+        get() = volatileLoginBoxThemeOptions
+        set(value) {
+            volatileLoginBoxThemeOptions = value
+        }
+
+    /**
+     * Copy overrides for the embedded login box, in the same shape as `localizations` from
+     * `/frontegg/metadata?entityName=adminBox`. Deep-merged; `null` clears the override.
+     */
+    var loginBoxLocalizations: Map<String, Any?>?
+        get() = volatileLoginBoxLocalizations
+        set(value) {
+            volatileLoginBoxLocalizations = value
+        }
+
     val handleLoginWithSSO: Boolean
         get() = data["handleLoginWithSSO"] as Boolean? ?: false
     val shouldPromptSocialLoginConsent: Boolean
@@ -104,5 +130,13 @@ class FronteggInnerStorage {
 
     companion object {
         private val data = mutableMapOf<String, Any?>()
+
+        // Written from the host thread (e.g. the RN native-modules thread) and read on the
+        // WebView thread, unlike [data] whose members are written once during init.
+        @Volatile
+        private var volatileLoginBoxThemeOptions: Map<String, Any?>? = null
+
+        @Volatile
+        private var volatileLoginBoxLocalizations: Map<String, Any?>? = null
     }
 }
