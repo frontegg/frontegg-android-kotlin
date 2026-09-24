@@ -58,6 +58,34 @@ class FronteggInnerStorage {
             volatileLoginBoxLocalizations = value
         }
 
+    /**
+     * Content appended below the login box's card, on its login screen only.
+     * `null` clears it.
+     *
+     * Structured rather than HTML — host strings are always rendered as text, never
+     * parsed as markup:
+     * ```
+     * mapOf(
+     *   "hideCaptchaBadge" to true,
+     *   "rows" to listOf(
+     *     mapOf("variant" to "body", "segments" to listOf(
+     *       mapOf("text" to "Don't have an account? "),
+     *       mapOf("label" to "Sign up now", "url" to "myapp://sign-up")
+     *     ))
+     *   )
+     * )
+     * ```
+     *
+     * `variant` is `"body"` or `"fine"` (small, de-emphasised legal text). Link URLs
+     * must be absolute `http(s)` or use a scheme the host app itself declares an intent
+     * filter for; anything else renders as plain text.
+     */
+    var loginBoxFooter: Map<String, Any?>?
+        get() = volatileLoginBoxFooter
+        set(value) {
+            volatileLoginBoxFooter = value
+        }
+
     val handleLoginWithSSO: Boolean
         get() = data["handleLoginWithSSO"] as Boolean? ?: false
     val shouldPromptSocialLoginConsent: Boolean
@@ -138,5 +166,8 @@ class FronteggInnerStorage {
 
         @Volatile
         private var volatileLoginBoxLocalizations: Map<String, Any?>? = null
+
+        @Volatile
+        private var volatileLoginBoxFooter: Map<String, Any?>? = null
     }
 }
