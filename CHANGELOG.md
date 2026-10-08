@@ -1,3 +1,84 @@
+## v1.3.42
+FR-27245. Supersedes #290 (Android half of frontegg/frontegg-react-native#135; iOS counterpart frontegg/frontegg-ios-swift#333, merged). **Depends on frontegg/oauth-service#884 (merged)**, which makes the login box render the footer.
+
+This builds on @airowe's commit from #290, which he authored and which is kept as-is. The follow-up commit moves rendering into the login box. It lives on a `frontegg` branch because the fork branch can't be pushed from here.
+
+## Design (decided on FR-27245)
+
+The footer is passed to the login box the same way theme and copy overrides are (#286). `LoginBoxFooter.install` registers one document-start script, `window.__fronteggLoginBoxFooter = {…};`, through `WebViewCompat.addDocumentStartJavaScript`. It is scoped to the auth origin and gated on `LoginBoxCustomization.isSupported()`. The box reads that global and renders the footer itself, on the preLogin and loginWithPassword steps.
+
+#290's original script built the footer in the DOM, anchored on the box's `data-test-id` attributes inside its shadow root, and kept it alive with a `MutationObserver` and polling. That script and its inline styling have been removed.
+
+Against a login box without oauth-service#884, the footer is ignored, as with `loginBoxThemeOptions` / `loginBoxLocalizations`.
+
+## API (unchanged from #290)
+
+```kotlin
+FronteggInnerStorage().loginBoxFooter = mapOf(
+    "hideCaptchaBadge" to true,
+    "rows" to listOf(
+        mapOf("variant" to "body", "segments" to listOf(
+            mapOf("text" to "Don't have an account? "),
+            mapOf("label" to "Sign up now", "url" to "myapp://sign-up")
+        ))
+    )
+)
+```
+
+It is a `@Volatile` field and defaults to `null`; setting it to `null` clears it. It is read once, when the login WebView is built.
+
+## What stays in the SDK
+
+- **Sanitizing the payload** (`LoginBoxFooter.sanitizedFooter`):
+  - Text and label/URL segments only.
+  - Link URLs must be absolute `http(s)` with a host, or use a scheme the **host app's own package** declares a browsable `VIEW` filter for. Android can't enumerate an app's schemes, so `PackageManager` is asked about the host package only. `javascript`, `data`, `file`, `blob`, `about`, `vbscript`, `intent` and `content` are always rejected.
+  - **New:** app-scheme links carrying `code`, `error` or `error_description` are rejected, including inside a hash-routed fragment, because they look like OAuth callbacks.
+  - A rejected link renders as its label text. The box applies its own scheme check too.
+- **Rejected-link warning (new):** every link that renders as plain text is logged once when the WebView is built, with its query and fragment cut.
+- **Link hand-off in `FronteggWebClient.shouldOverrideUrlLoading`:**
+  - A footer `http(s)` link opens in the browser and leaves the box in place.
+  - A footer link on a host scheme is handed to the app with an intent scoped by `setPackage(context.packageName)`, and the box is dismissed. Without this, WebView fails the navigation with `ERR_UNKNOWN_URL_SCHEME` whenever `deepLinkScheme` is not set.
+  - **New:** the links are computed once, from the same footer snapshot that was injected, and stored on the web client. Changing or clearing `loginBoxFooter` while the box is on screen therefore cannot strand a rendered link inside the chrome-less WebView. Nothing is intercepted when nothing was injected, and `PackageManager` is no longer queried on every navigation.
+  - **New:** `http(s)` links are matched in WebView-canonical form: lowercased scheme and host, `/` for an empty path, no default port, dot segments resolved. This replaces the trailing-slash-insensitive string compare.
+- **`hideCaptchaBadge`** is passed through; the box hides the badge only while the footer is mounted.
+
+## Tests
+
+`./gradlew :android:testDebugUnitTest` passes locally with 731 tests. The one unrelated failure seen is described below. `./gradlew :android:detektDebug` is clean.
+
+- `LoginBoxFooterTest` (27) covers:
+  - the global assignment, with no DOM, `data-test-id` or `MutationObserver` code
+  - the payload and the badge flag
+  - escaping of quotes and U+2028/U+2029
+  - sanitizing, scheme rejection (including with a predicate that accepts everything) and degrading to text
+  - OAuth-shaped app links in the query and fragment
+  - the rejected-link warning list
+  - the external-URL and app-scheme allowlists
+  - WebView-canonical matching
+- `FronteggWebClientFooterLinkTest` (4, Robolectric) drives `shouldOverrideUrlLoading` and checks that:
+  - an `http(s)` footer link opens a browser and leaves the activity running
+  - an app-scheme footer link starts an intent scoped to the host package and finishes the activity
+  - the snapshot still applies after `loginBoxFooter` is cleared
+  - a footer set after the WebView was built is not intercepted
+
+`EntitlementsSwitchWindowTest.forceRefresh_true waits for reload…` failed 2 of the first 3 full-suite runs on this branch, with `demo read did not happen` after a timeout. This test runs real threads against a wall-clock timeout and touches nothing in this change. The next 4 full runs on this branch passed, as did 4 runs with the new Robolectric class removed and 3 runs on `master`. It looks load-related, but a cross-test interaction hasn't been fully ruled out. Worth watching in CI.
+
+Rendering and badge behaviour in the real box are tested in oauth-service#884.
+
+## Differences from iOS
+
+- There is no equivalent of iOS's `.linkActivated` check: any navigation to a footer `http(s)` URL opens the browser, not only a tap. `WebResourceRequest.hasGesture()` could add that check, but it was left out so a real tap is never missed.
+- App-scheme hand-off is limited to the footer's own schemes, taken from the snapshot and scoped to the host package. On iOS, any registered app scheme goes through the existing hand-off branch.
+- There is no demo E2E on Android yet. iOS has `testLoginBoxFooterLinksOpenOutsideTheLoginBox`.
+
+## Open (not blocking)
+
+- Footer styling is fixed rather than taken from `themeV2`.
+- Every footer `http(s)` link opens in the browser, including links to the box's own routes on `baseUrl`.
+- Not yet verified on a device or emulator against a live login box.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## v1.3.41
 
 Features:
