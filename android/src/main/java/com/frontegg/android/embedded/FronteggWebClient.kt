@@ -80,6 +80,7 @@ class FronteggWebClient(
     private var lastErrorResponse: WebResourceResponse? = null
     private val storage = FronteggInnerStorage()
     private var currentWebView: WebView? = null
+    internal var loginBoxFooterLinks = LoginBoxFooter.Links()
 
     override fun onRenderProcessGone(view: WebView?, detail: RenderProcessGoneDetail?): Boolean {
         // If we don't handle this, Android may kill the entire app process:
@@ -449,8 +450,19 @@ class FronteggWebClient(
                 return true
             }
 
-            if (url.scheme.equals(storage.deepLinkScheme, ignoreCase = true)) {
+            if (loginBoxFooterLinks.isExternal(url.toString())) {
+                openExternalBrowser(url)
+                return true
+            }
+
+            val isFooterHandoff = loginBoxFooterLinks.isAppHandoff(url.scheme)
+            if (url.scheme.equals(storage.deepLinkScheme, ignoreCase = true) ||
+                isFooterHandoff
+            ) {
                 val intent = Intent(Intent.ACTION_VIEW, url)
+                if (isFooterHandoff) {
+                    intent.setPackage(context.packageName)
+                }
                 context.startActivity(intent)
 
                 (context as? Activity)?.runOnUiThread {

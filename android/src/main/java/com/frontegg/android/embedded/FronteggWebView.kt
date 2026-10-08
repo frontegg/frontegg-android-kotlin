@@ -78,6 +78,7 @@ open class FronteggWebView : WebView {
 
         // Apply host-supplied login box theme/copy overrides. No-op unless the host set any.
         LoginBoxCustomization.install(this, storage)
+        webClient.loginBoxFooterLinks = LoginBoxFooter.install(this, storage)
 
         CookieManager.getInstance().setAcceptThirdPartyCookies(this, true)
         this.addJavascriptInterface(FronteggNativeBridge(context, webClient), "FronteggNativeBridge")
