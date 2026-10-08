@@ -59,11 +59,8 @@ class FronteggInnerStorage {
         }
 
     /**
-     * Content appended below the login box's card, on its login screen only.
+     * Footer the login box renders below its card, read when the login WebView is built.
      * `null` clears it.
-     *
-     * Structured rather than HTML — host strings are always rendered as text, never
-     * parsed as markup:
      * ```
      * mapOf(
      *   "hideCaptchaBadge" to true,
@@ -75,10 +72,8 @@ class FronteggInnerStorage {
      *   )
      * )
      * ```
-     *
-     * `variant` is `"body"` or `"fine"` (small, de-emphasised legal text). Link URLs
-     * must be absolute `http(s)` or use a scheme the host app itself declares an intent
-     * filter for; anything else renders as plain text.
+     * Link URLs must be absolute `http(s)`, or use a scheme the host app itself handles and
+     * carry no `code`, `error` or `error_description` parameter; anything else renders as text.
      */
     var loginBoxFooter: Map<String, Any?>?
         get() = volatileLoginBoxFooter

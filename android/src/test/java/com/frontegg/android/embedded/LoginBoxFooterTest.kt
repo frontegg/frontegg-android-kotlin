@@ -1,5 +1,6 @@
 package com.frontegg.android.embedded
 
+import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -9,11 +10,8 @@ import org.junit.Test
 
 class LoginBoxFooterTest {
 
-    // region script
-
-    /** A footer with one usable row, for tests that only care that it is valid. */
     private fun footerPayload(
-        url: String = "https://policies.google.com/privacy",
+        url: Any? = "https://policies.google.com/privacy",
         hideBadge: Boolean = true
     ): Map<String, Any?> = mapOf(
         "hideCaptchaBadge" to hideBadge,
@@ -28,46 +26,68 @@ class LoginBoxFooterTest {
         )
     )
 
+    private fun singleRowFooter(vararg segments: Map<String, Any?>): Map<String, Any?> =
+        mapOf("rows" to listOf(mapOf("variant" to "body", "segments" to segments.toList())))
+
+    private fun payloadOf(script: String): JSONObject {
+        val prefix = "window.__fronteggLoginBoxFooter = "
+        assertTrue(script.startsWith(prefix))
+        assertTrue(script.endsWith(";"))
+        return JSONObject(script.removePrefix(prefix).removeSuffix(";"))
+    }
+
+    // region script
+
     @Test
-    fun `footer alone is enough to build a script`() {
+    fun `script assigns the global the login box reads`() {
         val script = LoginBoxFooter.script(footerPayload())
 
         assertNotNull(script)
-        assertTrue(script!!.contains("https://policies.google.com/privacy"))
-        assertTrue(script.contains("[data-test-id=\"root-element\"]"))
+        assertTrue(script!!.startsWith("window.__fronteggLoginBoxFooter = {"))
+        assertTrue(script.endsWith("};"))
+        assertFalse(script.contains("document."))
+        assertFalse(script.contains("data-test-id"))
+        assertFalse(script.contains("MutationObserver"))
+    }
+
+    @Test
+    fun `script carries the sanitized footer`() {
+        val payload = payloadOf(LoginBoxFooter.script(footerPayload())!!)
+
+        val segments = payload.getJSONArray("rows").getJSONObject(0).getJSONArray("segments")
+        assertEquals("fine", payload.getJSONArray("rows").getJSONObject(0).getString("variant"))
+        assertEquals("Protected by reCAPTCHA — ", segments.getJSONObject(0).getString("text"))
+        assertEquals("Privacy Policy", segments.getJSONObject(1).getString("label"))
+        assertEquals("https://policies.google.com/privacy", segments.getJSONObject(1).getString("url"))
     }
 
     @Test
     fun `the badge is only hidden when asked`() {
-        val hiding = LoginBoxFooter.script(footerPayload(hideBadge = true))
-        assertTrue(hiding!!.contains("\"hideCaptchaBadge\":true"))
+        val hiding = payloadOf(LoginBoxFooter.script(footerPayload(hideBadge = true))!!)
+        assertTrue(hiding.getBoolean("hideCaptchaBadge"))
 
-        val notHiding = LoginBoxFooter.script(footerPayload(hideBadge = false))
-        assertTrue(notHiding!!.contains("\"hideCaptchaBadge\":false"))
+        val notHiding = payloadOf(LoginBoxFooter.script(footerPayload(hideBadge = false))!!)
+        assertFalse(notHiding.getBoolean("hideCaptchaBadge"))
     }
 
-    /** Host copy must never be interpreted as markup. */
     @Test
-    fun `footer copy is rendered as text not html`() {
-        val script = LoginBoxFooter.script(footerPayload())
+    fun `quotes in footer copy do not break the script`() {
+        val script = LoginBoxFooter.script(singleRowFooter(mapOf("text" to "Don't \"stop\"")))
 
-        assertNotNull(script)
-        assertTrue(script!!.contains("anchor.textContent = segment.label;"))
-        assertTrue(script.contains("createTextNode(segment.text)"))
-        assertFalse(script.contains(".innerHTML ="))
-        assertFalse(script.contains("insertAdjacentHTML"))
+        val text = payloadOf(script!!).getJSONArray("rows").getJSONObject(0)
+            .getJSONArray("segments").getJSONObject(0).getString("text")
+        assertEquals("Don't \"stop\"", text)
     }
 
-    /**
-     * The footer follows the login screen only, matching the React SDK where `boxFooter`
-     * is configured under `login`.
-     */
     @Test
-    fun `footer is scoped to the login screen`() {
-        val script = LoginBoxFooter.script(footerPayload())
+    fun `line separators are escaped for javascript source`() {
+        val script = LoginBoxFooter.script(singleRowFooter(mapOf("text" to "a\u2028b\u2029c")))
 
         assertNotNull(script)
-        assertTrue(script!!.contains("[data-test-id=\"login-page-title\"]"))
+        assertFalse(script!!.contains("\u2028"))
+        assertFalse(script.contains("\u2029"))
+        assertTrue(script.contains("\\u2028"))
+        assertTrue(script.contains("\\u2029"))
     }
 
     @Test
@@ -80,11 +100,6 @@ class LoginBoxFooterTest {
 
     // region footer validation
 
-    /**
-     * A bad URL degrades the segment to plain text rather than dropping it: a legal
-     * attribution missing a fragment reads as a bug, whereas an unlinked label still says
-     * what it needs to say.
-     */
     @Test
     fun `unsafe schemes degrade to plain text`() {
         listOf(
@@ -106,10 +121,6 @@ class LoginBoxFooterTest {
         }
     }
 
-    /**
-     * The security guard must not be delegated. A caller supplying a predicate that says
-     * yes to everything still cannot inject a script-executing scheme.
-     */
     @Test
     fun `script schemes stay rejected even when the predicate accepts everything`() {
         listOf(
@@ -139,6 +150,10 @@ class LoginBoxFooterTest {
             "http://localhost:3000/x",
             LoginBoxFooter.sanitizedLinkUrl("http://localhost:3000/x")
         )
+        assertEquals(
+            "HTTPS://app.example.com/x",
+            LoginBoxFooter.sanitizedLinkUrl("HTTPS://app.example.com/x")
+        )
     }
 
     @Test
@@ -146,18 +161,18 @@ class LoginBoxFooterTest {
         assertNull(LoginBoxFooter.sanitizedLinkUrl("/users/sign_up/select"))
         assertNull(LoginBoxFooter.sanitizedLinkUrl(""))
         assertNull(LoginBoxFooter.sanitizedLinkUrl(null))
+        assertNull(LoginBoxFooter.sanitizedLinkUrl("https://"))
     }
 
-    /**
-     * The hand-off case: a host app pointing a footer link at its own scheme so the box
-     * dismisses and the app presents sign-up itself. Rejected by default, so the
-     * predicate is what admits it — nothing is accepted merely for being custom.
-     */
     @Test
     fun `an app-registered scheme is accepted`() {
         assertEquals(
             "healthie://sign-up",
             LoginBoxFooter.sanitizedLinkUrl("healthie://sign-up") { it == "healthie" }
+        )
+        assertEquals(
+            "Healthie://sign-up",
+            LoginBoxFooter.sanitizedLinkUrl("Healthie://sign-up") { it == "healthie" }
         )
         assertNull(
             LoginBoxFooter.sanitizedLinkUrl("otherapp://sign-up") { it == "healthie" }
@@ -165,22 +180,43 @@ class LoginBoxFooterTest {
     }
 
     @Test
+    fun `oauth-shaped app-scheme links are rejected`() {
+        listOf(
+            "healthie://sign-up?code=INVITE",
+            "healthie://sign-up?error=x",
+            "healthie://sign-up?error_description=x",
+            "healthie://sign-up?plan=pro&code=INVITE",
+            "healthie://app/#/sign-up?code=INVITE",
+            "healthie://sign-up?plan=pro#&error=x"
+        ).forEach {
+            assertNull(
+                "expected $it to be rejected",
+                LoginBoxFooter.sanitizedLinkUrl(it) { scheme -> scheme == "healthie" }
+            )
+        }
+        assertEquals(
+            "healthie://sign-up?plan=pro#section",
+            LoginBoxFooter.sanitizedLinkUrl("healthie://sign-up?plan=pro#section") { it == "healthie" }
+        )
+    }
+
+    @Test
+    fun `oauth callback parameters are detected in the query and the fragment`() {
+        assertTrue(LoginBoxFooter.carriesOAuthCallbackParameter("myapp://sign-up?code=INVITE"))
+        assertTrue(LoginBoxFooter.carriesOAuthCallbackParameter("myapp://app/#/sign-up?code=INVITE"))
+        assertTrue(LoginBoxFooter.carriesOAuthCallbackParameter("myapp://sign-up?plan=pro#&error=x"))
+        assertTrue(LoginBoxFooter.carriesOAuthCallbackParameter("myapp://sign-up?co%64e=x"))
+        assertFalse(LoginBoxFooter.carriesOAuthCallbackParameter("myapp://sign-up?plan=pro#section"))
+        assertFalse(LoginBoxFooter.carriesOAuthCallbackParameter("myapp://sign-up?promo_code=x"))
+        assertFalse(LoginBoxFooter.carriesOAuthCallbackParameter("myapp://code/error"))
+    }
+
+    @Test
     fun `an empty footer produces nothing`() {
         assertNull(LoginBoxFooter.sanitizedFooter(null))
         assertNull(LoginBoxFooter.sanitizedFooter(emptyMap()))
         assertNull(LoginBoxFooter.sanitizedFooter(mapOf("rows" to emptyList<Any>())))
-        assertNull(
-            LoginBoxFooter.sanitizedFooter(
-                mapOf(
-                    "rows" to listOf(
-                        mapOf(
-                            "variant" to "body",
-                            "segments" to listOf(mapOf("label" to ""), mapOf("text" to ""))
-                        )
-                    )
-                )
-            )
-        )
+        assertNull(LoginBoxFooter.sanitizedFooter(singleRowFooter(mapOf("label" to ""), mapOf("text" to ""))))
     }
 
     @Test
@@ -197,57 +233,151 @@ class LoginBoxFooterTest {
         assertEquals("body", sanitized!!.getJSONArray("rows").getJSONObject(0).getString("variant"))
     }
 
+    @Test
+    fun `rejected link urls list only links that render as text`() {
+        val footer = singleRowFooter(
+            mapOf("label" to "Privacy", "url" to "https://policies.google.com/privacy"),
+            mapOf("label" to "Script", "url" to "javascript:alert(1)"),
+            mapOf("label" to "Unregistered", "url" to "otherapp://sign-up"),
+            mapOf("label" to "Sign up", "url" to "healthie://sign-up"),
+            mapOf("text" to "plain text")
+        )
+
+        assertEquals(
+            listOf("javascript:alert(1)", "otherapp://sign-up"),
+            LoginBoxFooter.rejectedLinkUrls(footer) { it == "healthie" }
+        )
+        assertTrue(LoginBoxFooter.rejectedLinkUrls(null).isEmpty())
+    }
+
+    @Test
+    fun `rejected link urls omit query and fragment`() {
+        val footer = singleRowFooter(
+            mapOf("label" to "Invite", "url" to "healthie://sign-up?code=INVITE#ref=abc")
+        )
+
+        assertEquals(
+            listOf("healthie://sign-up"),
+            LoginBoxFooter.rejectedLinkUrls(footer) { it == "healthie" }
+        )
+    }
+
+    @Test
+    fun `rejected link urls report non-string urls`() {
+        val footer = footerPayload(url = java.net.URI("https://policies.google.com/privacy"))
+
+        assertEquals(
+            listOf("https://policies.google.com/privacy"),
+            LoginBoxFooter.rejectedLinkUrls(footer)
+        )
+    }
+
     // endregion
 
-    // region external link allowlist
+    // region link hand-off
 
-    /**
-     * Only `http(s)` links leave for a browser. An app-scheme link is a hand-off that
-     * dismisses the box, and must not be short-circuited into "open externally, keep the
-     * box mounted".
-     */
     @Test
     fun `external urls cover only http links`() {
-        val urls = LoginBoxFooter.footerExternalUrls(
-            mapOf(
-                "rows" to listOf(
-                    mapOf(
-                        "variant" to "body",
-                        "segments" to listOf(
-                            mapOf("label" to "Privacy", "url" to "https://policies.google.com/privacy"),
-                            mapOf("label" to "Terms", "url" to "http://example.com/terms"),
-                            mapOf("label" to "Sign up", "url" to "healthie://sign-up"),
-                            mapOf("text" to "no link here")
-                        )
-                    )
-                )
+        val links = LoginBoxFooter.footerLinks(
+            singleRowFooter(
+                mapOf("label" to "Privacy", "url" to "https://policies.google.com/privacy"),
+                mapOf("label" to "Terms", "url" to "http://example.com/terms"),
+                mapOf("label" to "Sign up", "url" to "healthie://sign-up"),
+                mapOf("text" to "no link here")
             )
         ) { it == "healthie" }
 
         assertEquals(
             setOf("https://policies.google.com/privacy", "http://example.com/terms"),
-            urls
+            links.externalUrls
         )
     }
 
     @Test
-    fun `external urls are empty without a footer`() {
-        assertTrue(LoginBoxFooter.footerExternalUrls(null).isEmpty())
-        assertTrue(
-            LoginBoxFooter.footerExternalUrls(mapOf("rows" to emptyList<Any>())).isEmpty()
+    fun `app schemes cover only app-scheme links`() {
+        val links = LoginBoxFooter.footerLinks(
+            singleRowFooter(
+                mapOf("label" to "Privacy", "url" to "https://policies.google.com/privacy"),
+                mapOf("label" to "Sign up", "url" to "Healthie://sign-up"),
+                mapOf("label" to "Other", "url" to "otherapp://x")
+            )
+        ) { it == "healthie" }
+
+        assertEquals(setOf("healthie"), links.appSchemes)
+        assertTrue(links.isAppHandoff("healthie"))
+        assertTrue(links.isAppHandoff("HEALTHIE"))
+        assertFalse(links.isAppHandoff("otherapp"))
+        assertFalse(links.isAppHandoff("https"))
+        assertFalse(links.isAppHandoff(null))
+    }
+
+    @Test
+    fun `external footer link matches the webview canonical form`() {
+        val links = LoginBoxFooter.footerLinks(footerPayload(url = "HTTPS://Policies.Google.com:443"))
+
+        assertTrue(links.isExternal("https://policies.google.com/"))
+    }
+
+    @Test
+    fun `external footer link drops only the default port`() {
+        val links = LoginBoxFooter.footerLinks(footerPayload(url = "http://example.com:80/a"))
+
+        assertTrue(links.isExternal("http://example.com/a"))
+        assertFalse(
+            LoginBoxFooter.footerLinks(footerPayload(url = "http://example.com:8080/a"))
+                .isExternal("http://example.com/a")
         )
     }
 
-    /**
-     * A rejected URL must not linger in the allowlist, or the web client would hand a
-     * browser a value the footer never rendered.
-     */
     @Test
-    fun `external urls exclude rejected links`() {
+    fun `external footer link resolves dot segments`() {
+        val links = LoginBoxFooter.footerLinks(
+            footerPayload(url = "https://policies.google.com/legal/../privacy")
+        )
+
+        assertTrue(links.isExternal("https://policies.google.com/privacy"))
+    }
+
+    @Test
+    fun `external footer link does not match other urls`() {
+        val links = LoginBoxFooter.footerLinks(footerPayload())
+
+        assertFalse(links.isExternal("https://policies.google.com/terms"))
+        assertFalse(links.isExternal("https://policies.google.com/privacy/more"))
+        assertFalse(links.isExternal("not a url"))
+        assertFalse(LoginBoxFooter.Links().isExternal("https://policies.google.com/privacy"))
+    }
+
+    @Test
+    fun `canonical link key normalizes like webview`() {
+        assertEquals("https://example.com/", LoginBoxFooter.canonicalLinkKey("HTTPS://EXAMPLE.com"))
+        assertEquals("https://example.com/", LoginBoxFooter.canonicalLinkKey("https://example.com:443"))
+        assertEquals("http://example.com:443/", LoginBoxFooter.canonicalLinkKey("http://example.com:443"))
+        assertEquals(
+            "https://example.com/Path?Q=1#F",
+            LoginBoxFooter.canonicalLinkKey("https://Example.com/Path?Q=1#F")
+        )
+        assertNull(LoginBoxFooter.canonicalLinkKey("https://"))
+        assertNull(LoginBoxFooter.canonicalLinkKey("not a url"))
+    }
+
+    @Test
+    fun `links are empty without a footer`() {
+        val links = LoginBoxFooter.footerLinks(null)
+
+        assertTrue(links.externalUrls.isEmpty())
+        assertTrue(links.appSchemes.isEmpty())
+        assertTrue(LoginBoxFooter.footerLinks(mapOf("rows" to emptyList<Any>())).externalUrls.isEmpty())
+    }
+
+    @Test
+    fun `links exclude rejected urls`() {
         assertTrue(
-            LoginBoxFooter.footerExternalUrls(
-                footerPayload(url = "javascript:alert(1)")
-            ).isEmpty()
+            LoginBoxFooter.footerLinks(footerPayload(url = "javascript:alert(1)")).externalUrls.isEmpty()
+        )
+        assertTrue(
+            LoginBoxFooter.footerLinks(footerPayload(url = "healthie://x?code=1")) { it == "healthie" }
+                .appSchemes.isEmpty()
         )
     }
 
