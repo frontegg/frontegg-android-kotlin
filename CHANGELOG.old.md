@@ -1,3 +1,9 @@
+## v1.3.42
+
+Features:
+
+- Added a host-supplied footer below the embedded login box, for example a sign-up link or the reCAPTCHA attribution Google requires when the badge is hidden. Set `FronteggInnerStorage.loginBoxFooter` to rows of text and link segments; it defaults to `null`, and setting `null` clears it. The login box renders the footer on its sign-in and password screens only. Links must be absolute `http(s)` URLs or a scheme the app itself declares a browsable `VIEW` filter for; any other link, and app links that look like OAuth callbacks, are shown as plain text. A tapped `http(s)` footer link opens in the browser and leaves the login box open; a footer app link is handed to the app and closes the login box. Embedded mode only, gated on `LoginBoxCustomization.isSupported()`. Requires the hosted login box update that renders host footers (FR-27245); against an older login box the footer is ignored. Based on a contribution by @airowe. ([#291](https://github.com/frontegg/frontegg-android-kotlin/pull/291))
+
 ## v1.3.41
 
 Features:

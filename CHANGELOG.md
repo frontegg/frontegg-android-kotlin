@@ -1,3 +1,48 @@
+## v1.3.43
+## Summary
+
+Android port of [frontegg/frontegg-ios-swift#338](https://github.com/frontegg/frontegg-ios-swift/pull/338). The Android `StepUpWebDriver` has the same design as the iOS one, so it has both bugs.
+
+### 1. After MFA, the login box went to the App URL instead of returning a code
+
+- **Cause:** the driver rewrites the hosted `/oauth/prelogin` document before the hosted page reads it. As a result, the hosted page's prelogin step never runs, and that step is what saves `redirect_uri` and `state`.
+  - After MFA the box routes in-page to the hosted page, which has neither value.
+  - It then calls `redirectWithError` → `/oauth/redirect/default`, which redirects to the App URL.
+- **Fix:** the driver saves `redirect_uri`, `state`, `acr_values` and `max_age` itself, in both localStorage and sessionStorage. These are the values the skipped prelogin step would have saved.
+
+### 2. Step-up could log the user out before the MFA challenge (pre-existing)
+
+- **Cause:** the box rendered its step-up page as soon as the driver routed to `/account/step-up`. That happened before the box had loaded a token from the native session (`getTokens`).
+  - `step-up/generate` then went out without a bearer token and got a 401.
+  - The box answers that 401 by logging out (`/auth/v1/logout`), which revokes the native session.
+- **Fix:** the driver routes to the hosted root (`/oauth/`) instead. The hosted page opens `/account/step-up` in-page once the box is authenticated, as it does on the web. This relies on the `acr_values` saved by fix 1.
+
+### E2E mock
+
+The old mock's step-up stub went straight to the after-auth URL, and `/oauth/authorize` had a fake `stepUpCompleted` shortcut. The stub now models the hosted page:
+- It bootstraps over `FronteggNativeBridge.getTokens`, then opens the step-up route in-page.
+- It fails a document that starts on `/account/step-up`.
+- It needs the saved `redirect_uri` and `state` to post to `/oauth/postlogin`, and otherwise falls back to the default redirect.
+
+## Verification
+
+- **Unit:** `StepUpWebDriverTest` has 2 new contract tests, which failed before the change. The full `:android:testDebugUnitTest` suite passed: 733 tests, 0 failures. `detektDebug` is clean, and `:embedded:compileDebugAndroidTestKotlin` compiles.
+- **E2E:** not run locally, since this machine has no emulator. The embedded E2E suite (`testEmbeddedStepUpMfaChallenge`) runs in CI.
+- **Real tenant:** the same driver logic was verified end to end on iOS against a staging vendor (see the iOS PR): generate returned 201, then email-code verify, then `/oauth/postlogin` returned 200, then the native code exchange succeeded. This hasn't been verified on an Android device yet.
+
+## Known limitations / follow-ups
+
+- **`max_age` is enforced against the login time.** If a step-up finishes more than `maxAge` after login, the server answers "Max age exceeded" and the box logs out and asks the user to sign in again. That re-login path hasn't been verified natively.
+- **Vendors that store hosted params in cookies** (`oauth-use-document-cookie-storage`) aren't covered.
+- **Longer term:** oauth-service could save the OAuth params from any hosted document, and the box could wait for authentication before calling `step-up/generate`.
+
+## Test plan
+
+- [x] `:android:testDebugUnitTest`
+- [x] `:android:detektDebug`
+- [ ] Embedded E2E in CI (`testEmbeddedStepUpMfaChallenge`)
+- [ ] QA: step-up on a device against an MFA-enforced tenant
+
 ## v1.3.42
 
 Features:
