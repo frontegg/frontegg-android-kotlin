@@ -15,18 +15,36 @@ class StepUpWebDriverTest {
             "%3A%2F%2Fschemas.openid.net%2Fpape%2Fpolicies%2F2007%2F06%2Fmulti-factor&max_age=60"
 
     @Test
-    fun `script seeds the step-up localStorage contract and rewrites to the step-up route`() {
+    fun `script seeds the step-up flag and the box's after-auth redirect`() {
         val script = StepUpWebDriver.script(authorizeUrl)
 
-        // Only acts on the step-up authorize document.
         assertTrue(script.contains("acr_values"))
-        // Step-up localStorage contract the box reads.
         assertTrue(script.contains("SHOULD_STEP_UP"))
-        assertTrue(script.contains("FRONTEGG_OAUTH_STEP_UP_MAX_AGE"))
         assertTrue(script.contains("FRONTEGG_AFTER_AUTH_REDIRECT_URL"))
-        // Routes the box to its step-up page before it reads the URL.
-        assertTrue(script.contains("/account/step-up"))
+    }
+
+    @Test
+    fun `script saves the params the hosted postlogin needs in local and session storage`() {
+        val script = StepUpWebDriver.script(authorizeUrl)
+
+        listOf(
+            "FRONTEGG_OAUTH_REDIRECT_AFTER_LOGIN",
+            "FRONTEGG_OAUTH_STATE_AFTER_LOGIN",
+            "FRONTEGG_OAUTH_STEP_UP_ACR_VALUES",
+            "FRONTEGG_OAUTH_STEP_UP_MAX_AGE",
+            "window.localStorage",
+            "window.sessionStorage",
+            "decodeURIComponent",
+        ).forEach { expected -> assertTrue("expected $expected in script", script.contains(expected)) }
+    }
+
+    @Test
+    fun `script routes to the hosted root instead of the box's step-up route`() {
+        val script = StepUpWebDriver.script(authorizeUrl)
+
+        assertTrue(script.contains("lastIndexOf('/') + 1"))
         assertTrue(script.contains("replaceState"))
+        assertFalse(script.contains("+ '/account/step-up'"))
     }
 
     @Test
