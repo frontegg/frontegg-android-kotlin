@@ -1,3 +1,21 @@
+## v1.3.44
+## Summary
+- Upgrade the docs site from docsify 4 to **5.0.0**. The 4.x search plugin writes the `s` query parameter into the search input's HTML without escaping it; 4.13.1 (the last 4.x release) is still affected, and 5.0.0 escapes the value.
+- Pin every CDN asset to an exact version over https. The search plugin was previously loaded from an unversioned URL (`npm/docsify/lib/plugins/search.min.js`), so the site ran whatever version jsDelivr resolved.
+- docsify 5 moved its files from `lib/` to `dist/` and split the theme into `core.min.css` + `addons/vue.min.css`; the `$docsify` config is unchanged.
+
+Only `docs/index.html` changes. The GitHub Pages site redeploys from `docs/` on merge to `master`.
+
+## Test plan
+- [x] Served `docs/` locally: pages and sidebar render, no console errors
+- [x] Typed search returns results
+- [x] A crafted `?s=` value is rendered as inert text and no markup is injected
+- [ ] After merge, re-check the live site with the same crafted `?s=` value
+
+Note: opening a URL that already contains `?s=<term>` no longer pre-runs a search under docsify 5; typing in the search box works as before.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
 ## v1.3.43
 
 Bug fixes:
