@@ -189,7 +189,7 @@ class FronteggAuthService(
         // Load feature flags on initialization
         bgScope.launch {
             try {
-                featureFlags.loadFlags(credentialManager.context)
+                featureFlags.loadFlags(this@FronteggAuthService)
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to load feature flags during initialization", e)
             }
