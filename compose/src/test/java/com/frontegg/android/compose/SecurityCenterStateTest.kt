@@ -2,7 +2,7 @@ package com.frontegg.android.compose
 
 import android.app.Activity
 import com.frontegg.android.FronteggAuth
-import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.FronteggException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.models.UserSession
 import com.frontegg.android.services.SessionsService
@@ -77,7 +77,7 @@ class SecurityCenterStateTest {
     @Test
     fun `revokeSession keeps the session and reports a failure`() = runTest {
         coEvery { sessionsService.getActiveSessions() } returns listOf(currentSession, otherSession)
-        coEvery { sessionsService.revokeSession("other") } throws FailedToAuthenticateException(error = "forbidden")
+        coEvery { sessionsService.revokeSession("other") } throws FronteggException("forbidden")
         val state = SecurityCenterState(auth, this)
         state.loadSessions()
         advanceUntilIdle()
