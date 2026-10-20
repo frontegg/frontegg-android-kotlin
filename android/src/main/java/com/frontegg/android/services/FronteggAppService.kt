@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
+import com.frontegg.android.dpop.DPoPProvider
 import com.frontegg.android.fronteggAuth
 import com.frontegg.android.integrity.DeviceIntegrity
 import com.frontegg.android.regions.RegionConfig
@@ -52,6 +53,7 @@ class FronteggAppService(
     init {
         fillStorage()
         DeviceIntegrity.configure(context, playIntegrityCloudProjectNumber)
+        DPoPProvider.configure(enableDPoP)
         auth =
             FronteggAuthService(
                 credentialManager,

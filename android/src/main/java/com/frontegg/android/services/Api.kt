@@ -3,6 +3,7 @@ package com.frontegg.android.services
 import kotlin.jvm.Throws
 import android.util.Log
 import com.frontegg.android.BuildConfig
+import com.frontegg.android.dpop.DPoPInterceptor
 import com.frontegg.android.exceptions.CookieNotFoundException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToAuthenticatePasskeysException
@@ -103,6 +104,7 @@ open class Api(
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .addInterceptor(sentryInterceptor)
         .addInterceptor(DeviceIntegrityInterceptor(baseUrlProvider = { baseUrl }))
+        .addInterceptor(DPoPInterceptor(baseUrlProvider = { baseUrl }))
         .build()
 
     /**
