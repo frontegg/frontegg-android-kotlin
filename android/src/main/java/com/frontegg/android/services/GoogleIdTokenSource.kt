@@ -1,7 +1,6 @@
 package com.frontegg.android.services
 
 import android.app.Activity
-import android.util.Base64
 import androidx.credentials.Credential
 import androidx.credentials.CredentialManager
 import androidx.credentials.CustomCredential
@@ -14,7 +13,6 @@ import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.google.android.libraries.identity.googleid.GetGoogleIdOption
 import com.google.android.libraries.identity.googleid.GoogleIdTokenCredential
 import com.google.android.libraries.identity.googleid.GoogleIdTokenParsingException
-import java.security.SecureRandom
 
 /**
  * Supplies a Google ID token for native Google sign-in.
@@ -54,7 +52,6 @@ class CredentialManagerGoogleIdTokenSource(
             .setServerClientId(serverClientId)
             .setFilterByAuthorizedAccounts(onlyAuthorizedAccounts)
             .setAutoSelectEnabled(onlyAuthorizedAccounts)
-            .setNonce(generateNonce())
             .build()
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)
@@ -77,15 +74,5 @@ class CredentialManagerGoogleIdTokenSource(
         } catch (e: GoogleIdTokenParsingException) {
             throw FailedToAuthenticateException(error = "Invalid Google ID token credential")
         }
-    }
-
-    private fun generateNonce(): String {
-        val nonceBytes = ByteArray(NONCE_LENGTH_BYTES)
-        SecureRandom().nextBytes(nonceBytes)
-        return Base64.encodeToString(nonceBytes, Base64.URL_SAFE or Base64.NO_WRAP or Base64.NO_PADDING)
-    }
-
-    private companion object {
-        const val NONCE_LENGTH_BYTES = 32
     }
 }

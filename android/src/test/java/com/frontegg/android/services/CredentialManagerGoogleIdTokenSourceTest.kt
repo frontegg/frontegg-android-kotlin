@@ -47,7 +47,6 @@ class CredentialManagerGoogleIdTokenSourceTest {
         val option = requests.single().googleIdOption()
         assert(option.serverClientId == "web-client-id")
         assert(option.filterByAuthorizedAccounts)
-        assert(!option.nonce.isNullOrBlank())
     }
 
     @Test

@@ -16,12 +16,15 @@ class DeviceIntegrityAttestorTest {
         )
     }
 
+    private fun attestor(factory: IntegrityProviderFactory) = DeviceIntegrityAttestor(factory) { task -> task() }
+
     @Test
-    fun `attest prepares the provider once and reuses it`() {
+    fun `attest reuses the provider prepared by warm-up`() {
         val provider = FakeTokenProvider()
         val factory = FakeProviderFactory(listOf(provider))
-        val attestor = DeviceIntegrityAttestor(factory)
+        val attestor = attestor(factory)
 
+        attestor.warmUp()
         assertEquals("token-first", attestor.attest("first"))
         assertEquals("token-second", attestor.attest("second"))
 
@@ -30,43 +33,38 @@ class DeviceIntegrityAttestorTest {
     }
 
     @Test
-    fun `warmUp prepares the provider ahead of the first request`() {
+    fun `attest does not wait for a provider that is not prepared yet`() {
         val factory = FakeProviderFactory(listOf(FakeTokenProvider()))
-        val attestor = DeviceIntegrityAttestor(factory)
+        val launchedTasks = mutableListOf<() -> Unit>()
+        val attestor = DeviceIntegrityAttestor(factory) { task -> launchedTasks.add(task) }
 
-        attestor.warmUp()
-        attestor.attest("hash")
+        assertNull(attestor.attest("hash"))
+        assertEquals(0, factory.prepareCount.get())
 
-        assertEquals(1, factory.prepareCount.get())
+        launchedTasks.single()()
+        assertEquals("token-next", attestor.attest("next"))
     }
 
     @Test
-    fun `attest prepares a new provider once when the provider is invalid`() {
+    fun `an invalid provider is replaced in the background`() {
         val invalidProvider = FakeTokenProvider(failure = IntegrityProviderInvalidException())
         val freshProvider = FakeTokenProvider(tokenPrefix = "fresh")
         val factory = FakeProviderFactory(listOf(invalidProvider, freshProvider))
-        val attestor = DeviceIntegrityAttestor(factory)
+        val attestor = attestor(factory)
 
-        assertEquals("fresh-hash", attestor.attest("hash"))
+        attestor.warmUp()
+        assertNull(attestor.attest("hash"))
         assertEquals("fresh-next", attestor.attest("next"))
 
         assertEquals(2, factory.prepareCount.get())
     }
 
     @Test
-    fun `attest gives up when the refreshed provider is invalid too`() {
-        val invalidProvider = FakeTokenProvider(failure = IntegrityProviderInvalidException())
-        val factory = FakeProviderFactory(listOf(invalidProvider))
-        val attestor = DeviceIntegrityAttestor(factory)
-
-        assertNull(attestor.attest("hash"))
-        assertEquals(2, factory.prepareCount.get())
-    }
-
-    @Test
     fun `attest returns null when the token request times out`() {
         val timeout = IntegrityAttestationException("Play Integrity request timed out", TimeoutException())
-        val attestor = DeviceIntegrityAttestor(FakeProviderFactory(listOf(FakeTokenProvider(failure = timeout))))
+        val attestor = attestor(FakeProviderFactory(listOf(FakeTokenProvider(failure = timeout))))
+
+        attestor.warmUp()
 
         assertNull(attestor.attest("hash"))
     }
@@ -77,7 +75,7 @@ class DeviceIntegrityAttestorTest {
             providers = listOf(FakeTokenProvider()),
             prepareFailure = IntegrityAttestationException("Play Integrity request failed")
         )
-        val attestor = DeviceIntegrityAttestor(factory)
+        val attestor = attestor(factory)
 
         attestor.warmUp()
 
@@ -91,7 +89,7 @@ class DeviceIntegrityAttestorTest {
             override fun prepare(): IntegrityTokenProvider = throw IllegalStateException("main thread")
         }
 
-        assertNull(DeviceIntegrityAttestor(factory).attest("hash"))
+        assertNull(attestor(factory).attest("hash"))
     }
 
     @Test
@@ -100,6 +98,6 @@ class DeviceIntegrityAttestorTest {
             override fun prepare(): IntegrityTokenProvider = throw IllegalStateException("no Play services")
         }
 
-        DeviceIntegrityAttestor(factory).warmUp()
+        attestor(factory).warmUp()
     }
 }

@@ -4,10 +4,13 @@ import android.util.Log
 
 /**
  * Requests integrity tokens bound to a request hash, reusing one prepared provider.
+ * Sign-in never waits for a provider to be prepared: until one is ready, or after Play reports it
+ * invalid, the request is sent unattested while [launchInBackground] prepares the next one.
  * Every failure is reported as `null` so sign-in proceeds without attestation.
  */
 internal class DeviceIntegrityAttestor(
     private val providerFactory: IntegrityProviderFactory,
+    private val launchInBackground: (() -> Unit) -> Unit,
 ) {
     private val providerLock = Any()
 
@@ -25,25 +28,23 @@ internal class DeviceIntegrityAttestor(
     }
 
     fun attest(requestHash: String): String? {
+        val provider = cachedProvider
+        if (provider == null) {
+            launchInBackground(::warmUp)
+            return null
+        }
         return try {
-            requestWithProviderRefresh(requestHash)
+            provider.requestToken(requestHash)
+        } catch (e: IntegrityProviderInvalidException) {
+            discardProvider(provider)
+            launchInBackground(::warmUp)
+            null
         } catch (e: IntegrityAttestationException) {
             Log.w(TAG, "Play Integrity attestation skipped: ${describe(e)}")
             null
         } catch (e: RuntimeException) {
             Log.w(TAG, "Play Integrity attestation skipped: ${e.javaClass.simpleName}")
             null
-        }
-    }
-
-    @Throws(IntegrityAttestationException::class)
-    private fun requestWithProviderRefresh(requestHash: String): String {
-        val provider = preparedProvider()
-        return try {
-            provider.requestToken(requestHash)
-        } catch (e: IntegrityProviderInvalidException) {
-            discardProvider(provider)
-            preparedProvider().requestToken(requestHash)
         }
     }
 

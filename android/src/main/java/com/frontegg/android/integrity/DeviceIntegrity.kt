@@ -33,7 +33,7 @@ internal object DeviceIntegrity {
         }
         if (attestor != null && configuredProjectNumber == cloudProjectNumber) return
 
-        val newAttestor = DeviceIntegrityAttestor(providerFactory())
+        val newAttestor = DeviceIntegrityAttestor(providerFactory()) { task -> warmUpScope.launch { task() } }
         attestor = newAttestor
         configuredProjectNumber = cloudProjectNumber
         warmUpScope.launch { newAttestor.warmUp() }

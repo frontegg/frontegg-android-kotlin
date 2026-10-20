@@ -35,8 +35,6 @@ abstract class ReadOnlyObservableValue<T>(value: T) {
     )
     val observable: PublishSubject<NullableObject<T>> = PublishSubject.create()
 
-    protected var nullableObject: NullableObject<T> = NullableObject(value)
-    protected val setLock = Any()
     open val value: T
         get() {
             return mutableStateFlow.value
@@ -54,7 +52,7 @@ abstract class ReadOnlyObservableValue<T>(value: T) {
     @Suppress("DEPRECATION")
     fun subscribe(onNext: Consumer<NullableObject<T>>): Disposable {
         val disposable = observable.subscribe(onNext)
-        onNext.accept(nullableObject)
+        onNext.accept(NullableObject(mutableStateFlow.value))
         return disposable
     }
 
@@ -71,7 +69,7 @@ abstract class ReadOnlyObservableValue<T>(value: T) {
     protected fun publish(newValue: T) {
         mutableStateFlow.value = newValue
         listeners.forEach { it(newValue) }
-        observable.onNext(nullableObject)
+        observable.onNext(NullableObject(newValue))
     }
 }
 
@@ -82,9 +80,6 @@ class ObservableValue<T>(value: T) : ReadOnlyObservableValue<T>(value) {
             return mutableStateFlow.value
         }
         set(newValue) {
-            synchronized(setLock) {
-                nullableObject.value = newValue
-                publish(newValue)
-            }
+            publish(newValue)
         }
 }

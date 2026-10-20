@@ -37,7 +37,6 @@ import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.RequestQueue
 import com.frontegg.android.utils.RequestPriority
-import com.frontegg.android.utils.SentryHelper
 import com.frontegg.android.utils.SessionTracker
 import com.frontegg.android.utils.calculateTimerOffset
 import com.google.gson.JsonParser
@@ -52,7 +51,6 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -99,7 +97,6 @@ class FronteggAuthService(
 
     companion object {
         private val TAG = FronteggAuth::class.java.simpleName
-        private val derivedStateBound = AtomicBoolean(false)
 
 
     }
@@ -1416,8 +1413,6 @@ class FronteggAuthService(
 
     @VisibleForTesting
     internal fun initializeSubscriptions() {
-        bindDerivedStateOnce()
-
         bgScope.launch {
             val enableSessionPerTenant = storage.enableSessionPerTenant
             val tenantId = if (enableSessionPerTenant) {
@@ -1574,31 +1569,6 @@ class FronteggAuthService(
                 Log.d(TAG, "No tokens found, showing login screen")
                 initializing.value = false
                 isLoading.value = false
-            }
-        }
-    }
-
-    // FronteggState is process-wide, so its derived state is bound once per process, not per service.
-    private fun bindDerivedStateOnce() {
-        if (!derivedStateBound.compareAndSet(false, true)) return
-
-        val state = FronteggState
-        val updateShowLoader: (Boolean) -> Unit = {
-            state.showLoader.value =
-                state.initializing.value ||
-                    (!state.isAuthenticated.value && (state.isLoading.value || state.webLoading.value))
-        }
-        listOf(state.isLoading, state.isAuthenticated, state.initializing, state.webLoading)
-            .forEach { it.observe(updateShowLoader) }
-
-        // Mirror iOS: bind current user to Sentry scope (only if 'mobile-enable-logging' feature flag is enabled).
-        state.user.observe { currentUser ->
-            if (currentUser != null) {
-                runCatching {
-                    SentryHelper.setUser(userId = currentUser.id, email = currentUser.email, username = currentUser.name)
-                }
-            } else {
-                runCatching { SentryHelper.clearUser() }
             }
         }
     }

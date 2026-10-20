@@ -21,6 +21,9 @@ internal class DPoPInterceptor(
 
     private val noncesByHost = ConcurrentHashMap<String, String>()
 
+    @Volatile
+    private var lastConfirmation: Pair<String, String?>? = null
+
     private val proofGenerator: DPoPProofGenerator
         get() = proofGeneratorProvider()
 
@@ -99,7 +102,7 @@ internal class DPoPInterceptor(
         val authorization = request.header(AUTHORIZATION_HEADER) ?: return null
         if (!authorization.startsWith("$BEARER_SCHEME ")) return null
         val accessToken = authorization.substring(BEARER_SCHEME.length + 1).trim()
-        val boundThumbprint = confirmationThumbprint(accessToken) ?: return null
+        val boundThumbprint = cachedConfirmationThumbprint(accessToken) ?: return null
 
         val deviceThumbprint = try {
             proofGenerator.thumbprint()
@@ -114,6 +117,11 @@ internal class DPoPInterceptor(
             return null
         }
         return accessToken.takeIf { boundThumbprint == deviceThumbprint }
+    }
+
+    private fun cachedConfirmationThumbprint(accessToken: String): String? {
+        lastConfirmation?.let { (token, thumbprint) -> if (token == accessToken) return thumbprint }
+        return confirmationThumbprint(accessToken).also { lastConfirmation = accessToken to it }
     }
 
     @Throws(IOException::class)

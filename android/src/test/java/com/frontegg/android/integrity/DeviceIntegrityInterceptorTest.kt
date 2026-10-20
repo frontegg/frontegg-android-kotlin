@@ -37,9 +37,12 @@ class DeviceIntegrityInterceptorTest {
         server.shutdown()
     }
 
+    private fun preparedAttestor(factory: IntegrityProviderFactory) =
+        DeviceIntegrityAttestor(factory) { task -> task() }.also { it.warmUp() }
+
     private fun client(
         baseUrl: String = server.url("/").toString().trimEnd('/'),
-        attestor: DeviceIntegrityAttestor? = DeviceIntegrityAttestor(FakeProviderFactory(listOf(tokenProvider))),
+        attestor: DeviceIntegrityAttestor? = preparedAttestor(FakeProviderFactory(listOf(tokenProvider))),
     ): OkHttpClient = OkHttpClient.Builder()
         .addInterceptor(DeviceIntegrityInterceptor(baseUrlProvider = { baseUrl }, attestorProvider = { attestor }))
         .build()
@@ -138,7 +141,7 @@ class DeviceIntegrityInterceptorTest {
     @Test
     fun `sends the request without the header when attestation times out`() {
         val timeout = IntegrityAttestationException("Play Integrity request timed out", TimeoutException())
-        val failingAttestor = DeviceIntegrityAttestor(FakeProviderFactory(listOf(FakeTokenProvider(failure = timeout))))
+        val failingAttestor = preparedAttestor(FakeProviderFactory(listOf(FakeTokenProvider(failure = timeout))))
 
         val recorded = post(client(attestor = failingAttestor), "/oauth/token", authorizationCodeBody)
 
@@ -148,7 +151,7 @@ class DeviceIntegrityInterceptorTest {
 
     @Test
     fun `sends the request without the header when the provider cannot be prepared`() {
-        val failingAttestor = DeviceIntegrityAttestor(
+        val failingAttestor = preparedAttestor(
             FakeProviderFactory(
                 providers = listOf(tokenProvider),
                 prepareFailure = IntegrityAttestationException("Play Integrity request failed")

@@ -624,6 +624,8 @@ or pass `enableDPoP = true` to `FronteggApp.initWithRegions(...)`.
   environment enforces DPoP.
 - Server nonces (`DPoP-Nonce`) are handled automatically.
 - Logout rotates the device key, so each new session gets a fresh binding.
+- Only the SDK's own requests carry proofs. Pages in a WebView, such as the Admin Portal, can't sign
+  them, so they won't work once your environment rejects unproven bound tokens.
 
 ## Play Integrity device attestation
 
