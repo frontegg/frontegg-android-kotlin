@@ -185,6 +185,22 @@ interface FronteggAuth {
     )
 
     /**
+     * Sign in with Google natively, through Credential Manager, without opening a browser.
+     * The Google web client ID is read from the Google social login configured in Frontegg.
+     * The app must also have an Android OAuth client, with its package name and signing
+     * certificate SHA-1, in the same Google Cloud project as that web client.
+     * @param activity is the activity of application;
+     * @param callback call after the login is finished or was intercepted by Exception.
+     * [error] is [com.frontegg.android.exceptions.CanceledByUserException] if the user dismissed
+     * the account picker, and [com.frontegg.android.exceptions.GoogleSignInNotConfiguredException]
+     * if Google social login is not active in Frontegg.
+     */
+    fun loginWithGoogle(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)? = null,
+    )
+
+    /**
      * Register passkeys.
      * @param activity is the activity of application;
      * @param callback call after the registration is finished or was intercepted by Exception.

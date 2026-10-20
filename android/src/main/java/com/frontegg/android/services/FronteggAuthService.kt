@@ -17,12 +17,16 @@ import androidx.credentials.PublicKeyCredential
 import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggAuth
+import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.GoogleSignInNotConfiguredException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.Entitlement
 import com.frontegg.android.models.EntitledToOptions
+import com.frontegg.android.models.SocialLoginPostLoginRequest
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.AppIdHeaderHelper
@@ -728,6 +732,52 @@ class FronteggAuthService(
                 multiFactorAuthenticator.start(activity, callback, e.mfaRequestData)
             } catch (e: Exception) {
                 Log.e(TAG, "failed to login with passkeys", e)
+                callback?.invoke(e)
+            }
+        }
+    }
+
+    override fun loginWithGoogle(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)?,
+    ) {
+        val googleIdTokenSource = GoogleIdTokenSourceProvider.getGoogleIdTokenSource(activity)
+        ScopeProvider.mainScope.launch {
+            var startedLoading = false
+            try {
+                val googleConfig = withContext(ioDispatcher) { api.getSocialLoginConfig().google }
+                val serverClientId = googleConfig?.clientId
+                if (googleConfig?.active != true || serverClientId.isNullOrBlank()) {
+                    throw GoogleSignInNotConfiguredException()
+                }
+
+                val idToken = googleIdTokenSource.getIdToken(serverClientId)
+
+                isLoading.value = true
+                startedLoading = true
+                val postLoginRequest = SocialLoginPostLoginRequest(
+                    idToken = idToken,
+                    redirectUri = defaultSocialLoginRedirectUri()
+                )
+                val authResponse = withContext(ioDispatcher) {
+                    api.socialLoginPostLogin(SocialLoginProvider.GOOGLE.value, postLoginRequest)
+                }
+                val authenticated = withContext(ioDispatcher) {
+                    setCredentials(authResponse.access_token, authResponse.refresh_token)
+                }
+                if (!authenticated) {
+                    throw FailedToAuthenticateException(error = "Failed to load the user after Google sign-in")
+                }
+
+                callback?.invoke(null)
+            } catch (e: CanceledByUserException) {
+                Log.i(TAG, "Google sign-in canceled by user")
+                callback?.invoke(e)
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to login with Google", e)
+                if (startedLoading) {
+                    isLoading.value = false
+                }
                 callback?.invoke(e)
             }
         }
