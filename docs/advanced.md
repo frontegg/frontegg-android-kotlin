@@ -644,5 +644,6 @@ emulators and scripted clients.
 
 The SDK sends the token in the `frontegg-device-integrity-token` header on code exchange, social
 login and passkey login. Token refreshes and silent authorization are not attested. The token's request
-hash is the base64url SHA-256 of the request body. Attestation never blocks sign-in on the device:
-if Play Integrity is unavailable or times out, the request is sent without the header.
+hash is the base64url SHA-256 of the request body. Attestation never makes sign-in fail: a token
+request waits at most 3 seconds, and if Play Integrity is unavailable, still preparing or times
+out, the request is sent without the header.

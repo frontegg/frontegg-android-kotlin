@@ -77,8 +77,7 @@ object FronteggConstantsProvider {
         val useNativeGoogleSignIn =
             safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN", false)
         val enableDPoP = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_DPOP", false)
-        val playIntegrityCloudProjectNumber =
-            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER", 0L)
+        val playIntegrityCloudProjectNumber = cloudProjectNumber(buildConfigClass)
 
         return FronteggConstants(
             baseUrl = baseUrl,
@@ -100,6 +99,20 @@ object FronteggConstantsProvider {
             enableDPoP = enableDPoP,
             playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
         )
+    }
+
+    // Accepts the project number declared as any numeric type or as a numeric string.
+    private fun cloudProjectNumber(buildConfigClass: Class<*>): Long {
+        val name = "FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER"
+        val projectNumber = when (val rawValue = safeGetNullableValueFromBuildConfig<Any>(buildConfigClass, name, 0L)) {
+            is Number -> rawValue.toLong()
+            is String -> rawValue.trim().toLongOrNull()
+            else -> 0L
+        }
+        if (projectNumber == null) {
+            Log.e(TAG, "$name is not a number, Play Integrity attestation is off")
+        }
+        return projectNumber ?: 0L
     }
 }
 

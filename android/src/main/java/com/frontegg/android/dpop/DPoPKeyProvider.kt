@@ -40,7 +40,7 @@ internal class AndroidKeyStoreDPoPKeyProvider(
         return generator.generateKeyPair()
     }
 
-    // An entry that can no longer be read is replaced, so a corrupted key does not disable DPoP for good.
+    // An entry the Keystore reports as unrecoverable is replaced, so it does not disable DPoP for good.
     @Throws(GeneralSecurityException::class)
     private fun storedKeyPair(keyStore: KeyStore): KeyPair? {
         return try {
