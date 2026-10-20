@@ -2,14 +2,13 @@ package com.frontegg.android.dpop
 
 import android.util.Log
 import com.frontegg.android.utils.FronteggEndpoints
-import com.google.gson.JsonParser
+import com.frontegg.android.utils.JWTHelper
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
 import java.io.IOException
 import java.security.GeneralSecurityException
 import java.security.ProviderException
-import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 
 /** Adds RFC 9449 DPoP proofs to Frontegg token requests and to requests carrying a device-bound token. */
@@ -65,7 +64,9 @@ internal class DPoPInterceptor(
 
         val retry = withProof(baseRequest, resourceAccessToken, receivedNonce) ?: return response
         response.close()
-        return chain.proceed(retry)
+        val retryResponse = chain.proceed(retry)
+        retryResponse.header(DPOP_NONCE_HEADER)?.takeIf { it.isNotBlank() }?.let { noncesByHost[host] = it }
+        return retryResponse
     }
 
     private fun withProof(request: Request, resourceAccessToken: String?, nonce: String?): Request? {
@@ -163,14 +164,7 @@ internal class DPoPInterceptor(
         private const val MAX_ERROR_BODY_BYTES = 4096L
 
         /** Returns the `cnf.jkt` claim of a JWT access token, or null if it has none. */
-        fun confirmationThumbprint(accessToken: String): String? = runCatching {
-            val payloadSegment = accessToken.split('.').getOrNull(1) ?: return null
-            val payload = String(Base64.getUrlDecoder().decode(payloadSegment), Charsets.UTF_8)
-            JsonParser.parseString(payload).asJsonObject
-                .getAsJsonObject("cnf")
-                ?.get("jkt")
-                ?.takeIf { it.isJsonPrimitive }
-                ?.asString
-        }.getOrNull()
+        fun confirmationThumbprint(accessToken: String): String? =
+            (JWTHelper.decodeClaims(accessToken)["cnf"] as? Map<*, *>)?.get("jkt") as? String
     }
 }

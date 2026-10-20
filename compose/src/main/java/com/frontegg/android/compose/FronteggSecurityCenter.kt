@@ -53,8 +53,9 @@ fun FronteggSecurityCenter(
     val uiState by securityCenterState.uiState.collectAsState()
     val activity = LocalContext.current.findActivity()
 
-    LaunchedEffect(securityCenterState) {
-        securityCenterState.loadSessions()
+    val signedInUserId = user?.idOrNull()
+    LaunchedEffect(securityCenterState, signedInUserId) {
+        if (signedInUserId != null) securityCenterState.loadSessions()
     }
 
     FronteggSecurityCenter(

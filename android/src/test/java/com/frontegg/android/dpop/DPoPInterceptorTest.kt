@@ -230,6 +230,26 @@ class DPoPInterceptorTest {
     }
 
     @Test
+    fun `nonce rotated on the retried response is used next`() {
+        server.enqueue(
+            MockResponse().setResponseCode(400)
+                .setHeader("DPoP-Nonce", "nonce-1")
+                .setBody("""{"error":"use_dpop_nonce"}""")
+        )
+        server.enqueue(MockResponse().setHeader("DPoP-Nonce", "nonce-2").setBody("{}"))
+        server.enqueue(MockResponse().setBody("{}"))
+        val client = client()
+
+        client.newCall(post("/oauth/token")).execute().close()
+        client.newCall(post("/oauth/token")).execute().close()
+
+        server.takeRequest()
+        server.takeRequest()
+        val claims = DPoPTestSupport.decodeSegment(server.takeRequest().getHeader("DPoP")!!, 1)
+        assertEquals("nonce-2", claims.get("nonce").asString)
+    }
+
+    @Test
     fun `remembered nonce is sent on the next request`() {
         server.enqueue(MockResponse().setHeader("DPoP-Nonce", "nonce-3").setBody("{}"))
         server.enqueue(MockResponse().setBody("{}"))

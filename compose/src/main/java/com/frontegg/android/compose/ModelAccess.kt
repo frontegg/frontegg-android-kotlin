@@ -15,6 +15,8 @@ internal fun Tenant.tenantIdOrNull(): String? = readOrNull { tenantId }
 
 internal fun Tenant.nameOrNull(): String? = readOrNull { name }?.takeIf { it.isNotBlank() }
 
+internal fun User.idOrNull(): String? = readOrNull { id }
+
 internal fun User.nameOrNull(): String? = readOrNull { name }?.takeIf { it.isNotBlank() }
 
 internal fun User.emailOrNull(): String? = readOrNull { email }?.takeIf { it.isNotBlank() }
