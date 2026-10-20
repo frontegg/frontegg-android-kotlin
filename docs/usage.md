@@ -100,6 +100,36 @@ class FirstFragment : Fragment() {
 
 ```
 
+## Observe authentication state
+
+Every state value on `fronteggAuth` (`isAuthenticated`, `user`, `accessToken`, `isLoading`,
+`showLoader`, and the rest) exposes a Kotlin `StateFlow` as `stateFlow`. Collect it from a
+lifecycle-aware coroutine:
+
+```kotlin
+lifecycleScope.launch {
+    repeatOnLifecycle(Lifecycle.State.STARTED) {
+        fronteggAuth.isAuthenticated.stateFlow.collect { isAuthenticated ->
+            showHome(isAuthenticated)
+        }
+    }
+}
+```
+
+or read it in Compose:
+
+```kotlin
+val user by fronteggAuth.user.stateFlow.collectAsState()
+```
+
+The `com.frontegg.sdk:android-compose` artifact adds a shorter `fronteggAuth.user.collectAsState()`
+and prebuilt components; see [Jetpack Compose](advanced.md#jetpack-compose).
+
+> **RxJava is deprecated.** `subscribe { }` and `observable` still work and still emit every value
+> that is set, but they will be removed in the next major version. `stateFlow`, like any
+> `StateFlow`, skips a value equal to the current one. When you stop using `subscribe`, you can
+> drop the `io.reactivex.rxjava3:rxkotlin` dependency from your app.
+
 ## Logout user
 
 To log out the user, simply call the `requireContext().fronteggAuth.logout()` method. This will clear all user data from the device.

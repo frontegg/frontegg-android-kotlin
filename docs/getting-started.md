@@ -86,9 +86,6 @@ Groovy:
 dependencies {
     // Add the Frontegg Android Kotlin SDK
     implementation 'com.frontegg.sdk:android:LATEST_VERSION'
-
-    // Add Frontegg observables dependency
-    implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
 }
 ```
 
@@ -98,9 +95,6 @@ Kotlin:
 dependencies {
     // Add the Frontegg Android Kotlin SDK
     implementation("com.frontegg.sdk:android:LATEST_VERSION")
-
-    // Add Frontegg observables dependency
-    implementation("io.reactivex.rxjava3:rxkotlin:3.0.1")
 }
 ```
  
