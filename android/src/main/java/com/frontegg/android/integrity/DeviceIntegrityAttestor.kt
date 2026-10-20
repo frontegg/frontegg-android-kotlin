@@ -1,6 +1,7 @@
 package com.frontegg.android.integrity
 
 import android.util.Log
+import java.util.concurrent.atomic.AtomicBoolean
 
 /**
  * Requests integrity tokens bound to a request hash, reusing one prepared provider.
@@ -17,6 +18,8 @@ internal class DeviceIntegrityAttestor(
     @Volatile
     private var cachedProvider: IntegrityTokenProvider? = null
 
+    private val backgroundPrepareRunning = AtomicBoolean(false)
+
     fun warmUp() {
         try {
             preparedProvider()
@@ -30,14 +33,14 @@ internal class DeviceIntegrityAttestor(
     fun attest(requestHash: String): String? {
         val provider = cachedProvider
         if (provider == null) {
-            launchInBackground(::warmUp)
+            prepareInBackground()
             return null
         }
         return try {
             provider.requestToken(requestHash)
         } catch (e: IntegrityProviderInvalidException) {
             discardProvider(provider)
-            launchInBackground(::warmUp)
+            prepareInBackground()
             null
         } catch (e: IntegrityAttestationException) {
             Log.w(TAG, "Play Integrity attestation skipped: ${describe(e)}")
@@ -45,6 +48,17 @@ internal class DeviceIntegrityAttestor(
         } catch (e: RuntimeException) {
             Log.w(TAG, "Play Integrity attestation skipped: ${e.javaClass.simpleName}")
             null
+        }
+    }
+
+    private fun prepareInBackground() {
+        if (!backgroundPrepareRunning.compareAndSet(false, true)) return
+        launchInBackground {
+            try {
+                warmUp()
+            } finally {
+                backgroundPrepareRunning.set(false)
+            }
         }
     }
 

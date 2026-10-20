@@ -37,9 +37,9 @@ internal class DPoPInterceptor(
         val boundAccessToken = boundAccessToken(request)
         if (boundAccessToken == null && !isTokenRequest) return chain.proceed(request)
 
-        // RFC 9449 token requests carry only the proof, never a bound access token.
+        // RFC 9449 token requests carry only the proof, never a bound access token, whichever key it is bound to.
         val resourceAccessToken = boundAccessToken.takeUnless { isTokenRequest }
-        val baseRequest = if (isTokenRequest && boundAccessToken != null) {
+        val baseRequest = if (isTokenRequest && carriesBoundToken(request)) {
             request.newBuilder().removeHeader(AUTHORIZATION_HEADER).build()
         } else {
             request
@@ -105,10 +105,17 @@ internal class DPoPInterceptor(
             FronteggEndpoints.isSocialLoginPostLogin(relativePath)
     }
 
-    private fun boundAccessToken(request: Request): String? {
+    private fun bearerToken(request: Request): String? {
         val authorization = request.header(AUTHORIZATION_HEADER) ?: return null
         if (!authorization.startsWith("$BEARER_SCHEME ")) return null
-        val accessToken = authorization.substring(BEARER_SCHEME.length + 1).trim()
+        return authorization.substring(BEARER_SCHEME.length + 1).trim()
+    }
+
+    private fun carriesBoundToken(request: Request): Boolean =
+        bearerToken(request)?.let { cachedConfirmationThumbprint(it) } != null
+
+    private fun boundAccessToken(request: Request): String? {
+        val accessToken = bearerToken(request) ?: return null
         val boundThumbprint = cachedConfirmationThumbprint(accessToken) ?: return null
 
         val deviceThumbprint = try {

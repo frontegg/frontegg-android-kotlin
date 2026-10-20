@@ -122,6 +122,18 @@ class DPoPInterceptorTest {
     }
 
     @Test
+    fun `refresh drops a token bound to a previous device key`() {
+        server.enqueue(MockResponse().setBody("{}"))
+        val previousKeyToken = DPoPTestSupport.accessTokenBoundTo("previous-key-thumbprint")
+
+        client().newCall(post("/oauth/token", accessToken = previousKeyToken)).execute().close()
+
+        val recorded = server.takeRequest()
+        assertNull(recorded.getHeader("Authorization"))
+        assertTrue(recorded.getHeader("DPoP") != null)
+    }
+
+    @Test
     fun `token bound to another key stays bearer`() {
         server.enqueue(MockResponse().setBody("{}"))
         val foreignToken = DPoPTestSupport.accessTokenBoundTo("some-other-thumbprint")

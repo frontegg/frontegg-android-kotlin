@@ -39,6 +39,7 @@ class DeviceIntegrityAttestorTest {
         val attestor = DeviceIntegrityAttestor(factory) { task -> launchedTasks.add(task) }
 
         assertNull(attestor.attest("hash"))
+        assertNull(attestor.attest("again"))
         assertEquals(0, factory.prepareCount.get())
 
         launchedTasks.single()()
