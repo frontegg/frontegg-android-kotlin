@@ -63,6 +63,11 @@ interface FronteggAuth {
     val featureFlags: com.frontegg.android.services.FeatureFlags
     val entitlements: com.frontegg.android.services.EntitlementsService
 
+    /**
+     * Lists and revokes the signed-in user's active sessions.
+     */
+    val sessions: com.frontegg.android.services.SessionsService
+
     fun loadEntitlements(forceRefresh: Boolean = false, completion: ((Boolean) -> Unit)? = null)
 
     /**

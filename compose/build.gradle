@@ -1,0 +1,140 @@
+plugins {
+    id 'com.android.library'
+    id 'org.jetbrains.kotlin.android'
+    id 'maven-publish'
+    id 'signing'
+}
+
+evaluationDependsOn(':android')
+
+group 'com.frontegg.android'
+// Released in lockstep with the core SDK, whose version the release workflow bumps.
+version project(':android').version
+
+android {
+    namespace 'com.frontegg.android.compose'
+    compileSdk 34
+
+    defaultConfig {
+        minSdk 26
+        targetSdk 34
+        consumerProguardFiles "consumer-rules.pro"
+        versionName "$version"
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_1_8
+        targetCompatibility JavaVersion.VERSION_1_8
+    }
+    kotlinOptions {
+        jvmTarget = '1.8'
+    }
+    buildFeatures {
+        compose true
+    }
+    composeOptions {
+        kotlinCompilerExtensionVersion '1.5.3'
+    }
+    buildToolsVersion '34.0.0'
+
+    publishing {
+        singleVariant("release") {
+            withSourcesJar()
+            withJavadocJar()
+        }
+    }
+
+    testOptions {
+        unitTests {
+            returnDefaultValues = true
+        }
+    }
+}
+
+ext {
+    coroutinesVersion = '1.7.3'
+}
+
+dependencies {
+    api project(':android')
+
+    implementation platform('androidx.compose:compose-bom:2024.06.00')
+    implementation 'androidx.compose.runtime:runtime'
+    implementation 'androidx.compose.ui:ui'
+    implementation 'androidx.compose.foundation:foundation'
+    implementation 'androidx.compose.material3:material3'
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion"
+
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation "io.mockk:mockk:1.13.13"
+    testImplementation "org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion"
+}
+
+afterEvaluate {
+    publishing {
+        publications {
+            mavenJava(MavenPublication) {
+                groupId 'com.frontegg.sdk'
+                artifactId 'android-compose'
+                version = android.defaultConfig.versionName
+                from components.release
+
+                pom {
+                    name = 'android-compose'
+                    description = 'Jetpack Compose state helpers and prebuilt components for the Frontegg Android Kotlin SDK'
+                    url = 'https://github.com/frontegg/frontegg-android-kotlin'
+
+                    organization {
+                        name = 'Frontegg LTD'
+                        url = 'https://frontegg.com'
+                    }
+                    issueManagement {
+                        system = 'GitHub'
+                        url = 'https://github.com/frontegg/frontegg-android-kotlin/issues'
+                    }
+                    licenses {
+                        license {
+                            name = 'The MIT License (MIT)'
+                            url = 'https://raw.githubusercontent.com/frontegg/frontegg-android-kotlin/master/LICENSE'
+                        }
+                    }
+                    developers {
+                        developer {
+                            id = 'frontegg'
+                            name = 'Frontegg Support'
+                            email = 'support@frontegg.com'
+                        }
+                    }
+                    scm {
+                        connection = 'scm:git:git://github.com/frontegg/frontegg-android-kotlin.git'
+                        developerConnection = 'scm:git:ssh://github.com/frontegg/frontegg-android-kotlin.git'
+                        url = 'https://github.com/frontegg/frontegg-android-kotlin'
+                    }
+                }
+            }
+        }
+        repositories {
+            maven {
+                name = 'ossrh-staging-api'
+                url = "https://ossrh-staging-api.central.sonatype.com/service/local/staging/deploy/maven2/"
+                credentials {
+                    username = System.getenv('NEXUS_USERNAME')
+                    password = System.getenv('NEXUS_PASSWORD')
+                }
+            }
+        }
+    }
+    signing {
+        useInMemoryPgpKeys(
+                "0D80D868",
+                System.getenv('GPG_PRIVATE_KEY'),
+                System.getenv('GPG_PASSPHRASE')
+        )
+        sign publishing.publications.mavenJava
+    }
+}

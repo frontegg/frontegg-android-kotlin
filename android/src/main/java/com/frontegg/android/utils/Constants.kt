@@ -25,6 +25,8 @@ class ApiConstants {
         const val silentRefreshToken: String = "oauth/authorize/silent"
         const val socialLoginPostLogin: String = "oauth/account/social/{provider}/post-login"
         const val userEntitlements: String = "frontegg/entitlements/api/v2/user-entitlements"
+        const val userSessions: String = "identity/resources/users/sessions/v1/me"
+        const val revokeOtherUserSessions: String = "identity/resources/users/sessions/v1/me/all"
     }
 }
 

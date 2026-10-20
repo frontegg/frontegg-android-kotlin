@@ -14,6 +14,7 @@ import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
 import com.frontegg.android.models.SocialLoginPostLoginRequest
 import com.frontegg.android.models.User
+import com.frontegg.android.models.UserSession
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.ApiConstants
@@ -23,11 +24,13 @@ import com.frontegg.android.utils.TraceIdLogger
 import com.google.gson.Gson
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
+import com.google.gson.JsonPrimitive
 import com.google.gson.reflect.TypeToken
 import okhttp3.Call
 import okhttp3.ConnectionPool
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
@@ -230,6 +233,15 @@ open class Api(
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
+        return this.httpClient.newCall(request)
+    }
+
+    private fun buildDeleteRequest(url: HttpUrl): Call {
+        val request = Request.Builder()
+            .method("DELETE", null)
+            .headers(this.prepareHeaders())
+            .url(url)
+            .build()
         return this.httpClient.newCall(request)
     }
 
@@ -707,4 +719,67 @@ open class Api(
         }
         return response.body!!.string()
     }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun getUserSessions(): List<UserSession> {
+        buildGetRequest(ApiConstants.userSessions).execute().use { response ->
+            val body = response.body?.string()
+            if (!response.isSuccessful || body == null) {
+                throw FailedToAuthenticateException(response.headers, body ?: "Unknown error occurred")
+            }
+            return parseUserSessions(body)
+        }
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun revokeUserSession(sessionId: String) {
+        val sessionUrl = "$baseUrl/${ApiConstants.userSessions}".toHttpUrl()
+            .newBuilder()
+            .addPathSegment(sessionId)
+            .build()
+        executeDelete(sessionUrl)
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun revokeOtherUserSessions() {
+        executeDelete("$baseUrl/${ApiConstants.revokeOtherUserSessions}".toHttpUrl())
+    }
+
+    @Throws(IOException::class, FailedToAuthenticateException::class)
+    private fun executeDelete(url: HttpUrl) {
+        buildDeleteRequest(url).execute().use { response ->
+            if (!response.isSuccessful) {
+                throw FailedToAuthenticateException(
+                    response.headers,
+                    response.body?.string() ?: "Unknown error occurred"
+                )
+            }
+        }
+    }
+
+    private fun parseUserSessions(body: String): List<UserSession> {
+        val root = JsonParser.parseString(body)
+        val sessions = when {
+            root.isJsonArray -> root.asJsonArray
+            root.isJsonObject && root.asJsonObject.get("items")?.isJsonArray == true ->
+                root.asJsonObject.getAsJsonArray("items")
+            else -> return emptyList()
+        }
+        return sessions
+            .filter { it.isJsonObject }
+            .mapNotNull { element ->
+                val session = element.asJsonObject
+                val id = session.primitiveOrNull("id")?.asString ?: return@mapNotNull null
+                UserSession(
+                    id = id,
+                    userAgent = session.primitiveOrNull("userAgent")?.asString,
+                    ipAddress = session.primitiveOrNull("ipAddress")?.asString,
+                    createdAt = session.primitiveOrNull("createdAt")?.asString,
+                    current = session.primitiveOrNull("current")?.takeIf { it.isBoolean }?.asBoolean ?: false,
+                )
+            }
+    }
+
+    private fun JsonObject.primitiveOrNull(key: String): JsonPrimitive? =
+        get(key)?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive
 }
