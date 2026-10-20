@@ -75,6 +75,9 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any(),
+                any(),
                 any()
             )
         }.returns(Unit)
@@ -223,6 +226,9 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any(),
+                any(),
                 any()
             )
         }.returns(Unit)
@@ -263,7 +269,10 @@ class FronteggAppServiceTest {
                 useDiskCacheWebview = false,
                 enableSessionPerTenant = false,
                 entitlementsEnabled = false,
-                tenantResolver = null
+                tenantResolver = null,
+                any(),
+                any(),
+                any()
             )
         }
     }
@@ -286,6 +295,9 @@ class FronteggAppServiceTest {
         )
         every {
             mockStorage.fill(
+                any(),
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -345,7 +357,10 @@ class FronteggAppServiceTest {
                 useDiskCacheWebview = false,
                 enableSessionPerTenant = false,
                 entitlementsEnabled = false,
-                tenantResolver = null
+                tenantResolver = null,
+                any(),
+                any(),
+                any()
             )
         }
     }
@@ -368,6 +383,9 @@ class FronteggAppServiceTest {
         )
         every {
             mockStorage.fill(
+                any(),
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -431,6 +449,9 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any(),
+                any(),
                 any()
             )
         }
@@ -458,6 +479,9 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
+                any(),
+                any(),
                 any()
             )
         }
@@ -467,6 +491,9 @@ class FronteggAppServiceTest {
     fun `initWithRegion should throw RuntimeException if regions is empty`() {
         every {
             mockStorage.fill(
+                any(),
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),
@@ -531,6 +558,9 @@ class FronteggAppServiceTest {
         )
         every {
             mockStorage.fill(
+                any(),
+                any(),
+                any(),
                 any(),
                 any(),
                 any(),

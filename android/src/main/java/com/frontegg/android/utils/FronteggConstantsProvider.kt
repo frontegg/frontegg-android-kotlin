@@ -74,6 +74,11 @@ object FronteggConstantsProvider {
         val rawOrganization = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ORGANIZATION", "")
         val fronteggOrganization = rawOrganization.trim().takeIf { it.isNotBlank() }
         val entitlementsEnabled = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENTITLEMENTS_ENABLED", false)
+        val useNativeGoogleSignIn =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN", false)
+        val enableDPoP = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_DPOP", false)
+        val playIntegrityCloudProjectNumber =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER", 0L)
 
         return FronteggConstants(
             baseUrl = baseUrl,
@@ -91,6 +96,9 @@ object FronteggConstantsProvider {
             sentryMaxQueueSize = sentryMaxQueueSize,
             fronteggOrganization = fronteggOrganization,
             entitlementsEnabled = entitlementsEnabled,
+            useNativeGoogleSignIn = useNativeGoogleSignIn,
+            enableDPoP = enableDPoP,
+            playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
         )
     }
 }

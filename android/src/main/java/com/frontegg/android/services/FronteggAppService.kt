@@ -34,7 +34,10 @@ class FronteggAppService(
     private var networkMonitoringIntervalSeconds: Int = 10,
     private var enableSessionPerTenant: Boolean = false,
     private var entitlementsEnabled: Boolean = false,
-    private var tenantResolver: TenantResolver? = null
+    private var tenantResolver: TenantResolver? = null,
+    private val useNativeGoogleSignIn: Boolean = false,
+    private val enableDPoP: Boolean = false,
+    private val playIntegrityCloudProjectNumber: Long = 0L,
 ) : FronteggApp {
 
     private val storage = StorageProvider.getInnerStorage()
@@ -86,6 +89,9 @@ class FronteggAppService(
             enableSessionPerTenant,
             entitlementsEnabled,
             tenantResolver,
+            useNativeGoogleSignIn,
+            enableDPoP,
+            playIntegrityCloudProjectNumber,
         )
     }
 

@@ -20,9 +20,7 @@ import com.frontegg.android.utils.AppIdHeaderHelper
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.LogUrlSanitizer
-import com.frontegg.android.utils.NullableObject
-import io.reactivex.rxjava3.disposables.Disposable
-import io.reactivex.rxjava3.functions.Consumer
+import com.frontegg.android.utils.ReadOnlyObservableValue
 import kotlin.time.Duration
 
 
@@ -279,27 +277,27 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         }
     }
 
-    private val disposables: ArrayList<Disposable> = arrayListOf()
+    private val subscriptions: ArrayList<() -> Unit> = arrayListOf()
     private var loaderContainer: LinearLayout? = null
 
-    private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "showLoaderConsumer: ${it.value}")
+    private val showLoaderConsumer: (Boolean) -> Unit = { showLoader ->
+        Log.d(TAG, "showLoaderConsumer: $showLoader")
         runOnUiThread {
             if (showingOAuthCallbackError) {
                 loaderContainer?.visibility = View.GONE
                 return@runOnUiThread
             }
             if (applicationContext.fronteggAuth.isStepUpAuthorization.value) {
-                loaderContainer?.visibility = if (it.value) View.VISIBLE else View.GONE
+                loaderContainer?.visibility = if (showLoader) View.VISIBLE else View.GONE
             } else {
                 loaderContainer?.visibility =
-                    if (it.value || applicationContext.fronteggAuth.isAuthenticated.value) View.VISIBLE else View.GONE
+                    if (showLoader || applicationContext.fronteggAuth.isAuthenticated.value) View.VISIBLE else View.GONE
             }
         }
     }
-    private val isAuthenticatedConsumer: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
-        if (it.value) {
+    private val isAuthenticatedConsumer: (Boolean) -> Unit = { isAuthenticated ->
+        Log.d(TAG, "isAuthenticatedConsumer: $isAuthenticated")
+        if (isAuthenticated) {
             runOnUiThread {
                 authCompleted = true
                 navigateToAuthenticated()
@@ -309,9 +307,9 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         }
     }
 
-    private val isStepUpAuthorization: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isStepUpAuthorization: ${it.value}")
-        if (!it.value) {
+    private val isStepUpAuthorization: (Boolean) -> Unit = { isStepUpAuthorization ->
+        Log.d(TAG, "isStepUpAuthorization: $isStepUpAuthorization")
+        if (!isStepUpAuthorization) {
             runOnUiThread {
                 authCompleted = true
                 navigateToAuthenticated()
@@ -319,6 +317,11 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
                 onAuthFinishedCallback = null
             }
         }
+    }
+
+    private fun bind(observableValue: ReadOnlyObservableValue<Boolean>, listener: (Boolean) -> Unit) {
+        subscriptions.add(observableValue.observe(listener))
+        listener(observableValue.value)
     }
 
     private fun navigateToAuthenticated() {
@@ -337,7 +340,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         super.onResume()
 
         StepUpAuthenticator.resumeEmbeddedActivity()
-        disposables.add(fronteggAuth.showLoader.subscribe(this.showLoaderConsumer))
+        bind(fronteggAuth.showLoader, this.showLoaderConsumer)
 
         Log.d(
             TAG,
@@ -345,9 +348,9 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         )
 
         if (!fronteggAuth.isStepUpAuthorization.value) {
-            disposables.add(fronteggAuth.isAuthenticated.subscribe(this.isAuthenticatedConsumer))
+            bind(fronteggAuth.isAuthenticated, this.isAuthenticatedConsumer)
         } else if (fronteggAuth.isStepUpAuthorization.value) {
-            disposables.add(fronteggAuth.isStepUpAuthorization.subscribe(this.isStepUpAuthorization))
+            bind(fronteggAuth.isStepUpAuthorization, this.isStepUpAuthorization)
         }
 
         // Consume intent data if available (for social login redirects)
@@ -383,9 +386,8 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
 
     override fun onPause() {
         super.onPause()
-        disposables.forEach {
-            it.dispose()
-        }
+        subscriptions.forEach { unsubscribe -> unsubscribe() }
+        subscriptions.clear()
     }
 
     override fun onDestroy() {

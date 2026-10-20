@@ -16,6 +16,9 @@ data class FronteggConstants(
     val sentryMaxQueueSize: Int,
     val fronteggOrganization: String?,
     val entitlementsEnabled: Boolean = false,
+    val useNativeGoogleSignIn: Boolean = false,
+    val enableDPoP: Boolean = false,
+    val playIntegrityCloudProjectNumber: Long = 0L,
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -34,6 +37,9 @@ data class FronteggConstants(
             Pair("sentryMaxQueueSize", sentryMaxQueueSize),
             Pair("fronteggOrganization", fronteggOrganization),
             Pair("entitlementsEnabled", entitlementsEnabled),
+            Pair("useNativeGoogleSignIn", useNativeGoogleSignIn),
+            Pair("enableDPoP", enableDPoP),
+            Pair("playIntegrityCloudProjectNumber", playIntegrityCloudProjectNumber),
         )
     }
 }

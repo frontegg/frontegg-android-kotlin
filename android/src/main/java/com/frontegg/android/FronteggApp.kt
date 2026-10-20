@@ -79,6 +79,9 @@ val Context.fronteggApp: FronteggApp
                 networkMonitoringIntervalSeconds = constants.networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = constants.enableSessionPerTenant,
                 entitlementsEnabled = constants.entitlementsEnabled,
+                useNativeGoogleSignIn = constants.useNativeGoogleSignIn,
+                enableDPoP = constants.enableDPoP,
+                playIntegrityCloudProjectNumber = constants.playIntegrityCloudProjectNumber,
                 tenantResolver = constants.fronteggOrganization?.let { org ->
                     TenantResolver { TenantResolverResult(org) }
                 },
@@ -138,6 +141,10 @@ interface FronteggApp {
          *                       enables "Login per Account" functionality where each tenant can
          *                       have a customized login experience with different branding and
          *                       login methods. See [TenantResolver] for usage details.
+         * @param useNativeGoogleSignIn Sign in with Google through Credential Manager instead of the browser (default: `false`).
+         * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
+         * @param playIntegrityCloudProjectNumber Google Cloud project number for Play Integrity attestation;
+         *                                        `0` disables attestation (default: `0`).
          */
         @VisibleForTesting
         internal fun init(
@@ -156,6 +163,9 @@ interface FronteggApp {
             enableSessionPerTenant: Boolean = false,
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
+            useNativeGoogleSignIn: Boolean = false,
+            enableDPoP: Boolean = false,
+            playIntegrityCloudProjectNumber: Long = 0L,
         ) {
             val baseUrl: String = when {
                 fronteggDomain.startsWith("http://") || fronteggDomain.startsWith("https://") ->
@@ -181,7 +191,10 @@ interface FronteggApp {
                 networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = enableSessionPerTenant,
                 entitlementsEnabled = entitlementsEnabled,
-                tenantResolver = tenantResolver
+                tenantResolver = tenantResolver,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
+                enableDPoP = enableDPoP,
+                playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
         }
@@ -214,6 +227,9 @@ interface FronteggApp {
             enableSessionPerTenant: Boolean = false,
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
+            useNativeGoogleSignIn: Boolean = false,
+            enableDPoP: Boolean = false,
+            playIntegrityCloudProjectNumber: Long = 0L,
         ): FronteggApp {
             resetInstanceForTesting()
             val baseUrl: String = when {
@@ -248,6 +264,9 @@ interface FronteggApp {
                 enableSessionPerTenant = enableSessionPerTenant,
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
+                enableDPoP = enableDPoP,
+                playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
             )
             runDebugChecksSafe(appContext, fronteggDomain, clientId)
             return instance!!
@@ -265,6 +284,10 @@ interface FronteggApp {
          * @param tenantResolver Optional resolver for custom login per tenant. When provided,
          *                       enables "Login per Account" functionality where each tenant can
          *                       have a customized login experience. See [TenantResolver] for usage.
+         * @param useNativeGoogleSignIn Sign in with Google through Credential Manager instead of the browser (default: `false`).
+         * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
+         * @param playIntegrityCloudProjectNumber Google Cloud project number for Play Integrity attestation;
+         *                                        `0` disables attestation (default: `0`).
          */
         fun initWithRegions(
             regions: List<RegionConfig>,
@@ -279,6 +302,9 @@ interface FronteggApp {
             enableSessionPerTenant: Boolean = false,
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
+            useNativeGoogleSignIn: Boolean = false,
+            enableDPoP: Boolean = false,
+            playIntegrityCloudProjectNumber: Long = 0L,
         ): FronteggApp {
             // Prepare Sentry for later initialization via feature flag.
             runCatching {
@@ -309,7 +335,10 @@ interface FronteggApp {
                        networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                        enableSessionPerTenant = enableSessionPerTenant,
                        entitlementsEnabled = entitlementsEnabled,
-                       tenantResolver = tenantResolver
+                       tenantResolver = tenantResolver,
+                       useNativeGoogleSignIn = useNativeGoogleSignIn,
+                       enableDPoP = enableDPoP,
+                       playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
                    )
                    instance = newInstance
 
@@ -334,7 +363,10 @@ interface FronteggApp {
                 networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = enableSessionPerTenant,
                 entitlementsEnabled = entitlementsEnabled,
-                tenantResolver = tenantResolver
+                tenantResolver = tenantResolver,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
+                enableDPoP = enableDPoP,
+                playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
             )
             instance = newInstance
             // Persist parameters to allow retry when network becomes available
