@@ -19,6 +19,8 @@ internal class DeviceIntegrityAttestor(
             preparedProvider()
         } catch (e: IntegrityAttestationException) {
             Log.w(TAG, "Play Integrity warm-up failed: ${describe(e)}")
+        } catch (e: RuntimeException) {
+            Log.w(TAG, "Play Integrity warm-up failed: ${e.javaClass.simpleName}")
         }
     }
 

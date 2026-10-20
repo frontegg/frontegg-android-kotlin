@@ -93,4 +93,13 @@ class DeviceIntegrityAttestorTest {
 
         assertNull(DeviceIntegrityAttestor(factory).attest("hash"))
     }
+
+    @Test
+    fun `warmUp swallows an unexpected runtime failure`() {
+        val factory = object : IntegrityProviderFactory {
+            override fun prepare(): IntegrityTokenProvider = throw IllegalStateException("no Play services")
+        }
+
+        DeviceIntegrityAttestor(factory).warmUp()
+    }
 }
