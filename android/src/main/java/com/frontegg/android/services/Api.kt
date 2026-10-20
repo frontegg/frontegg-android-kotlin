@@ -9,6 +9,7 @@ import com.frontegg.android.exceptions.FailedToAuthenticatePasskeysException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
+import com.frontegg.android.integrity.DeviceIntegrityInterceptor
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
 import com.frontegg.android.models.SocialLoginPostLoginRequest
@@ -101,6 +102,7 @@ open class Api(
         .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)   // For slow networks (EDGE)
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .addInterceptor(sentryInterceptor)
+        .addInterceptor(DeviceIntegrityInterceptor(baseUrlProvider = { baseUrl }))
         .build()
 
     /**

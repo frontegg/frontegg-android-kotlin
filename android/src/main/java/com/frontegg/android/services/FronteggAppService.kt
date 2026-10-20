@@ -6,6 +6,7 @@ import androidx.annotation.VisibleForTesting
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.integrity.DeviceIntegrity
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.SentryHelper
 import com.frontegg.android.utils.TenantResolver
@@ -50,6 +51,7 @@ class FronteggAppService(
 
     init {
         fillStorage()
+        DeviceIntegrity.configure(context, playIntegrityCloudProjectNumber)
         auth =
             FronteggAuthService(
                 credentialManager,
