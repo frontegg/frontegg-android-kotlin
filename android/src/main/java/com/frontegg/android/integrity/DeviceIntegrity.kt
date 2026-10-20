@@ -1,8 +1,8 @@
 package com.frontegg.android.integrity
 
 import android.content.Context
+import com.frontegg.android.utils.DefaultDispatcherProvider
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
 
@@ -18,7 +18,7 @@ internal object DeviceIntegrity {
     @Volatile
     private var configuredProjectNumber: Long = 0L
 
-    private val warmUpScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val warmUpScope = CoroutineScope(SupervisorJob() + DefaultDispatcherProvider.io)
 
     fun configure(context: Context, cloudProjectNumber: Long) {
         configure(cloudProjectNumber) { PlayIntegrityProviderFactory(context.applicationContext, cloudProjectNumber) }
