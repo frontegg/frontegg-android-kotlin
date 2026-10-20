@@ -772,6 +772,7 @@ class FronteggAuthService(
                     throw FailedToAuthenticateException(error = "Failed to load the user after Google sign-in")
                 }
 
+                isLoading.value = false
                 callback?.invoke(null)
             } catch (e: CanceledByUserException) {
                 Log.i(TAG, "Google sign-in canceled by user")

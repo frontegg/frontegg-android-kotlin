@@ -30,12 +30,22 @@ internal class DPoPInterceptor(
         val request = chain.request()
         if (!isEnabled() || !isFronteggHost(request.url)) return chain.proceed(request)
 
+        val isTokenRequest = isTokenRequest(request.url)
         val boundAccessToken = boundAccessToken(request)
-        if (boundAccessToken == null && !isTokenRequest(request.url)) return chain.proceed(request)
+        if (boundAccessToken == null && !isTokenRequest) return chain.proceed(request)
+
+        // RFC 9449 token requests carry only the proof, never a bound access token.
+        val resourceAccessToken = boundAccessToken.takeUnless { isTokenRequest }
+        val baseRequest = if (isTokenRequest && boundAccessToken != null) {
+            request.newBuilder().removeHeader(AUTHORIZATION_HEADER).build()
+        } else {
+            request
+        }
 
         val host = request.url.host
         val sentNonce = noncesByHost[host]
-        val firstAttempt = withProof(request, boundAccessToken, sentNonce) ?: return chain.proceed(request)
+        val firstAttempt = withProof(baseRequest, resourceAccessToken, sentNonce)
+            ?: return chain.proceed(request)
         val response = chain.proceed(firstAttempt)
 
         val receivedNonce = response.header(DPOP_NONCE_HEADER)?.takeIf { it.isNotBlank() }
@@ -43,16 +53,16 @@ internal class DPoPInterceptor(
         noncesByHost[host] = receivedNonce
         if (receivedNonce == sentNonce || !isNonceChallenge(response)) return response
 
-        val retry = withProof(request, boundAccessToken, receivedNonce) ?: return response
+        val retry = withProof(baseRequest, resourceAccessToken, receivedNonce) ?: return response
         response.close()
         return chain.proceed(retry)
     }
 
-    private fun withProof(request: Request, boundAccessToken: String?, nonce: String?): Request? {
-        val proof = createProofOrNull(request, boundAccessToken, nonce) ?: return null
+    private fun withProof(request: Request, resourceAccessToken: String?, nonce: String?): Request? {
+        val proof = createProofOrNull(request, resourceAccessToken, nonce) ?: return null
         val builder = request.newBuilder().header(DPOP_HEADER, proof)
-        if (boundAccessToken != null) {
-            builder.header(AUTHORIZATION_HEADER, "$DPOP_SCHEME $boundAccessToken")
+        if (resourceAccessToken != null) {
+            builder.header(AUTHORIZATION_HEADER, "$DPOP_SCHEME $resourceAccessToken")
         }
         return builder.build()
     }

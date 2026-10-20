@@ -107,6 +107,19 @@ class DPoPInterceptorTest {
     }
 
     @Test
+    fun `refresh with a device-bound token sends only the proof`() {
+        server.enqueue(MockResponse().setBody("{}"))
+        val boundToken = DPoPTestSupport.accessTokenBoundTo(generator.thumbprint())
+
+        client().newCall(post("/oauth/token", accessToken = boundToken)).execute().close()
+
+        val recorded = server.takeRequest()
+        assertNull(recorded.getHeader("Authorization"))
+        val claims = DPoPTestSupport.decodeSegment(recorded.getHeader("DPoP")!!, 1)
+        assertFalse(claims.has("ath"))
+    }
+
+    @Test
     fun `token bound to another key stays bearer`() {
         server.enqueue(MockResponse().setBody("{}"))
         val foreignToken = DPoPTestSupport.accessTokenBoundTo("some-other-thumbprint")

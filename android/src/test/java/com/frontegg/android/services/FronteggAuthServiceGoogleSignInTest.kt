@@ -171,6 +171,7 @@ class FronteggAuthServiceGoogleSignInTest {
         verify { credentialManagerMock.save(CredentialKeys.REFRESH_TOKEN, "TestRefreshToken", null) }
         verify { credentialManagerMock.save(CredentialKeys.ACCESS_TOKEN, "TestAccessToken", null) }
         assert(auth.isAuthenticated.value)
+        assert(!auth.isLoading.value)
     }
 
     @Test
