@@ -51,7 +51,6 @@ class CredentialManagerGoogleIdTokenSource(
         val googleIdOption = GetGoogleIdOption.Builder()
             .setServerClientId(serverClientId)
             .setFilterByAuthorizedAccounts(onlyAuthorizedAccounts)
-            .setAutoSelectEnabled(onlyAuthorizedAccounts)
             .build()
         val request = GetCredentialRequest.Builder()
             .addCredentialOption(googleIdOption)

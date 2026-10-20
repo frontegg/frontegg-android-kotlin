@@ -54,7 +54,14 @@ internal class DPoPInterceptor(
         val receivedNonce = response.header(DPOP_NONCE_HEADER)?.takeIf { it.isNotBlank() }
             ?: return response
         noncesByHost[host] = receivedNonce
-        if (receivedNonce == sentNonce || !isNonceChallenge(response)) return response
+        if (receivedNonce == sentNonce) return response
+        val isNonceChallenge = try {
+            isNonceChallenge(response)
+        } catch (e: IOException) {
+            response.close()
+            throw e
+        }
+        if (!isNonceChallenge) return response
 
         val retry = withProof(baseRequest, resourceAccessToken, receivedNonce) ?: return response
         response.close()
@@ -113,6 +120,9 @@ internal class DPoPInterceptor(
             logProofFailure(e)
             return null
         } catch (e: ProviderException) {
+            logProofFailure(e)
+            return null
+        } catch (e: IllegalArgumentException) {
             logProofFailure(e)
             return null
         }

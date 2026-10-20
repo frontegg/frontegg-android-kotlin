@@ -67,12 +67,11 @@ class DeviceIntegrityInterceptorTest {
     }
 
     @Test
-    fun `attests social post-login, passkey post-login and silent authorize`() {
+    fun `attests social post-login and passkey post-login`() {
         val client = client()
         val paths = listOf(
             "/oauth/account/social/google/post-login",
             "/identity/resources/auth/v1/webauthn/postlogin",
-            "/oauth/authorize/silent",
         )
 
         paths.forEach { path ->
@@ -103,6 +102,7 @@ class DeviceIntegrityInterceptorTest {
         val client = client()
         val paths = listOf(
             "/identity/resources/users/v1/tenant",
+            "/oauth/authorize/silent",
             "/oauth/account/social//post-login",
             "/oauth/account/social/post-login",
             "/oauth/account/social/google/extra/post-login",

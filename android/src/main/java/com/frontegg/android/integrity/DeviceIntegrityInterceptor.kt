@@ -63,8 +63,7 @@ internal class DeviceIntegrityInterceptor(
     private fun isSignInEndpoint(endpointPath: String): Boolean {
         return when (endpointPath) {
             FronteggEndpoints.TOKEN_PATH,
-            FronteggEndpoints.PASSKEY_POST_LOGIN_PATH,
-            FronteggEndpoints.SILENT_AUTHORIZE_PATH -> true
+            FronteggEndpoints.PASSKEY_POST_LOGIN_PATH -> true
             else -> FronteggEndpoints.isSocialLoginPostLogin(endpointPath)
         }
     }

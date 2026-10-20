@@ -19,7 +19,7 @@ class NullableObject<K>(var value: K)
  */
 abstract class ReadOnlyObservableValue<T>(value: T) {
 
-    protected val mutableStateFlow: MutableStateFlow<T> = MutableStateFlow(value)
+    private val mutableStateFlow: MutableStateFlow<T> = MutableStateFlow(value)
 
     /**
      * Hot [StateFlow] of this value. Collect it from a coroutine, or in Compose with
@@ -77,7 +77,7 @@ class ObservableValue<T>(value: T) : ReadOnlyObservableValue<T>(value) {
 
     override var value: T
         get() {
-            return mutableStateFlow.value
+            return stateFlow.value
         }
         set(newValue) {
             publish(newValue)

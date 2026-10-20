@@ -8,6 +8,7 @@ import java.security.KeyPair
 import java.security.KeyPairGenerator
 import java.security.KeyStore
 import java.security.PrivateKey
+import java.security.UnrecoverableKeyException
 import java.security.spec.ECGenParameterSpec
 
 internal interface DPoPKeyProvider {
@@ -27,11 +28,7 @@ internal class AndroidKeyStoreDPoPKeyProvider(
     @Throws(GeneralSecurityException::class, IOException::class)
     override fun getOrCreateKeyPair(): KeyPair {
         val keyStore = loadKeyStore()
-        val privateKey = keyStore.getKey(alias, null) as? PrivateKey
-        val publicKey = keyStore.getCertificate(alias)?.publicKey
-        if (privateKey != null && publicKey != null) {
-            return KeyPair(publicKey, privateKey)
-        }
+        storedKeyPair(keyStore)?.let { return it }
 
         val generator = KeyPairGenerator.getInstance(KeyProperties.KEY_ALGORITHM_EC, ANDROID_KEY_STORE)
         generator.initialize(
@@ -41,6 +38,19 @@ internal class AndroidKeyStoreDPoPKeyProvider(
                 .build()
         )
         return generator.generateKeyPair()
+    }
+
+    // An entry that can no longer be read is replaced, so a corrupted key does not disable DPoP for good.
+    @Throws(GeneralSecurityException::class)
+    private fun storedKeyPair(keyStore: KeyStore): KeyPair? {
+        return try {
+            val privateKey = keyStore.getKey(alias, null) as? PrivateKey
+            val publicKey = keyStore.getCertificate(alias)?.publicKey
+            if (privateKey != null && publicKey != null) KeyPair(publicKey, privateKey) else null
+        } catch (e: UnrecoverableKeyException) {
+            keyStore.deleteEntry(alias)
+            null
+        }
     }
 
     @Synchronized

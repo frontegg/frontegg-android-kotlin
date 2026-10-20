@@ -643,6 +643,6 @@ emulators and scripted clients.
    or `FronteggApp.initWithRegions(..., playIntegrityCloudProjectNumber = 123456789012L)`.
 
 The SDK sends the token in the `frontegg-device-integrity-token` header on code exchange, social
-login, passkey login and silent authorization. Token refreshes are not attested. The token's request
+login and passkey login. Token refreshes and silent authorization are not attested. The token's request
 hash is the base64url SHA-256 of the request body. Attestation never blocks sign-in on the device:
 if Play Integrity is unavailable or times out, the request is sent without the header.
