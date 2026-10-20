@@ -114,6 +114,7 @@ class FronteggAuthService(
     private val sessionTracker = SessionTracker(credentialManager.context)
     override val entitlements: EntitlementsService =
         EntitlementsService(api, storage.entitlementsEnabled)
+    override val sessions: SessionsService by lazy { SessionsService(api, ioDispatcher) }
 
     @Volatile private var derivedStateBound = false
 

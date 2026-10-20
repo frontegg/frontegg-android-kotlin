@@ -17,6 +17,7 @@ dependencyResolutionManagement {
 
 rootProject.name = "Frontegg Android Kotlin"
 include ':android'
+include ':compose'
 include ':app'
 include ':embedded'
 include ':multi-region'
