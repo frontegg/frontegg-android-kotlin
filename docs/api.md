@@ -12,6 +12,8 @@ The FronteggAuth class provides several methods for authentication and user mana
 
 #### Properties
 
+Each `ReadOnlyObservableValue` exposes `value` and a `stateFlow` (`StateFlow<T>`) to observe changes.
+
 | Property | Type | Description |
 |----------|------|-------------|
 | `accessToken` | `ReadOnlyObservableValue<String?>` | Current access token. Null if user is unauthorized |
@@ -33,6 +35,7 @@ The FronteggAuth class provides several methods for authentication and user mana
 | `useAssetsLinks` | `Boolean` | Flag for using asset links |
 | `useChromeCustomTabs` | `Boolean` | Flag for using Chrome Custom Tabs |
 | `mainActivityClass` | `Class<*>?` | Main activity class reference |
+| `sessions` | `SessionsService` | Lists and revokes the user's active sessions |
 
 #### Methods
 
@@ -45,6 +48,7 @@ The FronteggAuth class provides several methods for authentication and user mana
 | `refreshTokenIfNeeded()` | Refresh token if needed | None | `Boolean` |
 | `loginWithPasskeys(activity: Activity, callback: ((Exception?) -> Unit)?)` | Logs in with a passkey | `activity`: Current Activity, `callback`: Error handler | `void` |
 | `registerPasskeys(activity: Activity, callback: ((Exception?) -> Unit)?)` | Registers a new passkey | `activity`: Current Activity, `callback`: Error handler | `void` |
+| `loginWithGoogle(activity: Activity, callback: ((Exception?) -> Unit)?)` | Signs in with Google through Credential Manager | `activity`: Current Activity, `callback`: Error handler | `void` |
 | `requestAuthorizeAsync(refreshToken: String, deviceTokenCookie: String?)` | Requests silent authorization (suspend) | `refreshToken`: Refresh token, `deviceTokenCookie`: Optional device token | `User` |
 | `requestAuthorize(refreshToken: String, deviceTokenCookie: String?, callback: (Result<User>) -> Unit)` | Requests authorization | `refreshToken`: Token, `deviceTokenCookie`: Device token, `callback`: Result handler | `void` |
 | `isSteppedUp(maxAge: Duration?)` | Checks step-up authentication status | `maxAge`: Optional max duration | `Boolean` |

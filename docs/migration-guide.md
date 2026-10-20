@@ -154,6 +154,9 @@ FronteggApp.initWithRegions(regions, context)
 | `FRONTEGG_DEEP_LINK_SCHEME` | String | `null` | Custom deep link scheme | `"myapp"` |
 | `FRONTEGG_USE_DISK_CACHE_WEBVIEW` | boolean | `false` | Enable WebView disk cache | `false` |
 | `FRONTEGG_MAIN_ACTIVITY_CLASS` | String | `null` | Main activity class name | `"com.example.MainActivity"` |
+| `FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN` | boolean | `false` | Sign in with Google through Credential Manager | `true` |
+| `FRONTEGG_ENABLE_DPOP` | boolean | `false` | Bind tokens to a device key with DPoP | `true` |
+| `FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER` | long | `0` | Play Integrity project number; `0` turns attestation off | `123456789012L` |
 
 ### Build Variants Example
 

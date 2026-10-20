@@ -512,3 +512,135 @@ The SDK can load and check user entitlements — features and permissions — fr
 1. Entitlements are fetched automatically on login. You can also call `fronteggAuth.loadEntitlements(forceRefresh, completion)`. By default (`forceRefresh = false`) the SDK uses the cached entitlements when available and makes no network call; pass `forceRefresh = true` to always fetch from `GET .../frontegg/entitlements/api/v2/user-entitlements`.
 2. Check against the cached state with `getFeatureEntitlements(featureKey)`, `getPermissionEntitlements(permissionKey)`, or `getEntitlements(options)` using `EntitledToOptions.FeatureKey(key)` or `EntitledToOptions.PermissionKey(key)`.
 3. Every check after loading reads in-memory state only. The cache is cleared on logout. The raw state is available via `fronteggAuth.entitlements.state` (`EntitlementState`: `featureKeys`, `permissionKeys`).
+
+## Native Google sign-in
+
+Sign in with Google through Android Credential Manager, the system account sheet, instead of a
+browser round-trip.
+
+**Setup**
+
+1. In the Frontegg Portal, turn on Google under **Authentication → Login method → Social login**,
+   with your Google *web* OAuth client ID.
+2. In the same Google Cloud project as that web client, create an **Android** OAuth client with
+   your app's package name and the SHA-1 of every signing certificate (debug, release and Play App
+   Signing).
+3. Turn it on:
+
+   ```groovy
+   buildConfigField "boolean", "FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN", "true"
+   ```
+
+   or pass `useNativeGoogleSignIn = true` to `FronteggApp.initWithRegions(...)`.
+
+**Usage**
+
+- **Embedded login:** the login box's Google button opens the native sheet. If the user closes the
+  sheet they stay on the login box; any other failure falls back to the browser flow.
+- **Your own button**, in hosted or embedded mode:
+
+  ```kotlin
+  fronteggAuth.loginWithGoogle(activity) { error ->
+      when (error) {
+          null -> { /* signed in; isAuthenticated is true */ }
+          is CanceledByUserException -> { /* the user closed the sheet */ }
+          is GoogleSignInNotConfiguredException -> { /* Google login is not active in Frontegg */ }
+          else -> { /* sign-in failed */ }
+      }
+  }
+  ```
+
+## Jetpack Compose
+
+```groovy
+dependencies {
+    implementation 'com.frontegg.sdk:android:LATEST_VERSION'
+    implementation 'com.frontegg.sdk:android-compose:LATEST_VERSION'
+}
+```
+
+### Auth state as Compose state
+
+```kotlin
+@Composable
+fun Root() {
+    val auth = rememberFronteggAuth()
+    val isAuthenticated by auth.isAuthenticated.collectAsState()
+    val user by auth.user.collectAsState()
+
+    if (isAuthenticated) HomeScreen(user) else LoginScreen()
+}
+```
+
+### Tenant switcher
+
+Lists the user's tenants, marks the active one and switches on tap:
+
+```kotlin
+FronteggTenantSwitcher(
+    onTenantSwitched = { tenant -> /* the new tenant's tokens are ready */ }
+)
+```
+
+### Security center
+
+A full screen with account details, MFA status, passkey registration, active sessions and sign
+out. It scrolls itself, so host it as a screen rather than inside another vertical scroller:
+
+```kotlin
+FronteggSecurityCenter(
+    onSignedOut = { navController.navigate("login") }
+)
+```
+
+Both components follow your `MaterialTheme`. Each also has a stateless overload,
+`FronteggTenantSwitcher(tenants, activeTenantId, uiState, onTenantSelected)` and
+`FronteggSecurityCenter(user, uiState, ...)`, for custom wiring.
+
+### Sessions API
+
+The security center is built on `fronteggAuth.sessions`, which you can also call directly:
+
+```kotlin
+val sessions = fronteggAuth.sessions.getActiveSessions()
+fronteggAuth.sessions.revokeSession(sessions.first { !it.current }.id)
+fronteggAuth.sessions.revokeOtherSessions()
+```
+
+## DPoP token binding
+
+Bind your users' tokens to the device with [DPoP (RFC 9449)](https://www.rfc-editor.org/rfc/rfc9449).
+The SDK keeps a non-exportable P-256 key in the Android Keystore and signs a proof for each token
+request. Once your environment issues DPoP-bound tokens, they can't be replayed from another device.
+
+```groovy
+buildConfigField "boolean", "FRONTEGG_ENABLE_DPOP", "true"
+```
+
+or pass `enableDPoP = true` to `FronteggApp.initWithRegions(...)`.
+
+- A token bound to the device key (its `cnf.jkt` claim matches the key) is sent as
+  `Authorization: DPoP`. Unbound tokens stay `Bearer`, so turning this on is safe before your
+  environment enforces DPoP.
+- Server nonces (`DPoP-Nonce`) are handled automatically.
+- Logout rotates the device key, so each new session gets a fresh binding.
+
+## Play Integrity device attestation
+
+Attach a Google Play Integrity token to sign-in requests so your backend can reject tampered apps,
+emulators and scripted clients.
+
+1. In Google Play Console, link a Google Cloud project to your app under
+   **App integrity → Play Integrity API**.
+2. Pass the project number to the SDK:
+
+   ```groovy
+   buildConfigField "long", "FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER", "123456789012L"
+   ```
+
+   or `FronteggApp.initWithRegions(..., playIntegrityCloudProjectNumber = 123456789012L)`.
+
+The SDK sends the token in the `frontegg-device-integrity-token` header on code exchange, social
+login, passkey login and silent authorization. Token refreshes are not attested. The token's request
+hash is the base64url SHA-256 of the request body. Attestation never blocks sign-in on the device:
+if Play Integrity is unavailable or times out, the request is sent without the header.
