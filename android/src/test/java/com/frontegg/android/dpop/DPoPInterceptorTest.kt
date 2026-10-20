@@ -217,6 +217,19 @@ class DPoPInterceptorTest {
     }
 
     @Test
+    fun `proof failure on a refresh still drops the device-bound token`() {
+        val boundToken = DPoPTestSupport.accessTokenBoundTo(generator.thumbprint())
+        keyProvider.failure = KeyStoreException("keystore unavailable")
+        server.enqueue(MockResponse().setBody("{}"))
+
+        client().newCall(post("/oauth/token", accessToken = boundToken)).execute().close()
+
+        val recorded = server.takeRequest()
+        assertNull(recorded.getHeader("DPoP"))
+        assertNull(recorded.getHeader("Authorization"))
+    }
+
+    @Test
     fun `proof failure sends the request without DPoP`() {
         keyProvider.failure = KeyStoreException("keystore unavailable")
         server.enqueue(MockResponse().setBody("{}"))

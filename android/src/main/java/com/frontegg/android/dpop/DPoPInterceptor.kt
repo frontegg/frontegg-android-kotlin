@@ -45,7 +45,7 @@ internal class DPoPInterceptor(
         val host = request.url.host
         val sentNonce = noncesByHost[host]
         val firstAttempt = withProof(baseRequest, resourceAccessToken, sentNonce)
-            ?: return chain.proceed(request)
+            ?: return chain.proceed(baseRequest)
         val response = chain.proceed(firstAttempt)
 
         val receivedNonce = response.header(DPOP_NONCE_HEADER)?.takeIf { it.isNotBlank() }

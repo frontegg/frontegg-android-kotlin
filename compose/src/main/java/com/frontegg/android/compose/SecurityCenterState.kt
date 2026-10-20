@@ -1,6 +1,7 @@
 package com.frontegg.android.compose
 
 import android.app.Activity
+import androidx.credentials.exceptions.CreateCredentialCancellationException
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.models.UserSession
@@ -110,6 +111,7 @@ class SecurityCenterState(
         auth.registerPasskeys(activity) { error ->
             val status = when (error) {
                 null -> PasskeyRegistrationStatus.REGISTERED
+                is CreateCredentialCancellationException -> PasskeyRegistrationStatus.IDLE
                 is WebAuthnAlreadyRegisteredInLocalDeviceException -> PasskeyRegistrationStatus.ALREADY_REGISTERED
                 else -> PasskeyRegistrationStatus.FAILED
             }
