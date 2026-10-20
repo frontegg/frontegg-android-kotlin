@@ -104,6 +104,9 @@ object FronteggReconnector {
                             useDiskCacheWebview = flags.useDiskCacheWebview,
                             enableOfflineMode = flags.enableOfflineMode,
                             networkMonitoringIntervalSeconds = flags.networkMonitoringIntervalSeconds,
+                            useNativeGoogleSignIn = flags.useNativeGoogleSignIn,
+                            enableDPoP = flags.enableDPoP,
+                            playIntegrityCloudProjectNumber = flags.playIntegrityCloudProjectNumber,
                         )
                         // small delay to allow internal setup
                         delay(50)

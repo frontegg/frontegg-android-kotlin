@@ -36,9 +36,10 @@ abstract class ReadOnlyObservableValue<T>(value: T) {
     val observable: PublishSubject<NullableObject<T>> = PublishSubject.create()
 
     protected var nullableObject: NullableObject<T> = NullableObject(value)
+    protected val setLock = Any()
     open val value: T
         get() {
-            return nullableObject.value
+            return mutableStateFlow.value
         }
 
     /**
@@ -78,10 +79,12 @@ class ObservableValue<T>(value: T) : ReadOnlyObservableValue<T>(value) {
 
     override var value: T
         get() {
-            return nullableObject.value
+            return mutableStateFlow.value
         }
         set(newValue) {
-            nullableObject.value = newValue
-            publish(newValue)
+            synchronized(setLock) {
+                nullableObject.value = newValue
+                publish(newValue)
+            }
         }
 }

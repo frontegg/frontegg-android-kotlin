@@ -380,6 +380,9 @@ interface FronteggApp {
                     useDiskCacheWebview = useDiskCacheWebview,
                     enableOfflineMode = enableOfflineMode,
                     networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
+                    useNativeGoogleSignIn = useNativeGoogleSignIn,
+                    enableDPoP = enableDPoP,
+                    playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
                 )
             )
             return newInstance

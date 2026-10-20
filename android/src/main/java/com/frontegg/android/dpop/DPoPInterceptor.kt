@@ -1,9 +1,8 @@
 package com.frontegg.android.dpop
 
 import android.util.Log
+import com.frontegg.android.utils.FronteggEndpoints
 import com.google.gson.JsonParser
-import okhttp3.HttpUrl
-import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.Request
 import okhttp3.Response
@@ -28,9 +27,10 @@ internal class DPoPInterceptor(
     @Throws(IOException::class)
     override fun intercept(chain: Interceptor.Chain): Response {
         val request = chain.request()
-        if (!isEnabled() || !isFronteggHost(request.url)) return chain.proceed(request)
+        val baseUrl = baseUrlProvider()
+        if (!isEnabled() || !FronteggEndpoints.isFronteggHost(request.url, baseUrl)) return chain.proceed(request)
 
-        val isTokenRequest = isTokenRequest(request.url)
+        val isTokenRequest = isTokenRequest(FronteggEndpoints.relativePath(request.url, baseUrl))
         val boundAccessToken = boundAccessToken(request)
         if (boundAccessToken == null && !isTokenRequest) return chain.proceed(request)
 
@@ -89,14 +89,10 @@ internal class DPoPInterceptor(
         Log.w(TAG, "Sending request without a DPoP proof: ${error.javaClass.simpleName}")
     }
 
-    private fun isFronteggHost(url: HttpUrl): Boolean {
-        val fronteggHost = baseUrlProvider().toHttpUrlOrNull()?.host ?: return false
-        return url.host.equals(fronteggHost, ignoreCase = true)
-    }
-
-    private fun isTokenRequest(url: HttpUrl): Boolean {
-        val path = url.encodedPath
-        return TOKEN_PATH_SUFFIXES.any { path.endsWith(it) } || SOCIAL_POST_LOGIN_PATH.containsMatchIn(path)
+    private fun isTokenRequest(relativePath: String): Boolean {
+        return relativePath == FronteggEndpoints.TOKEN_PATH ||
+            relativePath == FronteggEndpoints.SILENT_AUTHORIZE_PATH ||
+            FronteggEndpoints.isSocialLoginPostLogin(relativePath)
     }
 
     private fun boundAccessToken(request: Request): String? {
@@ -140,8 +136,6 @@ internal class DPoPInterceptor(
         private const val HTTP_BAD_REQUEST = 400
         private const val HTTP_UNAUTHORIZED = 401
         private const val MAX_ERROR_BODY_BYTES = 4096L
-        private val TOKEN_PATH_SUFFIXES = listOf("/oauth/token", "/oauth/authorize/silent")
-        private val SOCIAL_POST_LOGIN_PATH = Regex("/oauth/account/social/[^/]+/post-login$")
 
         /** Returns the `cnf.jkt` claim of a JWT access token, or null if it has none. */
         fun confirmationThumbprint(accessToken: String): String? = runCatching {

@@ -9,6 +9,7 @@ import org.junit.Test
 import java.math.BigInteger
 import java.security.AlgorithmParameters
 import java.security.KeyFactory
+import java.security.KeyStoreException
 import java.security.Signature
 import java.security.interfaces.ECPublicKey
 import java.security.spec.ECGenParameterSpec
@@ -100,6 +101,15 @@ class DPoPProofGeneratorTest {
 
         assertEquals(1, keyProvider.deleteCount)
         assertNotEquals(before, after)
+    }
+
+    @Test
+    fun `the device key is read from the keystore once`() {
+        generator.createProof("POST", tokenUrl)
+        keyProvider.failure = KeyStoreException("keystore unavailable")
+
+        generator.createProof("POST", tokenUrl)
+        generator.thumbprint()
     }
 
     private fun publicKey(x: String, y: String): ECPublicKey {

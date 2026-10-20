@@ -64,6 +64,27 @@ class ConfigCacheTest {
     }
 
     @Test
+    fun `security and sign-in flags survive a save and load`() {
+        val regions = listOf(RegionConfig("us", "https://us.frontegg.com", "client-us", "app-us"))
+        val flags = ConfigCache.RegionsInitFlags(
+            useAssetsLinks = false,
+            useChromeCustomTabs = false,
+            mainActivityClassName = null,
+            useDiskCacheWebview = false,
+            useNativeGoogleSignIn = true,
+            enableDPoP = true,
+            playIntegrityCloudProjectNumber = 123456789012L,
+        )
+
+        ConfigCache.saveLastRegionsInit(mockContext, regions, flags)
+        val loadedFlags = ConfigCache.loadLastRegionsInit(mockContext)!!.second
+
+        assert(loadedFlags.useNativeGoogleSignIn)
+        assert(loadedFlags.enableDPoP)
+        assert(loadedFlags.playIntegrityCloudProjectNumber == 123456789012L)
+    }
+
+    @Test
     fun `saveLastRegionsInit handles null applicationId`() {
         val regions = listOf(
             RegionConfig("us", "https://us.frontegg.com", "client-us", null)

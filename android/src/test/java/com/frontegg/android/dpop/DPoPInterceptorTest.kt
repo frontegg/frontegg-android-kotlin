@@ -12,6 +12,8 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.security.KeyPair
+import java.security.KeyPairGenerator
 import java.security.KeyStoreException
 
 class DPoPInterceptorTest {
@@ -132,6 +134,19 @@ class DPoPInterceptorTest {
     }
 
     @Test
+    fun `token requests are matched under the base url path prefix`() {
+        server.enqueue(MockResponse().setBody("{}"))
+        server.enqueue(MockResponse().setBody("{}"))
+        val prefixedClient = client(baseUrl = server.url("/auth").toString())
+
+        prefixedClient.newCall(post("/auth/oauth/token")).execute().close()
+        prefixedClient.newCall(post("/auth/identity/oauth/token")).execute().close()
+
+        assertTrue(server.takeRequest().getHeader("DPoP") != null)
+        assertNull(server.takeRequest().getHeader("DPoP"))
+    }
+
+    @Test
     fun `requests to other hosts are untouched`() {
         server.enqueue(MockResponse().setBody("{}"))
 
@@ -218,8 +233,9 @@ class DPoPInterceptorTest {
 
     @Test
     fun `proof failure on a refresh still drops the device-bound token`() {
+        val rsaPrivateKey = KeyPairGenerator.getInstance("RSA").apply { initialize(2048) }.generateKeyPair().private
+        keyProvider.keyPair = KeyPair(keyProvider.getOrCreateKeyPair().public, rsaPrivateKey)
         val boundToken = DPoPTestSupport.accessTokenBoundTo(generator.thumbprint())
-        keyProvider.failure = KeyStoreException("keystore unavailable")
         server.enqueue(MockResponse().setBody("{}"))
 
         client().newCall(post("/oauth/token", accessToken = boundToken)).execute().close()

@@ -6,6 +6,7 @@ import okhttp3.HttpUrl
 import java.io.IOException
 import java.security.GeneralSecurityException
 import java.security.InvalidKeyException
+import java.security.KeyPair
 import java.security.ProviderException
 import java.security.Signature
 import java.security.SignatureException
@@ -16,8 +17,10 @@ internal class DPoPProofGenerator(
     private val keyProvider: DPoPKeyProvider,
     private val currentEpochSeconds: () -> Long = { System.currentTimeMillis() / 1000 },
 ) {
-    @Volatile
-    private var cachedThumbprint: String? = null
+    private class DeviceKey(val keyPair: KeyPair, val publicKey: ECPublicKey, val thumbprint: String)
+
+    private val keyLock = Any()
+    private var cachedKey: DeviceKey? = null
 
     @Throws(GeneralSecurityException::class, IOException::class)
     fun createProof(
@@ -26,13 +29,12 @@ internal class DPoPProofGenerator(
         accessToken: String? = null,
         nonce: String? = null,
     ): String {
-        val keyPair = keyProvider.getOrCreateKeyPair()
-        val publicKey = keyPair.public as? ECPublicKey ?: throw InvalidKeyException("DPoP key is not an EC key")
+        val deviceKey = deviceKey()
 
         val header = JsonObject().apply {
             addProperty("typ", "dpop+jwt")
             addProperty("alg", "ES256")
-            add("jwk", publicJwk(publicKey))
+            add("jwk", publicJwk(deviceKey.publicKey))
         }
         val claims = JsonObject().apply {
             addProperty("jti", UUID.randomUUID().toString())
@@ -45,7 +47,7 @@ internal class DPoPProofGenerator(
 
         val signingInput = "${encodeSegment(header)}.${encodeSegment(claims)}"
         val derSignature = Signature.getInstance(SIGNATURE_ALGORITHM).run {
-            initSign(keyPair.private)
+            initSign(deviceKey.keyPair.private)
             update(signingInput.toByteArray(Charsets.US_ASCII))
             sign()
         }
@@ -58,24 +60,31 @@ internal class DPoPProofGenerator(
     }
 
     @Throws(GeneralSecurityException::class, IOException::class)
-    fun thumbprint(): String {
-        cachedThumbprint?.let { return it }
-        val publicKey = keyProvider.getOrCreateKeyPair().public as? ECPublicKey
-            ?: throw InvalidKeyException("DPoP key is not an EC key")
-        return jwkThumbprint(publicKey).also { cachedThumbprint = it }
-    }
+    fun thumbprint(): String = deviceKey().thumbprint
 
     /** Deletes the device key so the next session binds a new one; tokens bound to the old key stop working. */
     fun rotateKey() {
-        cachedThumbprint = null
-        try {
-            keyProvider.deleteKeyPair()
-        } catch (e: GeneralSecurityException) {
-            Log.w(TAG, "Failed to rotate the DPoP key", e)
-        } catch (e: IOException) {
-            Log.w(TAG, "Failed to rotate the DPoP key", e)
-        } catch (e: ProviderException) {
-            Log.w(TAG, "Failed to rotate the DPoP key", e)
+        synchronized(keyLock) {
+            cachedKey = null
+            try {
+                keyProvider.deleteKeyPair()
+            } catch (e: GeneralSecurityException) {
+                Log.w(TAG, "Failed to rotate the DPoP key", e)
+            } catch (e: IOException) {
+                Log.w(TAG, "Failed to rotate the DPoP key", e)
+            } catch (e: ProviderException) {
+                Log.w(TAG, "Failed to rotate the DPoP key", e)
+            }
+        }
+    }
+
+    // Loaded once per key: every Keystore read is an IPC call to the system service.
+    @Throws(GeneralSecurityException::class, IOException::class)
+    private fun deviceKey(): DeviceKey = synchronized(keyLock) {
+        cachedKey ?: run {
+            val keyPair = keyProvider.getOrCreateKeyPair()
+            val publicKey = keyPair.public as? ECPublicKey ?: throw InvalidKeyException("DPoP key is not an EC key")
+            DeviceKey(keyPair, publicKey, jwkThumbprint(publicKey)).also { cachedKey = it }
         }
     }
 

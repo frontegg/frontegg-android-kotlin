@@ -52,6 +52,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -98,6 +99,7 @@ class FronteggAuthService(
 
     companion object {
         private val TAG = FronteggAuth::class.java.simpleName
+        private val derivedStateBound = AtomicBoolean(false)
 
 
     }
@@ -120,8 +122,6 @@ class FronteggAuthService(
     override val entitlements: EntitlementsService =
         EntitlementsService(api, storage.entitlementsEnabled)
     override val sessions: SessionsService by lazy { SessionsService(api, ioDispatcher) }
-
-    @Volatile private var derivedStateBound = false
 
     private val exchangeTokenDedupLock = Any()
     @Volatile private var inFlightExchangeCode: String? = null
@@ -1578,18 +1578,21 @@ class FronteggAuthService(
         }
     }
 
+    // FronteggState is process-wide, so its derived state is bound once per process, not per service.
     private fun bindDerivedStateOnce() {
-        if (derivedStateBound) return
-        derivedStateBound = true
+        if (!derivedStateBound.compareAndSet(false, true)) return
 
+        val state = FronteggState
         val updateShowLoader: (Boolean) -> Unit = {
-            showLoader.value =
-                initializing.value || (!isAuthenticated.value && (isLoading.value || webLoading.value))
+            state.showLoader.value =
+                state.initializing.value ||
+                    (!state.isAuthenticated.value && (state.isLoading.value || state.webLoading.value))
         }
-        listOf(isLoading, isAuthenticated, initializing, webLoading).forEach { it.observe(updateShowLoader) }
+        listOf(state.isLoading, state.isAuthenticated, state.initializing, state.webLoading)
+            .forEach { it.observe(updateShowLoader) }
 
         // Mirror iOS: bind current user to Sentry scope (only if 'mobile-enable-logging' feature flag is enabled).
-        user.observe { currentUser ->
+        state.user.observe { currentUser ->
             if (currentUser != null) {
                 runCatching {
                     SentryHelper.setUser(userId = currentUser.id, email = currentUser.email, username = currentUser.name)

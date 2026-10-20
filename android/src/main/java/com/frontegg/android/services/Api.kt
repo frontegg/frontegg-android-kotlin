@@ -106,8 +106,9 @@ open class Api(
         .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)   // For slow networks (EDGE)
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .addInterceptor(sentryInterceptor)
-        .addInterceptor(DeviceIntegrityInterceptor(baseUrlProvider = { baseUrl }))
+        // DPoP runs first so a nonce retry is attested again with a fresh integrity token.
         .addInterceptor(DPoPInterceptor(baseUrlProvider = { baseUrl }))
+        .addInterceptor(DeviceIntegrityInterceptor(baseUrlProvider = { baseUrl }))
         .build()
 
     /**

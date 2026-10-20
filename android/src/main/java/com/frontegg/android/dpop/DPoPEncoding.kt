@@ -1,7 +1,7 @@
 package com.frontegg.android.dpop
 
+import com.frontegg.android.utils.FronteggEndpoints
 import java.math.BigInteger
-import java.security.MessageDigest
 import java.util.Base64
 
 internal object DPoPEncoding {
@@ -14,8 +14,7 @@ internal object DPoPEncoding {
     fun base64Url(bytes: ByteArray): String =
         Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
 
-    fun sha256Base64Url(value: String): String =
-        base64Url(MessageDigest.getInstance("SHA-256").digest(value.toByteArray(Charsets.UTF_8)))
+    fun sha256Base64Url(value: String): String = FronteggEndpoints.sha256Base64Url(value.toByteArray(Charsets.UTF_8))
 
     fun unsignedFixedLength(value: BigInteger, length: Int = P256_COORDINATE_LENGTH): ByteArray =
         leftPadUnsigned(value.toByteArray(), length)
