@@ -13,6 +13,12 @@ object CredentialManagerHandlerProvider {
     }
 }
 
+object GoogleIdTokenSourceProvider {
+    fun getGoogleIdTokenSource(activity: Activity): GoogleIdTokenSource {
+        return CredentialManagerGoogleIdTokenSource(activity)
+    }
+}
+
 object ScopeProvider {
     val mainScope: CoroutineScope
         get() = MainScope()

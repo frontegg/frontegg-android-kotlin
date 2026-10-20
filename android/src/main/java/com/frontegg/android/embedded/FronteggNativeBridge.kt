@@ -8,9 +8,12 @@ import android.util.Base64
 import android.util.Log
 import android.webkit.JavascriptInterface
 import androidx.browser.customtabs.CustomTabsIntent
+import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
+import com.frontegg.android.services.StorageProvider
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -193,7 +196,34 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
         Log.d("FronteggNativeBridge", "loginWithSocialLoginProvider(${provider})")
 
         val formAction = getFormAction()
-        
+        val activity = context as? Activity
+        if (activity != null && shouldUseNativeGoogleSignIn(provider)) {
+            loginWithNativeGoogle(activity, provider, formAction)
+            return
+        }
+        startBrowserSocialLogin(provider, formAction)
+    }
+
+    private fun shouldUseNativeGoogleSignIn(provider: String): Boolean {
+        return provider == SocialLoginProvider.GOOGLE.value &&
+            StorageProvider.getInnerStorage().useNativeGoogleSignIn
+    }
+
+    private fun loginWithNativeGoogle(activity: Activity, provider: String, formAction: String) {
+        Log.d("FronteggNativeBridge", "Using native Google sign-in")
+        context.fronteggAuth.loginWithGoogle(activity) { error ->
+            when (error) {
+                null -> Log.d("FronteggNativeBridge", "Native Google sign-in succeeded")
+                is CanceledByUserException -> Log.d("FronteggNativeBridge", "Native Google sign-in canceled")
+                else -> {
+                    Log.w("FronteggNativeBridge", "Native Google sign-in failed, using the browser", error)
+                    startBrowserSocialLogin(provider, formAction)
+                }
+            }
+        }
+    }
+
+    private fun startBrowserSocialLogin(provider: String, formAction: String) {
         // Check if legacy social login flow is enabled
         val useLegacySocialLoginFlow = try {
             val configCache = com.frontegg.android.init.ConfigCache.loadLastRegionsInit(context)
