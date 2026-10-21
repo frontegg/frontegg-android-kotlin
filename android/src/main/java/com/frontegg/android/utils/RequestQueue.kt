@@ -9,7 +9,7 @@ import java.util.concurrent.ConcurrentLinkedQueue
  * RequestQueue - queue for deferred request execution on poor network
  * Ensures idempotency and request execution order
  */
-class RequestQueue {
+class RequestQueue(private val currentTimeMillis: () -> Long = System::currentTimeMillis) {
     companion object {
         private const val TAG = "RequestQueue"
     }
@@ -26,7 +26,7 @@ class RequestQueue {
         priority: RequestPriority = RequestPriority.NORMAL
     ) {
         mutex.withLock {
-            val queuedRequest = QueuedRequest(requestId, request, priority, System.currentTimeMillis())
+            val queuedRequest = QueuedRequest(requestId, request, priority, currentTimeMillis())
             pendingRequests.add(queuedRequest)
         }
     }
@@ -86,7 +86,7 @@ class RequestQueue {
      */
     suspend fun removeExpired(maxAgeMs: Long) {
         mutex.withLock {
-            val currentTime = System.currentTimeMillis()
+            val currentTime = currentTimeMillis()
             val iterator = pendingRequests.iterator()
             var removedCount = 0
             
