@@ -14,6 +14,7 @@ internal object E2EBootstrap {
         forceNetworkPathOffline: Boolean,
         enableOfflineMode: Boolean?,
         enableDPoP: Boolean = false,
+        playIntegrityCloudProjectNumber: Long = 0L,
     ) {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
         val jo = JSONObject()
@@ -25,6 +26,7 @@ internal object E2EBootstrap {
             jo.put("enableOfflineMode", enableOfflineMode)
         }
         jo.put("enableDPoP", enableDPoP)
+        jo.put("playIntegrityCloudProjectNumber", playIntegrityCloudProjectNumber)
         val f = File(ctx.filesDir, DemoEmbeddedTestMode.BOOTSTRAP_FILE_NAME)
         f.writeText(jo.toString())
     }
