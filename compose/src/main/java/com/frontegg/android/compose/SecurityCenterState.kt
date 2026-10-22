@@ -88,8 +88,10 @@ class SecurityCenterState(
 
     private fun startSessionsLoad(reportsFailure: Boolean) {
         loadSessionsJob?.cancel()
+        val generation = userGeneration
         loadSessionsJob = scope.launch {
             val sessions = runSessionCall { auth.sessions.getActiveSessions() }
+            if (generation != userGeneration) return@launch
             mutableUiState.update { current ->
                 when {
                     sessions != null -> current.copy(

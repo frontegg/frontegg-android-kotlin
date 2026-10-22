@@ -20,6 +20,7 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -27,6 +28,7 @@ import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlinx.coroutines.withContext
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -281,6 +283,24 @@ class SecurityCenterStateTest {
         assertEquals(listOf(currentSession), state.uiState.value.sessions)
         assertFalse(state.uiState.value.hasOtherSessions)
         coVerify(exactly = 1) { sessionsService.revokeOtherSessions() }
+    }
+
+    @Test
+    fun `a load that finishes after a reset is not shown`() = runTest {
+        val pendingLoad = CompletableDeferred<List<UserSession>>()
+        coEvery { sessionsService.getActiveSessions() } coAnswers {
+            withContext(NonCancellable) { pendingLoad.await() }
+        }
+        val state = SecurityCenterState(auth, this)
+        state.loadSessions()
+        runCurrent()
+
+        state.reset()
+        pendingLoad.complete(listOf(currentSession, otherSession))
+        advanceUntilIdle()
+
+        assertTrue(state.uiState.value.sessions.isEmpty())
+        assertFalse(state.uiState.value.isLoadingSessions)
     }
 
     @Test
