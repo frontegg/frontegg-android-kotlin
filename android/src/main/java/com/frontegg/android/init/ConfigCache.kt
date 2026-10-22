@@ -19,6 +19,7 @@ internal object ConfigCache {
         val enableOfflineMode: Boolean = false,
         val networkMonitoringIntervalSeconds: Int = 10,
         val useLegacySocialLoginFlow: Boolean = false,
+        val enableDPoP: Boolean = false,
     )
 
     fun saveLastRegionsInit(
@@ -44,6 +45,7 @@ internal object ConfigCache {
             .put("enableOfflineMode", flags.enableOfflineMode)
             .put("networkMonitoringIntervalSeconds", flags.networkMonitoringIntervalSeconds)
             .put("useLegacySocialLoginFlow", flags.useLegacySocialLoginFlow)
+            .put("enableDPoP", flags.enableDPoP)
 
         prefs.edit()
             .putString(KEY_REGIONS_JSON, arr.toString())
@@ -78,6 +80,7 @@ internal object ConfigCache {
                 enableOfflineMode = fj.optBoolean("enableOfflineMode", false),
                 networkMonitoringIntervalSeconds = fj.optInt("networkMonitoringIntervalSeconds", 10),
                 useLegacySocialLoginFlow = fj.optBoolean("useLegacySocialLoginFlow", false),
+                enableDPoP = fj.optBoolean("enableDPoP", false),
             )
             regions to flags
         } catch (_: Throwable) {
