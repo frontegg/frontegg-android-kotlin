@@ -5,6 +5,7 @@ import android.util.Log
 import androidx.annotation.VisibleForTesting
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.FronteggAuth
+import com.frontegg.android.dpop.DPoPProvider
 import com.frontegg.android.fronteggAuth
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.SentryHelper
@@ -34,7 +35,8 @@ class FronteggAppService(
     private var networkMonitoringIntervalSeconds: Int = 10,
     private var enableSessionPerTenant: Boolean = false,
     private var entitlementsEnabled: Boolean = false,
-    private var tenantResolver: TenantResolver? = null
+    private var tenantResolver: TenantResolver? = null,
+    private val enableDPoP: Boolean = false,
 ) : FronteggApp {
 
     private val storage = StorageProvider.getInnerStorage()
@@ -47,6 +49,7 @@ class FronteggAppService(
 
     init {
         fillStorage()
+        DPoPProvider.configure(enableDPoP)
         auth =
             FronteggAuthService(
                 credentialManager,

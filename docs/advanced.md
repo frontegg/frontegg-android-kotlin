@@ -512,3 +512,31 @@ The SDK can load and check user entitlements — features and permissions — fr
 1. Entitlements are fetched automatically on login. You can also call `fronteggAuth.loadEntitlements(forceRefresh, completion)`. By default (`forceRefresh = false`) the SDK uses the cached entitlements when available and makes no network call; pass `forceRefresh = true` to always fetch from `GET .../frontegg/entitlements/api/v2/user-entitlements`.
 2. Check against the cached state with `getFeatureEntitlements(featureKey)`, `getPermissionEntitlements(permissionKey)`, or `getEntitlements(options)` using `EntitledToOptions.FeatureKey(key)` or `EntitledToOptions.PermissionKey(key)`.
 3. Every check after loading reads in-memory state only. The cache is cleared on logout. The raw state is available via `fronteggAuth.entitlements.state` (`EntitlementState`: `featureKeys`, `permissionKeys`).
+
+## DPoP token binding
+
+Bind your users' tokens to the device with [DPoP (RFC 9449)](https://www.rfc-editor.org/rfc/rfc9449).
+The SDK keeps a non-exportable P-256 key in the Android Keystore and signs a proof for each token
+request. Once your environment issues DPoP-bound tokens, they can't be replayed from another device.
+
+```groovy
+buildConfigField "boolean", "FRONTEGG_ENABLE_DPOP", "true"
+```
+
+With `FronteggApp.initWithRegions(...)`, which doesn't read this field, pass `enableDPoP = true` instead.
+
+- A token bound to the device key (its `cnf.jkt` claim matches the key) is sent as
+  `Authorization: DPoP`. Unbound tokens stay `Bearer`, so turning this on is safe before your
+  environment enforces DPoP.
+- Server nonces (`DPoP-Nonce`) are handled automatically.
+- Logout rotates the device key, so each new session gets a fresh binding.
+- If the device key can't be used while the session is bound to it, the SDK doesn't send a token request, or a request carrying the bound access token, without a proof. It fails as a network error, so the session is kept and a refresh is retried later. With no bound session, such as at sign-in, the request goes out without a proof.
+- A nonce challenge that is still unmet after the retry fails a refresh as a network error, so the session is kept. Any other rejected proof, such as `invalid_dpop_proof` after the key was lost, ends the session like a rejected refresh token.
+- Only the SDK's own requests carry proofs. Pages in a WebView, such as the Admin Portal, can't sign
+  them, so they won't work once your environment rejects unproven bound tokens.
+- `fronteggAuth.accessToken` is bound too. If your own backend checks `cnf.jkt`, it will reject the
+  token sent as `Bearer`; the SDK doesn't sign proofs for your app's own requests.
+- Turning DPoP off again ends sessions bound to the key at their next refresh, because the refresh
+  is then sent without a proof.
+- OkHttp's automatic retry after a dropped connection resends the request with the same proof. If your
+  environment rejects a reused proof (`jti`), that retry fails like any other rejected request.

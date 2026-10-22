@@ -52,6 +52,7 @@ class App : Application() {
             enableOfflineMode = bootstrap.enableOfflineMode ?: true,
             enableSessionPerTenant = com.frontegg.demo.BuildConfig.FRONTEGG_ENABLE_SESSION_PER_TENANT,
             entitlementsEnabled = false,
+            enableDPoP = bootstrap.enableDPoP,
         )
     }
 

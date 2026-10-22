@@ -104,6 +104,7 @@ object FronteggReconnector {
                             useDiskCacheWebview = flags.useDiskCacheWebview,
                             enableOfflineMode = flags.enableOfflineMode,
                             networkMonitoringIntervalSeconds = flags.networkMonitoringIntervalSeconds,
+                            enableDPoP = flags.enableDPoP,
                         )
                         // small delay to allow internal setup
                         delay(50)
