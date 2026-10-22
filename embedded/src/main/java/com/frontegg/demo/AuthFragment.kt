@@ -8,8 +8,12 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.frontegg.android.fronteggAuth
 import com.frontegg.demo.databinding.FragmentAuthBinding
+import kotlinx.coroutines.launch
 
 class AuthFragment : Fragment() {
 
@@ -50,6 +54,7 @@ class AuthFragment : Fragment() {
         if (DemoEmbeddedTestMode.isEnabled) {
             binding.root.contentDescription = "LoginPageRoot"
             binding.e2eControls.visibility = View.VISIBLE
+            collectStateFlowMarkers()
 
             binding.e2eEmbeddedPasswordButton.setOnClickListener {
                 requireContext().fronteggAuth.login(
@@ -315,6 +320,27 @@ class AuthFragment : Fragment() {
                 Uri.parse("https://frontegg-prod.frontegg.com/oauth/account/sign-up")
             )
             startActivity(intent)
+        }
+    }
+
+    private fun collectStateFlowMarkers() {
+        val auth = requireContext().fronteggAuth
+        binding.e2eStateFlowIsAuthenticated.visibility = View.VISIBLE
+        binding.e2eStateFlowUserEmail.visibility = View.VISIBLE
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    auth.isAuthenticated.stateFlow.collect { authenticated ->
+                        binding.e2eStateFlowIsAuthenticated.text = authenticated.toString()
+                    }
+                }
+                launch {
+                    auth.user.stateFlow.collect { user ->
+                        val email = user?.let { runCatching { it.email }.getOrNull() }
+                        binding.e2eStateFlowUserEmail.text = email ?: "none"
+                    }
+                }
+            }
         }
     }
 

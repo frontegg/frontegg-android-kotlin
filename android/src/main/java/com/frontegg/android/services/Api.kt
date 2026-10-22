@@ -15,20 +15,25 @@ import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
 import com.frontegg.android.models.SocialLoginPostLoginRequest
 import com.frontegg.android.models.User
+import com.frontegg.android.models.UserSession
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
 import com.frontegg.android.utils.ApiConstants
 import com.frontegg.android.utils.CredentialKeys
+import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.SentryHelper
 import com.frontegg.android.utils.TraceIdLogger
 import com.google.gson.Gson
 import com.google.gson.JsonObject
+import com.google.gson.JsonParseException
 import com.google.gson.JsonParser
+import com.google.gson.JsonPrimitive
 import com.google.gson.reflect.TypeToken
 import okhttp3.Call
 import okhttp3.ConnectionPool
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
+import okhttp3.HttpUrl
 import okhttp3.Interceptor
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
@@ -231,6 +236,15 @@ open class Api(
         requestBuilder.url(url)
 
         val request = requestBuilder.build()
+        return this.httpClient.newCall(request)
+    }
+
+    private fun buildDeleteRequest(url: HttpUrl): Call {
+        val request = Request.Builder()
+            .method("DELETE", null)
+            .headers(this.prepareHeaders())
+            .url(url)
+            .build()
         return this.httpClient.newCall(request)
     }
 
@@ -716,4 +730,68 @@ open class Api(
         }
         return response.body!!.string()
     }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun getUserSessions(): List<UserSession> {
+        buildGetRequest(ApiConstants.userSessions).execute().use { response ->
+            val body = response.body?.string()
+            if (!response.isSuccessful || body == null) {
+                throw FailedToAuthenticateException(response.headers, body ?: "Unknown error occurred")
+            }
+            return try {
+                parseUserSessions(body, currentSessionId())
+            } catch (e: JsonParseException) {
+                throw IOException("The sessions response is not JSON", e)
+            }
+        }
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun revokeUserSession(sessionId: String) {
+        val sessionUrl = "$baseUrl/${ApiConstants.userSessions}".toHttpUrl()
+            .newBuilder()
+            .addPathSegment(sessionId)
+            .build()
+        buildDeleteRequest(sessionUrl).execute().use { response ->
+            val alreadyRevoked = response.code == HttpURLConnection.HTTP_NOT_FOUND
+            if (!response.isSuccessful && !alreadyRevoked) {
+                throw FailedToAuthenticateException(
+                    response.headers,
+                    response.body?.string() ?: "Unknown error occurred"
+                )
+            }
+        }
+    }
+
+    private fun currentSessionId(): String? =
+        credentialManager.get(CredentialKeys.ACCESS_TOKEN)?.let { JWTHelper.decodeClaims(it)["sid"] as? String }
+
+    @Throws(IOException::class)
+    private fun parseUserSessions(body: String, currentSessionId: String?): List<UserSession> {
+        val root = JsonParser.parseString(body)
+        val sessions = when {
+            root.isJsonArray -> root.asJsonArray
+            root.isJsonObject && root.asJsonObject.get("items")?.isJsonArray == true ->
+                root.asJsonObject.getAsJsonArray("items")
+            else -> throw IOException("The sessions response is neither a list nor an items envelope")
+        }
+        val parsedSessions = sessions
+            .filter { it.isJsonObject }
+            .mapNotNull { element ->
+                val session = element.asJsonObject
+                val id = session.primitiveOrNull("id")?.asString ?: return@mapNotNull null
+                UserSession(
+                    id = id,
+                    userAgent = session.primitiveOrNull("userAgent")?.asString,
+                    ipAddress = session.primitiveOrNull("ipAddress")?.asString,
+                    createdAt = session.primitiveOrNull("createdAt")?.asString,
+                    current = session.primitiveOrNull("current")?.takeIf { it.isBoolean }?.asBoolean == true,
+                )
+            }
+        if (parsedSessions.any { it.current }) return parsedSessions
+        return parsedSessions.map { if (it.id == currentSessionId) it.copy(current = true) else it }
+    }
+
+    private fun JsonObject.primitiveOrNull(key: String): JsonPrimitive? =
+        get(key)?.takeIf { it.isJsonPrimitive }?.asJsonPrimitive
 }

@@ -38,7 +38,7 @@ Add the dependency to your app's `build.gradle`:
 ```groovy
 dependencies {
     implementation 'com.frontegg.sdk:android:1.3.38'
-    implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
+    // Only for the deprecated RxJava subscribe API: implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
 }
 ```
 
