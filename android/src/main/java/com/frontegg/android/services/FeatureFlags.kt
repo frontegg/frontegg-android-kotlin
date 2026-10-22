@@ -1,8 +1,6 @@
 package com.frontegg.android.services
 
-import android.content.Context
 import android.util.Log
-import com.frontegg.android.fronteggAuth
 import com.frontegg.android.utils.SentryHelper
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -56,12 +54,11 @@ class FeatureFlags private constructor() {
 
     /**
      * Load feature flags from the server
-     * @param context Android context
+     * @param authService The auth service to load the flags with
      */
-    fun loadFlags(context: Context) {
+    fun loadFlags(authService: FronteggAuthService) {
         scope.launch {
             try {
-                val authService = context.fronteggAuth as FronteggAuthService
                 val flagsJson = authService.getFeatureFlags()
                 val flagsMap = parseFlags(flagsJson)
                 

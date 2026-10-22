@@ -20,6 +20,10 @@ import java.lang.reflect.Field
 
 class FeatureFlagsTest {
 
+    companion object {
+        private const val FLAG_LOAD_TIMEOUT_MS = 5_000L
+    }
+
     private lateinit var featureFlags: FeatureFlags
     private val mockContext = mockk<Context>()
 
@@ -253,6 +257,22 @@ class FeatureFlagsTest {
         setFlagsViaReflection(mapOf("other-flag" to true))
         
         assert(!featureFlags.isOnSync(SentryHelper.MOBILE_ENABLE_LOGGING_FLAG))
+    }
+
+    @Test
+    fun `loadFlags loads the flags from the auth service it is given`() {
+        mockkObject(SentryHelper)
+        every { SentryHelper.enableFromFeatureFlag(any()) } returns Unit
+        val authService = mockk<FronteggAuthService>()
+        coEvery { authService.getFeatureFlags() } returns """{"identity-sso-force-pkce":"on"}"""
+
+        featureFlags.loadFlags(authService)
+
+        val deadline = System.currentTimeMillis() + FLAG_LOAD_TIMEOUT_MS
+        while (!featureFlags.isOnSync("identity-sso-force-pkce") && System.currentTimeMillis() < deadline) {
+            Thread.sleep(10)
+        }
+        assert(featureFlags.isOnSync("identity-sso-force-pkce"))
     }
 
     @Test
