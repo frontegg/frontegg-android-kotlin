@@ -52,6 +52,7 @@ object DemoEmbeddedTestMode {
         val resetState: Boolean,
         val forceNetworkPathOffline: Boolean,
         val enableOfflineMode: Boolean?,
+        val enableDPoP: Boolean = false,
     )
 
     /**
@@ -77,6 +78,7 @@ object DemoEmbeddedTestMode {
                 resetState = json.optBoolean("resetState", true),
                 forceNetworkPathOffline = json.optBoolean("forceNetworkPathOffline", false),
                 enableOfflineMode = enableOffline,
+                enableDPoP = json.optBoolean("enableDPoP", false),
             )
             isEnabled = true
             persistRuntimeOfflineOverride(context, cfg.enableOfflineMode)
