@@ -26,8 +26,6 @@ import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceExc
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
 import com.frontegg.android.models.Entitlement
 import com.frontegg.android.models.EntitledToOptions
-import com.frontegg.android.models.SocialLoginPostLoginRequest
-import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.models.User
 import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.AppIdHeaderHelper
@@ -772,12 +770,8 @@ class FronteggAuthService(
 
                 isLoading.value = true
                 startedLoading = true
-                val postLoginRequest = SocialLoginPostLoginRequest(
-                    idToken = idToken,
-                    redirectUri = defaultSocialLoginRedirectUri()
-                )
                 val authResponse = withContext(ioDispatcher) {
-                    api.socialLoginPostLogin(SocialLoginProvider.GOOGLE.value, postLoginRequest)
+                    api.googleSsoPostLogin(idToken, defaultSocialLoginRedirectUri())
                 }
                 val authenticated = withContext(ioDispatcher) {
                     setCredentials(authResponse.access_token, authResponse.refresh_token)

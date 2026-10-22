@@ -39,6 +39,7 @@ import okhttp3.Response
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 open class Api(
@@ -693,6 +694,37 @@ open class Api(
         val responseBody = body.string()
         throwIfMfaRequired(responseBody)
         return gson.fromJson(responseBody, AuthResponse::class.java)
+    }
+
+    @Throws(
+        IllegalArgumentException::class,
+        IOException::class,
+        FailedToAuthenticateException::class,
+        CookieNotFoundException::class,
+        MfaRequiredException::class
+    )
+    fun googleSsoPostLogin(idToken: String, redirectUri: String): AuthResponse {
+        val query = "id_token=${URLEncoder.encode(idToken, "UTF-8")}" +
+            "&redirectUri=${URLEncoder.encode(redirectUri, "UTF-8")}"
+        val call = buildPostRequest("${ApiConstants.googleSsoPostLogin}?$query", JsonObject())
+        val response = call.execute()
+
+        val body = response.body
+        if (!response.isSuccessful || body == null) {
+            throw FailedToAuthenticateException(
+                response.headers,
+                body?.string() ?: "Unknown error occurred"
+            )
+        }
+        throwIfMfaRequired(body.string())
+
+        val refreshToken = getSetCookieValue("fe_refresh_", response)
+        val deviceId = try {
+            getSetCookieValue("fe_device_", response)
+        } catch (e: CookieNotFoundException) {
+            ""
+        }
+        return silentHostedLoginRefreshToken(refreshToken, deviceId)
     }
 
     @Throws(MfaRequiredException::class)
