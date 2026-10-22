@@ -570,6 +570,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
                 throw AssertionError("No GET $mePath carried an access token with token_version=$tokenVersion")
             }
             Thread.sleep(500)
+        }
+    }
 
     @Test
     fun testStateFlowUserEmailAppearsAfterPasswordLogin() {
