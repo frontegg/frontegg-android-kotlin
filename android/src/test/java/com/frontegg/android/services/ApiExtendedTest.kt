@@ -30,15 +30,14 @@ class ApiExtendedTest {
     private val mockStorage = mockk<FronteggInnerStorage>()
 
     private val socialLoginConfigJson = """
-        {
-            "facebook": {"active": true, "clientId": "fb-123"},
-            "google": {"active": true, "clientId": "google-456"},
-            "microsoft": {"active": false},
-            "github": {"active": true},
-            "slack": null,
-            "apple": {"active": true},
-            "linkedin": {"active": false}
-        }
+        [
+            {"type": "facebook", "active": true, "clientId": "fb-123"},
+            {"type": "google", "active": true, "clientId": "google-456"},
+            {"type": "microsoft", "active": false},
+            {"type": "github", "active": true},
+            {"type": "apple", "active": true},
+            {"type": "linkedin", "active": false}
+        ]
     """.trimIndent()
 
     private val featureFlagsJson = """
@@ -93,7 +92,10 @@ class ApiExtendedTest {
         assert(config.google?.active == true)
         assert(config.microsoft?.active == false)
         assert(config.github?.active == true)
+        assert(config.slack == null)
         assert(config.apple?.active == true)
+        val request = mockWebServer.takeRequest()
+        assert(request.requestUrl!!.encodedPath.endsWith("/identity/resources/sso/v2")) { request.requestUrl!!.encodedPath }
     }
 
     @Test
