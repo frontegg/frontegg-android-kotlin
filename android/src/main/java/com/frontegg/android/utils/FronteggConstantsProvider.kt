@@ -74,6 +74,7 @@ object FronteggConstantsProvider {
         val rawOrganization = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ORGANIZATION", "")
         val fronteggOrganization = rawOrganization.trim().takeIf { it.isNotBlank() }
         val entitlementsEnabled = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENTITLEMENTS_ENABLED", false)
+        val enableDPoP = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_DPOP", false)
 
         return FronteggConstants(
             baseUrl = baseUrl,
@@ -91,6 +92,7 @@ object FronteggConstantsProvider {
             sentryMaxQueueSize = sentryMaxQueueSize,
             fronteggOrganization = fronteggOrganization,
             entitlementsEnabled = entitlementsEnabled,
+            enableDPoP = enableDPoP,
         )
     }
 }

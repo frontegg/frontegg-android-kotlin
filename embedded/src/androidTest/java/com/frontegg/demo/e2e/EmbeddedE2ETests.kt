@@ -3,8 +3,16 @@ package com.frontegg.demo.e2e
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.Until
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotEquals
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import java.util.UUID
+import kotlin.math.abs
 
 /**
  * Full embedded E2E suite mirroring Swift `DemoEmbeddedE2ETests`.
@@ -18,6 +26,8 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     // token past expiry mid-test, breaking timing assumptions in offline mode tests.
     private val expiringAccessTokenTTL = 60
     private val longLivedRefreshTokenTTL = 300
+    private val scheduledRefreshAccessTokenTTL = 45
+    private val mePath = "/identity/resources/users/v2/me"
 
     @Test
     fun testPasswordLoginAndSessionRestore() {
@@ -381,5 +391,185 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         instrumentation.waitForIdleSync()
         Thread.sleep(2_000)
         waitForUserEmail("test@frontegg.com", timeoutMs = 300_000)
+    }
+
+    @Test
+    fun testDPoPProofSignsAuthorizationCodeExchange() {
+        launchApp(resetState = true, enableDPoP = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+
+        val exchange = waitForTokenRequests("authorization_code", count = 1).first()
+        assertEquals(1, exchange.headers.values("DPoP").size)
+        val proof = dpopProof(exchange)
+        assertEquals("dpop+jwt", proof.header.getString("typ"))
+        assertEquals("ES256", proof.header.getString("alg"))
+        assertEquals("EC", proof.jwk.getString("kty"))
+        assertEquals("P-256", proof.jwk.getString("crv"))
+        assertFalse("The proof must not expose the private key", proof.jwk.has("d"))
+        assertEquals("POST", proof.claims.getString("htm"))
+        val htu = proof.claims.getString("htu")
+        assertTrue("htu=$htu", htu.endsWith("/oauth/token") && !htu.contains('?'))
+        assertTrue(proof.claims.getString("jti").isNotBlank())
+        val nowSeconds = System.currentTimeMillis() / 1000
+        assertTrue("iat is not current", abs(nowSeconds - proof.claims.getLong("iat")) < 600)
+        assertFalse("A token request proof carries no ath", proof.claims.has("ath"))
+        assertTrue("The proof signature does not verify with its jwk", proof.hasValidSignature())
+    }
+
+    @Test
+    fun testDPoPRefreshReusesDeviceKeyWithoutSendingBoundToken() {
+        mock.configureTokenPolicy(
+            email = "test@frontegg.com",
+            accessTTL = scheduledRefreshAccessTokenTTL,
+            refreshTTL = longLivedRefreshTokenTTL,
+        )
+        launchApp(resetState = true, enableDPoP = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        val exchangeProof = dpopProof(waitForTokenRequests("authorization_code", count = 1).first())
+
+        val refresh = waitForTokenRequests("refresh_token", count = 1, timeoutMs = 120_000).first()
+        val refreshProof = dpopProof(refresh)
+        assertEquals(exchangeProof.jwkThumbprint, refreshProof.jwkThumbprint)
+        assertEquals("POST", refreshProof.claims.getString("htm"))
+        assertTrue(refreshProof.claims.getString("htu").endsWith("/oauth/token"))
+        assertNotEquals(exchangeProof.claims.getString("jti"), refreshProof.claims.getString("jti"))
+        assertTrue(refreshProof.hasValidSignature())
+        assertNull("A bound access token must not be sent on a token request", refresh.headers["Authorization"])
+
+        val refreshedTokenVersion = 2
+        val refreshedMeCall = waitForMeCallWithTokenVersion(refreshedTokenVersion)
+        assertTrue(refreshedMeCall.headers["Authorization"].orEmpty().startsWith("DPoP "))
+        assertEquals(exchangeProof.jwkThumbprint, dpopProof(refreshedMeCall).jwkThumbprint)
+        waitForDesc("UserPageRoot", 30_000)
+    }
+
+    @Test
+    fun testDPoPBoundAccessTokenUsesDPoPSchemeOnResourceCalls() {
+        launchApp(resetState = true, enableDPoP = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        val exchangeProof = dpopProof(waitForTokenRequests("authorization_code", count = 1).first())
+
+        val meRequests = mock.requests("GET", mePath)
+        assertTrue(
+            "A bound access token was sent as Bearer",
+            meRequests.none { it.headers["Authorization"]?.startsWith("Bearer ") == true },
+        )
+        val meRequest = meRequests.lastOrNull { it.headers["Authorization"] != null }
+            ?: throw AssertionError("Expected an authenticated GET $mePath")
+        val authorization = meRequest.headers["Authorization"].orEmpty()
+        assertTrue("Expected the DPoP scheme", authorization.startsWith("DPoP "))
+        val accessToken = authorization.removePrefix("DPoP ")
+        val tokenClaims = accessTokenClaims(meRequest)
+            ?: throw AssertionError("GET $mePath carried an undecodable access token")
+        assertEquals(exchangeProof.jwkThumbprint, tokenClaims.getJSONObject("cnf").getString("jkt"))
+
+        val resourceProof = dpopProof(meRequest)
+        assertEquals(exchangeProof.jwkThumbprint, resourceProof.jwkThumbprint)
+        assertEquals("GET", resourceProof.claims.getString("htm"))
+        assertTrue(resourceProof.claims.getString("htu").endsWith(mePath))
+        assertEquals(DPoPProof.sha256Base64Url(accessToken), resourceProof.claims.optString("ath"))
+        assertTrue(resourceProof.hasValidSignature())
+    }
+
+    @Test
+    fun testDPoPNonceChallengeIsRetriedOnceWithServerNonce() {
+        val serverNonce = "e2e-nonce-${UUID.randomUUID()}"
+        mock.enqueue(
+            "POST",
+            "/oauth/token",
+            listOf(
+                mapOf(
+                    "status" to 400,
+                    "json" to JSONObject().put("error", "use_dpop_nonce"),
+                    "headers" to mapOf("DPoP-Nonce" to serverNonce),
+                ),
+            ),
+        )
+        launchApp(resetState = true, enableDPoP = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+
+        val exchangeAttempts = waitForTokenRequests("authorization_code", count = 2)
+        assertEquals("The nonce challenge must be retried exactly once", 2, exchangeAttempts.size)
+        val challengedProof = dpopProof(exchangeAttempts[0])
+        val retriedProof = dpopProof(exchangeAttempts[1])
+        assertNotEquals(serverNonce, challengedProof.claims.optString("nonce"))
+        assertEquals(serverNonce, retriedProof.claims.optString("nonce"))
+        assertNotEquals(challengedProof.claims.getString("jti"), retriedProof.claims.getString("jti"))
+
+        val laterProof = mock.requests("GET", mePath).lastOrNull { it.headers["DPoP"] != null }
+            ?.let { dpopProof(it) }
+            ?: throw AssertionError("Expected a DPoP-bound GET $mePath after sign-in")
+        assertEquals("The server nonce is remembered for the host", serverNonce, laterProof.claims.optString("nonce"))
+    }
+
+    @Test
+    fun testDPoPDisabledSendsNoProofs() {
+        mock.configureTokenPolicy(
+            email = "test@frontegg.com",
+            accessTTL = scheduledRefreshAccessTokenTTL,
+            refreshTTL = longLivedRefreshTokenTTL,
+        )
+        launchApp(resetState = true, enableDPoP = false)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForTokenRequests("refresh_token", count = 1, timeoutMs = 120_000)
+
+        val requestsWithProof = mock.allRequests().filter { it.headers["DPoP"] != null }
+        assertTrue(
+            "Unexpected DPoP proofs on ${requestsWithProof.map { "${it.method} ${it.path}" }}",
+            requestsWithProof.isEmpty(),
+        )
+        val meAuthorizations = mock.requests("GET", mePath).mapNotNull { it.headers["Authorization"] }
+        assertTrue("Expected an authenticated GET $mePath", meAuthorizations.isNotEmpty())
+        assertTrue("Expected the Bearer scheme", meAuthorizations.all { it.startsWith("Bearer ") })
+    }
+
+    @Test
+    fun testDPoPKeyRotatesOnLogout() {
+        launchApp(resetState = true, enableDPoP = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        val firstSessionProof = dpopProof(waitForTokenRequests("authorization_code", count = 1).first())
+
+        tapDesc("LogoutButton", 30_000)
+        waitForDesc("LoginPageRoot", 90_000)
+        terminateApp()
+        launchApp(resetState = false, enableDPoP = true)
+        dismissBrowserForegroundIfNeeded()
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+
+        val secondSessionProof = dpopProof(waitForTokenRequests("authorization_code", count = 2)[1])
+        assertNotEquals(firstSessionProof.jwkThumbprint, secondSessionProof.jwkThumbprint)
+        assertTrue(secondSessionProof.hasValidSignature())
+    }
+
+    private fun dpopProof(request: CapturedRequest): DPoPProof {
+        val proof = request.headers["DPoP"]
+            ?: throw AssertionError("${request.method} ${request.path} carried no DPoP proof")
+        return DPoPProof.parse(proof)
+    }
+
+    private fun accessTokenClaims(request: CapturedRequest): JSONObject? {
+        val accessToken = request.headers["Authorization"]?.substringAfter(' ', "")?.takeIf { it.isNotEmpty() }
+            ?: return null
+        return runCatching { DPoPProof.decodeJsonSegment(accessToken.split('.')[1]) }.getOrNull()
+    }
+
+    private fun waitForMeCallWithTokenVersion(tokenVersion: Int, timeoutMs: Long = 60_000): CapturedRequest {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            mock.requests("GET", mePath)
+                .lastOrNull { accessTokenClaims(it)?.optInt("token_version") == tokenVersion }
+                ?.let { return it }
+            if (System.currentTimeMillis() > deadline) {
+                throw AssertionError("No GET $mePath carried an access token with token_version=$tokenVersion")
+            }
+            Thread.sleep(500)
+        }
     }
 }

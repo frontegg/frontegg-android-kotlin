@@ -1,6 +1,9 @@
 package com.frontegg.android.services
 
 import android.util.Log
+import com.frontegg.android.dpop.DPoPProofGenerator
+import com.frontegg.android.dpop.DPoPProvider
+import com.frontegg.android.dpop.SoftwareDPoPKeyProvider
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.fixtures.authResponseJson
 import com.frontegg.android.fixtures.getAuthResponse
@@ -10,6 +13,7 @@ import io.mockk.mockk
 import io.mockk.mockkClass
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.unmockkObject
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
@@ -72,6 +76,7 @@ class ApiExtendedTest {
 
     @After
     fun dispose() {
+        unmockkObject(DPoPProvider)
         mockWebServer.shutdown()
     }
 
@@ -141,6 +146,38 @@ class ApiExtendedTest {
         }
 
         assert(exception.message?.contains("401") == true)
+    }
+
+    @Test
+    fun `refreshToken keeps the session on an unmet DPoP nonce challenge`() {
+        mockkObject(DPoPProvider)
+        every { DPoPProvider.isEnabled } returns true
+        every { DPoPProvider.proofGenerator } returns DPoPProofGenerator(SoftwareDPoPKeyProvider())
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(401)
+            .setHeader("WWW-Authenticate", "DPoP error=\"use_dpop_nonce\"")
+            .setBody("{}"))
+
+        assertThrows<java.io.IOException> { api.refreshToken("some-token") }
+    }
+
+    @Test
+    fun `refreshToken ends the session on a nonce challenge while DPoP is disabled`() {
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(401)
+            .setHeader("WWW-Authenticate", "DPoP error=\"use_dpop_nonce\"")
+            .setBody("{\"error\": \"use_dpop_nonce\"}"))
+
+        assertThrows<FailedToAuthenticateException> { api.refreshToken("some-token") }
+    }
+
+    @Test
+    fun `refreshToken ends the session when the DPoP proof is invalid`() {
+        mockWebServer.enqueue(MockResponse()
+            .setResponseCode(400)
+            .setBody("{\"error\": \"invalid_dpop_proof\"}"))
+
+        assertThrows<FailedToAuthenticateException> { api.refreshToken("some-token") }
     }
 
     @Test

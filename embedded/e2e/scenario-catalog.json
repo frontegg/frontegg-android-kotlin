@@ -135,6 +135,42 @@
       "title": "Relaunch with expired access token refreshes via valid refresh token",
       "description": "Logs in with a very short access TTL, terminates after access expires but before refresh expires, relaunches, and verifies the token is refreshed.",
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testDPoPProofSignsAuthorizationCodeExchange",
+      "title": "DPoP proof signs the authorization code exchange",
+      "description": "With DPoP enabled, logs in with the embedded password flow and verifies the code exchange POST /oauth/token carries one DPoP proof: typ dpop+jwt, ES256, a public P-256 EC jwk without a private part, htm POST, htu ending with /oauth/token, a jti, a current iat, no ath, and a signature that verifies with its jwk.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testDPoPRefreshReusesDeviceKeyWithoutSendingBoundToken",
+      "title": "DPoP refresh reuses the device key without the bound token",
+      "description": "With DPoP enabled and a short access TTL, waits for the scheduled refresh and verifies its proof has the same jwk thumbprint as the code exchange, a new jti and a valid signature, that the cnf-bound access token is not sent on the refresh, and that the refreshed bound token is then used with the DPoP scheme.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testDPoPBoundAccessTokenUsesDPoPSchemeOnResourceCalls",
+      "title": "DPoP-bound access token uses the DPoP scheme on resource calls",
+      "description": "With DPoP enabled the mock binds the issued access token to the proof key (cnf.jkt); verifies GET /identity/resources/users/v2/me sends Authorization: DPoP, never Bearer, with a proof from the same key whose htm, htu and ath (SHA-256 of the access token) match.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testDPoPNonceChallengeIsRetriedOnceWithServerNonce",
+      "title": "DPoP nonce challenge is retried once with the server nonce",
+      "description": "The mock answers the first code exchange with 400 use_dpop_nonce and a DPoP-Nonce header; verifies the SDK retries exactly once with that nonce in a fresh proof, signs in, and keeps sending the remembered nonce on later proofs to the same host.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testDPoPDisabledSendsNoProofs",
+      "title": "DPoP disabled sends no proofs",
+      "description": "With DPoP disabled, logs in and waits for a scheduled refresh, then verifies no request carried a DPoP header and resource calls keep the Bearer scheme.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testDPoPKeyRotatesOnLogout",
+      "title": "DPoP key rotates on logout",
+      "description": "With DPoP enabled, logs in, logs out, logs in again and verifies the second code exchange proof uses a different jwk thumbprint than the first, so the logged-out session's key is gone.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     }
   ]
 }

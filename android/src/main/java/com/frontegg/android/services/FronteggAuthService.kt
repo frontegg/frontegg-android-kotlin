@@ -17,6 +17,7 @@ import androidx.credentials.PublicKeyCredential
 import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggAuth
+import com.frontegg.android.dpop.DPoPProvider
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
@@ -232,6 +233,7 @@ class FronteggAuthService(
             credentialManager.clearAllTokens()
             credentialManager.clearOfflineUser()
             credentialManager.setCurrentTenantId(null)
+            DPoPProvider.rotateKeyIfEnabled()
 
             // Clear any `fe_refresh_*` cookies the process-wide CookieManager
             // is holding for this tenant's baseUrl. Two reasons:
@@ -1194,6 +1196,8 @@ class FronteggAuthService(
         sessionTracker.clearSessionData(tenantId)
         credentialManager.clear(tenantId)
         refreshTokenTimer.cancelLastTimer()
+        // Other tenants' sessions stay signed in and their tokens are bound to the current key.
+        if (!enableSessionPerTenant) DPoPProvider.rotateKeyIfEnabled()
 
         bgScope.launch {
             requestQueue.clear()

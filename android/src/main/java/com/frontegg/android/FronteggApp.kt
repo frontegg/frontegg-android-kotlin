@@ -79,6 +79,7 @@ val Context.fronteggApp: FronteggApp
                 networkMonitoringIntervalSeconds = constants.networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = constants.enableSessionPerTenant,
                 entitlementsEnabled = constants.entitlementsEnabled,
+                enableDPoP = constants.enableDPoP,
                 tenantResolver = constants.fronteggOrganization?.let { org ->
                     TenantResolver { TenantResolverResult(org) }
                 },
@@ -138,6 +139,7 @@ interface FronteggApp {
          *                       enables "Login per Account" functionality where each tenant can
          *                       have a customized login experience with different branding and
          *                       login methods. See [TenantResolver] for usage details.
+         * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
          */
         @VisibleForTesting
         internal fun init(
@@ -156,6 +158,7 @@ interface FronteggApp {
             enableSessionPerTenant: Boolean = false,
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
+            enableDPoP: Boolean = false,
         ) {
             val baseUrl: String = when {
                 fronteggDomain.startsWith("http://") || fronteggDomain.startsWith("https://") ->
@@ -181,7 +184,8 @@ interface FronteggApp {
                 networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = enableSessionPerTenant,
                 entitlementsEnabled = entitlementsEnabled,
-                tenantResolver = tenantResolver
+                tenantResolver = tenantResolver,
+                enableDPoP = enableDPoP,
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
         }
@@ -214,6 +218,7 @@ interface FronteggApp {
             enableSessionPerTenant: Boolean = false,
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
+            enableDPoP: Boolean = false,
         ): FronteggApp {
             resetInstanceForTesting()
             val baseUrl: String = when {
@@ -248,6 +253,7 @@ interface FronteggApp {
                 enableSessionPerTenant = enableSessionPerTenant,
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver,
+                enableDPoP = enableDPoP,
             )
             runDebugChecksSafe(appContext, fronteggDomain, clientId)
             return instance!!
@@ -265,6 +271,7 @@ interface FronteggApp {
          * @param tenantResolver Optional resolver for custom login per tenant. When provided,
          *                       enables "Login per Account" functionality where each tenant can
          *                       have a customized login experience. See [TenantResolver] for usage.
+         * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
          */
         fun initWithRegions(
             regions: List<RegionConfig>,
@@ -279,6 +286,7 @@ interface FronteggApp {
             enableSessionPerTenant: Boolean = false,
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
+            enableDPoP: Boolean = false,
         ): FronteggApp {
             // Prepare Sentry for later initialization via feature flag.
             runCatching {
@@ -309,7 +317,8 @@ interface FronteggApp {
                        networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                        enableSessionPerTenant = enableSessionPerTenant,
                        entitlementsEnabled = entitlementsEnabled,
-                       tenantResolver = tenantResolver
+                       tenantResolver = tenantResolver,
+                       enableDPoP = enableDPoP,
                    )
                    instance = newInstance
 
@@ -334,7 +343,8 @@ interface FronteggApp {
                 networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                 enableSessionPerTenant = enableSessionPerTenant,
                 entitlementsEnabled = entitlementsEnabled,
-                tenantResolver = tenantResolver
+                tenantResolver = tenantResolver,
+                enableDPoP = enableDPoP,
             )
             instance = newInstance
             // Persist parameters to allow retry when network becomes available
@@ -348,6 +358,7 @@ interface FronteggApp {
                     useDiskCacheWebview = useDiskCacheWebview,
                     enableOfflineMode = enableOfflineMode,
                     networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
+                    enableDPoP = enableDPoP,
                 )
             )
             return newInstance

@@ -154,6 +154,7 @@ FronteggApp.initWithRegions(regions, context)
 | `FRONTEGG_DEEP_LINK_SCHEME` | String | `null` | Custom deep link scheme | `"myapp"` |
 | `FRONTEGG_USE_DISK_CACHE_WEBVIEW` | boolean | `false` | Enable WebView disk cache | `false` |
 | `FRONTEGG_MAIN_ACTIVITY_CLASS` | String | `null` | Main activity class name | `"com.example.MainActivity"` |
+| `FRONTEGG_ENABLE_DPOP` | boolean | `false` | Bind tokens to a device key with DPoP | `true` |
 
 ### Build Variants Example
 

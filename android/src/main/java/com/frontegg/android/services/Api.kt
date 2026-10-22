@@ -3,6 +3,8 @@ package com.frontegg.android.services
 import kotlin.jvm.Throws
 import android.util.Log
 import com.frontegg.android.BuildConfig
+import com.frontegg.android.dpop.DPoPInterceptor
+import com.frontegg.android.dpop.DPoPProvider
 import com.frontegg.android.exceptions.CookieNotFoundException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToAuthenticatePasskeysException
@@ -101,6 +103,7 @@ open class Api(
         .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)   // For slow networks (EDGE)
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .addInterceptor(sentryInterceptor)
+        .addInterceptor(DPoPInterceptor(baseUrlProvider = { baseUrl }))
         .build()
 
     /**
@@ -399,18 +402,22 @@ open class Api(
             return Gson().fromJson(responseBody, AuthResponse::class.java)
         }
         
+        val errorBody = response.body?.string() ?: "Unknown error occurred"
+        // An unmet DPoP nonce challenge rejects the proof, not the refresh token, so the refresh is retried.
+        if (isUnmetDPoPNonceChallenge(response, errorBody)) {
+            throw IOException("Refresh token DPoP nonce challenge unmet: ${response.code} - $errorBody")
+        }
+
         // Handle 401 specifically like Swift version
         if (response.code == 401) {
-            val errorBody = response.body?.string() ?: "unknown error"
             Log.e(TAG, "failed to refresh token, error: $errorBody")
             throw FailedToAuthenticateException(
                 response.headers,
                 "Refresh token failed: 401 - $errorBody"
             )
         }
-        
+
         // Handle other errors
-        val errorBody = response.body?.string() ?: "Unknown error occurred"
         Log.e(TAG, "Refresh token failed: code=${response.code}, body=$errorBody")
         // 5xx is a transient server-side failure, NOT an auth failure. Throw IOException so
         // the SDK's network-error paths preserve credentials (instead of clearing the session
@@ -424,6 +431,10 @@ open class Api(
             "Refresh token failed: ${response.code} - $errorBody"
         )
     }
+
+    private fun isUnmetDPoPNonceChallenge(response: Response, errorBody: String): Boolean =
+        DPoPProvider.isEnabled &&
+            DPoPInterceptor.isNonceChallenge(response.code, response.header("WWW-Authenticate"), errorBody)
 
     @Throws(IllegalArgumentException::class, IOException::class)
     fun exchangeToken(
