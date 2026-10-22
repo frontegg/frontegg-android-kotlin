@@ -291,7 +291,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
         assert(!called)
         assert(!auth.isLoading.value)
-        verify(exactly = 1) { multiFactorAuthenticator.start(activityMock, any(), mfaRequest) }
+        verify(exactly = 1) { multiFactorAuthenticator.start(activityMock, any(), mfaRequest, true) }
     }
 
     @Test
@@ -326,7 +326,7 @@ class FronteggAuthServiceGoogleSignInTest {
     fun `loginWithGoogle stays single-flight until a separately opened MFA ends`() {
         val mfaRequest = """{"mfaRequired":true,"mfaToken":"mfa-token"}"""
         val mfaCallback = slot<(Exception?) -> Unit>()
-        every { multiFactorAuthenticator.start(activityMock, capture(mfaCallback), mfaRequest) } returns Unit
+        every { multiFactorAuthenticator.start(activityMock, capture(mfaCallback), mfaRequest, true) } returns Unit
         every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
         coEvery { googleIdTokenSource.getIdToken(any()) } returns "google-id-token"
         every { apiMock.googleSsoPostLogin(any(), any()) } throws MfaRequiredException(mfaRequest)
@@ -342,20 +342,20 @@ class FronteggAuthServiceGoogleSignInTest {
         assert(!firstCalled)
         assert(secondCalled)
         assert(secondError is CanceledByUserException)
-        verify(exactly = 1) { multiFactorAuthenticator.start(any(), any(), any()) }
+        verify(exactly = 1) { multiFactorAuthenticator.start(any(), any(), any(), any()) }
 
         mfaCallback.captured(null)
 
         assert(firstCalled)
         assert(firstError == null)
         loginWithGoogleAndCapture()
-        verify(exactly = 2) { multiFactorAuthenticator.start(any(), any(), any()) }
+        verify(exactly = 2) { multiFactorAuthenticator.start(any(), any(), any(), any()) }
     }
 
     @Test
     fun `loginWithGoogle reports a failure to start MFA and can run again`() {
         val mfaRequest = """{"mfaRequired":true,"mfaToken":"mfa-token"}"""
-        every { multiFactorAuthenticator.start(any(), any(), any()) } throws IllegalStateException("no activity")
+        every { multiFactorAuthenticator.start(any(), any(), any(), any()) } throws IllegalStateException("no activity")
         every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
         coEvery { googleIdTokenSource.getIdToken(any()) } returns "google-id-token"
         every { apiMock.googleSsoPostLogin(any(), any()) } throws MfaRequiredException(mfaRequest)

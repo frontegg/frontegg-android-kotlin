@@ -2,15 +2,22 @@ package com.frontegg.android.embedded
 
 import android.app.Activity
 import android.content.Context
+import android.content.ContextWrapper
 import android.content.Intent
 import android.net.Uri
 import android.util.Base64
 import android.util.Log
 import android.webkit.JavascriptInterface
 import androidx.browser.customtabs.CustomTabsIntent
+import com.frontegg.android.EmbeddedAuthActivity
+import com.frontegg.android.exceptions.CanceledByUserException
+import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.fronteggAuth
+import com.frontegg.android.models.SocialLoginAction
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
+import com.frontegg.android.services.StorageProvider
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -193,7 +200,73 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
         Log.d("FronteggNativeBridge", "loginWithSocialLoginProvider(${provider})")
 
         val formAction = getFormAction()
-        
+        val activity = findActivity()
+        if (activity != null && shouldUseNativeGoogleSignIn(provider, formAction)) {
+            loginWithNativeGoogle(activity, provider, formAction)
+            return
+        }
+        startBrowserSocialLogin(provider, formAction)
+    }
+
+    private fun shouldUseNativeGoogleSignIn(provider: String, formAction: String): Boolean {
+        val isNativeFlow = formAction == SocialLoginAction.LOGIN.value &&
+            !context.fronteggAuth.isStepUpAuthorization.value && !isLoginPerAccount()
+        return provider == SocialLoginProvider.GOOGLE.value && isNativeFlow &&
+            StorageProvider.getInnerStorage().useNativeGoogleSignIn
+    }
+
+    // Login per account keeps the browser flow, the only one that carries the organization.
+    private fun isLoginPerAccount(): Boolean {
+        val configuredTenant = StorageProvider.getInnerStorage().tenantResolver?.resolve()?.tenant
+        if (!configuredTenant.isNullOrBlank()) return true
+        val loginBox = findActivity() as? EmbeddedAuthActivity ?: return false
+        val authorizeUri = loginBox.intent?.getStringExtra(EmbeddedAuthActivity.AUTHORIZE_URI) ?: return false
+        return Uri.parse(authorizeUri).getQueryParameter("organization") != null
+    }
+
+    private fun findActivity(start: Context = context): Activity? {
+        var current: Context? = start
+        while (current is ContextWrapper) {
+            if (current is Activity) return current
+            current = current.baseContext
+        }
+        return null
+    }
+
+    private fun loginWithNativeGoogle(activity: Activity, provider: String, formAction: String) {
+        Log.d("FronteggNativeBridge", "Using native Google sign-in")
+        (activity as? EmbeddedAuthActivity)?.keepCurrentPageOnResume()
+        context.fronteggAuth.loginWithGoogle(activity) { error ->
+            when {
+                error == null -> Log.d("FronteggNativeBridge", "Native Google sign-in succeeded")
+                error is CanceledByUserException -> Log.d("FronteggNativeBridge", "Native Google sign-in canceled")
+                error is MfaRequiredException ->
+                    Log.d("FronteggNativeBridge", "Native Google sign-in continues with MFA")
+                else -> fallBackToBrowserSocialLogin(activity, provider, formAction, error)
+            }
+        }
+    }
+
+    private fun fallBackToBrowserSocialLogin(
+        startedFrom: Activity,
+        provider: String,
+        formAction: String,
+        error: Exception?
+    ) {
+        val liveActivity = if (startedFrom is EmbeddedAuthActivity) {
+            EmbeddedAuthActivity.liveLoginBox(startedFrom)
+        } else {
+            startedFrom.takeUnless { it.isFinishing || it.isDestroyed }
+        }
+        if (liveActivity == null) {
+            Log.d("FronteggNativeBridge", "Native Google sign-in ended after the login box closed")
+            return
+        }
+        Log.w("FronteggNativeBridge", "Native Google sign-in failed, using the browser", error)
+        startBrowserSocialLogin(provider, formAction, liveActivity)
+    }
+
+    private fun startBrowserSocialLogin(provider: String, formAction: String, loginBoxContext: Context = context) {
         // Check if legacy social login flow is enabled
         val useLegacySocialLoginFlow = try {
             val configCache = com.frontegg.android.init.ConfigCache.loadLastRegionsInit(context)
@@ -215,7 +288,7 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
                         "data" to provider,
                         "action" to formAction
                     )
-                    directLoginWithContext(context, directLogin, true)
+                    directLoginWithContext(loginBoxContext, directLogin, true)
                 } catch (e: Exception) {
                     Log.e("FronteggNativeBridge", "Failed to get form action", e)
                 }
@@ -232,7 +305,10 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
                         Log.d("FronteggNativeBridge", "Social login action: $socialLoginAction")
                         
                         val authService = context.fronteggAuth as com.frontegg.android.services.FronteggAuthService
-                        authService.loginWithSocialLoginProvider(context as android.app.Activity, socialLoginProvider, socialLoginAction)
+                        val activity = checkNotNull(findActivity(loginBoxContext)) {
+                            "No activity to start social login from"
+                        }
+                        authService.loginWithSocialLoginProvider(activity, socialLoginProvider, socialLoginAction)
                     } catch (e: Exception) {
                         Log.e("FronteggNativeBridge", "Failed to start social login", e)
                     }
@@ -247,7 +323,7 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
                             "data" to provider,
                             "action" to formAction
                         )
-                        directLoginWithContext(context, directLogin, true)
+                        directLoginWithContext(loginBoxContext, directLogin, true)
                     } catch (e: Exception) {
                         Log.e("FronteggNativeBridge", "Failed to get form action", e)
                     }

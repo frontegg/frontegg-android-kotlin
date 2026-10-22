@@ -20,6 +20,7 @@ internal object ConfigCache {
         val networkMonitoringIntervalSeconds: Int = 10,
         val useLegacySocialLoginFlow: Boolean = false,
         val enableDPoP: Boolean = false,
+        val useNativeGoogleSignIn: Boolean = false,
     )
 
     fun saveLastRegionsInit(
@@ -46,6 +47,7 @@ internal object ConfigCache {
             .put("networkMonitoringIntervalSeconds", flags.networkMonitoringIntervalSeconds)
             .put("useLegacySocialLoginFlow", flags.useLegacySocialLoginFlow)
             .put("enableDPoP", flags.enableDPoP)
+            .put("useNativeGoogleSignIn", flags.useNativeGoogleSignIn)
 
         prefs.edit()
             .putString(KEY_REGIONS_JSON, arr.toString())
@@ -81,6 +83,7 @@ internal object ConfigCache {
                 networkMonitoringIntervalSeconds = fj.optInt("networkMonitoringIntervalSeconds", 10),
                 useLegacySocialLoginFlow = fj.optBoolean("useLegacySocialLoginFlow", false),
                 enableDPoP = fj.optBoolean("enableDPoP", false),
+                useNativeGoogleSignIn = fj.optBoolean("useNativeGoogleSignIn", false),
             )
             regions to flags
         } catch (_: Throwable) {

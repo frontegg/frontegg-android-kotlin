@@ -23,6 +23,7 @@ import com.frontegg.android.utils.LogUrlSanitizer
 import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import java.lang.ref.WeakReference
 import kotlin.time.Duration
 
 
@@ -31,6 +32,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
     private val storage = FronteggInnerStorage()
     private lateinit var webView: FronteggWebView
     private var webViewUrl: String? = null
+    private var keepsCurrentPage = false
     private var directLoginLaunchedDone: Boolean = false
     private var directLoginLaunched: Boolean = false
     private var authCompleted: Boolean = false
@@ -39,6 +41,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        lastCreatedLoginBox = WeakReference(this)
         setContentView(R.layout.activity_embedded_auth)
         @Suppress("DEPRECATION")
         overridePendingTransition(R.anim.fadein, R.anim.fadeout)
@@ -58,6 +61,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
             directLoginLaunchedDone =
                 savedInstanceState.getBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, false)
             webViewUrl = savedInstanceState.getString(BUNDLE_KEY_WEBVIEW_URL)
+            keepsCurrentPage = savedInstanceState.getBoolean(BUNDLE_KEY_KEEPS_CURRENT_PAGE, false)
             authCompleted = readAuthCompleted(savedInstanceState)
         } else {
             consumeIntent(intent)
@@ -69,6 +73,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED, this.directLoginLaunched)
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, this.directLoginLaunchedDone)
         outState.putString(BUNDLE_KEY_WEBVIEW_URL, this.webViewUrl)
+        outState.putBoolean(BUNDLE_KEY_KEEPS_CURRENT_PAGE, this.keepsCurrentPage)
         writeAuthCompleted(outState, this.authCompleted)
         webView.saveState(outState)
     }
@@ -351,7 +356,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         }
 
         // Consume intent data if available (for social login redirects)
-        if (intent.data != null && webViewUrl == null) {
+        if (intent.data != null && webViewUrl == null && !keepsCurrentPage) {
             consumeIntent(intent)
         }
         
@@ -400,6 +405,24 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         }
     }
 
+    internal fun loadAuthorizeUrl(url: String) {
+        runOnUiThread {
+            keepCurrentPage()
+            webView.loadUrl(url, AppIdHeaderHelper.getHeaders())
+        }
+    }
+
+    /** Native sign-in pauses the login box; when it resumes, the page shown now must stay. */
+    internal fun keepCurrentPageOnResume() {
+        runOnUiThread { keepCurrentPage() }
+    }
+
+    // A later resume must not reload the launch link or a pending URL over the page shown now.
+    private fun keepCurrentPage() {
+        keepsCurrentPage = true
+        webViewUrl = null
+    }
+
     companion object {
         const val AUTHORIZE_URI = "com.frontegg.android.AUTHORIZE_URI"
         const val DIRECT_LOGIN_ACTION_LAUNCHED = "com.frontegg.android.DIRECT_LOGIN_ACTION_LAUNCHED"
@@ -408,10 +431,21 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         const val DIRECT_LOGIN_ACTION_TYPE = "com.frontegg.android.DIRECT_LOGIN_ACTION_TYPE"
         const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
         private const val BUNDLE_KEY_WEBVIEW_URL = "com.frontegg.android.WEBVIEW_URL"
+        private const val BUNDLE_KEY_KEEPS_CURRENT_PAGE = "com.frontegg.android.KEEPS_CURRENT_PAGE"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private const val BUNDLE_KEY_AUTH_COMPLETED = "com.frontegg.android.AUTH_COMPLETED"
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
         var onAuthFinishedCallback: ((error: Exception?) -> Unit)? = null // Store callback
+        private var lastCreatedLoginBox = WeakReference<EmbeddedAuthActivity>(null)
+
+        /** The login box a native sign-in continues in, which a configuration change recreates. */
+        internal fun liveLoginBox(
+            startedFrom: EmbeddedAuthActivity,
+            lastCreated: EmbeddedAuthActivity? = lastCreatedLoginBox.get()
+        ): EmbeddedAuthActivity? {
+            val loginBox = if (startedFrom.isChangingConfigurations) lastCreated else startedFrom
+            return loginBox?.takeUnless { it.isFinishing || it.isDestroyed }
+        }
 
         /**
          * Whether [onDestroy] should report a user cancellation: only when the activity is

@@ -17,6 +17,7 @@ data class FronteggConstants(
     val fronteggOrganization: String?,
     val entitlementsEnabled: Boolean = false,
     val enableDPoP: Boolean = false,
+    val useNativeGoogleSignIn: Boolean = false,
 ) {
     fun toMap(): Map<String, Any?> {
         return mapOf(
@@ -36,6 +37,7 @@ data class FronteggConstants(
             Pair("fronteggOrganization", fronteggOrganization),
             Pair("entitlementsEnabled", entitlementsEnabled),
             Pair("enableDPoP", enableDPoP),
+            Pair("useNativeGoogleSignIn", useNativeGoogleSignIn),
         )
     }
 }

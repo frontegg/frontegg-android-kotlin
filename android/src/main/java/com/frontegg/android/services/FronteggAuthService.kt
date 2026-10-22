@@ -789,7 +789,7 @@ class FronteggAuthService(
                 Log.i(TAG, "Google sign-in requires MFA")
                 isLoading.value = false
                 try {
-                    multiFactorAuthenticator.start(activity, finish, e.mfaRequestData)
+                    multiFactorAuthenticator.start(activity, finish, e.mfaRequestData, continueInLoginBox = true)
                 } catch (mfaError: Exception) {
                     Log.e(TAG, "Failed to start MFA after Google sign-in", mfaError)
                     finish(mfaError)
