@@ -19,51 +19,32 @@ class User {
     var verified: Boolean = false
     var superUser: Boolean = false
 
+    // Gson leaves omitted lateinit fields unset, so equality must not read them.
+    private fun comparedFields(): List<Any?> = listOf(
+        if (this::id.isInitialized) id else null,
+        if (this::email.isInitialized) email else null,
+        mfaEnrolled,
+        if (this::name.isInitialized) name else null,
+        if (this::profilePictureUrl.isInitialized) profilePictureUrl else null,
+        phoneNumber,
+        profileImage,
+        if (this::roles.isInitialized) roles else null,
+        if (this::permissions.isInitialized) permissions else null,
+        if (this::tenantId.isInitialized) tenantId else null,
+        if (this::tenantIds.isInitialized) tenantIds else null,
+        if (this::tenants.isInitialized) tenants else null,
+        if (this::activeTenant.isInitialized) activeTenant else null,
+        activatedForTenant,
+        metadata,
+        verified,
+        superUser,
+    )
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
-
-        other as User
-
-        if (id != other.id) return false
-        if (email != other.email) return false
-        if (mfaEnrolled != other.mfaEnrolled) return false
-        if (name != other.name) return false
-        if (profilePictureUrl != other.profilePictureUrl) return false
-        if (phoneNumber != other.phoneNumber) return false
-        if (profileImage != other.profileImage) return false
-        if (roles != other.roles) return false
-        if (permissions != other.permissions) return false
-        if (tenantId != other.tenantId) return false
-        if (tenantIds != other.tenantIds) return false
-        if (tenants != other.tenants) return false
-        if (activeTenant != other.activeTenant) return false
-        if (activatedForTenant != other.activatedForTenant) return false
-        if (metadata != other.metadata) return false
-        if (verified != other.verified) return false
-        if (superUser != other.superUser) return false
-
-        return true
+        return comparedFields() == (other as User).comparedFields()
     }
 
-    override fun hashCode(): Int {
-        var result = id.hashCode()
-        result = 31 * result + email.hashCode()
-        result = 31 * result + mfaEnrolled.hashCode()
-        result = 31 * result + name.hashCode()
-        result = 31 * result + profilePictureUrl.hashCode()
-        result = 31 * result + (phoneNumber?.hashCode() ?: 0)
-        result = 31 * result + (profileImage?.hashCode() ?: 0)
-        result = 31 * result + roles.hashCode()
-        result = 31 * result + permissions.hashCode()
-        result = 31 * result + tenantId.hashCode()
-        result = 31 * result + tenantIds.hashCode()
-        result = 31 * result + tenants.hashCode()
-        result = 31 * result + activeTenant.hashCode()
-        result = 31 * result + activatedForTenant.hashCode()
-        result = 31 * result + (metadata?.hashCode() ?: 0)
-        result = 31 * result + verified.hashCode()
-        result = 31 * result + superUser.hashCode()
-        return result
-    }
+    override fun hashCode(): Int = comparedFields().hashCode()
 }
