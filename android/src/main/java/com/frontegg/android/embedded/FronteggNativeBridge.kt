@@ -209,10 +209,10 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
     }
 
     private fun shouldUseNativeGoogleSignIn(provider: String, formAction: String): Boolean {
-        val isNativeFlow = formAction == SocialLoginAction.LOGIN.value &&
-            !context.fronteggAuth.isStepUpAuthorization.value && !isLoginPerAccount()
-        return provider == SocialLoginProvider.GOOGLE.value && isNativeFlow &&
+        val isNativeGoogleLogin = provider == SocialLoginProvider.GOOGLE.value &&
+            formAction == SocialLoginAction.LOGIN.value &&
             StorageProvider.getInnerStorage().useNativeGoogleSignIn
+        return isNativeGoogleLogin && !context.fronteggAuth.isStepUpAuthorization.value && !isLoginPerAccount()
     }
 
     // Login per account keeps the browser flow, the only one that carries the organization.

@@ -24,6 +24,7 @@ import com.frontegg.android.utils.NullableObject
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
 import java.lang.ref.WeakReference
+import java.util.UUID
 import kotlin.time.Duration
 
 
@@ -33,6 +34,8 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
     private lateinit var webView: FronteggWebView
     private var webViewUrl: String? = null
     private var keepsCurrentPage = false
+    internal var loginBoxId = ""
+        private set
     private var directLoginLaunchedDone: Boolean = false
     private var directLoginLaunched: Boolean = false
     private var authCompleted: Boolean = false
@@ -41,6 +44,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        loginBoxId = savedInstanceState?.getString(BUNDLE_KEY_LOGIN_BOX_ID) ?: UUID.randomUUID().toString()
         lastCreatedLoginBox = WeakReference(this)
         setContentView(R.layout.activity_embedded_auth)
         @Suppress("DEPRECATION")
@@ -74,6 +78,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         outState.putBoolean(DIRECT_LOGIN_ACTION_LAUNCHED_DONE, this.directLoginLaunchedDone)
         outState.putString(BUNDLE_KEY_WEBVIEW_URL, this.webViewUrl)
         outState.putBoolean(BUNDLE_KEY_KEEPS_CURRENT_PAGE, this.keepsCurrentPage)
+        outState.putString(BUNDLE_KEY_LOGIN_BOX_ID, this.loginBoxId)
         writeAuthCompleted(outState, this.authCompleted)
         webView.saveState(outState)
     }
@@ -432,18 +437,23 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
         private const val BUNDLE_KEY_WEBVIEW_URL = "com.frontegg.android.WEBVIEW_URL"
         private const val BUNDLE_KEY_KEEPS_CURRENT_PAGE = "com.frontegg.android.KEEPS_CURRENT_PAGE"
+        private const val BUNDLE_KEY_LOGIN_BOX_ID = "com.frontegg.android.LOGIN_BOX_ID"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private const val BUNDLE_KEY_AUTH_COMPLETED = "com.frontegg.android.AUTH_COMPLETED"
         private val TAG = EmbeddedAuthActivity::class.java.simpleName
         var onAuthFinishedCallback: ((error: Exception?) -> Unit)? = null // Store callback
         private var lastCreatedLoginBox = WeakReference<EmbeddedAuthActivity>(null)
 
-        /** The login box a native sign-in continues in, which a configuration change recreates. */
+        /** The login box a native sign-in continues in: its own, or the same box after a configuration change. */
         internal fun liveLoginBox(
             startedFrom: EmbeddedAuthActivity,
             lastCreated: EmbeddedAuthActivity? = lastCreatedLoginBox.get()
         ): EmbeddedAuthActivity? {
-            val loginBox = if (startedFrom.isChangingConfigurations) lastCreated else startedFrom
+            val loginBox = if (startedFrom.isChangingConfigurations) {
+                lastCreated?.takeIf { it.loginBoxId == startedFrom.loginBoxId }
+            } else {
+                startedFrom
+            }
             return loginBox?.takeUnless { it.isFinishing || it.isDestroyed }
         }
 

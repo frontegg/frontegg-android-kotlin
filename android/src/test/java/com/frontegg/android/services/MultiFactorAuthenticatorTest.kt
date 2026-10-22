@@ -148,6 +148,18 @@ class MultiFactorAuthenticatorTest {
     }
 
     @Test
+    fun `native sign-in does not continue in a new login box opened after a recreated one was closed`() {
+        val startingLoginBox = mockk<EmbeddedAuthActivity>(relaxed = true)
+        every { startingLoginBox.isDestroyed } returns true
+        every { startingLoginBox.isChangingConfigurations } returns true
+        every { startingLoginBox.loginBoxId } returns "first-login-box"
+        val laterLoginBox = mockk<EmbeddedAuthActivity>(relaxed = true)
+        every { laterLoginBox.loginBoxId } returns "second-login-box"
+
+        assertNull(EmbeddedAuthActivity.liveLoginBox(startingLoginBox, laterLoginBox))
+    }
+
+    @Test
     fun `native sign-in does not continue in a login box opened after the user closed the one that started it`() {
         val closedLoginBox = mockk<EmbeddedAuthActivity>(relaxed = true)
         every { closedLoginBox.isFinishing } returns true
