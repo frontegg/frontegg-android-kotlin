@@ -20,6 +20,7 @@ import com.frontegg.demo.App
 import com.frontegg.demo.NavigationActivity
 import org.junit.After
 import org.junit.Before
+import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -70,6 +71,7 @@ open class EmbeddedE2ETestCase {
         resetState: Boolean = true,
         forceNetworkPathOffline: Boolean = false,
         enableOfflineMode: Boolean? = null,
+        enableDPoP: Boolean = false,
     ) {
         scenario?.close()
         scenario = null
@@ -86,6 +88,7 @@ open class EmbeddedE2ETestCase {
             resetState = resetState,
             forceNetworkPathOffline = forceNetworkPathOffline,
             enableOfflineMode = enableOfflineMode,
+            enableDPoP = enableDPoP,
         )
         instrumentation.runOnMainSync {
             (instrumentation.targetContext.applicationContext as App).consumeAndApplyE2EBootstrapFromDisk()
@@ -606,6 +609,24 @@ open class EmbeddedE2ETestCase {
     protected fun oauthRefreshRequestCount(): Int {
         val paths = listOf("/oauth/token", "/frontegg/identity/resources/auth/v1/user/token/refresh")
         return paths.sumOf { mock.requestCount(null, it) }
+    }
+
+    /** POST /oauth/token requests the mock received for [grantType] (authorization_code or refresh_token). */
+    protected fun tokenRequests(grantType: String): List<CapturedRequest> =
+        mock.requests("POST", "/oauth/token").filter { request ->
+            runCatching { JSONObject(request.body).optString("grant_type") }.getOrNull() == grantType
+        }
+
+    protected fun waitForTokenRequests(grantType: String, count: Int, timeoutMs: Long = 90_000): List<CapturedRequest> {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (true) {
+            val matching = tokenRequests(grantType)
+            if (matching.size >= count) return matching
+            if (System.currentTimeMillis() > deadline) {
+                throw AssertionError("Expected $count $grantType token request(s), the mock received ${matching.size}")
+            }
+            Thread.sleep(500)
+        }
     }
 
     private fun dumpVisibleMarkers(): String {

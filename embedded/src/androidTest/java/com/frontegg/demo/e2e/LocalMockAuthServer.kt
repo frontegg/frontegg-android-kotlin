@@ -18,6 +18,9 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
+/** A request the mock received, with the headers and body tests assert on. */
+data class CapturedRequest(val method: String, val path: String, val headers: okhttp3.Headers, val body: String)
+
 /** OkHttp MockWebServer mirror of Swift `LocalMockAuthServer` for embedded E2E. */
 class LocalMockAuthServer {
     val clientId = "demo-embedded-e2e-client"
@@ -26,6 +29,7 @@ class LocalMockAuthServer {
     private val state = MockAuthState()
     private val requestLogLock = ReentrantLock()
     private val requestLog = mutableListOf<Triple<String, String, String>>()
+    private val capturedRequests = mutableListOf<CapturedRequest>()
 
     init {
         server.dispatcher = object : Dispatcher() {
@@ -43,10 +47,20 @@ class LocalMockAuthServer {
     }
     fun reset() {
         state.reset()
-        requestLogLock.withLock { requestLog.clear() }
+        clearRequestLog()
     }
 
-    fun clearRequestLog() = requestLogLock.withLock { requestLog.clear() }
+    fun clearRequestLog() = requestLogLock.withLock {
+        requestLog.clear()
+        capturedRequests.clear()
+    }
+
+    fun requests(method: String? = null, path: String): List<CapturedRequest> = requestLogLock.withLock {
+        capturedRequests.filter { it.path == path && (method == null || it.method == method) }
+    }
+
+    fun allRequests(): List<CapturedRequest> = requestLogLock.withLock { capturedRequests.toList() }
+
     fun configureTokenPolicy(email: String, accessTTL: Int, refreshTTL: Int, startVer: Int = 1) =
         state.configureTokenPolicy(email, accessTTL, refreshTTL, startVer)
 
@@ -107,16 +121,17 @@ class LocalMockAuthServer {
         val raw = request.path ?: "/"
         val path = normPath(raw.substringBefore('?'))
         val method = request.method ?: "GET"
-        log(method, path, raw)
-        state.dequeue(method, path)?.let { return fromSpec(it, method) }
         val body = try {
             request.body.clone().readUtf8()
         } catch (_: Exception) {
             ""
         }
+        log(method, path, raw)
+        requestLogLock.withLock { capturedRequests.add(CapturedRequest(method, path, request.headers, body)) }
+        state.dequeue(method, path)?.let { return fromSpec(it, method) }
         val cookie = request.getHeader("Cookie")
         val authz = request.getHeader("Authorization")
-        return route(method, path, raw, body, cookie, authz)
+        return route(method, path, raw, body, cookie, authz, request.getHeader("DPoP"))
     }
 
     private fun fromSpec(spec: Map<String, Any?>, @Suppress("UNUSED_PARAMETER") method: String): MockResponse {
@@ -126,6 +141,7 @@ class LocalMockAuthServer {
         }
         val b = MockResponse()
         if (delayMs > 0) b.setBodyDelay(delayMs.toLong(), TimeUnit.MILLISECONDS)
+        (spec["headers"] as? Map<*, *>)?.forEach { (name, value) -> b.addHeader(name.toString(), value.toString()) }
         val redirect = spec["redirect"] as? String
         if (!redirect.isNullOrEmpty()) {
             val st = (spec["status"] as? Number)?.toInt() ?: 302
@@ -159,6 +175,7 @@ class LocalMockAuthServer {
         body: String,
         cookie: String?,
         authorization: String?,
+        dpopProof: String?,
     ): MockResponse {
         val q = parseQuery(raw)
         return when {
@@ -173,9 +190,9 @@ class LocalMockAuthServer {
             method == "GET" && path == "/embedded/continue" -> embeddedContinue(q)
             method == "POST" && path == "/embedded/password" -> embeddedPassword(body)
             method == "GET" && path == "/browser/complete" -> browserComplete(q)
-            method == "POST" && path == "/oauth/token" -> oauthToken(body)
+            method == "POST" && path == "/oauth/token" -> oauthToken(body, dpopProof)
             method == "POST" && (path == "/oauth/authorize/silent" || path == "/frontegg/oauth/authorize/silent") ->
-                silentAuthorize(cookie)
+                silentAuthorize(cookie, dpopProof)
             (method == "GET" && path == "/flags") || (method == "GET" && path == "/frontegg/flags") ->
                 json(200, JSONObject().put("mobile-enable-logging", "off"))
             method == "GET" && path == "/frontegg/metadata" ->
@@ -293,8 +310,11 @@ class LocalMockAuthServer {
         )
     }
 
-    private fun bearer(h: String?) =
-        if (h.isNullOrBlank() || !h.startsWith("Bearer ")) null else h.removePrefix("Bearer ").trim()
+    private fun bearer(h: String?): String? {
+        if (h.isNullOrBlank()) return null
+        val scheme = listOf("Bearer ", "DPoP ").firstOrNull { h.startsWith(it) } ?: return null
+        return h.removePrefix(scheme).trim()
+    }
 
     private fun authorizePage(q: Map<String, List<String>>): MockResponse {
         val redirect = fq(q, "redirect_uri")
@@ -700,7 +720,8 @@ class LocalMockAuthServer {
         return redir(cb(ru, code, st))
     }
 
-    private fun oauthToken(body: String): MockResponse {
+    private fun oauthToken(body: String, dpopProof: String?): MockResponse {
+        val jkt = dpopProof?.let { proofThumbprint(it) ?: return invalidDPoPProof() }
         val jo = JSONObject(body.ifEmpty { "{}" })
         return when (jo.optString("grant_type", "")) {
             "authorization_code" -> {
@@ -708,23 +729,30 @@ class LocalMockAuthServer {
                 if (c.isEmpty()) return json(400, JSONObject().put("error", "missing_code"))
                 val ac = state.consumeCode(c) ?: return json(400, JSONObject().put("error", "invalid_code"))
                 val iss = state.issueRefresh(ac.email)
-                json(200, JSONObject(gson.toJson(tokenJson(iss.rec, iss.token))))
+                json(200, JSONObject(gson.toJson(tokenJson(iss.rec, iss.token, jkt))))
             }
             "refresh_token" -> {
                 val rt = jo.optString("refresh_token", "")
                 if (rt.isEmpty()) return json(400, JSONObject().put("error", "missing_refresh_token"))
                 val ses = state.refresh(rt) ?: return json(401, JSONObject().put("error", "invalid_refresh_token"))
-                json(200, JSONObject(gson.toJson(tokenJson(ses, rt))))
+                json(200, JSONObject(gson.toJson(tokenJson(ses, rt, jkt))))
             }
             else -> json(400, JSONObject().put("error", "unsupported_grant_type"))
         }
     }
 
-    private fun silentAuthorize(cookie: String?): MockResponse {
+    private fun silentAuthorize(cookie: String?, dpopProof: String?): MockResponse {
+        val jkt = dpopProof?.let { proofThumbprint(it) ?: return invalidDPoPProof() }
         val rt = cookieRefresh(cookie) ?: return json(401, JSONObject().put("error", "invalid_refresh_cookie"))
         val s = state.validRt(rt) ?: return json(401, JSONObject().put("error", "invalid_refresh_cookie"))
-        return json(200, JSONObject(gson.toJson(tokenJson(s, rt))))
+        return json(200, JSONObject(gson.toJson(tokenJson(s, rt, jkt))))
     }
+
+    // Like a DPoP-enabled server, a token request with a verifiable proof gets tokens bound to the proof's key.
+    private fun proofThumbprint(dpopProof: String): String? =
+        runCatching { DPoPProof.parse(dpopProof).takeIf { it.hasValidSignature() }?.jwkThumbprint }.getOrNull()
+
+    private fun invalidDPoPProof() = json(400, JSONObject().put("error", "invalid_dpop_proof"))
 
     private fun hostedRefresh(cookie: String?): MockResponse {
         val rt = cookieRefresh(cookie) ?: return json(401, JSONObject().put("errors", JSONArray().put("Session not found")))
@@ -808,7 +836,7 @@ class LocalMockAuthServer {
         )
     }
 
-    private fun mintAccess(email: String, ver: Int, ttl: Int): String {
+    private fun mintAccess(email: String, ver: Int, ttl: Int, confirmationThumbprint: String? = null): String {
         val now = (System.currentTimeMillis() / 1000).toInt()
         val pl = JSONObject()
             .put("sub", "user-${email.substringBefore("@")}")
@@ -820,6 +848,7 @@ class LocalMockAuthServer {
             .put("exp", now + ttl)
             .put("iat", now)
             .put("token_version", ver)
+        confirmationThumbprint?.let { pl.put("cnf", JSONObject().put("jkt", it)) }
         val h = b64url("""{"alg":"none","typ":"JWT"}""")
         val p = b64url(pl.toString())
         return "$h.$p.sig"
@@ -845,10 +874,11 @@ class LocalMockAuthServer {
         return Base64.decode(x, Base64.DEFAULT)
     }
 
-    private fun tokenJson(rec: RtRec, rt: String): Map<String, Any?> {
+    private fun tokenJson(rec: RtRec, rt: String, confirmationThumbprint: String? = null): Map<String, Any?> {
         val p = state.policy(rec.email)
-        val at = mintAccess(rec.email, rec.tokenVersion, p.accessTokenTTL)
-        return mapOf("token_type" to "Bearer", "refresh_token" to rt, "access_token" to at, "id_token" to at)
+        val at = mintAccess(rec.email, rec.tokenVersion, p.accessTokenTTL, confirmationThumbprint)
+        val tokenType = if (confirmationThumbprint != null) "DPoP" else "Bearer"
+        return mapOf("token_type" to tokenType, "refresh_token" to rt, "access_token" to at, "id_token" to at)
     }
 
     private fun userPayload(email: String): Map<String, Any?> {
