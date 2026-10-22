@@ -189,6 +189,30 @@
       "title": "StateFlow access token updates after a token refresh",
       "description": "Logs in with a short access token TTL and verifies the marker collected from accessToken.stateFlow moves to the refreshed token version after the scheduled refresh, matching the polled access token marker.",
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testComposeTenantSwitcherSwitchesActiveTenant",
+      "title": "Compose tenant switcher switches the active tenant",
+      "description": "Logs in as a user with three tenants, opens the Compose components screen, verifies FronteggTenantSwitcher lists every tenant and marks the active one, taps another tenant, and verifies the PUT tenant switch request and that the switcher and user state move to the new tenant.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testComposeSecurityCenterRevokesSingleSession",
+      "title": "Compose security center revokes one session",
+      "description": "Opens FronteggSecurityCenter, verifies it lists the current and two other sessions, signs out one of them, and verifies the DELETE request for that session only and that its row disappears.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testComposeSecurityCenterSignsOutOtherSessions",
+      "title": "Compose security center signs out other sessions",
+      "description": "Opens FronteggSecurityCenter, taps Sign out other sessions, and verifies DELETE requests for every non-current session, none for the current one, and that only this device's session stays listed.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testComposeSecurityCenterSignOutReturnsToLogin",
+      "title": "Compose security center sign out returns to login",
+      "description": "Opens FronteggSecurityCenter, taps Sign out, and verifies the logout request and that the app returns to the login page with the auth state cleared.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     }
   ]
 }
