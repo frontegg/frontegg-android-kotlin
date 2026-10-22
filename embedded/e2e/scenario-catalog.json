@@ -173,6 +173,24 @@
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     },
     {
+      "method": "testPlayIntegrityUnavailableFailsOpenOnSignInAndRefresh",
+      "title": "Play Integrity unavailable fails open",
+      "description": "With a Play Integrity project number set on an emulator without the Play Store, logs in with the embedded password flow and waits for a scheduled refresh, verifying sign-in and refresh succeed and no request carries the frontegg-device-integrity-token header.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testPlayIntegrityDisabledSendsNoIntegrityToken",
+      "title": "Play Integrity disabled sends no integrity token",
+      "description": "With no Play Integrity project number, logs in and verifies no request carries the frontegg-device-integrity-token header.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testPlayIntegrityAttestsCodeExchangeButNotRefresh",
+      "title": "Play Integrity attests the code exchange but not the refresh",
+      "description": "Replaces Play Integrity with a fake provider that issues tokens bound to the request hash, logs in and waits for a scheduled refresh, and verifies the authorization code exchange carries the token for its body while the refresh and every other request carry none.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
       "method": "testStateFlowUserEmailAppearsAfterPasswordLogin",
       "title": "StateFlow user state shows the signed-in email",
       "description": "Verifies the login page markers collected from isAuthenticated.stateFlow and user.stateFlow read false and no user, logs in with the embedded password flow, and verifies the Home markers show true and the user's email.",

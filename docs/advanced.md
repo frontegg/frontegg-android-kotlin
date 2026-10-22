@@ -610,3 +610,27 @@ val revokedSessionIds = fronteggAuth.sessions.revokeOtherSessions()
 ```
 
 `revokeOtherSessions()` returns the ids of the sessions it signed out. If any sign-out fails, it throws the first failure with the others suppressed.
+
+## Play Integrity device attestation
+
+Attach a Google Play Integrity token to sign-in requests so your backend can reject tampered apps,
+emulators and scripted clients.
+
+1. In Google Play Console, link a Google Cloud project to your app under
+   **App integrity → Play Integrity API**.
+2. Pass the project number to the SDK:
+
+   ```groovy
+   buildConfigField "long", "FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER", "123456789012L"
+   ```
+
+   With `FronteggApp.initWithRegions(...)`, which doesn't read this field, pass
+   `playIntegrityCloudProjectNumber = 123456789012L` instead.
+
+The SDK sends the token in the `frontegg-device-integrity-token` header on the authorization code
+exchange, which every hosted, embedded and social sign-in ends with, and on the passkey and native
+social post-logins (such as native Google sign-in). Token refreshes and silent authorization are not
+attested. The token's request hash is the base64url SHA-256 of the request body. Attestation never
+makes sign-in fail: a token request waits at most about 5 seconds (up to 2 for a provider still
+being prepared, then up to 3 for the token), and if Play Integrity is unavailable, still preparing
+or times out, the request is sent without the header.

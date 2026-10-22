@@ -64,7 +64,7 @@ class ConfigCacheTest {
     }
 
     @Test
-    fun `DPoP flag survives a save and load`() {
+    fun `security flags survive a save and load`() {
         val regions = listOf(RegionConfig("us", "https://us.frontegg.com", "client-us", "app-us"))
         val flags = ConfigCache.RegionsInitFlags(
             useAssetsLinks = false,
@@ -72,12 +72,14 @@ class ConfigCacheTest {
             mainActivityClassName = null,
             useDiskCacheWebview = false,
             enableDPoP = true,
+            playIntegrityCloudProjectNumber = 123456789012L,
         )
 
         ConfigCache.saveLastRegionsInit(mockContext, regions, flags)
         val loadedFlags = ConfigCache.loadLastRegionsInit(mockContext)!!.second
 
         assert(loadedFlags.enableDPoP)
+        assert(loadedFlags.playIntegrityCloudProjectNumber == 123456789012L)
     }
 
     @Test

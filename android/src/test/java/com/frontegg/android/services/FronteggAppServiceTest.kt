@@ -116,9 +116,11 @@ class FronteggAppServiceTest {
         every { mockConstants.entitlementsEnabled } returns false
         every { mockConstants.fronteggOrganization } returns null
         every { mockConstants.enableDPoP } returns false
+        every { mockConstants.playIntegrityCloudProjectNumber } returns 0L
         every { FronteggApp.instance } returns null andThen mockFronteggApp
         every {
             FronteggApp.init(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -142,7 +144,7 @@ class FronteggAppServiceTest {
 
         mockContext.fronteggApp
 
-        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
         unmockkObject(SentryHelper)
     }
@@ -171,10 +173,12 @@ class FronteggAppServiceTest {
         every { mockConstants.entitlementsEnabled } returns false
         every { mockConstants.fronteggOrganization } returns null
         every { mockConstants.enableDPoP } returns false
+        every { mockConstants.playIntegrityCloudProjectNumber } returns 0L
         every { FronteggApp.instance } returns null andThen null andThen mockFronteggApp andThen mockFronteggApp
         every { mockFronteggApp.auth } returns mockk(relaxed = true)
         every {
             FronteggApp.init(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -198,7 +202,7 @@ class FronteggAppServiceTest {
 
         mockContext.fronteggAuth
 
-        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
+        verify { FronteggApp.init(any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any(), any()) }
         unmockkObject(FronteggApp)
         unmockkObject(SentryHelper)
     }

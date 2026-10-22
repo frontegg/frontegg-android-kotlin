@@ -105,6 +105,7 @@ object FronteggReconnector {
                             enableOfflineMode = flags.enableOfflineMode,
                             networkMonitoringIntervalSeconds = flags.networkMonitoringIntervalSeconds,
                             enableDPoP = flags.enableDPoP,
+                            playIntegrityCloudProjectNumber = flags.playIntegrityCloudProjectNumber,
                         )
                         // small delay to allow internal setup
                         delay(50)
