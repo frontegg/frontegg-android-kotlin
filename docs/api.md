@@ -35,6 +35,7 @@ Each `ReadOnlyObservableValue` exposes `value` and a `stateFlow` (`StateFlow<T>`
 | `useAssetsLinks` | `Boolean` | Flag for using asset links |
 | `useChromeCustomTabs` | `Boolean` | Flag for using Chrome Custom Tabs |
 | `mainActivityClass` | `Class<*>?` | Main activity class reference |
+| `sessions` | `SessionsService` | Lists and revokes the user's active sessions |
 
 #### Methods
 
