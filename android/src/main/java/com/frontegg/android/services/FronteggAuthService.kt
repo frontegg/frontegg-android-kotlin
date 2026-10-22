@@ -759,7 +759,7 @@ class FronteggAuthService(
             var startedLoading = false
             try {
                 val googleIdTokenSource = GoogleIdTokenSourceProvider.getGoogleIdTokenSource(activity)
-                val googleConfig = withContext(ioDispatcher) { api.getSocialLoginConfig().google }
+                val googleConfig = withContext(ioDispatcher) { api.getGoogleSocialLoginOption() }
                 val serverClientId = googleConfig?.clientId
                 val usesOwnGoogleApp = googleConfig?.customised == true
                 if (googleConfig?.active != true || serverClientId.isNullOrBlank() || !usesOwnGoogleApp) {
