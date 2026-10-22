@@ -182,6 +182,33 @@
                             android:text="0"
                             android:textSize="1sp"
                             android:textColor="@android:color/transparent" />
+
+                        <TextView
+                            android:id="@+id/e2e_state_flow_user_email"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="StateFlowUserEmailValue"
+                            android:text="none"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
+
+                        <TextView
+                            android:id="@+id/e2e_state_flow_is_authenticated"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="StateFlowIsAuthenticatedValue"
+                            android:text="false"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
+
+                        <TextView
+                            android:id="@+id/e2e_state_flow_access_token_version"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="StateFlowAccessTokenVersionValue"
+                            android:text="0"
+                            android:textSize="1sp"
+                            android:textColor="@android:color/transparent" />
                     </LinearLayout>
 
 

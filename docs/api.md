@@ -12,6 +12,8 @@ The FronteggAuth class provides several methods for authentication and user mana
 
 #### Properties
 
+Each `ReadOnlyObservableValue` exposes `value` and a `stateFlow` (`StateFlow<T>`) to observe changes.
+
 | Property | Type | Description |
 |----------|------|-------------|
 | `accessToken` | `ReadOnlyObservableValue<String?>` | Current access token. Null if user is unauthorized |

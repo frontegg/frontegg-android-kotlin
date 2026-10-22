@@ -63,6 +63,26 @@
                         android:textAppearance="?attr/textAppearanceHeadlineMedium"
                         android:textColor="@color/text" />
 
+                    <TextView
+                        android:id="@+id/e2e_state_flow_is_authenticated"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="StateFlowIsAuthenticatedValue"
+                        android:text="false"
+                        android:textSize="1sp"
+                        android:textColor="@android:color/transparent"
+                        android:visibility="gone" />
+
+                    <TextView
+                        android:id="@+id/e2e_state_flow_user_email"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:contentDescription="StateFlowUserEmailValue"
+                        android:text="none"
+                        android:textSize="1sp"
+                        android:textColor="@android:color/transparent"
+                        android:visibility="gone" />
+
                     <Space
                         android:layout_width="match_parent"
                         android:layout_height="8dp" />
