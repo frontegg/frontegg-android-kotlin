@@ -216,6 +216,7 @@ class LocalMockAuthServer {
                 json(200, JSONObject().put("vendors", JSONArray()))
             method == "GET" && path == "/frontegg/identity/resources/sso/v2" -> socialConfigArr()
             method == "GET" && path == "/identity/resources/auth/v1/sso/config" -> androidSocialConfig()
+            method == "GET" && path == "/identity/resources/sso/v2" -> androidSocialProviders()
             method == "GET" && path == "/identity/resources/auth/v1/feature-flags" -> json(200, JSONObject())
             method == "GET" && path == "/frontegg/identity/resources/configurations/v1/public" ->
                 json(200, JSONObject().put("embeddedMode", true).put("loginBoxVisible", !state.isCustomLoginBox()).put("customLoginBox", state.isCustomLoginBox()))
@@ -873,20 +874,19 @@ class LocalMockAuthServer {
         return json(200, a)
     }
 
-    private fun androidSocialConfig(): MockResponse {
+    private fun androidSocialConfig(): MockResponse = json(200, JSONObject().put("google", androidGoogleProvider()))
+
+    private fun androidSocialProviders(): MockResponse =
+        json(200, JSONArray().put(androidGoogleProvider().put("type", "google")))
+
+    private fun androidGoogleProvider(): JSONObject {
         val b = urlRoot()
-        return json(
-            200,
-            JSONObject().put(
-                "google",
-                JSONObject()
-                    .put("active", true)
-                    .put("customised", true)
-                    .put("clientId", "mock")
-                    .put("authorizationUrl", "$b/idp/google/authorize")
-                    .put("additionalScopes", JSONArray())
-            )
-        )
+        return JSONObject()
+            .put("active", true)
+            .put("customised", true)
+            .put("clientId", "mock")
+            .put("authorizationUrl", "$b/idp/google/authorize")
+            .put("additionalScopes", JSONArray())
     }
 
     private fun mintAccess(email: String, ver: Int, ttl: Int, confirmationThumbprint: String? = null): String {
