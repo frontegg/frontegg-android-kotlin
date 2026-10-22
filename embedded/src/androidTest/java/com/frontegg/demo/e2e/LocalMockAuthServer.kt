@@ -19,12 +19,18 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /** A request the mock received, with the headers and body tests assert on. */
-data class CapturedRequest(val method: String, val path: String, val headers: okhttp3.Headers, val body: String)
+data class CapturedRequest(
+    val method: String,
+    val path: String,
+    val headers: okhttp3.Headers,
+    val body: String,
+    val target: String = path,
+)
 
 /** OkHttp MockWebServer mirror of Swift `LocalMockAuthServer` for embedded E2E. */
 class LocalMockAuthServer {
     companion object {
-        const val GOOGLE_POST_LOGIN_PATH = "/oauth/account/social/google/post-login"
+        const val GOOGLE_POST_LOGIN_PATH = "/identity/resources/auth/v1/user/sso/google/postlogin"
         const val GOOGLE_AUTHORIZE_PATH = "/idp/google/authorize"
         const val GOOGLE_ID_TOKEN = "e2e-google-id-token"
         const val GOOGLE_NATIVE_EMAIL = "google-native@frontegg.com"
@@ -135,7 +141,7 @@ class LocalMockAuthServer {
             ""
         }
         log(method, path, raw)
-        requestLogLock.withLock { capturedRequests.add(CapturedRequest(method, path, request.headers, body)) }
+        requestLogLock.withLock { capturedRequests.add(CapturedRequest(method, path, request.headers, body, raw)) }
         state.dequeue(method, path)?.let { return fromSpec(it, method) }
         val cookie = request.getHeader("Cookie")
         val authz = request.getHeader("Authorization")
@@ -195,7 +201,7 @@ class LocalMockAuthServer {
             method == "POST" && path == "/oauth/postlogin" -> hostedPostlogin(body)
             method == "GET" && path == "/oauth/postlogin/redirect" -> hostedPostRedirect(q)
             method == "GET" && path == GOOGLE_AUTHORIZE_PATH -> mockGoogle(q)
-            method == "POST" && path == GOOGLE_POST_LOGIN_PATH -> googlePostLogin(body)
+            method == "POST" && path == GOOGLE_POST_LOGIN_PATH -> googlePostLogin(q)
             method == "GET" && path == "/embedded/continue" -> embeddedContinue(q)
             method == "POST" && path == "/embedded/password" -> embeddedPassword(body)
             method == "GET" && path == "/browser/complete" -> browserComplete(q)
@@ -610,8 +616,8 @@ class LocalMockAuthServer {
     }
 
     /** Native Google sign-in: accepts only [GOOGLE_ID_TOKEN], and asks for MFA when it is configured for the user. */
-    private fun googlePostLogin(body: String): MockResponse {
-        val idToken = JSONObject(body.ifEmpty { "{}" }).optString("idToken", "")
+    private fun googlePostLogin(q: Map<String, List<String>>): MockResponse {
+        val idToken = fq(q, "id_token")
         if (idToken != GOOGLE_ID_TOKEN) {
             return json(400, JSONObject().put("errors", JSONArray().put("Invalid Google ID token")))
         }
@@ -623,7 +629,8 @@ class LocalMockAuthServer {
             return json(200, mfaRequired)
         }
         val issued = state.issueRefresh(GOOGLE_NATIVE_EMAIL)
-        return json(200, JSONObject(gson.toJson(tokenJson(issued.rec, issued.token))))
+        return json(200, JSONObject())
+            .addHeader("Set-Cookie", "fe_refresh_demoembedded-e2e-client=${issued.token}; Path=/; HttpOnly")
     }
 
     /** The MFA direct action the SDK authorizes with after an MFA-required native login; its state is the post-login response. */

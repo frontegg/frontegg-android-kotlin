@@ -25,6 +25,7 @@ import com.frontegg.demo.NavigationActivity
 import io.mockk.every
 import io.mockk.mockkObject
 import io.mockk.unmockkObject
+import okhttp3.HttpUrl.Companion.toHttpUrl
 import org.json.JSONObject
 import org.junit.After
 import org.junit.Before
@@ -904,12 +905,12 @@ open class EmbeddedE2ETestCase {
         if (postLogins.size != 1) {
             throw AssertionError("Expected one Google post-login request, got ${postLogins.size}")
         }
-        val body = JSONObject(postLogins.single().body)
-        val sentIdToken = body.optString("idToken")
+        val query = "http://localhost${postLogins.single().target}".toHttpUrl()
+        val sentIdToken = query.queryParameter("id_token")
         if (sentIdToken != expectedIdToken) {
             throw AssertionError("Google post-login sent idToken=$sentIdToken, expected $expectedIdToken")
         }
-        val redirectUri = body.optString("redirectUri")
+        val redirectUri = query.queryParameter("redirectUri").orEmpty()
         if (!redirectUri.endsWith("/oauth/account/social/success")) {
             throw AssertionError("Google post-login sent redirectUri=$redirectUri")
         }
