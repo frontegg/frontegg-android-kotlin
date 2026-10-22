@@ -137,19 +137,16 @@ class RequestQueueTest {
 
     @Test
     fun `removeExpired removes old requests`() = runBlocking {
-        requestQueue.enqueue("test-1", { })
-        
-        // Wait a bit
-        Thread.sleep(100)
-        
-        // Add another request
-        requestQueue.enqueue("test-2", { })
-        
-        // Remove requests older than 50ms
-        requestQueue.removeExpired(50)
-        
-        // First request should be removed, second should remain
-        assert(requestQueue.size() == 1)
+        var nowMs = 1_000L
+        val queueWithClock = RequestQueue { nowMs }
+        queueWithClock.enqueue("test-1", { })
+
+        nowMs += 100
+        queueWithClock.enqueue("test-2", { })
+
+        queueWithClock.removeExpired(50)
+
+        assert(queueWithClock.size() == 1)
     }
 
     @Test

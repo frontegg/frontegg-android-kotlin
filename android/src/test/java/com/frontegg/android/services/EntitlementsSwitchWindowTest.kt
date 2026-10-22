@@ -200,7 +200,8 @@ class EntitlementsSwitchWindowTest {
      */
     private fun simulateSwitchToAlphaInternals(
         releaseAlphaReload: CountDownLatch,
-        holdClearUntil: CountDownLatch? = null
+        holdClearUntil: CountDownLatch? = null,
+        cleared: CountDownLatch? = null
     ): Thread {
         every { apiMock.getUserEntitlements(accessTokenOverride = alphaToken) }.answers {
             // Block until the test allows the reload to complete.
@@ -213,6 +214,7 @@ class EntitlementsSwitchWindowTest {
             auth.user.value = makeUser("alpha-tenant-id")   // fires the demo observer
             holdClearUntil?.await(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             auth.entitlements.clear()
+            cleared?.countDown()
             auth.loadEntitlements(forceRefresh = true)
         }.apply { start() }
     }
@@ -239,6 +241,8 @@ class EntitlementsSwitchWindowTest {
         val releaseAlphaReload = CountDownLatch(1)
         val captured = AtomicReference<Entitlement>()
         val demoRead = CountDownLatch(1)
+        // The demo's completion is posted to an idle main thread and can otherwise run before the SDK's clear().
+        val sdkCleared = CountDownLatch(1)
 
         // The demo's CURRENT behavior: when the active tenant changes, call
         // loadEntitlements(forceRefresh = false) and read the verdict in the
@@ -249,6 +253,7 @@ class EntitlementsSwitchWindowTest {
             val tid = u.activeTenant.tenantId
             if (lastTenantId != null && lastTenantId != tid) {
                 auth.loadEntitlements(forceRefresh = false) {
+                    sdkCleared.await(AWAIT_TIMEOUT_SECONDS, TimeUnit.SECONDS)
                     captured.set(auth.getFeatureEntitlements("feature_a"))
                     demoRead.countDown()
                 }
@@ -256,7 +261,7 @@ class EntitlementsSwitchWindowTest {
             lastTenantId = tid
         }
 
-        simulateSwitchToAlphaInternals(releaseAlphaReload)
+        simulateSwitchToAlphaInternals(releaseAlphaReload, cleared = sdkCleared)
 
         // The demo's read completes while alpha's reload is still blocked.
         assertTrue(

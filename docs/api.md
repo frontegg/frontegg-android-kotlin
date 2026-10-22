@@ -12,6 +12,8 @@ The FronteggAuth class provides several methods for authentication and user mana
 
 #### Properties
 
+Each `ReadOnlyObservableValue` exposes `value` and a `stateFlow` (`StateFlow<T>`) to observe changes.
+
 | Property | Type | Description |
 |----------|------|-------------|
 | `accessToken` | `ReadOnlyObservableValue<String?>` | Current access token. Null if user is unauthorized |
@@ -33,6 +35,7 @@ The FronteggAuth class provides several methods for authentication and user mana
 | `useAssetsLinks` | `Boolean` | Flag for using asset links |
 | `useChromeCustomTabs` | `Boolean` | Flag for using Chrome Custom Tabs |
 | `mainActivityClass` | `Class<*>?` | Main activity class reference |
+| `sessions` | `SessionsService` | Lists and revokes the user's active sessions |
 
 #### Methods
 

@@ -11,37 +11,26 @@ class UserRole {
     lateinit var vendorId: String
     lateinit var createdAt: String
     lateinit var updatedAt: String
+
+    // Gson leaves omitted lateinit fields unset, so equality must not read them.
+    private fun comparedFields(): List<Any?> = listOf(
+        if (this::id.isInitialized) id else null,
+        if (this::key.isInitialized) key else null,
+        isDefault,
+        if (this::name.isInitialized) name else null,
+        description,
+        if (this::permissions.isInitialized) permissions else null,
+        tenantId,
+        if (this::vendorId.isInitialized) vendorId else null,
+        if (this::createdAt.isInitialized) createdAt else null,
+        if (this::updatedAt.isInitialized) updatedAt else null,
+    )
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
-
-        other as UserRole
-
-        if (id != other.id) return false
-        if (key != other.key) return false
-        if (isDefault != other.isDefault) return false
-        if (name != other.name) return false
-        if (description != other.description) return false
-        if (permissions != other.permissions) return false
-        if (tenantId != other.tenantId) return false
-        if (vendorId != other.vendorId) return false
-        if (createdAt != other.createdAt) return false
-        if (updatedAt != other.updatedAt) return false
-
-        return true
+        return comparedFields() == (other as UserRole).comparedFields()
     }
 
-    override fun hashCode(): Int {
-        var result = id.hashCode()
-        result = 31 * result + key.hashCode()
-        result = 31 * result + isDefault.hashCode()
-        result = 31 * result + name.hashCode()
-        result = 31 * result + (description?.hashCode() ?: 0)
-        result = 31 * result + permissions.hashCode()
-        result = 31 * result + (tenantId?.hashCode() ?: 0)
-        result = 31 * result + vendorId.hashCode()
-        result = 31 * result + createdAt.hashCode()
-        result = 31 * result + updatedAt.hashCode()
-        return result
-    }
+    override fun hashCode(): Int = comparedFields().hashCode()
 }

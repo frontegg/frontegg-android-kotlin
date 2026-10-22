@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
 import android.text.TextUtils
 import android.util.Log
 import android.view.View
@@ -20,9 +22,7 @@ import com.frontegg.android.utils.AppIdHeaderHelper
 import com.frontegg.android.utils.AuthorizeUrlGenerator
 import com.frontegg.android.utils.Constants
 import com.frontegg.android.utils.LogUrlSanitizer
-import com.frontegg.android.utils.NullableObject
-import io.reactivex.rxjava3.disposables.Disposable
-import io.reactivex.rxjava3.functions.Consumer
+import com.frontegg.android.utils.ReadOnlyObservableValue
 import kotlin.time.Duration
 
 
@@ -279,46 +279,60 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         }
     }
 
-    private val disposables: ArrayList<Disposable> = arrayListOf()
+    private val subscriptions: ArrayList<() -> Unit> = arrayListOf()
     private var loaderContainer: LinearLayout? = null
 
-    private val showLoaderConsumer: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "showLoaderConsumer: ${it.value}")
-        runOnUiThread {
+    // Posting keeps app callbacks out of the SDK setter that delivered the change.
+    private val mainHandler = Handler(Looper.getMainLooper())
+
+    private val showLoaderConsumer: (Boolean) -> Unit = { showLoader ->
+        Log.d(TAG, "showLoaderConsumer: $showLoader")
+        mainHandler.post {
             if (showingOAuthCallbackError) {
                 loaderContainer?.visibility = View.GONE
-                return@runOnUiThread
+                return@post
             }
+            // Runs after the setter returns, so apply the current value rather than the delivered one.
+            val currentShowLoader = applicationContext.fronteggAuth.showLoader.value
             if (applicationContext.fronteggAuth.isStepUpAuthorization.value) {
-                loaderContainer?.visibility = if (it.value) View.VISIBLE else View.GONE
+                loaderContainer?.visibility = if (currentShowLoader) View.VISIBLE else View.GONE
             } else {
                 loaderContainer?.visibility =
-                    if (it.value || applicationContext.fronteggAuth.isAuthenticated.value) View.VISIBLE else View.GONE
+                    if (currentShowLoader || applicationContext.fronteggAuth.isAuthenticated.value) {
+                        View.VISIBLE
+                    } else {
+                        View.GONE
+                    }
             }
         }
     }
-    private val isAuthenticatedConsumer: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isAuthenticatedConsumer: ${it.value}")
-        if (it.value) {
-            runOnUiThread {
-                authCompleted = true
-                navigateToAuthenticated()
-                onAuthFinishedCallback?.invoke(null)
-                onAuthFinishedCallback = null
+    private val isAuthenticatedConsumer: (Boolean) -> Unit = { isAuthenticated ->
+        Log.d(TAG, "isAuthenticatedConsumer: $isAuthenticated")
+        if (isAuthenticated) {
+            mainHandler.post {
+                if (fronteggAuth.isAuthenticated.value) completeAuthentication()
             }
         }
     }
 
-    private val isStepUpAuthorization: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isStepUpAuthorization: ${it.value}")
-        if (!it.value) {
-            runOnUiThread {
-                authCompleted = true
-                navigateToAuthenticated()
-                onAuthFinishedCallback?.invoke(null)
-                onAuthFinishedCallback = null
+    private val isStepUpAuthorization: (Boolean) -> Unit = { isStepUpAuthorization ->
+        Log.d(TAG, "isStepUpAuthorization: $isStepUpAuthorization")
+        if (!isStepUpAuthorization) {
+            mainHandler.post {
+                if (!fronteggAuth.isStepUpAuthorization.value) completeAuthentication()
             }
         }
+    }
+
+    private fun completeAuthentication() {
+        authCompleted = true
+        navigateToAuthenticated()
+        onAuthFinishedCallback?.invoke(null)
+        onAuthFinishedCallback = null
+    }
+
+    private fun bind(observableValue: ReadOnlyObservableValue<Boolean>, listener: (Boolean) -> Unit) {
+        subscriptions.add(observableValue.observeFromCurrent(listener))
     }
 
     private fun navigateToAuthenticated() {
@@ -337,7 +351,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         super.onResume()
 
         StepUpAuthenticator.resumeEmbeddedActivity()
-        disposables.add(fronteggAuth.showLoader.subscribe(this.showLoaderConsumer))
+        bind(fronteggAuth.showLoader, this.showLoaderConsumer)
 
         Log.d(
             TAG,
@@ -345,9 +359,9 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         )
 
         if (!fronteggAuth.isStepUpAuthorization.value) {
-            disposables.add(fronteggAuth.isAuthenticated.subscribe(this.isAuthenticatedConsumer))
+            bind(fronteggAuth.isAuthenticated, this.isAuthenticatedConsumer)
         } else if (fronteggAuth.isStepUpAuthorization.value) {
-            disposables.add(fronteggAuth.isStepUpAuthorization.subscribe(this.isStepUpAuthorization))
+            bind(fronteggAuth.isStepUpAuthorization, this.isStepUpAuthorization)
         }
 
         // Consume intent data if available (for social login redirects)
@@ -383,22 +397,28 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
 
     override fun onPause() {
         super.onPause()
-        disposables.forEach {
-            it.dispose()
-        }
+        // Queued posts stay so a completion delivered before the unbind still finishes the flow.
+        subscriptions.forEach { unsubscribe -> unsubscribe() }
+        subscriptions.clear()
     }
 
     override fun onDestroy() {
+        mainHandler.removeCallbacksAndMessages(null)
         super.onDestroy()
         FronteggState.webLoading.value = false
         // Only treat as user-cancelled when the activity is truly finishing,
         // not during configuration changes or system-driven recreation — and not when
         // auth already completed (the flag is now persisted across recreation, FR-25934).
         if (shouldDeliverUserCancellation(authCompleted, isFinishing, isChangingConfigurations)) {
-            onAuthFinishedCallback?.invoke(CanceledByUserException())
+            // A login whose queued completion was dropped above still succeeded; no navigation from here.
+            val error = if (isAuthenticatedOutsideStepUp()) null else CanceledByUserException()
+            onAuthFinishedCallback?.invoke(error)
             onAuthFinishedCallback = null
         }
     }
+
+    private fun isAuthenticatedOutsideStepUp(): Boolean =
+        fronteggAuth.isAuthenticated.value && !fronteggAuth.isStepUpAuthorization.value
 
     companion object {
         const val AUTHORIZE_URI = "com.frontegg.android.AUTHORIZE_URI"
