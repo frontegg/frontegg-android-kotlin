@@ -31,6 +31,7 @@ class NavigationActivity : AppCompatActivity() {
         private val TAG = NavigationActivity::class.java.canonicalName
         /** Consecutive failed /test probes before showing the offline overlay (browser handoff can starve the mock briefly on CI). */
         private const val E2E_NET_FAIL_STREAK_THRESHOLD = 5
+        private const val APPLIED_AUTHENTICATED_STATE_KEY = "appliedAuthenticatedState"
     }
 
     private lateinit var binding: ActivityNavigationBinding
@@ -82,13 +83,11 @@ class NavigationActivity : AppCompatActivity() {
         navController = navHostFragment.navController
 
 
-        // Set default navigation graph for non-authenticated users
-        setupActionBarWithNavController(navController, nonAuthTabs)
-
-        // Set the initial navigation graph
-        if (savedInstanceState == null) {
-            navController.setGraph(R.navigation.not_auth_navigation)
-        }
+        appliedAuthenticatedState = savedInstanceState
+            ?.takeIf { it.containsKey(APPLIED_AUTHENTICATED_STATE_KEY) }
+            ?.getBoolean(APPLIED_AUTHENTICATED_STATE_KEY)
+        // The host does not save a graph set in code; setting the saved one again restores its back stack.
+        applyNavigationGraph(appliedAuthenticatedState == true)
 
         setToolbarVisibility(false)
 
@@ -210,6 +209,11 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        appliedAuthenticatedState?.let { outState.putBoolean(APPLIED_AUTHENTICATED_STATE_KEY, it) }
+    }
+
     override fun onDestroy() {
         e2eTicker?.let { e2eHandler.removeCallbacks(it) }
         super.onDestroy()
@@ -224,7 +228,8 @@ class NavigationActivity : AppCompatActivity() {
         super.onResume()
         // Subscribe to Frontegg authentication events
         disposables.add(fronteggAuth.showLoader.subscribe(this.onShowLoaderChange))
-        disposables.add(fronteggAuth.isAuthenticated.subscribe(this.onIsAuthenticatedChange))
+        disposables.add(fronteggAuth.isAuthenticated.subscribe(this.onAuthStateChange))
+        disposables.add(fronteggAuth.initializing.subscribe(this.onAuthStateChange))
     }
 
     override fun onPause() {
@@ -262,25 +267,37 @@ class NavigationActivity : AppCompatActivity() {
         }
     }
 
+    /** The authentication state the navigation graph was last set for. */
+    private var appliedAuthenticatedState: Boolean? = null
+
     /**
-     * Observer for authentication status changes.
-     * Updates the UI and navigation graph based on authentication state.
+     * Observer for authentication and initialization changes.
+     * Initialization is observed too, so the state applies when it ends with an unchanged authentication value.
      */
-    private val onIsAuthenticatedChange: Consumer<NullableObject<Boolean>> = Consumer {
-        Log.d(TAG, "isAuthenticated: ${it.value}")
+    private val onAuthStateChange: Consumer<NullableObject<Boolean>> = Consumer {
+        runOnUiThread { applyAuthState() }
+    }
 
-        runOnUiThread {
-            if (it.value) {
-                // User is authenticated: switch to authenticated navigation graph
-                setupActionBarWithNavController(navController, authenticatedTabs)
-                navController.setGraph(R.navigation.navigation)
+    /** Updates the navigation graph for the authentication state once the SDK has finished initializing. */
+    private fun applyAuthState() {
+        // While initializing, a signed-in user can read as signed out; keep the restored screen until it ends.
+        if (fronteggAuth.initializing.value) return
+        val authenticated = fronteggAuth.isAuthenticated.value
+        Log.d(TAG, "isAuthenticated: $authenticated")
+        // Token refreshes and tenant switches set the same value again; keep the current screen.
+        if (appliedAuthenticatedState == authenticated) return
+        appliedAuthenticatedState = authenticated
+        applyNavigationGraph(authenticated)
+    }
 
-            } else {
-                // User is not authenticated: switch to non-authenticated navigation graph
-                setupActionBarWithNavController(navController, nonAuthTabs)
-                navController.setGraph(R.navigation.not_auth_navigation)
-
-            }
+    /** Sets the navigation graph and top-level destinations for the given authentication state. */
+    private fun applyNavigationGraph(authenticated: Boolean) {
+        if (authenticated) {
+            setupActionBarWithNavController(navController, authenticatedTabs)
+            navController.setGraph(R.navigation.navigation)
+        } else {
+            setupActionBarWithNavController(navController, nonAuthTabs)
+            navController.setGraph(R.navigation.not_auth_navigation)
         }
     }
 

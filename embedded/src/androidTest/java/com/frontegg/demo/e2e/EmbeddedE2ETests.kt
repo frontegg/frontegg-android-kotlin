@@ -2,6 +2,8 @@ package com.frontegg.demo.e2e
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
+import androidx.test.uiautomator.BySelector
+import androidx.test.uiautomator.UiObject2
 import androidx.test.uiautomator.Until
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -631,5 +633,216 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         if (lastSeenText != expectedText) {
             throw AssertionError("Expected $contentDescription to read '$expectedText' but it read '$lastSeenText'")
         }
+    }
+
+    @Test
+    fun testComposeTenantSwitcherSwitchesActiveTenant() {
+        val email = "test@frontegg.com"
+        val additionalTenantNames = listOf("Acme Workspace", "Globex Workspace")
+        val acmeTenantId = mock.configureAdditionalTenants(email, additionalTenantNames).first()
+        val tenantNames = listOf("Test Tenant") + additionalTenantNames
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail(email, timeoutMs = 120_000)
+        val homeTenantId = mock.activeTenantId(email)
+        openComposeComponents()
+        waitForDesc("ComposeActiveTenantValue=$homeTenantId", 30_000)
+        waitForText("Workspaces")
+        tenantNames.forEach { waitForTextContaining(it) }
+        waitForActiveTenantRow("Test Tenant", tenantNames)
+
+        tapTextContaining("Acme Workspace")
+
+        if (!mock.waitForRequest("PUT", tenantSwitchPath, timeoutMs = 30_000)) {
+            throw AssertionError("Expected the tenant switcher to send PUT $tenantSwitchPath")
+        }
+        val switchedTenantId = JSONObject(mock.requests("PUT", tenantSwitchPath).last().body).optString("tenantId")
+        if (switchedTenantId != acmeTenantId) {
+            throw AssertionError("Expected a switch to $acmeTenantId but the request asked for $switchedTenantId")
+        }
+        waitForDesc("ComposeActiveTenantValue=$acmeTenantId", 60_000)
+        waitForActiveTenantRow("Acme Workspace", tenantNames)
+        if (mock.activeTenantId(email) != acmeTenantId) {
+            throw AssertionError("Mock active tenant is ${mock.activeTenantId(email)}, expected $acmeTenantId")
+        }
+    }
+
+    @Test
+    fun testComposeSecurityCenterRevokesSingleSession() {
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        openSecurityCenter()
+        scrollUntilTextContainingVisible("E2E Tablet Browser")
+        waitForTextContaining("E2E Current Phone")
+        waitForTextContaining("E2E Laptop Browser")
+
+        tapTextNearest("Sign out", anchorText = "E2E Laptop Browser")
+
+        if (!mock.waitForRequest("DELETE", "$userSessionsPath/session-laptop", timeoutMs = 30_000)) {
+            throw AssertionError("Expected DELETE $userSessionsPath/session-laptop")
+        }
+        waitForTextContainingGone("E2E Laptop Browser")
+        waitForTextContaining("E2E Current Phone")
+        waitForTextContaining("E2E Tablet Browser")
+        val otherDeletes = listOf("session-current", "session-tablet")
+            .sumOf { mock.requestCount("DELETE", "$userSessionsPath/$it") }
+        if (otherDeletes != 0) {
+            throw AssertionError("Expected only the laptop session to be revoked, saw $otherDeletes other DELETE requests")
+        }
+    }
+
+    @Test
+    fun testComposeSecurityCenterSignsOutOtherSessions() {
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        openSecurityCenter()
+        scrollUntilTextContainingVisible("E2E Tablet Browser")
+        waitForTextContaining("E2E Laptop Browser")
+
+        scrollUntilTextContainingVisible("Sign out other sessions")
+        tapText("Sign out other sessions")
+
+        if (!mock.waitForRequest("DELETE", "$userSessionsPath/session-laptop", timeoutMs = 30_000) ||
+            !mock.waitForRequest("DELETE", "$userSessionsPath/session-tablet", timeoutMs = 30_000)
+        ) {
+            throw AssertionError("Expected DELETE requests for both non-current sessions")
+        }
+        waitForTextContainingGone("E2E Laptop Browser")
+        waitForTextContainingGone("E2E Tablet Browser")
+        if (mock.requestCount("DELETE", "$userSessionsPath/session-current") != 0) {
+            throw AssertionError("The current session must not be revoked")
+        }
+        if (mock.userSessions().map { it.id } != listOf("session-current")) {
+            throw AssertionError("Expected only the current session to remain, got ${mock.userSessions()}")
+        }
+        scrollUntilTextContainingVisible("E2E Current Phone")
+        waitForTextContaining("No other active sessions.")
+    }
+
+    @Test
+    fun testComposeSecurityCenterSignOutReturnsToLogin() {
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        openSecurityCenter()
+        scrollUntilTextContainingVisible("Sign out other sessions")
+        repeat(3) { swipeContentUp() }
+
+        tapLowestText("Sign out")
+
+        if (!mock.waitForRequest("POST", "/oauth/logout/token", timeoutMs = 30_000)) {
+            throw AssertionError("Expected the security center sign out to call POST /oauth/logout/token")
+        }
+        waitForDesc("LoginPageRoot", 90_000)
+        waitForDescText("StateFlowIsAuthenticatedValue", "false")
+        waitForDescText("StateFlowUserEmailValue", "none")
+    }
+
+    private val tenantSwitchPath = "/identity/resources/users/v1/tenant"
+    private val userSessionsPath = LocalMockAuthServer.USER_SESSIONS_PATH
+
+    private fun openComposeComponents() {
+        val openButton = scrollUntilVisible(By.desc("OpenComposeComponentsButton"), "OpenComposeComponentsButton")
+        openButton.click()
+        waitForDesc("ComposeComponentsRoot", 30_000)
+    }
+
+    private fun openSecurityCenter() {
+        openComposeComponents()
+        tapText("Security center")
+        scrollUntilTextContainingVisible("Active sessions")
+    }
+
+    private fun visibleObject(selector: BySelector): UiObject2? = runCatching {
+        device.findObject(selector)?.takeIf { it.visibleBounds.height() > 0 && it.visibleBounds.width() > 0 }
+    }.getOrNull()
+
+    private fun visibleTextContaining(text: String): UiObject2? = visibleObject(By.textContains(text))
+
+    private fun visibleTextMatches(text: String): List<UiObject2> = runCatching {
+        device.findObjects(By.text(text)).filter { it.visibleBounds.height() > 0 && it.visibleBounds.width() > 0 }
+    }.getOrDefault(emptyList())
+
+    private fun waitForTextContaining(text: String, timeoutMs: Long = 30_000) {
+        if (!device.wait(Until.hasObject(By.textContains(text)), timeoutMs)) {
+            throw AssertionError("Timeout waiting for text containing '$text'")
+        }
+    }
+
+    private fun waitForTextContainingGone(text: String, timeoutMs: Long = 30_000) {
+        if (device.wait(Until.gone(By.textContains(text)), timeoutMs) != true) {
+            throw AssertionError("Expected text containing '$text' to disappear")
+        }
+    }
+
+    private fun tapTextContaining(text: String, timeoutMs: Long = 30_000) {
+        waitForTextContaining(text, timeoutMs)
+        val target = visibleTextContaining(text) ?: throw AssertionError("No visible node for text containing '$text'")
+        target.click()
+    }
+
+    private fun swipeContentUp() {
+        val centerX = device.displayWidth / 2
+        val height = device.displayHeight
+        device.swipe(centerX, (height * 0.72).toInt(), centerX, (height * 0.32).toInt(), 12)
+        Thread.sleep(400)
+    }
+
+    private fun swipeContentDown() {
+        val centerX = device.displayWidth / 2
+        val height = device.displayHeight
+        device.swipe(centerX, (height * 0.35).toInt(), centerX, (height * 0.78).toInt(), 12)
+        Thread.sleep(400)
+    }
+
+    /** Scrolls down, then back up, until a node matching [selector] is on screen. */
+    private fun scrollUntilVisible(selector: BySelector, label: String, timeoutMs: Long = 30_000): UiObject2 {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        var swipes = 0
+        while (System.currentTimeMillis() < deadline) {
+            visibleObject(selector)?.let { return it }
+            if (swipes % 10 < 5) swipeContentUp() else swipeContentDown()
+            swipes++
+        }
+        throw AssertionError("$label did not scroll into view")
+    }
+
+    private fun scrollUntilTextContainingVisible(text: String, timeoutMs: Long = 30_000) {
+        scrollUntilVisible(By.textContains(text), "Text containing '$text'", timeoutMs)
+    }
+
+    /** Taps the [text] node vertically closest to the node containing [anchorText], e.g. a row's own button. */
+    private fun tapTextNearest(text: String, anchorText: String) {
+        val anchorCenterY = visibleTextContaining(anchorText)?.visibleBounds?.centerY()
+            ?: throw AssertionError("No visible node for text containing '$anchorText'")
+        val target = visibleTextMatches(text).minByOrNull { kotlin.math.abs(it.visibleBounds.centerY() - anchorCenterY) }
+            ?: throw AssertionError("No visible '$text' near '$anchorText'")
+        target.click()
+    }
+
+    private fun tapLowestText(text: String) {
+        val target = visibleTextMatches(text).maxByOrNull { it.visibleBounds.centerY() }
+            ?: throw AssertionError("No visible '$text'")
+        target.click()
+    }
+
+    /** The switcher labels only the active tenant's row with "Current". */
+    private fun waitForActiveTenantRow(expectedTenantName: String, tenantNames: List<String>, timeoutMs: Long = 30_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        var activeTenantName: String? = null
+        while (System.currentTimeMillis() < deadline) {
+            val currentLabelCenterY = visibleTextContaining("Current")?.visibleBounds?.centerY()
+            activeTenantName = currentLabelCenterY?.let { labelCenterY ->
+                tenantNames
+                    .mapNotNull { name -> visibleTextContaining(name)?.let { name to it.visibleBounds.centerY() } }
+                    .minByOrNull { (_, rowCenterY) -> kotlin.math.abs(rowCenterY - labelCenterY) }
+                    ?.first
+            }
+            if (activeTenantName == expectedTenantName) return
+            Thread.sleep(400)
+        }
+        throw AssertionError("Expected $expectedTenantName to be marked Current, found $activeTenantName")
     }
 }
