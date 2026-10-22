@@ -1,12 +1,14 @@
 package com.frontegg.android.services
 
 import android.util.Log
+import com.frontegg.android.dpop.DPoPInterceptor
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import org.junit.jupiter.api.assertThrows
 import com.frontegg.android.fixtures.authResponseJson
 import com.frontegg.android.fixtures.getAuthResponse
 import com.frontegg.android.fixtures.getUser
+import com.frontegg.android.integrity.DeviceIntegrityInterceptor
 import com.frontegg.android.models.EntitlementState
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
@@ -17,9 +19,11 @@ import io.mockk.mockkClass
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.verify
+import okhttp3.OkHttpClient
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -68,6 +72,16 @@ class ApiTest {
     @After
     fun dispose() {
         mockWebServer.shutdown()
+    }
+
+    @Test
+    fun `integrity is attested outside DPoP so a nonce retry is not attested again`() {
+        val httpClientField = Api::class.java.getDeclaredField("httpClient").apply { isAccessible = true }
+        val interceptors = (httpClientField.get(api) as OkHttpClient).interceptors
+        val integrityIndex = interceptors.indexOfFirst { it is DeviceIntegrityInterceptor }
+        val dpopIndex = interceptors.indexOfFirst { it is DPoPInterceptor }
+
+        assertTrue(integrityIndex in 0 until dpopIndex)
     }
 
     @Test
