@@ -9,33 +9,24 @@ class UserRolePermission {
     var fePermission: Boolean = false
     lateinit var createdAt: String
     lateinit var updatedAt: String
+
+    // Gson leaves omitted lateinit fields unset, so equality must not read them.
+    private fun comparedFields(): List<Any?> = listOf(
+        if (this::id.isInitialized) id else null,
+        if (this::key.isInitialized) key else null,
+        if (this::name.isInitialized) name else null,
+        description,
+        if (this::categoryId.isInitialized) categoryId else null,
+        fePermission,
+        if (this::createdAt.isInitialized) createdAt else null,
+        if (this::updatedAt.isInitialized) updatedAt else null,
+    )
+
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (javaClass != other?.javaClass) return false
-
-        other as UserRolePermission
-
-        if (id != other.id) return false
-        if (key != other.key) return false
-        if (name != other.name) return false
-        if (description != other.description) return false
-        if (categoryId != other.categoryId) return false
-        if (fePermission != other.fePermission) return false
-        if (createdAt != other.createdAt) return false
-        if (updatedAt != other.updatedAt) return false
-
-        return true
+        return comparedFields() == (other as UserRolePermission).comparedFields()
     }
 
-    override fun hashCode(): Int {
-        var result = id.hashCode()
-        result = 31 * result + key.hashCode()
-        result = 31 * result + name.hashCode()
-        result = 31 * result + (description?.hashCode() ?: 0)
-        result = 31 * result + categoryId.hashCode()
-        result = 31 * result + fePermission.hashCode()
-        result = 31 * result + createdAt.hashCode()
-        result = 31 * result + updatedAt.hashCode()
-        return result
-    }
+    override fun hashCode(): Int = comparedFields().hashCode()
 }
