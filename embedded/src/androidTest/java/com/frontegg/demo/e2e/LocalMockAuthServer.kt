@@ -23,6 +23,14 @@ data class CapturedRequest(val method: String, val path: String, val headers: ok
 
 /** OkHttp MockWebServer mirror of Swift `LocalMockAuthServer` for embedded E2E. */
 class LocalMockAuthServer {
+    companion object {
+        const val GOOGLE_POST_LOGIN_PATH = "/oauth/account/social/google/post-login"
+        const val GOOGLE_AUTHORIZE_PATH = "/idp/google/authorize"
+        const val GOOGLE_ID_TOKEN = "e2e-google-id-token"
+        const val GOOGLE_NATIVE_EMAIL = "google-native@frontegg.com"
+        private const val MFA_MOBILE_AUTHENTICATOR_PATH = "/oauth/account/mfa-mobile-authenticator"
+    }
+
     val clientId = "demo-embedded-e2e-client"
     val server = MockWebServer()
     private val gson = Gson()
@@ -186,7 +194,8 @@ class LocalMockAuthServer {
             method == "GET" && path == "/oauth/prelogin" -> hostedPrelogin(q)
             method == "POST" && path == "/oauth/postlogin" -> hostedPostlogin(body)
             method == "GET" && path == "/oauth/postlogin/redirect" -> hostedPostRedirect(q)
-            method == "GET" && path == "/idp/google/authorize" -> mockGoogle(q)
+            method == "GET" && path == GOOGLE_AUTHORIZE_PATH -> mockGoogle(q)
+            method == "POST" && path == GOOGLE_POST_LOGIN_PATH -> googlePostLogin(body)
             method == "GET" && path == "/embedded/continue" -> embeddedContinue(q)
             method == "POST" && path == "/embedded/password" -> embeddedPassword(body)
             method == "GET" && path == "/browser/complete" -> browserComplete(q)
@@ -326,6 +335,9 @@ class LocalMockAuthServer {
             val dec = decodeB64Json(loginAction)
             val dest = dec?.get("data")?.asString ?: ""
             val typ = dec?.get("type")?.asString
+            if (dest.contains(MFA_MOBILE_AUTHENTICATOR_PATH)) {
+                return mfaMobileAuthenticatorPage(dest, redirect, st)
+            }
             // Embedded Google social (loginWithSocialLoginProvider): authorize carries social-login/google → mock IdP page.
             // Use HTML auto-click instead of 302 redirect — Chrome blocks 302 chains ending in custom URL schemes
             // when initiated from Custom Tab. The HTML+JS click pattern is the same one Custom SSO uses successfully.
@@ -389,7 +401,8 @@ class LocalMockAuthServer {
             val b =
                 """<h1>Login</h1><form action="/oauth/prelogin" method="get">
                 <input type="hidden" name="state" value="${htmlEsc(hs)}"/>
-                <input type="email" name="email"/><button>Continue</button></form>"""
+                <input type="email" name="email"/><button>Continue</button></form>
+                <button type="button" id="e2e-login-google" onclick="window.FronteggNativeBridge.loginWithSocialLoginProvider('google')">Continue with Google</button>"""
             return html(200, "Login", b)
         }
         email = email.trim()
@@ -594,6 +607,38 @@ class LocalMockAuthServer {
         } else {
             redir(cb(ru, code, st))
         }
+    }
+
+    /** Native Google sign-in: accepts only [GOOGLE_ID_TOKEN], and asks for MFA when it is configured for the user. */
+    private fun googlePostLogin(body: String): MockResponse {
+        val idToken = JSONObject(body.ifEmpty { "{}" }).optString("idToken", "")
+        if (idToken != GOOGLE_ID_TOKEN) {
+            return json(400, JSONObject().put("errors", JSONArray().put("Invalid Google ID token")))
+        }
+        if (state.mfaType(GOOGLE_NATIVE_EMAIL) != null) {
+            val mfaRequired = JSONObject()
+                .put("mfaRequired", true)
+                .put("mfaToken", "mfa-${UUID.randomUUID()}")
+                .put("email", GOOGLE_NATIVE_EMAIL)
+            return json(200, mfaRequired)
+        }
+        val issued = state.issueRefresh(GOOGLE_NATIVE_EMAIL)
+        return json(200, JSONObject(gson.toJson(tokenJson(issued.rec, issued.token))))
+    }
+
+    /** The MFA direct action the SDK authorizes with after an MFA-required native login; its state is the post-login response. */
+    private fun mfaMobileAuthenticatorPage(mfaUrl: String, redirect: String, oauthState: String): MockResponse {
+        val mfaRequest = decodeB64Json(mfaUrl.substringAfter("state=", ""))
+        val email = mfaRequest?.get("email")?.asString
+            ?: return html(400, "mfa", "<h1>Invalid MFA state</h1>")
+        return mfaPage(
+            mapOf(
+                "email" to listOf(email),
+                "redirect_uri" to listOf(redirect),
+                "state" to listOf(oauthState),
+                "mfa_type" to listOf(state.mfaType(email) ?: "authenticator"),
+            ),
+        )
     }
 
     private fun socialSuccess(q: Map<String, List<String>>): MockResponse {
@@ -829,6 +874,7 @@ class LocalMockAuthServer {
                 "google",
                 JSONObject()
                     .put("active", true)
+                    .put("customised", true)
                     .put("clientId", "mock")
                     .put("authorizationUrl", "$b/idp/google/authorize")
                     .put("additionalScopes", JSONArray())

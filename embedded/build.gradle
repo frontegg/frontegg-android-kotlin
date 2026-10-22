@@ -117,6 +117,12 @@ android {
         viewBinding true
         buildConfig true
     }
+    packagingOptions {
+        resources {
+            // mockk-android brings JUnit 5 jars that each ship these files.
+            excludes += ['META-INF/LICENSE.md', 'META-INF/LICENSE-notice.md']
+        }
+    }
     buildToolsVersion buildToolsVersion
 }
 
@@ -149,6 +155,7 @@ dependencies {
 
     androidTestImplementation 'com.squareup.okhttp3:mockwebserver:4.12.0'
     androidTestImplementation 'com.google.code.gson:gson:2.10.1'
+    androidTestImplementation 'io.mockk:mockk-android:1.13.13'
 
     implementation "junit:junit:4.13.2"
 

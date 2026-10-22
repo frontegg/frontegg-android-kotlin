@@ -328,6 +328,22 @@
                             android:layout_height="wrap_content"
                             android:contentDescription="E2EConfirmUnlockButton"
                             android:text="E2E Confirm Unlock" />
+
+                        <Button
+                            android:id="@+id/e2e_embedded_login_box_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2EEmbeddedLoginBoxButton"
+                            android:text="E2E Embedded Login Box" />
+
+                        <Button
+                            android:id="@+id/e2e_native_google_button"
+                            style="@style/CustomButton"
+                            android:layout_width="match_parent"
+                            android:layout_height="wrap_content"
+                            android:contentDescription="E2ENativeGoogleButton"
+                            android:text="E2E Native Google Sign-In" />
                     </LinearLayout>
 
                 </LinearLayout>

@@ -171,6 +171,42 @@
       "title": "DPoP key rotates on logout",
       "description": "With DPoP enabled, logs in, logs out, logs in again and verifies the second code exchange proof uses a different jwk thumbprint than the first, so the logged-out session's key is gone.",
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxGoogleButtonSignsInNatively",
+      "title": "Login box Google button signs in natively",
+      "description": "With native Google sign-in enabled, taps the embedded login box's Google button, supplies a fake Google ID token, and verifies one post-login request carries that token, the Google user is signed in, and the browser Google flow is never opened.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testNativeGoogleSignInFromApp",
+      "title": "App-initiated native Google sign-in succeeds",
+      "description": "Calls loginWithGoogle from the app with a fake Google ID token and verifies one post-login request carries that token, the Google user is signed in, and the browser Google flow is never opened.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxNativeGoogleCancelStaysOnLoginBox",
+      "title": "Canceled native Google sign-in keeps the login box open",
+      "description": "With native Google sign-in enabled, cancels the Google account picker from the login box and verifies no post-login or browser Google request is made and the login box stays open.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxNativeGoogleRejectedTokenFallsBackToBrowser",
+      "title": "Rejected native Google token falls back to the browser",
+      "description": "With native Google sign-in enabled, the mock rejects the Google ID token at post-login, and the login box falls back to the browser Google flow, which opens a browser over the app.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxNativeGoogleMfaContinuesInLoginBox",
+      "title": "Native Google MFA continues in the login box",
+      "description": "With MFA required for the Google user, signs in natively from the login box, verifies the MFA challenge loads in the same login box and survives backgrounding the app without reloading, then submits the code and verifies the Google user is signed in.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxGoogleButtonUsesBrowserWhenNativeDisabled",
+      "title": "Login box Google button uses the browser when native sign-in is off",
+      "description": "With native Google sign-in disabled, taps the login box's Google button and verifies the browser Google flow opens a browser over the app without asking for a Google ID token or posting to post-login.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     }
   ]
 }
