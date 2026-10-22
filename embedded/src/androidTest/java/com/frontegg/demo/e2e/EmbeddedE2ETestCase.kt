@@ -72,6 +72,7 @@ open class EmbeddedE2ETestCase {
         forceNetworkPathOffline: Boolean = false,
         enableOfflineMode: Boolean? = null,
         enableDPoP: Boolean = false,
+        playIntegrityCloudProjectNumber: Long = 0L,
     ) {
         scenario?.close()
         scenario = null
@@ -89,6 +90,7 @@ open class EmbeddedE2ETestCase {
             forceNetworkPathOffline = forceNetworkPathOffline,
             enableOfflineMode = enableOfflineMode,
             enableDPoP = enableDPoP,
+            playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
         )
         instrumentation.runOnMainSync {
             (instrumentation.targetContext.applicationContext as App).consumeAndApplyE2EBootstrapFromDisk()

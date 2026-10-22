@@ -171,6 +171,24 @@
       "title": "DPoP key rotates on logout",
       "description": "With DPoP enabled, logs in, logs out, logs in again and verifies the second code exchange proof uses a different jwk thumbprint than the first, so the logged-out session's key is gone.",
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testPlayIntegrityUnavailableFailsOpenOnSignInAndRefresh",
+      "title": "Play Integrity unavailable fails open",
+      "description": "With a Play Integrity project number set on an emulator without the Play Store, logs in with the embedded password flow and waits for a scheduled refresh, verifying sign-in and refresh succeed and no request carries the frontegg-device-integrity-token header.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testPlayIntegrityDisabledSendsNoIntegrityToken",
+      "title": "Play Integrity disabled sends no integrity token",
+      "description": "With no Play Integrity project number, logs in and verifies no request carries the frontegg-device-integrity-token header.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testPlayIntegrityAttestsCodeExchangeButNotRefresh",
+      "title": "Play Integrity attests the code exchange but not the refresh",
+      "description": "Replaces Play Integrity with a fake provider that issues tokens bound to the request hash, logs in and waits for a scheduled refresh, and verifies the authorization code exchange carries the token for its body while the refresh and every other request carry none.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     }
   ]
 }
