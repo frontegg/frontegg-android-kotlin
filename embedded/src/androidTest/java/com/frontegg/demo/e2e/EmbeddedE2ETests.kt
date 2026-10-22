@@ -28,6 +28,11 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     private val longLivedRefreshTokenTTL = 300
     private val scheduledRefreshAccessTokenTTL = 45
     private val mePath = "/identity/resources/users/v2/me"
+    private val deviceIntegrityHeader = "frontegg-device-integrity-token"
+
+    // Distinct numbers: the SDK keeps its attestor, real or fake, while the project number is unchanged.
+    private val unavailablePlayIntegrityProjectNumber = 123_456_789_012L
+    private val fakePlayIntegrityProjectNumber = 987_654_321_098L
 
     @Test
     fun testPasswordLoginAndSessionRestore() {
@@ -548,6 +553,55 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         assertTrue(secondSessionProof.hasValidSignature())
     }
 
+    @Test
+    fun testPlayIntegrityUnavailableFailsOpenOnSignInAndRefresh() {
+        mock.configureTokenPolicy(
+            email = "test@frontegg.com",
+            accessTTL = scheduledRefreshAccessTokenTTL,
+            refreshTTL = longLivedRefreshTokenTTL,
+        )
+        launchApp(resetState = true, playIntegrityCloudProjectNumber = unavailablePlayIntegrityProjectNumber)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForTokenRequests("authorization_code", count = 1)
+
+        waitForTokenRequests("refresh_token", count = 1, timeoutMs = 120_000)
+        waitForMeCallWithTokenVersion(2)
+        assertNoIntegrityTokenSent()
+    }
+
+    @Test
+    fun testPlayIntegrityDisabledSendsNoIntegrityToken() {
+        launchApp(resetState = true, playIntegrityCloudProjectNumber = 0L)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForTokenRequests("authorization_code", count = 1)
+
+        assertNoIntegrityTokenSent()
+    }
+
+    @Test
+    fun testPlayIntegrityAttestsCodeExchangeButNotRefresh() {
+        mock.configureTokenPolicy(
+            email = "test@frontegg.com",
+            accessTTL = scheduledRefreshAccessTokenTTL,
+            refreshTTL = longLivedRefreshTokenTTL,
+        )
+        launchApp(resetState = true, playIntegrityCloudProjectNumber = fakePlayIntegrityProjectNumber)
+        FakeDeviceIntegrity.install()
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+
+        val exchange = waitForTokenRequests("authorization_code", count = 1).first()
+        assertEquals(FakeDeviceIntegrity.tokenFor(exchange.body), exchange.headers[deviceIntegrityHeader])
+        val refresh = waitForTokenRequests("refresh_token", count = 1, timeoutMs = 120_000).first()
+        assertNull("Refreshes must not be attested", refresh.headers[deviceIntegrityHeader])
+        val attestedRequests = mock.allRequests()
+            .filter { it.headers[deviceIntegrityHeader] != null }
+            .map { "${it.method} ${it.path}" }
+        assertEquals(listOf("POST /oauth/token"), attestedRequests)
+    }
+
     private fun dpopProof(request: CapturedRequest): DPoPProof {
         val proof = request.headers["DPoP"]
             ?: throw AssertionError("${request.method} ${request.path} carried no DPoP proof")
@@ -571,6 +625,14 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
             }
             Thread.sleep(500)
         }
+    }
+
+    private fun assertNoIntegrityTokenSent() {
+        val attestedRequests = mock.allRequests().filter { it.headers[deviceIntegrityHeader] != null }
+        assertTrue(
+            "Unexpected $deviceIntegrityHeader on ${attestedRequests.map { "${it.method} ${it.path}" }}",
+            attestedRequests.isEmpty(),
+        )
     }
 
     @Test

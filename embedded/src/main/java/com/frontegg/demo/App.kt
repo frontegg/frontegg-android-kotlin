@@ -53,6 +53,7 @@ class App : Application() {
             enableSessionPerTenant = com.frontegg.demo.BuildConfig.FRONTEGG_ENABLE_SESSION_PER_TENANT,
             entitlementsEnabled = false,
             enableDPoP = bootstrap.enableDPoP,
+            playIntegrityCloudProjectNumber = bootstrap.playIntegrityCloudProjectNumber,
         )
     }
 
