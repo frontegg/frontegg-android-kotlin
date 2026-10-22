@@ -19,6 +19,7 @@ import com.frontegg.android.services.FronteggInnerStorage
 import com.frontegg.android.services.FronteggState
 import com.frontegg.android.services.StorageProvider
 import com.frontegg.android.utils.AuthorizeUrlGenerator
+import com.frontegg.android.utils.Constants
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -212,8 +213,12 @@ class FronteggNativeBridge(val context: Context, private val webClient: Frontegg
         val isNativeGoogleLogin = provider == SocialLoginProvider.GOOGLE.value &&
             formAction == SocialLoginAction.LOGIN.value &&
             StorageProvider.getInnerStorage().useNativeGoogleSignIn
-        return isNativeGoogleLogin && !context.fronteggAuth.isStepUpAuthorization.value && !isLoginPerAccount()
+        return isNativeGoogleLogin && !context.fronteggAuth.isStepUpAuthorization.value && !isLoginPerAccount() &&
+            !isAccountActionPage()
     }
+
+    // Activation and invitation pages keep the browser flow, the only one that carries their token.
+    private fun isAccountActionPage(): Boolean = Constants.isAccountActionUrl(webClient?.currentUrlMainSafe())
 
     // Login per account keeps the browser flow, the only one that carries the organization.
     private fun isLoginPerAccount(): Boolean {

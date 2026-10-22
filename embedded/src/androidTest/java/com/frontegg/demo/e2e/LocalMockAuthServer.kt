@@ -285,6 +285,9 @@ class LocalMockAuthServer {
             method == "GET" && path == "/embedded/password-expiring" -> passwordExpiringPage(q)
             method == "GET" && path == "/embedded/password-expiring/skip" -> passwordExpiringSkip(q)
             method == "GET" && path == "/embedded/password-expired" -> passwordExpiredPage(q)
+            method == "GET" && path == "/oauth/account/sign-up" -> accountPageWithGoogle("Sign up")
+            method == "GET" && path == "/oauth/account/activate" -> accountPageWithGoogle("Activate your account")
+            method == "GET" && path == "/oauth/account/invitation/accept" -> accountPageWithGoogle("Accept invitation")
             method == "GET" && path == "/embedded/confirm/activation" -> confirmationPage("activation", q)
             method == "GET" && path == "/embedded/confirm/invitation" -> confirmationPage("invitation", q)
             method == "GET" && path == "/embedded/confirm/unlock" -> confirmationPage("unlock", q)
@@ -409,7 +412,10 @@ class LocalMockAuthServer {
                 """<h1>Login</h1><form action="/oauth/prelogin" method="get">
                 <input type="hidden" name="state" value="${htmlEsc(hs)}"/>
                 <input type="email" name="email"/><button>Continue</button></form>
-                <button type="button" id="e2e-login-google" onclick="window.FronteggNativeBridge.loginWithSocialLoginProvider('google')">Continue with Google</button>"""
+                <button type="button" id="e2e-login-google" onclick="window.FronteggNativeBridge.loginWithSocialLoginProvider('google')">Continue with Google</button>
+                <button type="button" id="e2e-open-sign-up" onclick="window.location.href='/oauth/account/sign-up'">Open sign-up</button>
+                <button type="button" id="e2e-open-activation" onclick="window.location.href='/oauth/account/activate?token=e2e-activation-token'">Open activation</button>
+                <button type="button" id="e2e-open-invitation" onclick="window.location.href='/oauth/account/invitation/accept?token=e2e-invitation-token'">Open invitation</button>"""
             return html(200, "Login", b)
         }
         email = email.trim()
@@ -1447,6 +1453,12 @@ class LocalMockAuthServer {
             <p id="e2e-expired-message">Your password has expired</p>
             <button type="button" id="e2e-change-password" onclick="window.location.href='/embedded/reset-password?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}&token=expired-reset'">Change password</button>"""
         return html(200, "password-expired", b)
+    }
+
+    private fun accountPageWithGoogle(title: String): MockResponse {
+        val b = """<h1>$title</h1>
+            <button type="button" id="e2e-page-google" onclick="window.FronteggNativeBridge.loginWithSocialLoginProvider('google')">Continue with Google</button>"""
+        return html(200, title, b)
     }
 
     private fun confirmationPage(type: String, q: Map<String, List<String>>): MockResponse {

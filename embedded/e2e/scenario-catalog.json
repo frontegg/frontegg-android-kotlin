@@ -207,6 +207,24 @@
       "title": "Login box Google button uses the browser when native sign-in is off",
       "description": "With native Google sign-in disabled, taps the login box's Google button and verifies the browser Google flow opens a browser over the app without asking for a Google ID token or posting to post-login.",
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testGoogleOnTheSignUpPageUsesBrowser",
+      "title": "Google on the sign-up page uses the browser",
+      "description": "With native Google sign-in enabled, opens the login box's sign-up page, taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testGoogleOnTheActivationPageUsesBrowser",
+      "title": "Google on the activation page uses the browser",
+      "description": "With native Google sign-in enabled, opens the account activation page (/oauth/account/activate), taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testGoogleOnTheInvitationPageUsesBrowser",
+      "title": "Google on the invitation page uses the browser",
+      "description": "With native Google sign-in enabled, opens the invitation page (/oauth/account/invitation/accept), taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     }
   ]
 }

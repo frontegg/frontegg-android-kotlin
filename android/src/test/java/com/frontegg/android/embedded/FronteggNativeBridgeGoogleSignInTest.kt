@@ -144,6 +144,31 @@ class FronteggNativeBridgeGoogleSignInTest {
     }
 
     @Test
+    fun `google uses the browser on the activation page`() {
+        every { storage.useNativeGoogleSignIn } returns true
+        every { webClient.currentUrlMainSafe() } returns "$baseUrl/oauth/account/activate?token=t"
+
+        bridge.loginWithSocialLoginProvider("google")
+
+        verify(exactly = 0) { auth.loginWithGoogle(any(), any()) }
+        verifyBrowserSocialLoginStarted(times = 1)
+    }
+
+    @Test
+    fun `google uses the browser on the invitation pages`() {
+        every { storage.useNativeGoogleSignIn } returns true
+        var currentUrl = "$baseUrl/oauth/account/invitation/accept?token=t"
+        every { webClient.currentUrlMainSafe() } answers { currentUrl }
+
+        bridge.loginWithSocialLoginProvider("google")
+        currentUrl = "$baseUrl/oauth/account/accept-invitation?token=t"
+        bridge.loginWithSocialLoginProvider("google")
+
+        verify(exactly = 0) { auth.loginWithGoogle(any(), any()) }
+        verifyBrowserSocialLoginStarted(times = 2)
+    }
+
+    @Test
     fun `google uses the browser in a login box opened for an organization`() {
         every { storage.useNativeGoogleSignIn } returns true
         val loginBox = mockk<EmbeddedAuthActivity>(relaxed = true)
