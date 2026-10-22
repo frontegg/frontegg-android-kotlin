@@ -10,6 +10,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 internal object FronteggEndpoints {
     const val TOKEN_PATH = "/${ApiConstants.exchangeToken}"
     const val SILENT_AUTHORIZE_PATH = "/${ApiConstants.silentRefreshToken}"
+    const val PASSKEY_POST_LOGIN_PATH = "/${ApiConstants.webauthnPostlogin}"
 
     private const val PROVIDER_PLACEHOLDER = "{provider}"
     private val socialPostLoginPrefix = "/${ApiConstants.socialLoginPostLogin}".substringBefore(PROVIDER_PLACEHOLDER)

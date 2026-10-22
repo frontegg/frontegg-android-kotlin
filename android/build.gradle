@@ -139,6 +139,10 @@ dependencies {
     implementation "androidx.credentials:credentials-play-services-auth:$androidCredentialsVersion"
     implementation "androidx.credentials:credentials:$androidCredentialsVersion"
 
+    // Play Integrity device attestation (enabled by FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER)
+    implementation 'com.google.android.play:integrity:1.4.0'
+    implementation 'com.google.android.gms:play-services-tasks:18.0.2'
+
 
 
 
