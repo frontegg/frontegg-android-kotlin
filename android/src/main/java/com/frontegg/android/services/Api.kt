@@ -549,7 +549,13 @@ open class Api(
         )
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticatePasskeysException::class, CookieNotFoundException::class)
+    @Throws(
+        IllegalArgumentException::class,
+        IOException::class,
+        FailedToAuthenticatePasskeysException::class,
+        CookieNotFoundException::class,
+        MfaRequiredException::class,
+    )
     fun webAuthnPostlogin(sessionCookie: String, challengeResponse: String): AuthResponse {
 
         val gson = Gson()
@@ -568,12 +574,7 @@ open class Api(
             throw FailedToAuthenticatePasskeysException(response.message)
         }
 
-        val authResponseStr = body.string()
-        val authResponse = gson.fromJson<MutableMap<String, Any>>(authResponseStr, mapType)
-        val isMfaRequired = authResponse.getOrDefault("mfaRequired", false) as Boolean
-        if (isMfaRequired) {
-            throw MfaRequiredException(authResponseStr)
-        }
+        throwIfMfaRequired(body.string())
 
         val refreshToken = getSetCookieValue("fe_refresh_", response)
         val deviceId = getSetCookieValue("fe_device_", response)
@@ -665,7 +666,12 @@ open class Api(
         return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    @Throws(
+        IllegalArgumentException::class,
+        IOException::class,
+        FailedToAuthenticateException::class,
+        MfaRequiredException::class
+    )
     fun socialLoginPostLogin(
         provider: String,
         request: SocialLoginPostLoginRequest
@@ -684,7 +690,19 @@ open class Api(
                 body?.string() ?: "Unknown error occurred"
             )
         }
-        return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+        val responseBody = body.string()
+        throwIfMfaRequired(responseBody)
+        return gson.fromJson(responseBody, AuthResponse::class.java)
+    }
+
+    @Throws(MfaRequiredException::class)
+    private fun throwIfMfaRequired(responseBody: String) {
+        val response = JsonParser.parseString(responseBody)
+        val mfaRequired = response.isJsonObject &&
+            response.asJsonObject.get("mfaRequired")?.takeIf { it.isJsonPrimitive }?.asBoolean == true
+        if (mfaRequired) {
+            throw MfaRequiredException(responseBody)
+        }
     }
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)

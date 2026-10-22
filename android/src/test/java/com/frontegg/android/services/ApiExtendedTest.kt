@@ -5,6 +5,7 @@ import com.frontegg.android.dpop.DPoPProofGenerator
 import com.frontegg.android.dpop.DPoPProvider
 import com.frontegg.android.dpop.SoftwareDPoPKeyProvider
 import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.fixtures.authResponseJson
 import com.frontegg.android.fixtures.getAuthResponse
 import com.frontegg.android.utils.CredentialKeys
@@ -296,6 +297,19 @@ class ApiExtendedTest {
         
         val recordedRequest = mockWebServer.takeRequest()
         assert(recordedRequest.path?.contains("google") == true)
+    }
+
+    @Test
+    fun `socialLoginPostLogin reports a required MFA`() {
+        val mfaBody = """{"mfaRequired":true,"mfaToken":"mfa-token"}"""
+        mockWebServer.enqueue(MockResponse().setBody(mfaBody))
+
+        val request = com.frontegg.android.models.SocialLoginPostLoginRequest(idToken = "google-id-token")
+
+        val error = assertThrows<MfaRequiredException> {
+            api.socialLoginPostLogin("google", request)
+        }
+        assert(error.mfaRequestData == mfaBody)
     }
 
     @Test

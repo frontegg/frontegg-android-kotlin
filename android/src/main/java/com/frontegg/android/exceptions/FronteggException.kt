@@ -34,5 +34,8 @@ public open class FronteggException(message: String, cause: Throwable? = null) :
 
         const val MFA_NOT_ENROLLED_ERROR: String =
             "frontegg.error.mfa_not_enrolled"
+
+        const val GOOGLE_SIGN_IN_NOT_CONFIGURED_ERROR: String =
+            "frontegg.error.google_sign_in_not_configured"
     }
 }

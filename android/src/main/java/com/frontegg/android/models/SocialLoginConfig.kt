@@ -33,7 +33,9 @@ data class SocialLoginOption(
     @SerializedName("authorizationUrl")
     val authorizationUrl: String? = null,
     @SerializedName("additionalScopes")
-    val additionalScopes: List<String> = emptyList()
+    val additionalScopes: List<String> = emptyList(),
+    @SerializedName("customised")
+    val customised: Boolean? = null
 )
 
 /**
