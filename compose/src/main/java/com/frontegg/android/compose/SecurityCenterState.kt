@@ -141,10 +141,12 @@ class SecurityCenterState(
         mutableUiState.update { it.copy(isRevokingOtherSessions = true, sessionActionFailed = false) }
 
         val generation = userGeneration
+        // Read now, so a user who signs in before the request starts is never the one signed out.
+        val accessToken = auth.accessToken.value
         scope.launch {
             // Once started, finish signing out even if the screen goes away.
             val revokedIds = withContext(NonCancellable) {
-                runSessionCall { auth.sessions.revokeOtherSessions() }
+                runSessionCall { auth.sessions.revokeOtherSessions(accessToken) }
             }
             if (generation != userGeneration) return@launch
             val revoked = revokedIds != null

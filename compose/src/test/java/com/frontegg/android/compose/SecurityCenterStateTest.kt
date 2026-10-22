@@ -41,9 +41,11 @@ class SecurityCenterStateTest {
 
     private val sessionsService = mockk<SessionsService>()
     private val signedInUser = ObservableValue<User?>(null)
+    private val signedInAccessToken = ObservableValue<String?>(null)
     private val auth = mockk<FronteggAuth> {
         every { sessions } returns sessionsService
         every { user } returns signedInUser
+        every { accessToken } returns signedInAccessToken
     }
 
     private val currentSession = UserSession(id = "current", current = true)
@@ -279,6 +281,22 @@ class SecurityCenterStateTest {
         assertEquals(listOf(currentSession), state.uiState.value.sessions)
         assertFalse(state.uiState.value.hasOtherSessions)
         coVerify(exactly = 1) { sessionsService.revokeOtherSessions() }
+    }
+
+    @Test
+    fun `revokeOtherSessions uses the access token read when it was started`() = runTest {
+        signedInAccessToken.value = "first-user-token"
+        coEvery { sessionsService.getActiveSessions() } returns listOf(currentSession, otherSession)
+        coEvery { sessionsService.revokeOtherSessions(any()) } returns listOf("other")
+        val state = SecurityCenterState(auth, this)
+        state.loadSessions()
+        advanceUntilIdle()
+
+        state.revokeOtherSessions()
+        signedInAccessToken.value = "next-user-token"
+        advanceUntilIdle()
+
+        coVerify(exactly = 1) { sessionsService.revokeOtherSessions("first-user-token") }
     }
 
     @Test

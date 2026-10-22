@@ -240,6 +240,20 @@ class ApiSessionsTest {
     }
 
     @Test
+    fun `revokeOtherSessions with an access token uses it instead of the stored one`() = runBlocking {
+        val claims = Base64.getUrlEncoder().withoutPadding().encodeToString("""{"sid":"s-1"}""".toByteArray())
+        val initiatingAccessToken = "header.$claims.signature"
+        mockWebServer.enqueue(MockResponse().setBody("""[{"id": "s-1"}, {"id": "s-2"}]"""))
+        mockWebServer.enqueue(MockResponse().setResponseCode(200))
+
+        val revokedSessionIds = SessionsService(api).revokeOtherSessions(initiatingAccessToken)
+
+        assert(revokedSessionIds == listOf("s-2"))
+        val authorizations = List(2) { mockWebServer.takeRequest().getHeader("Authorization") }
+        assert(authorizations == List(2) { "Bearer $initiatingAccessToken" })
+    }
+
+    @Test
     fun `revokeOtherSessions signs out nothing when no session is current`() {
         mockWebServer.enqueue(MockResponse().setBody("""[{"id": "s-2"}]"""))
 
