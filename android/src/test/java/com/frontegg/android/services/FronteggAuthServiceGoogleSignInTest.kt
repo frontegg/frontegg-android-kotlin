@@ -9,7 +9,6 @@ import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.exceptions.GoogleSignInNotConfiguredException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.models.AuthResponse
-import com.frontegg.android.models.SocialLoginConfig
 import com.frontegg.android.models.SocialLoginOption
 import com.frontegg.android.models.Tenant
 import com.frontegg.android.models.User
@@ -47,9 +46,7 @@ class FronteggAuthServiceGoogleSignInTest {
     private val authResponse = AuthResponse()
     private lateinit var auth: FronteggAuthService
 
-    private val activeGoogleConfig = SocialLoginConfig(
-        google = SocialLoginOption(active = true, clientId = "web-client-id", customised = true)
-    )
+    private val activeGoogleOption = SocialLoginOption(active = true, clientId = "web-client-id", customised = true)
 
     @Before
     fun setUp() {
@@ -161,7 +158,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle exchanges the Google ID token and sets credentials`() {
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken("web-client-id") } returns "google-id-token"
         val idToken = slot<String>()
         val redirectUri = slot<String>()
@@ -182,7 +179,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle reports a cancel without exchanging a token`() {
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken(any()) } throws CanceledByUserException()
 
         val (called, error) = loginWithGoogleAndCapture()
@@ -195,9 +192,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle fails when Google social login is inactive`() {
-        every { apiMock.getSocialLoginConfig() } returns SocialLoginConfig(
-            google = SocialLoginOption(active = false, clientId = "web-client-id")
-        )
+        every { apiMock.getGoogleSocialLoginOption() } returns SocialLoginOption(active = false, clientId = "web-client-id")
 
         val (called, error) = loginWithGoogleAndCapture()
 
@@ -208,9 +203,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle fails when Google social login has no client ID`() {
-        every { apiMock.getSocialLoginConfig() } returns SocialLoginConfig(
-            google = SocialLoginOption(active = true, clientId = " ")
-        )
+        every { apiMock.getGoogleSocialLoginOption() } returns SocialLoginOption(active = true, clientId = " ")
 
         val (_, error) = loginWithGoogleAndCapture()
 
@@ -219,7 +212,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle fails when Google social login is missing`() {
-        every { apiMock.getSocialLoginConfig() } returns SocialLoginConfig()
+        every { apiMock.getGoogleSocialLoginOption() } returns null
 
         val (_, error) = loginWithGoogleAndCapture()
 
@@ -228,9 +221,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle fails without asking Google when Frontegg's shared Google app is used`() {
-        every { apiMock.getSocialLoginConfig() } returns SocialLoginConfig(
-            google = SocialLoginOption(active = true, clientId = "web-client-id", customised = false)
-        )
+        every { apiMock.getGoogleSocialLoginOption() } returns SocialLoginOption(active = true, clientId = "web-client-id", customised = false)
 
         val (_, error) = loginWithGoogleAndCapture()
 
@@ -240,9 +231,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle fails without asking Google when the config does not say the app is the vendor's own`() {
-        every { apiMock.getSocialLoginConfig() } returns SocialLoginConfig(
-            google = SocialLoginOption(active = true, clientId = "web-client-id")
-        )
+        every { apiMock.getGoogleSocialLoginOption() } returns SocialLoginOption(active = true, clientId = "web-client-id")
 
         val (_, error) = loginWithGoogleAndCapture()
 
@@ -253,7 +242,7 @@ class FronteggAuthServiceGoogleSignInTest {
     @Test
     fun `loginWithGoogle cancels a second call while one is running`() {
         val pendingIdToken = CompletableDeferred<String>()
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken(any()) } coAnswers { pendingIdToken.await() }
         var firstError: Exception? = null
         auth.loginWithGoogle(activityMock) { firstError = it }
@@ -277,13 +266,13 @@ class FronteggAuthServiceGoogleSignInTest {
 
         assert(called)
         assert(error is IllegalStateException)
-        verify(exactly = 0) { apiMock.getSocialLoginConfig() }
+        verify(exactly = 0) { apiMock.getGoogleSocialLoginOption() }
     }
 
     @Test
     fun `loginWithGoogle continues into MFA when the post-login requires it`() {
         val mfaRequest = """{"mfaRequired":true,"mfaToken":"mfa-token"}"""
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken(any()) } returns "google-id-token"
         every { apiMock.googleSsoPostLogin(any(), any()) } throws MfaRequiredException(mfaRequest)
 
@@ -296,7 +285,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle reports a failed exchange and clears loading`() {
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken(any()) } returns "google-id-token"
         every { apiMock.googleSsoPostLogin(any(), any()) } throws RuntimeException("rejected")
 
@@ -310,7 +299,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle lets the callback retry the sign-in`() {
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken(any()) } throws CanceledByUserException()
         var retryError: Exception? = null
 
@@ -327,7 +316,7 @@ class FronteggAuthServiceGoogleSignInTest {
         val mfaRequest = """{"mfaRequired":true,"mfaToken":"mfa-token"}"""
         val mfaCallback = slot<(Exception?) -> Unit>()
         every { multiFactorAuthenticator.start(activityMock, capture(mfaCallback), mfaRequest) } returns Unit
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken(any()) } returns "google-id-token"
         every { apiMock.googleSsoPostLogin(any(), any()) } throws MfaRequiredException(mfaRequest)
         var firstCalled = false
@@ -356,7 +345,7 @@ class FronteggAuthServiceGoogleSignInTest {
     fun `loginWithGoogle reports a failure to start MFA and can run again`() {
         val mfaRequest = """{"mfaRequired":true,"mfaToken":"mfa-token"}"""
         every { multiFactorAuthenticator.start(any(), any(), any()) } throws IllegalStateException("no activity")
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken(any()) } returns "google-id-token"
         every { apiMock.googleSsoPostLogin(any(), any()) } throws MfaRequiredException(mfaRequest)
 
@@ -371,7 +360,7 @@ class FronteggAuthServiceGoogleSignInTest {
 
     @Test
     fun `loginWithGoogle calls back once when the callback throws`() {
-        every { apiMock.getSocialLoginConfig() } returns activeGoogleConfig
+        every { apiMock.getGoogleSocialLoginOption() } returns activeGoogleOption
         coEvery { googleIdTokenSource.getIdToken(any()) } returns "google-id-token"
         every { apiMock.googleSsoPostLogin(any(), any()) } returns authResponse
         every { apiMock.me() } returns signedInUser()

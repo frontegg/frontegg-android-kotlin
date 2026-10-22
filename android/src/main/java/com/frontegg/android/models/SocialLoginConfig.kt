@@ -26,6 +26,8 @@ data class SocialLoginConfig(
  * Social login option for specific provider
  */
 data class SocialLoginOption(
+    @SerializedName("type")
+    val type: String? = null,
     @SerializedName("active")
     val active: Boolean = false,
     @SerializedName("clientId")

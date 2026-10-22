@@ -106,6 +106,43 @@ class ApiExtendedTest {
     }
 
     @Test
+    fun `getGoogleSocialLoginOption reads the Google entry of the SSO provider list`() {
+        mockWebServer.enqueue(
+            MockResponse().setBody(
+                """[
+                    {"type": "facebook", "active": true, "clientId": "fb-123"},
+                    {"type": "google", "active": true, "clientId": "google-web-client", "customised": true}
+                ]"""
+            )
+        )
+
+        val googleOption = api.getGoogleSocialLoginOption()
+
+        assert(googleOption?.clientId == "google-web-client")
+        assert(googleOption?.active == true)
+        assert(googleOption?.customised == true)
+        val request = mockWebServer.takeRequest()
+        assert(request.method == "GET")
+        assert(request.requestUrl!!.encodedPath.endsWith("/identity/resources/sso/v2")) { request.requestUrl!!.encodedPath }
+    }
+
+    @Test
+    fun `getGoogleSocialLoginOption returns null when Google is not in the provider list`() {
+        mockWebServer.enqueue(MockResponse().setBody("""[{"type": "github", "active": true}]"""))
+
+        assert(api.getGoogleSocialLoginOption() == null)
+    }
+
+    @Test
+    fun `getGoogleSocialLoginOption throws on error response`() {
+        mockWebServer.enqueue(MockResponse().setResponseCode(404))
+
+        assertThrows<FailedToAuthenticateException> {
+            api.getGoogleSocialLoginOption()
+        }
+    }
+
+    @Test
     fun `getFeatureFlags returns valid JSON`() {
         mockWebServer.enqueue(MockResponse().setBody(featureFlagsJson))
 

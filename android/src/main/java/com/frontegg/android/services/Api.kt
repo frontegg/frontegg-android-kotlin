@@ -13,7 +13,9 @@ import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
+import com.frontegg.android.models.SocialLoginOption
 import com.frontegg.android.models.SocialLoginPostLoginRequest
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.models.User
 import com.frontegg.android.models.WebAuthnAssertionRequest
 import com.frontegg.android.models.WebAuthnRegistrationRequest
@@ -725,6 +727,18 @@ open class Api(
             ""
         }
         return silentHostedLoginRefreshToken(refreshToken, deviceId)
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun getGoogleSocialLoginOption(): SocialLoginOption? {
+        buildGetRequest(ApiConstants.socialLoginProviders).execute().use { response ->
+            val body = response.body?.string()
+            if (!response.isSuccessful || body == null) {
+                throw FailedToAuthenticateException(response.headers, body ?: "Unknown error occurred")
+            }
+            val providers = Gson().fromJson(body, Array<SocialLoginOption>::class.java).orEmpty()
+            return providers.firstOrNull { it.type.equals(SocialLoginProvider.GOOGLE.value, ignoreCase = true) }
+        }
     }
 
     @Throws(MfaRequiredException::class)
