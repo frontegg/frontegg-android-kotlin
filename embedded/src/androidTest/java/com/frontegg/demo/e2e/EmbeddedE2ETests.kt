@@ -631,6 +631,9 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         fakeGoogleIdTokenSource(FakeGoogleIdTokenSource { LocalMockAuthServer.GOOGLE_ID_TOKEN })
         launchApp(resetState = true, useNativeGoogleSignIn = true)
         tapLoginBoxGoogleButton()
+        if (!mock.waitForRequest("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH, 60_000)) {
+            throw AssertionError("Native Google sign-in never posted the ID token")
+        }
         verifyMfaPage("authenticator")
         assertSingleGooglePostLogin(LocalMockAuthServer.GOOGLE_ID_TOKEN)
 
