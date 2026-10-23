@@ -80,6 +80,7 @@ val Context.fronteggApp: FronteggApp
                 enableSessionPerTenant = constants.enableSessionPerTenant,
                 entitlementsEnabled = constants.entitlementsEnabled,
                 enableDPoP = constants.enableDPoP,
+                useNativeGoogleSignIn = constants.useNativeGoogleSignIn,
                 tenantResolver = constants.fronteggOrganization?.let { org ->
                     TenantResolver { TenantResolverResult(org) }
                 },
@@ -140,6 +141,7 @@ interface FronteggApp {
          *                       have a customized login experience with different branding and
          *                       login methods. See [TenantResolver] for usage details.
          * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
+         * @param useNativeGoogleSignIn The embedded login box's Google button signs in natively (default: `false`).
          */
         @VisibleForTesting
         internal fun init(
@@ -159,6 +161,7 @@ interface FronteggApp {
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
+            useNativeGoogleSignIn: Boolean = false,
         ) {
             val baseUrl: String = when {
                 fronteggDomain.startsWith("http://") || fronteggDomain.startsWith("https://") ->
@@ -186,6 +189,7 @@ interface FronteggApp {
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
         }
@@ -219,6 +223,7 @@ interface FronteggApp {
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
+            useNativeGoogleSignIn: Boolean = false,
         ): FronteggApp {
             resetInstanceForTesting()
             val baseUrl: String = when {
@@ -254,6 +259,7 @@ interface FronteggApp {
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             runDebugChecksSafe(appContext, fronteggDomain, clientId)
             return instance!!
@@ -272,6 +278,7 @@ interface FronteggApp {
          *                       enables "Login per Account" functionality where each tenant can
          *                       have a customized login experience. See [TenantResolver] for usage.
          * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
+         * @param useNativeGoogleSignIn The embedded login box's Google button signs in natively (default: `false`).
          */
         fun initWithRegions(
             regions: List<RegionConfig>,
@@ -287,6 +294,7 @@ interface FronteggApp {
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
+            useNativeGoogleSignIn: Boolean = false,
         ): FronteggApp {
             // Prepare Sentry for later initialization via feature flag.
             runCatching {
@@ -319,6 +327,7 @@ interface FronteggApp {
                        entitlementsEnabled = entitlementsEnabled,
                        tenantResolver = tenantResolver,
                        enableDPoP = enableDPoP,
+                       useNativeGoogleSignIn = useNativeGoogleSignIn,
                    )
                    instance = newInstance
 
@@ -345,6 +354,7 @@ interface FronteggApp {
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             instance = newInstance
             // Persist parameters to allow retry when network becomes available
@@ -359,6 +369,7 @@ interface FronteggApp {
                     enableOfflineMode = enableOfflineMode,
                     networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                     enableDPoP = enableDPoP,
+                    useNativeGoogleSignIn = useNativeGoogleSignIn,
                 )
             )
             return newInstance

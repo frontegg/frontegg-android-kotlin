@@ -37,6 +37,7 @@ class FronteggAppService(
     private var entitlementsEnabled: Boolean = false,
     private var tenantResolver: TenantResolver? = null,
     private val enableDPoP: Boolean = false,
+    private val useNativeGoogleSignIn: Boolean = false,
 ) : FronteggApp {
 
     private val storage = StorageProvider.getInnerStorage()
@@ -89,6 +90,7 @@ class FronteggAppService(
             enableSessionPerTenant,
             entitlementsEnabled,
             tenantResolver,
+            useNativeGoogleSignIn,
         )
     }
 

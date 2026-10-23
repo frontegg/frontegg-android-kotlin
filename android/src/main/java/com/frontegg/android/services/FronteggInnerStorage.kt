@@ -103,6 +103,8 @@ class FronteggInnerStorage {
         get() = data["entitlementsEnabled"] as Boolean? ?: false
     val tenantResolver: TenantResolver?
         get() = data["tenantResolver"] as TenantResolver?
+    val useNativeGoogleSignIn: Boolean
+        get() = data["useNativeGoogleSignIn"] as Boolean? ?: false
 
 
     fun fill(
@@ -126,7 +128,8 @@ class FronteggInnerStorage {
         useDiskCacheWebview: Boolean = false,
         enableSessionPerTenant: Boolean = false,
         entitlementsEnabled: Boolean = false,
-        tenantResolver: TenantResolver? = null
+        tenantResolver: TenantResolver? = null,
+        useNativeGoogleSignIn: Boolean = false,
     ) {
         data["baseUrl"] = baseUrl
         data["clientId"] = clientId
@@ -149,6 +152,7 @@ class FronteggInnerStorage {
         data["enableSessionPerTenant"] = enableSessionPerTenant
         data["entitlementsEnabled"] = entitlementsEnabled
         data["tenantResolver"] = tenantResolver
+        data["useNativeGoogleSignIn"] = useNativeGoogleSignIn
     }
 
     companion object {
