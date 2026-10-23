@@ -1,3 +1,257 @@
+## v1.3.44
+## Summary
+- Upgrade the docs site from docsify 4 to **5.0.0**. The 4.x search plugin writes the `s` query parameter into the search input's HTML without escaping it; 4.13.1 (the last 4.x release) is still affected, and 5.0.0 escapes the value.
+- Pin every CDN asset to an exact version over https. The search plugin was previously loaded from an unversioned URL (`npm/docsify/lib/plugins/search.min.js`), so the site ran whatever version jsDelivr resolved.
+- docsify 5 moved its files from `lib/` to `dist/` and split the theme into `core.min.css` + `addons/vue.min.css`; the `$docsify` config is unchanged.
+
+Only `docs/index.html` changes. The GitHub Pages site redeploys from `docs/` on merge to `master`.
+
+## Test plan
+- [x] Served `docs/` locally: pages and sidebar render, no console errors
+- [x] Typed search returns results
+- [x] A crafted `?s=` value is rendered as inert text and no markup is injected
+- [ ] After merge, re-check the live site with the same crafted `?s=` value
+
+Note: opening a URL that already contains `?s=<term>` no longer pre-runs a search under docsify 5; typing in the search box works as before.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+Jira: **FR-25956** (Android half of opt-in DPoP token binding).
+
+## What changes
+
+- `DPoPKeyProvider` / `AndroidKeyStoreDPoPKeyProvider`: a non-exportable P-256 key in the Android Keystore. An entry the Keystore reports as unrecoverable is replaced.
+- `DPoPProofGenerator`: RFC 9449 proofs (`typ dpop+jwt`, ES256, public `jwk`, `jti`, `htm`, `htu`, `iat`, optional `ath` and `nonce`), the RFC 7638 JWK thumbprint, an in-memory key cache, and key rotation. An `InvalidKeyException` rotates the key that failed; a `ProviderException` only drops the cached handle.
+- `DPoPEncoding`: base64url, SHA-256, and DER to JOSE signature conversion.
+- `DPoPProvider`: process-wide enabled flag and generator.
+
+Nothing calls this code yet. The interceptor and the `enableDPoP` flag come in part 2.
+
+## Testing
+
+- Unit tests: `DPoPEncodingTest` (9) and `DPoPProofGeneratorTest` (11), covering DER to JOSE, proof claims and signature verification, the RFC 7638 thumbprint vector, key caching, rotation, and signing failures.
+- E2E coverage is in #301.
+
+Part 1 of 3; split from #301 to keep PRs under 20 files. Next: https://github.com/frontegg/frontegg-android-kotlin/pull/307 (interceptor and opt-in flag), then #301 (E2E).
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7
+
+## Summary
+
+Sometimes, on a cold start, embedded login opened `https://oauth/authorize` with an empty client ID and showed the "Check your internet connection" page until the app restarted. This was caught as a flaky test in the Capacitor Android E2E suite ([frontegg/frontegg-ionic-capacitor#118](https://github.com/frontegg/frontegg-ionic-capacitor/pull/118)), but the cause is in this SDK.
+
+### Cause
+
+1. `FronteggAuthService`'s constructor starts loading feature flags on a background thread.
+2. `FeatureFlags.loadFlags` looked the auth service up through `Context.fronteggAuth`. That happens while `FronteggAppService` is still being constructed, before `FronteggApp.instance` is assigned.
+3. When the background thread won, the lookup found no instance and ran the default initialization from BuildConfig. That overwrote the shared storage (`FronteggInnerStorage`) with the BuildConfig values and created a second auth service.
+
+**Who's affected:**
+- Apps that configure the SDK in code, as the React Native, Flutter and Capacitor plugins do, have no `FRONTEGG_DOMAIN` in BuildConfig. They ended up with base URL `https://` and an empty client ID.
+- Apps configured through BuildConfig got a duplicate auth service with the same values.
+
+**Evidence from the failing E2E run:**
+- The plugin initialized once, against the mock server.
+- "No tokens found" was then logged twice, from two threads, which means two auth services.
+- Every login attempt went to `https://oauth/authorize?...client_id=&...`.
+- The default initialization's own log line (tag `FronteggApp`) was filtered out of that CI log, which is why it didn't show up.
+
+### Fix
+
+`loadFlags` takes the auth service, and the constructor passes itself. Creating the SDK no longer reads the singleton it is creating. Nothing outside the SDK calls `loadFlags`; I checked the React Native, Flutter and Capacitor plugins.
+
+## Test plan
+
+- [x] New `FeatureFlagsTest` case: `loadFlags` loads flags from the auth service it's given. It failed to compile against the old `Context` signature.
+- [x] `:android:testDebugUnitTest`: 734 tests, 0 failures
+- [x] `:android:detektDebug`
+- [ ] CI, including embedded E2E
+- [ ] After release, bump the native SDK in the Capacitor plugin and confirm its Android mock suite is stable
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+## Summary
+The "Push Workflow / Build And Test" job ran on `macos-15-xlarge`. It runs detekt, the unit tests and `:app:build`, and none of those need macOS. The pull request "Unit Tests" job already runs the same Gradle tasks on `ubuntu-latest`. Linux minutes cost a fraction of the larger macOS runner's, and this job runs on every push to every branch.
+
+## Changes
+- `.github/workflows/onPush.yml`: `runs-on: macos-15-xlarge` becomes `runs-on: ubuntu-latest`. No steps change.
+
+## Testing
+- The push of this branch runs the changed workflow on `ubuntu-latest`. Its result is on this PR.
+
+---
+_Generated by [Claude Code](https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7)_
+
+## Summary
+`RequestQueueTest > removeExpired removes old requests` failed on a CI run (764 tests, 1 failed, `RequestQueueTest.kt:139`). The test slept 100ms, enqueued a second request, then removed everything older than 50ms. On a loaded runner, more than 50ms can pass between the second enqueue and `removeExpired`, so both requests were removed and the size assertion failed.
+
+## Changes
+- `RequestQueue` takes its clock as a constructor parameter, defaulting to `System::currentTimeMillis`. The only production caller, `FronteggAuthService`, uses the default, so its behavior is unchanged.
+- The test advances a fake clock instead of sleeping, so its result no longer depends on timing.
+
+## Testing
+- I ran the full `RequestQueueTest` class (13 tests) in a JVM harness with assertions enabled: all pass.
+- CI has not run this branch yet. The `macos-15-xlarge` runners are currently not being assigned.
+
+---
+_Generated by [Claude Code](https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7)_
+
+Jira: **FR-25936**.
+
+**Stack:** Part 1 of 2; split from #299 to keep PRs under 20 files. Part 2 (E2E coverage and demo markers) is https://github.com/frontegg/frontegg-android-kotlin/pull/299, which is based on this branch. Merge this one first.
+
+## What changes
+
+- Every value on `FronteggAuth` (`isAuthenticated`, `user`, `accessToken`, ...) exposes `stateFlow: StateFlow<T>`. `kotlinx-coroutines-core` is now an `api` dependency so apps can compile against it.
+- The SDK no longer uses RxJava internally. `FronteggState.bindDerivedState()` derives `showLoader` and binds the Sentry user once per process through a synchronous internal listener on the setter's thread. `EmbeddedAuthActivity` uses the same listener and clears it in `onPause`.
+- `subscribe` and `observable` still work, including emitting a value set twice, and are deprecated. Install docs keep `rxkotlin` only as an optional line for that API.
+- `User`, `UserRole` and `UserRolePermission` equality no longer reads unset `lateinit` fields, since `StateFlow` compares users on every set.
+- `EntitlementsSwitchWindowTest` orders its repro with a latch instead of timing.
+- Docs: `stateFlow` in the API reference, an "Observe authentication state" section in usage, and optional `rxkotlin` in install steps.
+
+## Testing
+
+- `ObservableValueTest` (state flow, deprecated subscribe, listeners, a value set twice), `UserTest` (partial users compare without crashing), `FronteggStateTest` (derived `showLoader`, Sentry binding happens once).
+- CI on push: detekt, unit tests and the `:app` build. The demo apps on this branch are unchanged from `master` and still compile against the deprecated `subscribe` API.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7
+
+Jira: **FR-25955** (Android half).
+
+**Stack:** Part 1 of 3; split from https://github.com/frontegg/frontegg-android-kotlin/pull/302 to keep PRs under 20 files. Targets master now that FR-25936 (https://github.com/frontegg/frontegg-android-kotlin/pull/308 and https://github.com/frontegg/frontegg-android-kotlin/pull/299) is merged. Next: part 2, https://github.com/frontegg/frontegg-android-kotlin/pull/310 (the `:compose` module), then part 3, https://github.com/frontegg/frontegg-android-kotlin/pull/302 (demo screen and E2E).
+
+## What changes
+
+- `fronteggAuth.sessions` (`SessionsService`) lists and revokes the signed-in user's active sessions.
+- `Api.getUserSessions()` / `Api.revokeUserSession(id)` call `GET` and `DELETE` on `identity/resources/users/sessions/v1/me`. This device's session is the one the server marks `current`, or else the one whose id is the access token's `sid` claim. A `404` on `DELETE` counts as already revoked.
+- `revokeOtherSessions()` revokes every other session one by one, and revokes nothing if it cannot tell which session is this device's.
+- New `UserSession` model and an API reference entry in `docs/api.md`.
+
+## Backend contract to confirm
+
+- `GET /me` and `DELETE /me/{id}` under `identity/resources/users/sessions/v1` are the endpoints the admin portal uses.
+
+## Testing
+
+- `ApiSessionsTest`: parsing (array and `items` envelope, malformed entries skipped), the current session from `sid`, encoded revoke path, `404` treated as revoked, revoking other sessions one by one, refusing when none is current.
+- CI: detekt, unit tests, the `:app` build and the embedded E2E suite.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7
+
+## Summary
+
+The embedded E2E sources on master don't compile, so every `embedded-e2e-suite` run against master fails before any test starts:
+
+```
+EmbeddedE2ETests.kt:635:2 Expecting '}'
+EmbeddedE2ETests.kt:578:9 Unresolved reference: waitForDescText
+EmbeddedE2ETests.kt:624:5 Modifier 'private' is not applicable to 'local function'
+```
+
+When https://github.com/frontegg/frontegg-android-kotlin/pull/299 (FR-25936, the Kotlin Flow E2E coverage) was rebased onto master, the two closing braces of `waitForMeCallWithTokenVersion` were dropped. The StateFlow tests added after it ended up nested inside that function. It reached master through https://github.com/frontegg/frontegg-android-kotlin/pull/299 and https://github.com/frontegg/frontegg-android-kotlin/pull/308. The unit tests and push builds don't compile `androidTest`, so they stayed green.
+
+## Changes
+
+- `embedded/src/androidTest/java/com/frontegg/demo/e2e/EmbeddedE2ETests.kt`: restore the two closing braces after `Thread.sleep(500)` in `waitForMeCallWithTokenVersion`. The helper now matches its version before the rebase.
+
+## Testing
+
+- The file's braces balance again.
+- The embedded E2E suite on this PR is the check that it compiles and runs.
+- It currently blocks the E2E checks on https://github.com/frontegg/frontegg-android-kotlin/pull/304, https://github.com/frontegg/frontegg-android-kotlin/pull/311 and https://github.com/frontegg/frontegg-android-kotlin/pull/310.
+
+---
+_Generated by [Claude Code](https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7)_
+
+Jira: **FR-25957** (Android half). Targets `master`, which now has DPoP (FR-25956, merged in https://github.com/frontegg/frontegg-android-kotlin/pull/306). Nothing installs this code yet; https://github.com/frontegg/frontegg-android-kotlin/pull/312 wires it in.
+
+## What changes
+
+- New `com.frontegg.android.integrity` package:
+  - `DeviceIntegrityAttestor` keeps one prepared Play Integrity Standard API provider and runs one prepare at a time in the background.
+    - A token request waits at most 2 seconds for a prepare already in flight, then at most 3 seconds for the token.
+    - Every failure returns `null`, so sign-in goes ahead unattested. That includes a prepare error, an invalid provider, a timeout, and a `LinkageError` when the Play library is missing.
+  - `DeviceIntegrityInterceptor` adds `frontegg-device-integrity-token` to the authorization-code exchange, social post-login and passkey post-login on the Frontegg host. The token is bound to the base64url SHA-256 of the request body. Refresh and silent authorize are not attested.
+  - `DeviceIntegrity` is the process-wide configuration, off unless a positive Cloud project number is set.
+- `FronteggEndpoints.PASSKEY_POST_LOGIN_PATH`.
+- The Play Integrity and `play-services-tasks` dependencies in `android/build.gradle`.
+
+## Testing
+
+- `DeviceIntegrityAttestorTest`, `DeviceIntegrityInterceptorTest` and `DeviceIntegrityTest` cover:
+  - endpoint matching, with refresh excluded
+  - a shared background prepare and the in-flight wait bound
+  - fail-open on every error path
+  - the integrity header surviving a DPoP nonce retry
+- CI on push: detekt, unit tests, `:app` build.
+
+Part 1 of 3; split from https://github.com/frontegg/frontegg-android-kotlin/pull/303 to keep PRs under 20 files.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7
+
+Jira: **FR-25955** (Android half).
+
+**Stack:** Part 2 of 3; split from https://github.com/frontegg/frontegg-android-kotlin/pull/302 to keep PRs under 20 files. Targets master now that part 1, https://github.com/frontegg/frontegg-android-kotlin/pull/309 (sessions API), is merged. Next: part 3, https://github.com/frontegg/frontegg-android-kotlin/pull/302 (demo screen and E2E).
+
+## What changes
+
+- New module and artifact `com.frontegg.sdk:android-compose`, versioned with the core SDK, included in `settings.gradle`.
+- `rememberFronteggAuth()` and `collectAsState()` for every auth value.
+- `FronteggTenantSwitcher`: the user's tenants, the active one marked, progress while switching, failure shown.
+- `FronteggSecurityCenter`: account, MFA status, add a passkey (a dismissed prompt is not an error), active sessions (revoke one, sign out the others), sign out. The session list is cleared and reloaded whenever the signed-in user changes, and a new load replaces one still running.
+- Both have stateless overloads for custom wiring and follow `MaterialTheme`.
+- CI (`onPush.yml`, `onPullRequestUpdated.yaml`) runs `:compose:testDebugUnitTest` and `:compose:assembleDebug` next to the core checks.
+- Docs: a Jetpack Compose section in `docs/advanced.md` and a pointer from `docs/usage.md`.
+
+## Testing
+
+- `TenantSwitcherStateTest` and `SecurityCenterStateTest` (a replaced load, clearing on user change, revoke flows).
+- CI builds and unit-tests the new module.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7
+
+Closes https://github.com/frontegg/frontegg-android-kotlin/issues/269.
+
+## What changes
+
+- New overload: `fronteggAuth.directLoginAction(activity, type, data, additionalQueryParams, callback)`. It matches the iOS SDK's `additionalQueryParams`.
+- The embedded login box sends these params in `login_direct_action`, merged over the default `prompt=consent`. Passing `prompt` replaces it; any other key is added next to it.
+- iOS sends its `additionalQueryParams` the same way, in the `login_direct_action` payload.
+- Existing calls are unchanged:
+  - `FronteggAuth.directLoginAction(activity, type, data, callback)` and `EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)` keep their signatures. Both delegate to the new overloads with no extra params.
+  - Calls with three arguments, a trailing lambda, a named `callback`, or a positional callback all compile and behave as before.
+- `EmbeddedAuthActivity` carries the params in the intent as a `Bundle`. `consumeIntent` builds the payload through a small `directLoginActionJson` helper, which replaces the duplicated map and JSON code.
+- `ephemeralSession` is documented as iOS-only, because Android always runs this flow in the embedded WebView. It is not added to the signature.
+- `docs/api.md` documents the new overload.
+
+## Testing
+
+- `EmbeddedAuthActivityTest` (Robolectric):
+  - With no caller params, the payload keeps only `prompt=consent`.
+  - Caller params are added, and `prompt` is replaced.
+- `FronteggAuthServiceTest`:
+  - The old overload reaches `EmbeddedAuthActivity` with an empty map.
+  - The new overload passes its params through.
+- Overload resolution was checked by compiling every call style used in this repo against the new signatures.
+
+## Follow-up
+
+The React Native, Flutter and Ionic bridges can pass their `additionalQueryParams` through once this is released.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_018X5mwfjstoxdFhCjqvEoo7
+
 ## v1.3.43
 
 Bug fixes:
