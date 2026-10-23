@@ -251,6 +251,17 @@
                         android:layout_marginEnd="24dp"
                         android:text="Open Admin Portal (Beta)" />
 
+                    <Button
+                        android:id="@+id/compose_components_button"
+                        style="@style/CustomButton"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:layout_marginBottom="24dp"
+                        android:layout_marginStart="24dp"
+                        android:layout_marginEnd="24dp"
+                        android:contentDescription="OpenComposeComponentsButton"
+                        android:text="Open Compose components" />
+
                     <TextView
                         android:id="@+id/entitlements_title"
                         android:layout_width="wrap_content"

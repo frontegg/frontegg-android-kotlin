@@ -541,6 +541,76 @@ With `FronteggApp.initWithRegions(...)`, which doesn't read this field, pass `en
 - OkHttp's automatic retry after a dropped connection resends the request with the same proof. If your
   environment rejects a reused proof (`jti`), that retry fails like any other rejected request.
 
+## Jetpack Compose
+
+```groovy
+dependencies {
+    implementation 'com.frontegg.sdk:android:LATEST_VERSION'
+    implementation 'com.frontegg.sdk:android-compose:LATEST_VERSION'
+}
+```
+
+### Auth state as Compose state
+
+```kotlin
+@Composable
+fun Root() {
+    val auth = rememberFronteggAuth()
+    val isAuthenticated by auth.isAuthenticated.collectAsState()
+    val user by auth.user.collectAsState()
+
+    if (isAuthenticated) HomeScreen(user) else LoginScreen()
+}
+```
+
+### Tenant switcher
+
+Lists the user's tenants, marks the active one and switches on tap:
+
+```kotlin
+FronteggTenantSwitcher(
+    onTenantSwitched = { tenant -> /* the new tenant's tokens are ready */ }
+)
+```
+
+### Security center
+
+A full screen with account details, MFA status, passkey registration, active sessions and sign
+out. It scrolls itself, so host it as a screen rather than inside another vertical scroller:
+
+```kotlin
+FronteggSecurityCenter(
+    onSignedOut = { navController.navigate("login") }
+)
+```
+
+Both components follow your `MaterialTheme`. Each also has a stateless overload,
+`FronteggTenantSwitcher(tenants, activeTenantId, uiState, onTenantSelected)` and
+`FronteggSecurityCenter(user, uiState, ...)`, for custom wiring.
+
+The stateful components keep their state in a `ViewModel` of the nearest `ViewModelStoreOwner` (the
+activity, fragment or navigation destination), so a tenant switch, session sign-out, passkey
+registration or sign out in progress carries on across rotation without a second one starting.
+`onTenantSwitched` and `onSignedOut` run only if the component is still shown when the call finishes;
+a result that arrives after it left the screen is dropped. When the signed-in user changes, even while
+a component is off screen, it starts over for the new user. The security center reloads the sessions
+each time it is shown, unless a load is still running, and never lists a session it already signed
+out. Its messages about a failed session sign-out or a finished passkey registration stay across
+rotation and clear when the screen is shown again. Showing it again also re-enables a passkey
+registration that never reported back; if its result arrives later, it is still shown.
+
+### Sessions API
+
+The security center is built on `fronteggAuth.sessions`, which you can also call directly:
+
+```kotlin
+val sessions = fronteggAuth.sessions.getActiveSessions()
+fronteggAuth.sessions.revokeSession(sessions.first { !it.current }.id)
+val revokedSessionIds = fronteggAuth.sessions.revokeOtherSessions()
+```
+
+`revokeOtherSessions()` returns the ids of the sessions it signed out. If any sign-out fails, it throws the first failure with the others suppressed.
+
 ## Play Integrity device attestation
 
 Attach a Google Play Integrity token to sign-in requests so your backend can reject tampered apps,

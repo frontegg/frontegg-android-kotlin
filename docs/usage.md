@@ -122,6 +122,9 @@ or read it in Compose:
 val user by fronteggAuth.user.stateFlow.collectAsState()
 ```
 
+The `com.frontegg.sdk:android-compose` artifact adds a shorter `fronteggAuth.user.collectAsState()`
+and prebuilt components; see [Jetpack Compose](advanced.md#jetpack-compose).
+
 > **RxJava is deprecated.** `subscribe { }` and `observable` still work and still emit every value
 > that is set, but they will be removed in the next major version. `stateFlow`, like any
 > `StateFlow`, skips a value equal to the current one. When you stop using `subscribe`, you can

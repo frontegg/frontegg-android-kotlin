@@ -36,24 +36,25 @@ open class SessionsService(
      * going on past failures; a session that is already gone counts as signed out.
      * Throws [IllegalStateException], signing out nothing, when no session is marked as this device's.
      * Once every session was tried, throws the first failure with the others suppressed.
+     * With [accessToken], every request uses it instead of the stored one, so the call stays bound to that user.
      *
      * @return the ids of the sessions it signed out, so callers can update what they display.
      */
     @Throws(IOException::class, FailedToAuthenticateException::class, IllegalStateException::class)
-    open suspend fun revokeOtherSessions(): List<String> =
+    open suspend fun revokeOtherSessions(accessToken: String? = null): List<String> =
         withContext(ioDispatcher) {
-            val sessions = api.getUserSessions()
+            val sessions = api.getUserSessions(accessToken)
             check(sessions.any { it.current }) { "No session is marked as this device's" }
             val otherSessionIds = sessions.filterNot { it.current }.map { it.id }
-            val failures = otherSessionIds.mapNotNull { revokeOrGetFailure(it) }
+            val failures = otherSessionIds.mapNotNull { revokeOrGetFailure(it, accessToken) }
             val firstFailure = failures.firstOrNull() ?: return@withContext otherSessionIds
             failures.drop(1).forEach(firstFailure::addSuppressed)
             throw firstFailure
         }
 
-    private fun revokeOrGetFailure(sessionId: String): Exception? =
+    private fun revokeOrGetFailure(sessionId: String, accessToken: String?): Exception? =
         try {
-            api.revokeUserSession(sessionId)
+            api.revokeUserSession(sessionId, accessToken)
             null
         } catch (e: IOException) {
             e

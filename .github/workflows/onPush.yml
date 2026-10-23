@@ -68,11 +68,11 @@ jobs:
 
       - name: Run Unit Tests
         shell: bash
-        run: ./gradlew :android:testDebugUnitTest --no-daemon
+        run: ./gradlew :android:testDebugUnitTest :compose:testDebugUnitTest --no-daemon
 
       - name: Build Libraries
         shell: bash
-        run: ./gradlew :app:build --no-daemon
+        run: ./gradlew :app:build :compose:assembleDebug --no-daemon
 
       - name: Upload Detekt SARIF
         if: success() || failure()

@@ -30,6 +30,7 @@ class LocalMockAuthServer {
     private val requestLogLock = ReentrantLock()
     private val requestLog = mutableListOf<Triple<String, String, String>>()
     private val capturedRequests = mutableListOf<CapturedRequest>()
+    private val accountState = MockAccountState()
 
     init {
         server.dispatcher = object : Dispatcher() {
@@ -47,6 +48,7 @@ class LocalMockAuthServer {
     }
     fun reset() {
         state.reset()
+        accountState.reset()
         clearRequestLog()
     }
 
@@ -90,6 +92,16 @@ class LocalMockAuthServer {
     fun configureCustomLoginBox(enabled: Boolean) = state.setCustomLoginBox(enabled)
     fun configureMagicCodeExpiration(expirationMs: Long) = state.setMagicCodeExpiration(expirationMs)
     fun configureMagicLinkExpiration(expirationMs: Long) = state.setMagicLinkExpiration(expirationMs)
+
+    /** Adds tenants to [email]'s own one and returns their ids, in order. */
+    fun configureAdditionalTenants(email: String, tenantNames: List<String>): List<String> {
+        accountState.setAdditionalTenantNames(email, tenantNames)
+        return tenantNames.map(::additionalTenantId)
+    }
+
+    fun activeTenantId(email: String): String = activeTenantObj(email).getString("id")
+
+    fun userSessions(): List<MockUserSession> = accountState.sessions()
 
     fun waitForRequest(method: String? = null, path: String, timeoutMs: Long = 10_000): Boolean {
         val end = System.currentTimeMillis() + timeoutMs
@@ -273,6 +285,10 @@ class LocalMockAuthServer {
             method == "GET" && path == "/embedded/confirm/invitation" -> confirmationPage("invitation", q)
             method == "GET" && path == "/embedded/confirm/unlock" -> confirmationPage("unlock", q)
             method == "POST" && path == "/embedded/confirm/submit" -> confirmationSubmit(body)
+            method == "PUT" && path == "/identity/resources/users/v1/tenant" -> switchActiveTenant(authorization, body)
+            method == "GET" && path == USER_SESSIONS_PATH -> listUserSessions(authorization)
+            method == "DELETE" && path.startsWith("$USER_SESSIONS_PATH/") ->
+                revokeUserSession(authorization, path.removePrefix("$USER_SESSIONS_PATH/"))
             else -> json(404, JSONObject().put("error", "$method $path"))
         }
     }
@@ -303,10 +319,9 @@ class LocalMockAuthServer {
     private fun tenants(auth: String?): MockResponse {
         val tok = bearer(auth) ?: return json(401, JSONObject().put("error", "missing_access_token"))
         val email = jwtEmail(tok) ?: return json(401, JSONObject().put("error", "missing_access_token"))
-        val t = tenantObj(email)
         return json(
             200,
-            JSONObject().put("tenants", JSONArray().put(t)).put("activeTenant", t),
+            JSONObject().put("tenants", JSONArray(userTenants(email))).put("activeTenant", activeTenantObj(email)),
         )
     }
 
@@ -842,12 +857,13 @@ class LocalMockAuthServer {
             .put("sub", "user-${email.substringBefore("@")}")
             .put("email", email)
             .put("name", uname(email))
-            .put("tenantId", tid(email))
-            .put("tenantIds", JSONArray().put(tid(email)))
+            .put("tenantId", activeTenantId(email))
+            .put("tenantIds", JSONArray(userTenants(email).map { it.getString("id") }))
             .put("profilePictureUrl", "https://ex/a.png")
             .put("exp", now + ttl)
             .put("iat", now)
             .put("token_version", ver)
+            .put("sid", MockAccountState.CURRENT_SESSION_ID)
         confirmationThumbprint?.let { pl.put("cnf", JSONObject().put("jkt", it)) }
         val h = b64url("""{"alg":"none","typ":"JWT"}""")
         val p = b64url(pl.toString())
@@ -882,8 +898,9 @@ class LocalMockAuthServer {
     }
 
     private fun userPayload(email: String): Map<String, Any?> {
-        val t = tenantObj(email)
+        val t = activeTenantObj(email)
         val tid = t.getString("id")
+        val tenants = userTenants(email)
         return mapOf(
             "id" to "user-${email.substringBefore("@")}",
             "email" to email,
@@ -893,8 +910,8 @@ class LocalMockAuthServer {
             "roles" to emptyList<Any>(),
             "permissions" to emptyList<Any>(),
             "tenantId" to tid,
-            "tenantIds" to listOf(tid),
-            "tenants" to listOf(jsonToMap(t)),
+            "tenantIds" to tenants.map { it.getString("id") },
+            "tenants" to tenants.map(::jsonToMap),
             "activeTenant" to jsonToMap(t),
             "activatedForTenant" to true,
             "metadata" to "{}",
@@ -913,10 +930,12 @@ class LocalMockAuthServer {
         return m
     }
 
-    private fun tenantObj(email: String) = JSONObject()
-        .put("id", tid(email))
-        .put("name", "${uname(email)} Tenant")
-        .put("tenantId", tid(email))
+    private fun tenantObj(email: String) = tenantObj(tid(email), "${uname(email)} Tenant")
+
+    private fun tenantObj(id: String, name: String) = JSONObject()
+        .put("id", id)
+        .put("name", name)
+        .put("tenantId", id)
         .put("createdAt", "2026-01-01T00:00:00Z")
         .put("updatedAt", "2026-01-01T00:00:00Z")
         .put("isReseller", false)
@@ -1443,6 +1462,53 @@ class LocalMockAuthServer {
         null
     }
 
+    private fun additionalTenantId(name: String) =
+        "tenant-${name.lowercase().replace(Regex("[^a-z0-9]+"), "-").trim('-')}"
+
+    private fun userTenants(email: String): List<JSONObject> =
+        listOf(tenantObj(email)) + accountState.additionalTenantNames(email).map { tenantObj(additionalTenantId(it), it) }
+
+    private fun activeTenantObj(email: String): JSONObject {
+        val tenants = userTenants(email)
+        val activeId = accountState.activeTenantId(email)
+        return tenants.firstOrNull { it.getString("id") == activeId } ?: tenants.first()
+    }
+
+    private fun switchActiveTenant(auth: String?, body: String): MockResponse {
+        val tok = bearer(auth) ?: return json(401, JSONObject().put("error", "missing_access_token"))
+        val email = jwtEmail(tok) ?: return json(401, JSONObject().put("error", "missing_access_token"))
+        val tenantId = JSONObject(body.ifEmpty { "{}" }).optString("tenantId", "")
+        if (userTenants(email).none { it.getString("id") == tenantId }) {
+            return json(404, JSONObject().put("errors", JSONArray().put("Tenant not found")))
+        }
+        accountState.setActiveTenantId(email, tenantId)
+        return json(200, JSONObject())
+    }
+
+    private fun listUserSessions(auth: String?): MockResponse {
+        if (bearer(auth) == null) return json(401, JSONObject().put("error", "missing_access_token"))
+        val sessions = accountState.sessions().map { session ->
+            JSONObject()
+                .put("id", session.id)
+                .put("userAgent", session.userAgent)
+                .put("ipAddress", session.ipAddress)
+                .put("createdAt", "2026-01-01T00:00:00Z")
+                .put("current", session.current)
+        }
+        return json(200, JSONArray(sessions))
+    }
+
+    private fun revokeUserSession(auth: String?, sessionId: String): MockResponse {
+        if (bearer(auth) == null) return json(401, JSONObject().put("error", "missing_access_token"))
+        if (!accountState.removeSession(sessionId)) {
+            return json(404, JSONObject().put("errors", JSONArray().put("Session not found")))
+        }
+        return json(200, JSONObject())
+    }
+
+    companion object {
+        const val USER_SESSIONS_PATH = "/identity/resources/users/sessions/v1/me"
+    }
 }
 
 private data class Hosted(val redirect: String, val origState: String, val loginHint: String)
@@ -1636,4 +1702,49 @@ private class MockAuthState {
     }
 
     private fun norm(p: String) = if (p.isEmpty() || p == "/") p else if (p.startsWith("/")) p else "/$p"
+}
+
+/** A session the mock lists for the signed-in user. */
+data class MockUserSession(val id: String, val userAgent: String, val ipAddress: String, val current: Boolean)
+
+private class MockAccountState {
+    private val lock = ReentrantLock()
+    private val additionalTenantNamesByEmail = mutableMapOf<String, List<String>>()
+    private val activeTenantIdsByEmail = mutableMapOf<String, String>()
+    private val activeSessions = mutableListOf<MockUserSession>()
+
+    init {
+        reset()
+    }
+
+    fun reset() = lock.withLock {
+        additionalTenantNamesByEmail.clear()
+        activeTenantIdsByEmail.clear()
+        activeSessions.clear()
+        activeSessions += MockUserSession(CURRENT_SESSION_ID, "E2E Current Phone", "10.0.0.1", current = true)
+        activeSessions += MockUserSession("session-laptop", "E2E Laptop Browser", "10.0.0.2", current = false)
+        activeSessions += MockUserSession("session-tablet", "E2E Tablet Browser", "10.0.0.3", current = false)
+    }
+
+    fun setAdditionalTenantNames(email: String, tenantNames: List<String>) = lock.withLock {
+        additionalTenantNamesByEmail[email.lowercase()] = tenantNames
+    }
+
+    fun additionalTenantNames(email: String): List<String> = lock.withLock {
+        additionalTenantNamesByEmail[email.lowercase()].orEmpty()
+    }
+
+    fun setActiveTenantId(email: String, tenantId: String) = lock.withLock {
+        activeTenantIdsByEmail[email.lowercase()] = tenantId
+    }
+
+    fun activeTenantId(email: String): String? = lock.withLock { activeTenantIdsByEmail[email.lowercase()] }
+
+    fun sessions(): List<MockUserSession> = lock.withLock { activeSessions.toList() }
+
+    fun removeSession(sessionId: String): Boolean = lock.withLock { activeSessions.removeAll { it.id == sessionId } }
+
+    companion object {
+        const val CURRENT_SESSION_ID = "session-current"
+    }
 }

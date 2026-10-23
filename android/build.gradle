@@ -66,6 +66,7 @@ android {
 ext {
     coroutinesVersion = '1.7.3'
     androidCredentialsVersion = "1.3.0"
+    lifecycleVersion = '2.6.2'
 }
 
 jacoco {
@@ -128,7 +129,7 @@ dependencies {
     implementation 'com.google.androidbrowserhelper:androidbrowserhelper:2.5.0'
 
     implementation "androidx.lifecycle:lifecycle-extensions:2.2.0"
-    implementation 'androidx.lifecycle:lifecycle-process:2.6.2'
+    implementation "androidx.lifecycle:lifecycle-process:$lifecycleVersion"
 
     // needed for encrypted shared preferences
     implementation('androidx.security:security-crypto:1.1.0-alpha06') {
