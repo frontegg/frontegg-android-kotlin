@@ -207,6 +207,24 @@
       "title": "Login box Google button uses the browser when native sign-in is off",
       "description": "With native Google sign-in disabled, taps the login box's Google button and verifies the browser Google flow opens a browser over the app without asking for a Google ID token or posting to post-login.",
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testStateFlowUserEmailAppearsAfterPasswordLogin",
+      "title": "StateFlow user state shows the signed-in email",
+      "description": "Verifies the login page markers collected from isAuthenticated.stateFlow and user.stateFlow read false and no user, logs in with the embedded password flow, and verifies the Home markers show true and the user's email.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testStateFlowAuthStateClearsAfterLogout",
+      "title": "StateFlow auth state clears after logout",
+      "description": "Logs in, verifies the user.stateFlow marker shows the email, logs out, and verifies the login page returns with the isAuthenticated.stateFlow marker reading false and the user.stateFlow marker cleared.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testStateFlowAccessTokenUpdatesAfterTokenRefresh",
+      "title": "StateFlow access token updates after a token refresh",
+      "description": "Logs in with a short access token TTL and verifies the marker collected from accessToken.stateFlow moves to the refreshed token version after the scheduled refresh, matching the polled access token marker.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     }
   ]
 }

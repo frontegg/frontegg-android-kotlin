@@ -2,8 +2,17 @@ package com.frontegg.android.services
 
 import com.frontegg.android.models.Tenant
 import com.frontegg.android.models.User
+import com.frontegg.android.utils.SentryHelper
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import io.mockk.verify
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlin.random.Random
 
 class FronteggStateTest {
 
@@ -198,5 +207,81 @@ class FronteggStateTest {
         assert(!FronteggState.showLoader.value)
         assert(!FronteggState.refreshingToken.value)
         assert(!FronteggState.isStepUpAuthorization.value)
+    }
+
+    @Test
+    fun `bindDerivedState derives showLoader and binds only once`() {
+        mockkObject(SentryHelper)
+        every { SentryHelper.setUser(any(), any(), any()) } returns Unit
+        try {
+            FronteggState.bindDerivedState()
+            FronteggState.bindDerivedState()
+
+            FronteggState.initializing.value = false
+            assert(!FronteggState.showLoader.value)
+            FronteggState.isLoading.value = true
+            assert(FronteggState.showLoader.value)
+            FronteggState.isAuthenticated.value = true
+            assert(!FronteggState.showLoader.value)
+
+            FronteggState.user.value = User().apply {
+                id = "user-1"
+                email = "user@test.com"
+                name = "User"
+            }
+            verify(exactly = 1) { SentryHelper.setUser("user-1", "user@test.com", "User") }
+        } finally {
+            unmockkObject(SentryHelper)
+        }
+    }
+
+    @Suppress("DEPRECATION")
+    @Test
+    fun `a showLoader subscriber runs with no source lock held`() {
+        FronteggState.bindDerivedState()
+        FronteggState.initializing.value = false
+        val otherSetterFinished = CountDownLatch(1)
+        val otherSetterStarted = AtomicBoolean(false)
+        var otherSetterFinishedInTime = false
+        val subscription = FronteggState.showLoader.subscribe { showLoader ->
+            if (showLoader.value && otherSetterStarted.compareAndSet(false, true)) {
+                Thread {
+                    FronteggState.isLoading.value = false
+                    otherSetterFinished.countDown()
+                }.start()
+                otherSetterFinishedInTime = otherSetterFinished.await(5, TimeUnit.SECONDS)
+            }
+        }
+        try {
+            FronteggState.isLoading.value = true
+
+            assert(otherSetterFinishedInTime)
+            assert(!FronteggState.showLoader.value)
+        } finally {
+            subscription.dispose()
+        }
+    }
+
+    @Test
+    fun `showLoader converges to the value derived from the final inputs`() {
+        FronteggState.bindDerivedState()
+        FronteggState.initializing.value = false
+        repeat(5000) { round ->
+            val start = CountDownLatch(1)
+            val togglers = listOf(FronteggState.isLoading, FronteggState.isAuthenticated).map { input ->
+                Thread {
+                    start.await()
+                    repeat(Random.nextInt(1, 6)) { iteration -> input.value = iteration % 2 == 0 }
+                }.apply { start() }
+            }
+
+            start.countDown()
+            togglers.forEach { it.join() }
+
+            val waitingForAuthentication = !FronteggState.isAuthenticated.value &&
+                (FronteggState.isLoading.value || FronteggState.webLoading.value)
+            val expectedShowLoader = FronteggState.initializing.value || waitingForAuthentication
+            assert(FronteggState.showLoader.value == expectedShowLoader) { "round $round" }
+        }
     }
 }
