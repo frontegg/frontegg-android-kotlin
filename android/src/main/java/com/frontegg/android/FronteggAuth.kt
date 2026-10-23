@@ -138,6 +138,19 @@ interface FronteggAuth {
         type: String,
         data: String,
         callback: ((Exception?) -> Unit)? = null
+    ) = directLoginAction(activity, type, data, emptyMap(), callback)
+
+    /**
+     * [directLoginAction] that also adds [additionalQueryParams] to the authorize request, as the iOS SDK does.
+     * They are merged over the default `prompt=consent`, so passing `prompt` replaces it.
+     * The iOS `ephemeralSession` option has no Android counterpart: the flow always runs in the embedded web view.
+     */
+    fun directLoginAction(
+        activity: Activity,
+        type: String,
+        data: String,
+        additionalQueryParams: Map<String, String>,
+        callback: ((Exception?) -> Unit)? = null
     )
 
     /**
