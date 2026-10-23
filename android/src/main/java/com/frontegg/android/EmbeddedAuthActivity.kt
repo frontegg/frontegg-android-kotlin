@@ -491,7 +491,14 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
             activity: Activity,
             type: String,
             data: String,
-            additionalQueryParams: Map<String, String> = emptyMap(),
+            callback: ((error: Exception?) -> Unit)? = null
+        ) = directLoginAction(activity, type, data, emptyMap(), callback)
+
+        fun directLoginAction(
+            activity: Activity,
+            type: String,
+            data: String,
+            additionalQueryParams: Map<String, String>,
             callback: ((error: Exception?) -> Unit)? = null
         ) {
             Log.d(TAG, "directLoginAction")
