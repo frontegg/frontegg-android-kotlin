@@ -18,7 +18,9 @@ import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggAuth
 import com.frontegg.android.dpop.DPoPProvider
+import com.frontegg.android.exceptions.CanceledByUserException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.GoogleSignInNotConfiguredException
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.WebAuthnAlreadyRegisteredInLocalDeviceException
 import com.frontegg.android.exceptions.isWebAuthnRegisteredBeforeException
@@ -47,6 +49,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 
 @OptIn(DelicateCoroutinesApi::class)
@@ -139,6 +142,7 @@ class FronteggAuthService(
 
     private val multiFactorAuthenticator =
         MultiFactorAuthenticatorProvider.getMultiFactorAuthenticator()
+    private val isGoogleSignInRunning = AtomicBoolean(false)
     private val stepUpAuthenticator =
         StepUpAuthenticatorProvider.getStepUpAuthenticator(credentialManager)
 
@@ -729,6 +733,72 @@ class FronteggAuthService(
             } catch (e: Exception) {
                 Log.e(TAG, "failed to login with passkeys", e)
                 callback?.invoke(e)
+            }
+        }
+    }
+
+    override fun loginWithGoogle(
+        activity: Activity,
+        callback: ((error: Exception?) -> Unit)?,
+    ) {
+        if (!isGoogleSignInRunning.compareAndSet(false, true)) {
+            Log.i(TAG, "Google sign-in is already running, canceling this call")
+            callback?.invoke(CanceledByUserException())
+            return
+        }
+        val finished = AtomicBoolean(false)
+        // A callback that throws on success is caught below; only the first result reaches the caller.
+        val finish: (Exception?) -> Unit = { error ->
+            if (finished.compareAndSet(false, true)) {
+                isGoogleSignInRunning.set(false)
+                callback?.invoke(error)
+            }
+        }
+        ScopeProvider.mainScope.launch {
+            var startedLoading = false
+            try {
+                val googleIdTokenSource = GoogleIdTokenSourceProvider.getGoogleIdTokenSource(activity)
+                val googleConfig = withContext(ioDispatcher) { api.getGoogleSocialLoginOption() }
+                val serverClientId = googleConfig?.clientId
+                val usesOwnGoogleApp = googleConfig?.customised == true
+                if (googleConfig?.active != true || serverClientId.isNullOrBlank() || !usesOwnGoogleApp) {
+                    throw GoogleSignInNotConfiguredException()
+                }
+
+                val idToken = googleIdTokenSource.getIdToken(serverClientId)
+
+                isLoading.value = true
+                startedLoading = true
+                val authResponse = withContext(ioDispatcher) {
+                    api.googleSsoPostLogin(idToken, defaultSocialLoginRedirectUri())
+                }
+                val authenticated = withContext(ioDispatcher) {
+                    setCredentials(authResponse.access_token, authResponse.refresh_token)
+                }
+                if (!authenticated) {
+                    throw FailedToAuthenticateException(error = "Failed to load the user after Google sign-in")
+                }
+
+                isLoading.value = false
+                finish(null)
+            } catch (e: CanceledByUserException) {
+                Log.i(TAG, "Google sign-in canceled by user")
+                finish(e)
+            } catch (e: MfaRequiredException) {
+                Log.i(TAG, "Google sign-in requires MFA")
+                isLoading.value = false
+                try {
+                    multiFactorAuthenticator.start(activity, finish, e.mfaRequestData)
+                } catch (mfaError: Exception) {
+                    Log.e(TAG, "Failed to start MFA after Google sign-in", mfaError)
+                    finish(mfaError)
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to login with Google", e)
+                if (startedLoading) {
+                    isLoading.value = false
+                }
+                finish(e)
             }
         }
     }

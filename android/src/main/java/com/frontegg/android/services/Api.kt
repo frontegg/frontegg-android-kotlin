@@ -14,7 +14,10 @@ import com.frontegg.android.exceptions.NotAuthenticatedException
 import com.frontegg.android.integrity.DeviceIntegrityInterceptor
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
+import com.frontegg.android.models.SocialLoginConfig
+import com.frontegg.android.models.SocialLoginOption
 import com.frontegg.android.models.SocialLoginPostLoginRequest
+import com.frontegg.android.models.SocialLoginProvider
 import com.frontegg.android.models.User
 import com.frontegg.android.models.UserSession
 import com.frontegg.android.models.WebAuthnAssertionRequest
@@ -45,6 +48,7 @@ import okhttp3.Response
 import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 open class Api(
@@ -566,7 +570,13 @@ open class Api(
         )
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticatePasskeysException::class, CookieNotFoundException::class)
+    @Throws(
+        IllegalArgumentException::class,
+        IOException::class,
+        FailedToAuthenticatePasskeysException::class,
+        CookieNotFoundException::class,
+        MfaRequiredException::class,
+    )
     fun webAuthnPostlogin(sessionCookie: String, challengeResponse: String): AuthResponse {
 
         val gson = Gson()
@@ -585,12 +595,7 @@ open class Api(
             throw FailedToAuthenticatePasskeysException(response.message)
         }
 
-        val authResponseStr = body.string()
-        val authResponse = gson.fromJson<MutableMap<String, Any>>(authResponseStr, mapType)
-        val isMfaRequired = authResponse.getOrDefault("mfaRequired", false) as Boolean
-        if (isMfaRequired) {
-            throw MfaRequiredException(authResponseStr)
-        }
+        throwIfMfaRequired(body.string())
 
         val refreshToken = getSetCookieValue("fe_refresh_", response)
         val deviceId = getSetCookieValue("fe_device_", response)
@@ -682,7 +687,12 @@ open class Api(
         return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    @Throws(
+        IllegalArgumentException::class,
+        IOException::class,
+        FailedToAuthenticateException::class,
+        MfaRequiredException::class
+    )
     fun socialLoginPostLogin(
         provider: String,
         request: SocialLoginPostLoginRequest
@@ -701,12 +711,22 @@ open class Api(
                 body?.string() ?: "Unknown error occurred"
             )
         }
-        return Gson().fromJson(response.body!!.string(), AuthResponse::class.java)
+        val responseBody = body.string()
+        throwIfMfaRequired(responseBody)
+        return gson.fromJson(responseBody, AuthResponse::class.java)
     }
 
-    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
-    fun getSocialLoginConfig(): com.frontegg.android.models.SocialLoginConfig {
-        val call = buildGetRequest("identity/resources/auth/v1/sso/config")
+    @Throws(
+        IllegalArgumentException::class,
+        IOException::class,
+        FailedToAuthenticateException::class,
+        CookieNotFoundException::class,
+        MfaRequiredException::class
+    )
+    fun googleSsoPostLogin(idToken: String, redirectUri: String): AuthResponse {
+        val query = "id_token=${URLEncoder.encode(idToken, "UTF-8")}" +
+            "&redirectUri=${URLEncoder.encode(redirectUri, "UTF-8")}"
+        val call = buildPostRequest("${ApiConstants.googleSsoPostLogin}?$query", JsonObject())
         val response = call.execute()
 
         val body = response.body
@@ -716,7 +736,50 @@ open class Api(
                 body?.string() ?: "Unknown error occurred"
             )
         }
-        return Gson().fromJson(response.body!!.string(), com.frontegg.android.models.SocialLoginConfig::class.java)
+        throwIfMfaRequired(body.string())
+
+        val refreshToken = getSetCookieValue("fe_refresh_", response)
+        val deviceId = try {
+            getSetCookieValue("fe_device_", response)
+        } catch (e: CookieNotFoundException) {
+            ""
+        }
+        return silentHostedLoginRefreshToken(refreshToken, deviceId)
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun getGoogleSocialLoginOption(): SocialLoginOption? = getSocialLoginConfig().google
+
+    @Throws(MfaRequiredException::class)
+    private fun throwIfMfaRequired(responseBody: String) {
+        val response = JsonParser.parseString(responseBody)
+        val mfaRequired = response.isJsonObject &&
+            response.asJsonObject.get("mfaRequired")?.takeIf { it.isJsonPrimitive }?.asBoolean == true
+        if (mfaRequired) {
+            throw MfaRequiredException(responseBody)
+        }
+    }
+
+    @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
+    fun getSocialLoginConfig(): SocialLoginConfig {
+        buildGetRequest(ApiConstants.socialLoginProviders).execute().use { response ->
+            val body = response.body?.string()
+            if (!response.isSuccessful || body == null) {
+                throw FailedToAuthenticateException(response.headers, body ?: "Unknown error occurred")
+            }
+            val providers = Gson().fromJson(body, Array<SocialLoginOption>::class.java).orEmpty()
+            fun option(provider: SocialLoginProvider) =
+                providers.firstOrNull { it.type.equals(provider.value, ignoreCase = true) }
+            return SocialLoginConfig(
+                facebook = option(SocialLoginProvider.FACEBOOK),
+                google = option(SocialLoginProvider.GOOGLE),
+                microsoft = option(SocialLoginProvider.MICROSOFT),
+                github = option(SocialLoginProvider.GITHUB),
+                slack = option(SocialLoginProvider.SLACK),
+                apple = option(SocialLoginProvider.APPLE),
+                linkedin = option(SocialLoginProvider.LINKEDIN)
+            )
+        }
     }
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
