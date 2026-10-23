@@ -165,23 +165,10 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
                 return
             }
 
-            // Generate URL with directLogin parameters (same logic as in directLoginWithContext)
-            val directLoginData = mapOf(
-                "type" to type,
-                "data" to data,
-                "additionalQueryParams" to mapOf(
-                    "prompt" to "consent"
-                )
-            )
-            
             val authorizeUri = try {
-                val jsonData = org.json.JSONObject(directLoginData)
-                val additionalQueryParams = org.json.JSONObject()
-                additionalQueryParams.put("prompt", "consent")
-                jsonData.put("additionalQueryParams", additionalQueryParams)
-                val loginAction = jsonData.toString().toByteArray(Charsets.UTF_8)
+                val queryParams = intent.extras?.getBundle(DIRECT_LOGIN_ACTION_QUERY_PARAMS)
+                val loginAction = directLoginActionJson(type, data, queryParams).toByteArray(Charsets.UTF_8)
                 val jsonString = android.util.Base64.encodeToString(loginAction, android.util.Base64.NO_WRAP)
-                // formAction is not in directLoginData, so pass null
                 // Use preserveCodeVerifier = false for first call to avoid NPE if codeVerifier doesn't exist
                 AuthorizeUrlGenerator(this).generate(null, jsonString, false, null, null, null)
             } catch (e: org.json.JSONException) {
@@ -427,6 +414,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
             "com.frontegg.android.DIRECT_LOGIN_ACTION_LAUNCHED_DONE"
         const val DIRECT_LOGIN_ACTION_TYPE = "com.frontegg.android.DIRECT_LOGIN_ACTION_TYPE"
         const val DIRECT_LOGIN_ACTION_DATA = "com.frontegg.android.DIRECT_LOGIN_ACTION_DATA"
+        const val DIRECT_LOGIN_ACTION_QUERY_PARAMS = "com.frontegg.android.DIRECT_LOGIN_ACTION_QUERY_PARAMS"
         private const val BUNDLE_KEY_WEBVIEW_URL = "com.frontegg.android.WEBVIEW_URL"
         private const val AUTH_LAUNCHED = "com.frontegg.android.AUTH_LAUNCHED"
         private const val BUNDLE_KEY_AUTH_COMPLETED = "com.frontegg.android.AUTH_COMPLETED"
@@ -454,6 +442,20 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
         /** Restores the flag saved by [writeAuthCompleted]; false when absent. */
         internal fun readAuthCompleted(savedInstanceState: Bundle): Boolean =
             savedInstanceState.getBoolean(BUNDLE_KEY_AUTH_COMPLETED, false)
+
+        internal fun directLoginQueryParamsBundle(additionalQueryParams: Map<String, String>): Bundle =
+            Bundle().apply { additionalQueryParams.forEach { (name, value) -> putString(name, value) } }
+
+        /** The login_direct_action payload; caller query params are merged over the default `prompt=consent`. */
+        internal fun directLoginActionJson(type: String, data: String, queryParams: Bundle?): String {
+            val additionalQueryParams = org.json.JSONObject().put("prompt", "consent")
+            queryParams?.keySet()?.forEach { name -> additionalQueryParams.put(name, queryParams.getString(name)) }
+            return org.json.JSONObject()
+                .put("type", type)
+                .put("data", data)
+                .put("additionalQueryParams", additionalQueryParams)
+                .toString()
+        }
 
         /**
          * Authenticates the user using the Frontegg embedded login experience.
@@ -489,6 +491,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
             activity: Activity,
             type: String,
             data: String,
+            additionalQueryParams: Map<String, String> = emptyMap(),
             callback: ((error: Exception?) -> Unit)? = null
         ) {
             Log.d(TAG, "directLoginAction")
@@ -497,6 +500,7 @@ open class EmbeddedAuthActivity : FronteggBaseActivity() {
             intent.putExtra(DIRECT_LOGIN_ACTION_LAUNCHED, true)
             intent.putExtra(DIRECT_LOGIN_ACTION_TYPE, type)
             intent.putExtra(DIRECT_LOGIN_ACTION_DATA, data)
+            intent.putExtra(DIRECT_LOGIN_ACTION_QUERY_PARAMS, directLoginQueryParamsBundle(additionalQueryParams))
             onAuthFinishedCallback = callback
             activity.startActivity(intent)
 

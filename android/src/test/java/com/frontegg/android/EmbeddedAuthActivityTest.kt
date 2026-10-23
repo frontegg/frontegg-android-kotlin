@@ -1,6 +1,8 @@
 package com.frontegg.android
 
 import android.os.Bundle
+import org.json.JSONObject
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -76,5 +78,32 @@ class EmbeddedAuthActivityTest {
     @Test
     fun `authCompleted defaults to false when absent from the bundle`() {
         assertFalse(EmbeddedAuthActivity.readAuthCompleted(Bundle()))
+    }
+
+    // --- direct login additional query params ---
+
+    @Test
+    fun `direct login payload keeps prompt consent without caller params`() {
+        val payload = JSONObject(EmbeddedAuthActivity.directLoginActionJson("social-login", "google", null))
+
+        assertEquals("social-login", payload.getString("type"))
+        assertEquals("google", payload.getString("data"))
+        assertEquals("consent", payload.getJSONObject("additionalQueryParams").getString("prompt"))
+        assertEquals(1, payload.getJSONObject("additionalQueryParams").length())
+    }
+
+    @Test
+    fun `direct login payload adds caller params and lets them replace prompt`() {
+        val queryParams = EmbeddedAuthActivity.directLoginQueryParamsBundle(
+            mapOf("prompt" to "login", "login_hint" to "user@example.com")
+        )
+
+        val payloadJson = EmbeddedAuthActivity.directLoginActionJson("direct", "https://idp.example.com", queryParams)
+        val payload = JSONObject(payloadJson)
+
+        val additionalQueryParams = payload.getJSONObject("additionalQueryParams")
+        assertEquals("login", additionalQueryParams.getString("prompt"))
+        assertEquals("user@example.com", additionalQueryParams.getString("login_hint"))
+        assertEquals(2, additionalQueryParams.length())
     }
 }
