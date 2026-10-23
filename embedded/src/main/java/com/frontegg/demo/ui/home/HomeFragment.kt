@@ -16,6 +16,9 @@ import android.view.ViewGroup
 import android.widget.Toast
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.viewModels
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import com.bumptech.glide.Glide
 import com.frontegg.android.AdminPortalActivity
 import com.frontegg.android.fronteggAuth
@@ -28,6 +31,7 @@ import com.frontegg.demo.databinding.FragmentHomeBinding
 import com.frontegg.demo.databinding.LayoutEntitlementRowBinding
 import io.reactivex.rxjava3.disposables.Disposable
 import io.reactivex.rxjava3.functions.Consumer
+import kotlinx.coroutines.launch
 import org.json.JSONObject
 import java.util.Timer
 import kotlin.time.DurationUnit
@@ -230,6 +234,7 @@ class HomeFragment : Fragment() {
             binding.e2eHomeMarkers.visibility = View.VISIBLE
             binding.receiveTokenButton.contentDescription = "GetCurrentAccessTokenButton"
             e2eHandler.post(e2eTicker)
+            collectStateFlowMarkers()
         }
 
         binding.receiveTokenButton.setOnClickListener {
@@ -375,6 +380,31 @@ class HomeFragment : Fragment() {
         val showUnauthOffline = !authenticated && offlineFeat && !netOk
         binding.e2eUnauthOfflineEnabled.visibility = if (showUnauthOffline) View.VISIBLE else View.GONE
         binding.e2eUnauthOfflineEnabled.text = if (showUnauthOffline) "1" else "0"
+    }
+
+    private fun collectStateFlowMarkers() {
+        val auth = requireContext().fronteggAuth
+        viewLifecycleOwner.lifecycleScope.launch {
+            viewLifecycleOwner.repeatOnLifecycle(Lifecycle.State.STARTED) {
+                launch {
+                    auth.user.stateFlow.collect { user ->
+                        val email = user?.let { runCatching { it.email }.getOrNull() }
+                        binding.e2eStateFlowUserEmail.text = email ?: "none"
+                    }
+                }
+                launch {
+                    auth.isAuthenticated.stateFlow.collect { authenticated ->
+                        binding.e2eStateFlowIsAuthenticated.text = authenticated.toString()
+                    }
+                }
+                launch {
+                    auth.accessToken.stateFlow.collect { token ->
+                        val tokenVersion = token?.let { jwtPayload(it) }?.optInt("token_version", 0) ?: 0
+                        binding.e2eStateFlowAccessTokenVersion.text = tokenVersion.toString()
+                    }
+                }
+            }
+        }
     }
 
     private fun jwtPayload(jwt: String): JSONObject? {
