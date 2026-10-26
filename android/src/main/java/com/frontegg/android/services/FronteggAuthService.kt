@@ -716,19 +716,25 @@ class FronteggAuthService(
             return currentAccessToken
         }
 
+        if (!isNetworkGoodSync()) {
+            return cachedAccessTokenOrThrow(refreshFailure = null)
+        }
         if (refreshTokenAndWait()) {
             return accessToken.value
         }
         if (refreshToken.value == null) {
             return null
         }
+        return cachedAccessTokenOrThrow(lastRefreshError)
+    }
 
-        val refreshFailure = lastRefreshError ?: IOException("Network unavailable, access token was not refreshed")
-        if (enableOfflineMode && refreshFailure is IOException) {
+    private fun cachedAccessTokenOrThrow(refreshFailure: Exception?): String? {
+        val failure = refreshFailure ?: IOException("Network unavailable, access token was not refreshed")
+        if (enableOfflineMode && failure is IOException) {
             setOfflineMode(true)
             return accessToken.value
         }
-        throw refreshFailure
+        throw failure
     }
 
     override fun getOrRefreshAccessToken(callback: (accessToken: String?, error: Exception?) -> Unit) {

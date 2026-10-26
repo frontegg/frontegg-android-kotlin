@@ -192,11 +192,14 @@ interface FronteggAuth {
      *
      * Waits up to 20 seconds for an in-flight initialization, login or refresh to settle first.
      * Refreshes through [refreshTokenAndWait], so concurrent calls share a single refresh.
+     * When the device is offline it does not attempt the refresh and does not wait for the network.
      * @return the access token, or null when there is no session, no region is selected in a multi-region app,
      *         or the server rejected the refresh token (the session is then cleared and the user has to log in again).
-     *         With offline mode enabled, a connectivity failure returns the cached access token, which may be expired.
+     *         With offline mode enabled, being offline or a connectivity failure returns the cached access token,
+     *         which may be expired or null.
      * @throws com.frontegg.android.exceptions.FailedToAuthenticateException when the in-flight work did not settle in time.
-     * @throws java.io.IOException when the refresh failed because of the network or a 5xx response.
+     * @throws java.io.IOException when the device is offline, or the refresh failed because of the network
+     *         or a 5xx response, and offline mode is disabled.
      * @throws Exception any other refresh failure, as thrown by the refresh request.
      * @throws UnsupportedOperationException when the implementation does not override this method.
      */

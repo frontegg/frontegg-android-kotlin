@@ -156,9 +156,10 @@ lifecycleScope.launch {
 
 It returns `null` when there is no session, when no region is selected yet in a multi-region app, or when
 the server rejected the refresh token, in which case the session is cleared and the user has to log in again.
-With [offline mode](advanced.md#offline-mode-ios-parity) enabled, a network failure returns the cached token.
-Otherwise it throws: `IOException` for a network failure or a server error, and `FailedToAuthenticateException`
-when in-flight work did not settle in time.
+When the device is offline and the token needs a refresh, it does not attempt the refresh or wait for the network.
+With [offline mode](advanced.md#offline-mode-ios-parity) enabled, being offline or a network failure returns the
+cached token, which may be expired. Otherwise it throws: `IOException` right away when the device is offline, or for a
+network failure or a server error, and `FailedToAuthenticateException` when in-flight work did not settle in time.
 
 From Java, or without coroutines, use the callback variant. The callback runs on the main thread:
 

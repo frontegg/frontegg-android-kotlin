@@ -38,8 +38,13 @@ import java.io.IOException
 import java.time.Instant
 import java.util.Base64
 import java.util.concurrent.Executors
+import kotlin.system.measureTimeMillis
 
 class GetOrRefreshAccessTokenTest {
+    private companion object {
+        const val OFFLINE_FAIL_FAST_LIMIT_MS = 30_000L
+    }
+
     private val storageMock = mockk<FronteggInnerStorage>()
     private val mockContext = mockk<Context>()
     private val credentialManagerMock = mockk<CredentialManager>()
@@ -286,6 +291,41 @@ class GetOrRefreshAccessTokenTest {
 
         assertThrows<IOException> { runBlocking { auth.getOrRefreshAccessToken() } }
         assertEquals("RefreshToken", auth.refreshToken.value)
+    }
+
+    @Test
+    fun `throws without refreshing when the device is offline and offline mode is disabled`() {
+        val auth = createAuth()
+        auth.refreshToken.value = "RefreshToken"
+        auth.accessToken.value = jwtExpiringIn(-60)
+        every { NetworkGate.isNetworkLikelyGood(any()) } returns false
+
+        val elapsedMs = measureTimeMillis {
+            assertThrows<IOException> { runBlocking { auth.getOrRefreshAccessToken() } }
+        }
+
+        assertTrue(elapsedMs < OFFLINE_FAIL_FAST_LIMIT_MS)
+        assertEquals("RefreshToken", auth.refreshToken.value)
+        verify(exactly = 0) { apiMock.refreshToken(any()) }
+    }
+
+    @Test
+    fun `returns the cached access token without refreshing when the device is offline in offline mode`() {
+        val auth = createAuth(enableOfflineMode = true)
+        val cachedAccessToken = jwtExpiringIn(-60)
+        auth.refreshToken.value = "RefreshToken"
+        auth.accessToken.value = cachedAccessToken
+        every { NetworkGate.isNetworkLikelyGood(any()) } returns false
+
+        var result: String? = null
+        val elapsedMs = measureTimeMillis {
+            result = runBlocking { auth.getOrRefreshAccessToken() }
+        }
+
+        assertTrue(elapsedMs < OFFLINE_FAIL_FAST_LIMIT_MS)
+        assertEquals(cachedAccessToken, result)
+        assertTrue(auth.isOfflineMode.value)
+        verify(exactly = 0) { apiMock.refreshToken(any()) }
     }
 
     @Test
