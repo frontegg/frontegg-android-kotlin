@@ -130,6 +130,49 @@ and prebuilt components; see [Jetpack Compose](advanced.md#jetpack-compose).
 > `StateFlow`, skips a value equal to the current one. When you stop using `subscribe`, you can
 > drop the `io.reactivex.rxjava3:rxkotlin` dependency from your app.
 
+## Get a valid access token
+
+Before calling your API, ask for the access token with `getOrRefreshAccessToken()` instead of reading
+`accessToken` directly. After the app has been in the background, the cached token may already be
+expired, which shows up as a `401` on the first request after resume.
+
+`getOrRefreshAccessToken()` waits up to 20 seconds for an in-flight initialization, login or refresh,
+returns the current token when it is valid for more than 15 seconds, and refreshes it otherwise:
+
+```kotlin
+lifecycleScope.launch {
+    try {
+        val accessToken = fronteggAuth.getOrRefreshAccessToken()
+        if (accessToken == null) {
+            showLogin()
+        } else {
+            callApi(accessToken)
+        }
+    } catch (e: Exception) {
+        showRetry(e)
+    }
+}
+```
+
+It returns `null` when there is no session, when no region is selected yet in a multi-region app, or when
+the server rejected the refresh token, in which case the session is cleared and the user has to log in again.
+When the device is offline and the token needs a refresh, it does not attempt the refresh or wait for the network.
+With [offline mode](advanced.md#offline-mode-ios-parity) enabled, being offline or a network failure returns the
+cached token, which may be expired. Otherwise it throws: `IOException` right away when the device is offline, or for a
+network failure or a server error, and `FailedToAuthenticateException` when in-flight work did not settle in time.
+
+From Java, or without coroutines, use the callback variant. The callback runs on the main thread:
+
+```kotlin
+fronteggAuth.getOrRefreshAccessToken { accessToken, error ->
+    when {
+        error != null -> showRetry(error)
+        accessToken == null -> showLogin()
+        else -> callApi(accessToken)
+    }
+}
+```
+
 ## Logout user
 
 To log out the user, simply call the `requireContext().fronteggAuth.logout()` method. This will clear all user data from the device.

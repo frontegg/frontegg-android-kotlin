@@ -187,6 +187,38 @@ interface FronteggAuth {
     suspend fun refreshTokenAndWait(force: Boolean = false): Boolean
 
     /**
+     * Returns an access token that is valid for more than 15 seconds, refreshing it first when needed.
+     * Call it before each API request, for example after the app resumes, instead of reading [accessToken].
+     *
+     * Waits up to 20 seconds for an in-flight initialization, login or refresh to settle first.
+     * Refreshes through [refreshTokenAndWait], so concurrent calls share a single refresh.
+     * When a background refresh is still running after that, waits up to 10 more seconds for its token.
+     * When the device is offline it does not attempt the refresh and does not wait for the network.
+     * @return the access token, or null when there is no session, no region is selected in a multi-region app,
+     *         or the server rejected the refresh token (the session is then cleared and the user has to log in again).
+     *         With offline mode enabled, being offline or a connectivity failure returns the cached access token,
+     *         which may be expired or null.
+     * @throws com.frontegg.android.exceptions.FailedToAuthenticateException when the in-flight work did not settle in time.
+     * @throws java.io.IOException when the device is offline, or the refresh failed because of the network
+     *         or a 5xx response, and offline mode is disabled.
+     * @throws Exception any other refresh failure, as thrown by the refresh request.
+     * @throws UnsupportedOperationException when the implementation does not override this method.
+     */
+    suspend fun getOrRefreshAccessToken(): String? {
+        throw UnsupportedOperationException("getOrRefreshAccessToken is not implemented by ${this::class.java.name}")
+    }
+
+    /**
+     * Callback variant of [getOrRefreshAccessToken] for Java and callers without coroutines.
+     * @param callback called on the main thread with the access token, or with null and no error when there
+     *                 is no session. [error] is not null when the call failed, and [accessToken] is then null.
+     *                 Implementations that do not override this method report an [UnsupportedOperationException].
+     */
+    fun getOrRefreshAccessToken(callback: (accessToken: String?, error: Exception?) -> Unit) {
+        callback(null, UnsupportedOperationException("getOrRefreshAccessToken is not implemented by ${this::class.java.name}"))
+    }
+
+    /**
      * Process queued requests when network becomes available.
      */
     fun processQueuedRequests()
