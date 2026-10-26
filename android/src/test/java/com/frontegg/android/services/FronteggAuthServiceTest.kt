@@ -45,7 +45,12 @@ import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.mockkConstructor
 import kotlin.time.DurationUnit
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.delay
 import io.mockk.verify
 import org.junit.Before
@@ -1517,5 +1522,51 @@ class FronteggAuthServiceTest {
         verify(exactly = 0) { apiMock.me() }
         // ...it must have been offloaded to the background dispatcher instead.
         assert(dispatcher.size >= 1) { "expected blocking work to be dispatched to background, queue was empty" }
+    }
+
+    private fun cancelRefreshDuringNetworkWait(): Result<Boolean>? {
+        auth.accessToken.value = "current-access-token"
+        auth.refreshToken.value = "current-refresh-token"
+        every { NetworkGate.isNetworkLikelyGood(any()) }.returns(false)
+        var refreshOutcome: Result<Boolean>? = null
+        runBlocking {
+            val refreshCaller = launch(start = CoroutineStart.UNDISPATCHED) {
+                refreshOutcome = runCatching { auth.refreshTokenAndWait() }
+            }
+            refreshCaller.cancelAndJoin()
+        }
+        return refreshOutcome
+    }
+
+    @Test
+    fun `cancelling refreshTokenAndWait during the network wait propagates cancellation`() {
+        val refreshOutcome = cancelRefreshDuringNetworkWait()
+
+        val failure = refreshOutcome?.exceptionOrNull()
+        assert(failure is CancellationException) { "expected cancellation, was $refreshOutcome" }
+        verify(exactly = 0) { apiMock.refreshToken(any()) }
+    }
+
+    @Test
+    fun `refresh works again after a refreshTokenAndWait caller is cancelled`() {
+        cancelRefreshDuringNetworkWait()
+        assert(!auth.refreshingToken.value) { "refreshingToken must be released after cancellation" }
+
+        every { NetworkGate.isNetworkLikelyGood(any()) }.returns(true)
+        every { apiMock.evictIdleConnections() }.returns(Unit)
+        every { apiMock.refreshToken("current-refresh-token") }.returns(
+            AuthResponse().apply {
+                access_token = "new-access-token"
+                refresh_token = "new-refresh-token"
+            }
+        )
+        every { apiMock.me() }.returns(mockk<User>(relaxed = true))
+        every { credentialManagerMock.save(any(), any(), any()) }.returns(true)
+
+        val result = runBlocking { withTimeout(5_000) { auth.refreshTokenAndWait() } }
+
+        assert(result) { "refresh after cancellation must succeed" }
+        assert(auth.accessToken.value == "new-access-token") { "was ${auth.accessToken.value}" }
+        assert(!auth.refreshingToken.value) { "refreshingToken must be released after the refresh" }
     }
 }

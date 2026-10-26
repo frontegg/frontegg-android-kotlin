@@ -38,6 +38,7 @@ import com.frontegg.android.utils.RequestPriority
 import com.frontegg.android.utils.SessionTracker
 import com.frontegg.android.utils.calculateTimerOffset
 import com.google.gson.JsonParser
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -518,6 +519,9 @@ class FronteggAuthService(
                     api.evictIdleConnections()
                     sendRefreshTokenInternal(source)
                 }
+            } catch (e: CancellationException) {
+                isReconnecting.postValue(false)
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Failed to perform idempotent refresh", e)
                 isReconnecting.postValue(false)
