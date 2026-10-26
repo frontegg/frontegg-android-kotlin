@@ -35,6 +35,7 @@ class LocalMockAuthServer {
         const val GOOGLE_ID_TOKEN = "e2e-google-id-token"
         const val GOOGLE_NATIVE_EMAIL = "google-native@frontegg.com"
         private const val MFA_MOBILE_AUTHENTICATOR_PATH = "/oauth/account/mfa-mobile-authenticator"
+        const val USER_SESSIONS_PATH = "/identity/resources/users/sessions/v1/me"
     }
 
     val clientId = "demo-embedded-e2e-client"
@@ -1569,10 +1570,6 @@ class LocalMockAuthServer {
             return json(404, JSONObject().put("errors", JSONArray().put("Session not found")))
         }
         return json(200, JSONObject())
-    }
-
-    companion object {
-        const val USER_SESSIONS_PATH = "/identity/resources/users/sessions/v1/me"
     }
 }
 
