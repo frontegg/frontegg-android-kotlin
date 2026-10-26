@@ -1,3 +1,45 @@
+## v1.3.45
+Jira: FR-25952
+
+## Summary
+
+- Added `getOrRefreshAccessToken()` (suspend) and `getOrRefreshAccessToken { accessToken, error -> }`. They return an access token valid for more than 15 seconds and refresh it first when needed (iOS parity). Use them before API calls to avoid 401s after the app resumes.
+- Fixed: cancelling a coroutine that is waiting in `refreshTokenAndWait()` (including a caller's own `withTimeout`) now cancels it, instead of returning `false`. The refresh lock and state are still released, so the next refresh works.
+
+## Behaviour
+
+- Waits up to 20 s for an in-flight initialization, login or refresh to finish; otherwise throws `FailedToAuthenticateException`.
+- Returns `null` when there is no session, when no region is selected in a multi-region app, or when the server rejected the refresh token.
+- Returns the cached token when it is valid for more than 15 s.
+- Device offline: with offline mode on, returns the cached token (which may be expired or null) without trying a refresh; with offline mode off, throws `IOException` without starting a refresh.
+- Otherwise refreshes through `refreshTokenAndWait()`, which handles the refresh lock, retry and per-tenant sessions. If a refresh the SDK started in the background was still finishing, it waits up to 10 s for it and checks the token again, so it never returns a token that is about to expire.
+- A failure reports the error from this attempt, not one left over from an earlier refresh.
+- Runs on the IO dispatcher, so it is safe to call from the main thread. The callback variant calls back once, on the main thread.
+- `FronteggAuth` gives both methods default implementations (`UnsupportedOperationException`), so Kotlin implementations of the interface, such as test fakes, keep compiling from source.
+
+Differences from iOS: a 5xx response counts as a network error, and there is no tenant-specific refresh endpoint to fall back from.
+
+## Notes for review
+
+- The cancellation fix is its own commit (`2588ece`) and cherry-picks cleanly onto master if it should ship separately. It changes behaviour for every caller of `refreshTokenAndWait()`.
+- Cancellation is cooperative: a network request already in flight finishes before the cancellation takes effect.
+- Not changed: `RequestQueue.processAll()` also catches `Exception` around queued suspend requests and so swallows cancellation. It empties the queue before running them, so rethrowing would drop the remaining requests; a proper fix needs re-queueing.
+- If the app's callback itself throws, the exception is no longer passed back to the callback; it propagates like any exception thrown on the main thread.
+
+## Docs
+
+`docs/api.md` and `docs/usage.md`.
+
+## Testing
+
+- `./gradlew :android:detektDebug :android:testDebugUnitTest :compose:testDebugUnitTest` passes (android 939/939, compose 55/55, none skipped). `GetOrRefreshAccessTokenTest` has 18 tests, including the main-thread call, the multi-region case, both offline paths, cancellation, a callback that throws, a stale earlier error, and a background refresh still running.
+- `./gradlew :app:build :compose:assembleDebug` passes.
+- Not run on a device.
+
+🤖 Generated with [Claude Code](https://claude.com/claude-code)
+
+https://claude.ai/code/session_01S2yW3aohcrkGZ96iyLpv3a
+
 ## v1.3.44
 
 Features:
