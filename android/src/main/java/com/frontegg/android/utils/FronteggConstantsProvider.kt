@@ -76,6 +76,8 @@ object FronteggConstantsProvider {
         val entitlementsEnabled = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENTITLEMENTS_ENABLED", false)
         val enableDPoP = isDPoPEnabled(buildConfigClass)
         val playIntegrityCloudProjectNumber = cloudProjectNumber(buildConfigClass)
+        val useNativeGoogleSignIn =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN", false)
 
         return FronteggConstants(
             baseUrl = baseUrl,
@@ -95,6 +97,7 @@ object FronteggConstantsProvider {
             entitlementsEnabled = entitlementsEnabled,
             enableDPoP = enableDPoP,
             playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
+            useNativeGoogleSignIn = useNativeGoogleSignIn,
         )
     }
 

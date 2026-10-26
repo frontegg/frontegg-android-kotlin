@@ -26,6 +26,8 @@ data class SocialLoginConfig(
  * Social login option for specific provider
  */
 data class SocialLoginOption(
+    @SerializedName("type")
+    val type: String? = null,
     @SerializedName("active")
     val active: Boolean = false,
     @SerializedName("clientId")
@@ -33,7 +35,9 @@ data class SocialLoginOption(
     @SerializedName("authorizationUrl")
     val authorizationUrl: String? = null,
     @SerializedName("additionalScopes")
-    val additionalScopes: List<String> = emptyList()
+    val additionalScopes: List<String> = emptyList(),
+    @SerializedName("customised")
+    val customised: Boolean? = null
 )
 
 /**

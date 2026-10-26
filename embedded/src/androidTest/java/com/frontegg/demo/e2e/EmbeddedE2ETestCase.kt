@@ -10,19 +10,29 @@ import androidx.test.espresso.web.sugar.Web.onWebView
 import androidx.test.espresso.web.webdriver.DriverAtoms.findElement
 import androidx.test.espresso.web.webdriver.DriverAtoms.webClick
 import androidx.test.espresso.web.webdriver.DriverAtoms.webKeys
+import androidx.test.espresso.web.webdriver.DriverAtoms.webScrollIntoView
 import androidx.test.espresso.web.webdriver.Locator
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.uiautomator.By
 import androidx.test.uiautomator.UiDevice
 import androidx.test.uiautomator.Until
 import java.util.regex.Pattern
+import com.frontegg.android.EmbeddedAuthActivity
+import com.frontegg.android.services.GoogleIdTokenSource
+import com.frontegg.android.services.GoogleIdTokenSourceProvider
 import com.frontegg.demo.App
 import com.frontegg.demo.NavigationActivity
+import io.mockk.every
+import io.mockk.mockkObject
+import io.mockk.unmockkObject
+import okhttp3.HttpUrl.Companion.toHttpUrl
+import org.json.JSONObject
 import org.junit.After
 import org.junit.Before
-import org.json.JSONObject
 import java.io.File
 import java.util.concurrent.TimeUnit
+
+private const val MAX_SCROLL_SWIPES = 20
 
 /**
  * Base class for embedded mock-server E2E tests (Swift `DemoEmbeddedUITestCase` parity).
@@ -42,6 +52,7 @@ open class EmbeddedE2ETestCase {
 
     protected lateinit var mock: LocalMockAuthServer
     private var scenario: ActivityScenario<NavigationActivity>? = null
+    private var googleIdTokenSourceFaked = false
 
     protected val device: UiDevice
         get() = UiDevice.getInstance(InstrumentationRegistry.getInstrumentation())
@@ -59,6 +70,10 @@ open class EmbeddedE2ETestCase {
     open fun e2eBaseTearDown() {
         scenario?.close()
         scenario = null
+        if (googleIdTokenSourceFaked) {
+            unmockkObject(GoogleIdTokenSourceProvider)
+            googleIdTokenSourceFaked = false
+        }
         runCatching {
             dismissBrowserForegroundIfNeeded()
             device.pressHome()
@@ -73,6 +88,7 @@ open class EmbeddedE2ETestCase {
         enableOfflineMode: Boolean? = null,
         enableDPoP: Boolean = false,
         playIntegrityCloudProjectNumber: Long = 0L,
+        useNativeGoogleSignIn: Boolean = false,
     ) {
         scenario?.close()
         scenario = null
@@ -91,6 +107,7 @@ open class EmbeddedE2ETestCase {
             enableOfflineMode = enableOfflineMode,
             enableDPoP = enableDPoP,
             playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
+            useNativeGoogleSignIn = useNativeGoogleSignIn,
         )
         instrumentation.runOnMainSync {
             (instrumentation.targetContext.applicationContext as App).consumeAndApplyE2EBootstrapFromDisk()
@@ -230,14 +247,15 @@ open class EmbeddedE2ETestCase {
             val w = device.displayWidth
             val h = device.displayHeight
             val x = w / 2
-            if (swipes % 2 == 0) {
+            // Down through the whole list first, then back up, so a control at the bottom is reached too.
+            if (swipes < MAX_SCROLL_SWIPES / 2) {
                 device.swipe(x, (h * 0.72).toInt(), x, (h * 0.32).toInt(), 12)
             } else {
                 device.swipe(x, (h * 0.35).toInt(), x, (h * 0.78).toInt(), 12)
             }
             swipes++
             Thread.sleep(280)
-            if (swipes > 18) break
+            if (swipes >= MAX_SCROLL_SWIPES) break
         }
         val ok = device.wait(Until.hasObject(By.desc(contentDescription)), 2_000)
         if (!ok) {
@@ -850,5 +868,92 @@ open class EmbeddedE2ETestCase {
             Thread.sleep(1_000)
         }
         throw AssertionError("Expected text '$expectedText' not found in WebView")
+    }
+
+    /** Native Google sign-in asks [source] for the ID token instead of Credential Manager. */
+    protected fun fakeGoogleIdTokenSource(source: GoogleIdTokenSource) {
+        mockkObject(GoogleIdTokenSourceProvider)
+        googleIdTokenSourceFaked = true
+        every { GoogleIdTokenSourceProvider.getGoogleIdTokenSource(any()) } returns source
+    }
+
+    protected fun waitForWebElement(elementId: String, timeoutMs: Long = 30_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (System.currentTimeMillis() < deadline) {
+            try {
+                authWebView().withElement(findElement(Locator.ID, elementId)).perform(webScrollIntoView())
+                return
+            } catch (_: Throwable) {
+                Thread.sleep(2_000)
+            }
+        }
+        throw AssertionError("WebView element id=$elementId not found")
+    }
+
+    /** Opens the embedded login box without a login hint and taps its Google button. */
+    protected fun tapLoginBoxGoogleButton() {
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedLoginBoxButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        waitForWebElement("e2e-login-google", 120_000)
+        clickWebElement("e2e-login-google")
+    }
+
+    protected fun waitForGoogleIdTokenRequest(source: FakeGoogleIdTokenSource, timeoutMs: Long = 60_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (source.requestedServerClientIds.isEmpty() && System.currentTimeMillis() < deadline) {
+            Thread.sleep(250)
+        }
+        if (source.requestedServerClientIds.isEmpty()) {
+            throw AssertionError("Native Google sign-in never asked for a Google ID token")
+        }
+    }
+
+    protected fun assertSingleGooglePostLogin(expectedIdToken: String) {
+        val postLogins = mock.requests("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH)
+        if (postLogins.size != 1) {
+            throw AssertionError("Expected one Google post-login request, got ${postLogins.size}")
+        }
+        val query = "http://localhost${postLogins.single().target}".toHttpUrl()
+        val sentIdToken = query.queryParameter("id_token")
+        if (sentIdToken != expectedIdToken) {
+            throw AssertionError("Google post-login sent idToken=$sentIdToken, expected $expectedIdToken")
+        }
+        val redirectUri = query.queryParameter("redirectUri").orEmpty()
+        if (!redirectUri.endsWith("/oauth/account/social/success")) {
+            throw AssertionError("Google post-login sent redirectUri=$redirectUri")
+        }
+    }
+
+    protected fun assertRequestCount(method: String, path: String, expectedCount: Int) {
+        val actualCount = mock.requestCount(method, path)
+        if (actualCount != expectedCount) {
+            throw AssertionError("Expected $expectedCount $method $path request(s), got $actualCount")
+        }
+    }
+
+    /** The browser flow opens accounts.google.com, which CI can't reach, so a browser over the app is the signal. */
+    protected fun waitForBrowserGoogleSignIn(timeoutMs: Long = 60_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        while (foregroundPackage()?.let { isLikelyBrowserPackage(it) } != true) {
+            if (System.currentTimeMillis() > deadline) {
+                throw AssertionError("Browser Google sign-in never opened a browser, foreground=${foregroundPackage()}")
+            }
+            Thread.sleep(500)
+        }
+        dismissBrowserForegroundIfNeeded()
+    }
+
+    /** Sends the app home, then brings the open login box back to the foreground. */
+    protected fun backgroundAndResumeLoginBox() {
+        device.pressHome()
+        Thread.sleep(2_000)
+        val resumeLoginBox = Intent(instrumentation.targetContext, EmbeddedAuthActivity::class.java).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
+        }
+        instrumentation.targetContext.startActivity(resumeLoginBox)
+        if (!waitUntilDemoWindowVisible(TimeUnit.SECONDS.toMillis(20))) {
+            throw AssertionError("Login box did not return to the foreground")
+        }
     }
 }

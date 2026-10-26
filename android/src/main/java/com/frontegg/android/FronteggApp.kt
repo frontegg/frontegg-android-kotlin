@@ -81,6 +81,7 @@ val Context.fronteggApp: FronteggApp
                 entitlementsEnabled = constants.entitlementsEnabled,
                 enableDPoP = constants.enableDPoP,
                 playIntegrityCloudProjectNumber = constants.playIntegrityCloudProjectNumber,
+                useNativeGoogleSignIn = constants.useNativeGoogleSignIn,
                 tenantResolver = constants.fronteggOrganization?.let { org ->
                     TenantResolver { TenantResolverResult(org) }
                 },
@@ -143,6 +144,7 @@ interface FronteggApp {
          * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
          * @param playIntegrityCloudProjectNumber Google Cloud project number for Play Integrity attestation;
          *                                        `0` disables attestation (default: `0`).
+         * @param useNativeGoogleSignIn The embedded login box's Google button signs in natively (default: `false`).
          */
         @VisibleForTesting
         internal fun init(
@@ -163,6 +165,7 @@ interface FronteggApp {
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
             playIntegrityCloudProjectNumber: Long = 0L,
+            useNativeGoogleSignIn: Boolean = false,
         ) {
             val baseUrl: String = when {
                 fronteggDomain.startsWith("http://") || fronteggDomain.startsWith("https://") ->
@@ -191,6 +194,7 @@ interface FronteggApp {
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
                 playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
         }
@@ -225,6 +229,7 @@ interface FronteggApp {
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
             playIntegrityCloudProjectNumber: Long = 0L,
+            useNativeGoogleSignIn: Boolean = false,
         ): FronteggApp {
             resetInstanceForTesting()
             val baseUrl: String = when {
@@ -261,6 +266,7 @@ interface FronteggApp {
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
                 playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             runDebugChecksSafe(appContext, fronteggDomain, clientId)
             return instance!!
@@ -281,6 +287,7 @@ interface FronteggApp {
          * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
          * @param playIntegrityCloudProjectNumber Google Cloud project number for Play Integrity attestation;
          *                                        `0` disables attestation (default: `0`).
+         * @param useNativeGoogleSignIn The embedded login box's Google button signs in natively (default: `false`).
          */
         fun initWithRegions(
             regions: List<RegionConfig>,
@@ -297,6 +304,7 @@ interface FronteggApp {
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
             playIntegrityCloudProjectNumber: Long = 0L,
+            useNativeGoogleSignIn: Boolean = false,
         ): FronteggApp {
             // Prepare Sentry for later initialization via feature flag.
             runCatching {
@@ -330,6 +338,7 @@ interface FronteggApp {
                        tenantResolver = tenantResolver,
                        enableDPoP = enableDPoP,
                        playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
+                       useNativeGoogleSignIn = useNativeGoogleSignIn,
                    )
                    instance = newInstance
 
@@ -357,6 +366,7 @@ interface FronteggApp {
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
                 playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
+                useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             instance = newInstance
             // Persist parameters to allow retry when network becomes available
@@ -372,6 +382,7 @@ interface FronteggApp {
                     networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                     enableDPoP = enableDPoP,
                     playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
+                    useNativeGoogleSignIn = useNativeGoogleSignIn,
                 )
             )
             return newInstance

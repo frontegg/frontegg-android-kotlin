@@ -54,6 +54,7 @@ class App : Application() {
             entitlementsEnabled = false,
             enableDPoP = bootstrap.enableDPoP,
             playIntegrityCloudProjectNumber = bootstrap.playIntegrityCloudProjectNumber,
+            useNativeGoogleSignIn = bootstrap.useNativeGoogleSignIn,
         )
     }
 

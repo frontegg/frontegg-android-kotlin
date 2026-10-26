@@ -75,6 +75,7 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 any()
             )
         }.returns(Unit)
@@ -117,6 +118,7 @@ class FronteggAppServiceTest {
         every { mockConstants.fronteggOrganization } returns null
         every { mockConstants.enableDPoP } returns false
         every { mockConstants.playIntegrityCloudProjectNumber } returns 0L
+        every { mockConstants.useNativeGoogleSignIn } returns false
         every { FronteggApp.instance } returns null andThen mockFronteggApp
         every {
             FronteggApp.init(
@@ -174,6 +176,7 @@ class FronteggAppServiceTest {
         every { mockConstants.fronteggOrganization } returns null
         every { mockConstants.enableDPoP } returns false
         every { mockConstants.playIntegrityCloudProjectNumber } returns 0L
+        every { mockConstants.useNativeGoogleSignIn } returns false
         every { FronteggApp.instance } returns null andThen null andThen mockFronteggApp andThen mockFronteggApp
         every { mockFronteggApp.auth } returns mockk(relaxed = true)
         every {
@@ -211,6 +214,7 @@ class FronteggAppServiceTest {
     fun `init should initialize all FronteggApp fields`() {
         every {
             mockStorage.fill(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -314,6 +318,7 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 any()
             )
         }.returns(Unit)
@@ -396,6 +401,7 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 any()
             )
         }.returns(Unit)
@@ -422,6 +428,7 @@ class FronteggAppServiceTest {
                 "https://frontegg.test.com 1",
                 "Test Client Id 1",
                 "Application Id 1",
+                any(),
                 any(),
                 any(),
                 any(),
@@ -466,6 +473,7 @@ class FronteggAppServiceTest {
                 any(),
                 any(),
                 any(),
+                any(),
                 any()
             )
         }
@@ -475,6 +483,7 @@ class FronteggAppServiceTest {
     fun `initWithRegion should throw RuntimeException if regions is empty`() {
         every {
             mockStorage.fill(
+                any(),
                 any(),
                 any(),
                 any(),
@@ -539,6 +548,7 @@ class FronteggAppServiceTest {
         )
         every {
             mockStorage.fill(
+                any(),
                 any(),
                 any(),
                 any(),

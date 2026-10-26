@@ -79,6 +79,12 @@ const TEST_WEIGHTS = {
   testPasswordLoginWorksWithOfflineModeDisabled: 26,
   testColdLaunchWithOfflineModeDisabledReachesLoginQuickly: 12,
   testColdLaunchTransientProbeTimeoutsDoNotBlinkNoConnectionPage: 12,
+  testLoginBoxNativeGoogleMfaContinuesInLoginBox: 32,
+  testLoginBoxNativeGoogleRejectedTokenFallsBackToBrowser: 30,
+  testLoginBoxGoogleButtonUsesBrowserWhenNativeDisabled: 30,
+  testLoginBoxGoogleButtonSignsInNatively: 26,
+  testLoginBoxNativeGoogleCancelStaysOnLoginBox: 24,
+  testNativeGoogleSignInFromApp: 22,
 };
 
 function sortMethodsForSharding(methods) {
@@ -98,6 +104,8 @@ const PREFER_RUN_LAST = new Set([
   "testDirectSocialBrowserHandoff",
   "testEmbeddedSamlLogin",
   "testEmbeddedOidcLogin",
+  "testLoginBoxNativeGoogleRejectedTokenFallsBackToBrowser",
+  "testLoginBoxGoogleButtonUsesBrowserWhenNativeDisabled",
 ]);
 
 function orderShardStable(shard) {
@@ -121,6 +129,8 @@ const SOLO_SHARD_METHODS = new Set([
   "testAuthenticatedOfflineModeKeepsUserLoggedInUntilReconnectRefreshesExpiredToken",
   "testOfflineModeDisabledPreservesSessionDuringConnectionLossAndRecovers",
   "testAuthenticatedColdStartWithExpiredAccessTokenAndTransientProbeFailurePreservesSession",
+  "testLoginBoxNativeGoogleRejectedTokenFallsBackToBrowser",
+  "testLoginBoxGoogleButtonUsesBrowserWhenNativeDisabled",
 ]);
 
 /**

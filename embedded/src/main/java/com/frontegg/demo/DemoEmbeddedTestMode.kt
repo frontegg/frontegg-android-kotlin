@@ -54,6 +54,7 @@ object DemoEmbeddedTestMode {
         val enableOfflineMode: Boolean?,
         val enableDPoP: Boolean = false,
         val playIntegrityCloudProjectNumber: Long = 0L,
+        val useNativeGoogleSignIn: Boolean = false,
     )
 
     /**
@@ -81,6 +82,7 @@ object DemoEmbeddedTestMode {
                 enableOfflineMode = enableOffline,
                 enableDPoP = json.optBoolean("enableDPoP", false),
                 playIntegrityCloudProjectNumber = json.optLong("playIntegrityCloudProjectNumber", 0L),
+                useNativeGoogleSignIn = json.optBoolean("useNativeGoogleSignIn", false),
             )
             isEnabled = true
             persistRuntimeOfflineOverride(context, cfg.enableOfflineMode)

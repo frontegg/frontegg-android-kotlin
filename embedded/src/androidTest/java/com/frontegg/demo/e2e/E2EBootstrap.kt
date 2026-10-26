@@ -15,6 +15,7 @@ internal object E2EBootstrap {
         enableOfflineMode: Boolean?,
         enableDPoP: Boolean = false,
         playIntegrityCloudProjectNumber: Long = 0L,
+        useNativeGoogleSignIn: Boolean = false,
     ) {
         val ctx = InstrumentationRegistry.getInstrumentation().targetContext
         val jo = JSONObject()
@@ -27,6 +28,7 @@ internal object E2EBootstrap {
         }
         jo.put("enableDPoP", enableDPoP)
         jo.put("playIntegrityCloudProjectNumber", playIntegrityCloudProjectNumber)
+        jo.put("useNativeGoogleSignIn", useNativeGoogleSignIn)
         val f = File(ctx.filesDir, DemoEmbeddedTestMode.BOOTSTRAP_FILE_NAME)
         f.writeText(jo.toString())
     }

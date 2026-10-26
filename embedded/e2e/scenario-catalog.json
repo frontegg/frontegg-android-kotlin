@@ -191,6 +191,60 @@
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     },
     {
+      "method": "testLoginBoxGoogleButtonSignsInNatively",
+      "title": "Login box Google button signs in natively",
+      "description": "With native Google sign-in enabled, taps the embedded login box's Google button, supplies a fake Google ID token, and verifies one post-login request carries that token, the Google user is signed in, and the browser Google flow is never opened.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testNativeGoogleSignInFromApp",
+      "title": "App-initiated native Google sign-in succeeds",
+      "description": "Calls loginWithGoogle from the app with a fake Google ID token and verifies one post-login request carries that token, the Google user is signed in, and the browser Google flow is never opened.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxNativeGoogleCancelStaysOnLoginBox",
+      "title": "Canceled native Google sign-in keeps the login box open",
+      "description": "With native Google sign-in enabled, cancels the Google account picker from the login box and verifies no post-login or browser Google request is made and the login box stays open.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxNativeGoogleRejectedTokenFallsBackToBrowser",
+      "title": "Rejected native Google token falls back to the browser",
+      "description": "With native Google sign-in enabled, the mock rejects the Google ID token at post-login, and the login box falls back to the browser Google flow, which opens a browser over the app.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxNativeGoogleMfaContinuesInLoginBox",
+      "title": "Native Google MFA continues in the login box",
+      "description": "With MFA required for the Google user, signs in natively from the login box, verifies the MFA challenge loads in the same login box and survives backgrounding the app without reloading, then submits the code and verifies the Google user is signed in.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testLoginBoxGoogleButtonUsesBrowserWhenNativeDisabled",
+      "title": "Login box Google button uses the browser when native sign-in is off",
+      "description": "With native Google sign-in disabled, taps the login box's Google button and verifies the browser Google flow opens a browser over the app without asking for a Google ID token or posting to post-login.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testGoogleOnTheSignUpPageUsesBrowser",
+      "title": "Google on the sign-up page uses the browser",
+      "description": "With native Google sign-in enabled, opens the login box's sign-up page, taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testGoogleOnTheActivationPageUsesBrowser",
+      "title": "Google on the activation page uses the browser",
+      "description": "With native Google sign-in enabled, opens the account activation page (/oauth/account/activate), taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testGoogleOnTheInvitationPageUsesBrowser",
+      "title": "Google on the invitation page uses the browser",
+      "description": "With native Google sign-in enabled, opens the invitation page (/oauth/account/invitation/accept), taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
       "method": "testStateFlowUserEmailAppearsAfterPasswordLogin",
       "title": "StateFlow user state shows the signed-in email",
       "description": "Verifies the login page markers collected from isAuthenticated.stateFlow and user.stateFlow read false and no user, logs in with the embedded password flow, and verifies the Home markers show true and the user's email.",

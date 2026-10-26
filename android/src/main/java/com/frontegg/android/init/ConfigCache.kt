@@ -21,6 +21,7 @@ internal object ConfigCache {
         val useLegacySocialLoginFlow: Boolean = false,
         val enableDPoP: Boolean = false,
         val playIntegrityCloudProjectNumber: Long = 0L,
+        val useNativeGoogleSignIn: Boolean = false,
     )
 
     fun saveLastRegionsInit(
@@ -48,6 +49,7 @@ internal object ConfigCache {
             .put("useLegacySocialLoginFlow", flags.useLegacySocialLoginFlow)
             .put("enableDPoP", flags.enableDPoP)
             .put("playIntegrityCloudProjectNumber", flags.playIntegrityCloudProjectNumber)
+            .put("useNativeGoogleSignIn", flags.useNativeGoogleSignIn)
 
         prefs.edit()
             .putString(KEY_REGIONS_JSON, arr.toString())
@@ -84,6 +86,7 @@ internal object ConfigCache {
                 useLegacySocialLoginFlow = fj.optBoolean("useLegacySocialLoginFlow", false),
                 enableDPoP = fj.optBoolean("enableDPoP", false),
                 playIntegrityCloudProjectNumber = fj.optLong("playIntegrityCloudProjectNumber", 0L),
+                useNativeGoogleSignIn = fj.optBoolean("useNativeGoogleSignIn", false),
             )
             regions to flags
         } catch (_: Throwable) {

@@ -4,7 +4,9 @@ import android.util.Log
 import com.frontegg.android.dpop.DPoPProofGenerator
 import com.frontegg.android.dpop.DPoPProvider
 import com.frontegg.android.dpop.SoftwareDPoPKeyProvider
+import com.frontegg.android.exceptions.CookieNotFoundException
 import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.fixtures.authResponseJson
 import com.frontegg.android.fixtures.getAuthResponse
 import com.frontegg.android.utils.CredentialKeys
@@ -28,15 +30,14 @@ class ApiExtendedTest {
     private val mockStorage = mockk<FronteggInnerStorage>()
 
     private val socialLoginConfigJson = """
-        {
-            "facebook": {"active": true, "clientId": "fb-123"},
-            "google": {"active": true, "clientId": "google-456"},
-            "microsoft": {"active": false},
-            "github": {"active": true},
-            "slack": null,
-            "apple": {"active": true},
-            "linkedin": {"active": false}
-        }
+        [
+            {"type": "facebook", "active": true, "clientId": "fb-123"},
+            {"type": "google", "active": true, "clientId": "google-456"},
+            {"type": "microsoft", "active": false},
+            {"type": "github", "active": true},
+            {"type": "apple", "active": true},
+            {"type": "linkedin", "active": false}
+        ]
     """.trimIndent()
 
     private val featureFlagsJson = """
@@ -91,7 +92,10 @@ class ApiExtendedTest {
         assert(config.google?.active == true)
         assert(config.microsoft?.active == false)
         assert(config.github?.active == true)
+        assert(config.slack == null)
         assert(config.apple?.active == true)
+        val request = mockWebServer.takeRequest()
+        assert(request.requestUrl!!.encodedPath.endsWith("/identity/resources/sso/v2")) { request.requestUrl!!.encodedPath }
     }
 
     @Test
@@ -100,6 +104,43 @@ class ApiExtendedTest {
 
         assertThrows<FailedToAuthenticateException> {
             api.getSocialLoginConfig()
+        }
+    }
+
+    @Test
+    fun `getGoogleSocialLoginOption reads the Google entry of the SSO provider list`() {
+        mockWebServer.enqueue(
+            MockResponse().setBody(
+                """[
+                    {"type": "facebook", "active": true, "clientId": "fb-123"},
+                    {"type": "google", "active": true, "clientId": "google-web-client", "customised": true}
+                ]"""
+            )
+        )
+
+        val googleOption = api.getGoogleSocialLoginOption()
+
+        assert(googleOption?.clientId == "google-web-client")
+        assert(googleOption?.active == true)
+        assert(googleOption?.customised == true)
+        val request = mockWebServer.takeRequest()
+        assert(request.method == "GET")
+        assert(request.requestUrl!!.encodedPath.endsWith("/identity/resources/sso/v2")) { request.requestUrl!!.encodedPath }
+    }
+
+    @Test
+    fun `getGoogleSocialLoginOption returns null when Google is not in the provider list`() {
+        mockWebServer.enqueue(MockResponse().setBody("""[{"type": "github", "active": true}]"""))
+
+        assert(api.getGoogleSocialLoginOption() == null)
+    }
+
+    @Test
+    fun `getGoogleSocialLoginOption throws on error response`() {
+        mockWebServer.enqueue(MockResponse().setResponseCode(404))
+
+        assertThrows<FailedToAuthenticateException> {
+            api.getGoogleSocialLoginOption()
         }
     }
 
@@ -299,6 +340,19 @@ class ApiExtendedTest {
     }
 
     @Test
+    fun `socialLoginPostLogin reports a required MFA`() {
+        val mfaBody = """{"mfaRequired":true,"mfaToken":"mfa-token"}"""
+        mockWebServer.enqueue(MockResponse().setBody(mfaBody))
+
+        val request = com.frontegg.android.models.SocialLoginPostLoginRequest(idToken = "google-id-token")
+
+        val error = assertThrows<MfaRequiredException> {
+            api.socialLoginPostLogin("google", request)
+        }
+        assert(error.mfaRequestData == mfaBody)
+    }
+
+    @Test
     fun `socialLoginPostLogin throws on error`() {
         mockWebServer.enqueue(MockResponse().setResponseCode(400))
 
@@ -309,6 +363,70 @@ class ApiExtendedTest {
 
         assertThrows<FailedToAuthenticateException> {
             api.socialLoginPostLogin("google", request)
+        }
+    }
+
+    @Test
+    fun `googleSsoPostLogin sends the ID token to the Google SSO postlogin`() {
+        mockWebServer.enqueue(
+            MockResponse().setBody("{}")
+                .addHeader("set-cookie", "fe_refresh_TestClientId=refresh-cookie; Path=/; HttpOnly")
+                .addHeader("set-cookie", "fe_device_TestClientId=device-cookie; Path=/; HttpOnly")
+        )
+        mockWebServer.enqueue(MockResponse().setBody(authResponseJson))
+
+        api.googleSsoPostLogin("google-id-token", "https://app.com/oauth/account/social/success")
+
+        val postLogin = mockWebServer.takeRequest().requestUrl!!
+        assert(postLogin.encodedPath.endsWith("/identity/resources/auth/v1/user/sso/google/postlogin")) { postLogin.encodedPath }
+        assert(postLogin.queryParameter("id_token") == "google-id-token")
+        assert(postLogin.queryParameter("redirectUri") == "https://app.com/oauth/account/social/success")
+    }
+
+    @Test
+    fun `googleSsoPostLogin exchanges the refresh cookie for tokens`() {
+        mockWebServer.enqueue(
+            MockResponse().setBody("{}")
+                .addHeader("set-cookie", "fe_refresh_TestClientId=refresh-cookie; Path=/; HttpOnly")
+                .addHeader("set-cookie", "fe_device_TestClientId=device-cookie; Path=/; HttpOnly")
+        )
+        mockWebServer.enqueue(MockResponse().setBody(authResponseJson))
+
+        val response = api.googleSsoPostLogin("google-id-token", "https://app.com/oauth/account/social/success")
+
+        mockWebServer.takeRequest()
+        val silentLogin = mockWebServer.takeRequest()
+        assert(silentLogin.requestUrl!!.encodedPath.endsWith("/oauth/authorize/silent")) { silentLogin.requestUrl!!.encodedPath }
+        assert(silentLogin.getHeader("cookie")!!.contains("fe_refresh_TestClientId=refresh-cookie"))
+        assert(response == getAuthResponse())
+    }
+
+    @Test
+    fun `googleSsoPostLogin reports a required MFA`() {
+        val mfaBody = """{"mfaRequired":true,"mfaToken":"mfa-token"}"""
+        mockWebServer.enqueue(MockResponse().setBody(mfaBody))
+
+        val error = assertThrows<MfaRequiredException> {
+            api.googleSsoPostLogin("google-id-token", "https://app.com/oauth/account/social/success")
+        }
+        assert(error.mfaRequestData == mfaBody)
+    }
+
+    @Test
+    fun `googleSsoPostLogin throws without a refresh cookie`() {
+        mockWebServer.enqueue(MockResponse().setBody("{}"))
+
+        assertThrows<CookieNotFoundException> {
+            api.googleSsoPostLogin("google-id-token", "https://app.com/oauth/account/social/success")
+        }
+    }
+
+    @Test
+    fun `googleSsoPostLogin throws on error`() {
+        mockWebServer.enqueue(MockResponse().setResponseCode(404))
+
+        assertThrows<FailedToAuthenticateException> {
+            api.googleSsoPostLogin("google-id-token", "https://app.com/oauth/account/social/success")
         }
     }
 }

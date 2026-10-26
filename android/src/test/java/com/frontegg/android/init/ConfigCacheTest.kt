@@ -83,6 +83,23 @@ class ConfigCacheTest {
     }
 
     @Test
+    fun `native Google sign-in flag survives a save and load`() {
+        val regions = listOf(RegionConfig("us", "https://us.frontegg.com", "client-us", "app-us"))
+        val flags = ConfigCache.RegionsInitFlags(
+            useAssetsLinks = false,
+            useChromeCustomTabs = false,
+            mainActivityClassName = null,
+            useDiskCacheWebview = false,
+            useNativeGoogleSignIn = true,
+        )
+
+        ConfigCache.saveLastRegionsInit(mockContext, regions, flags)
+        val loadedFlags = ConfigCache.loadLastRegionsInit(mockContext)!!.second
+
+        assert(loadedFlags.useNativeGoogleSignIn)
+    }
+
+    @Test
     fun `saveLastRegionsInit handles null applicationId`() {
         val regions = listOf(
             RegionConfig("us", "https://us.frontegg.com", "client-us", null)

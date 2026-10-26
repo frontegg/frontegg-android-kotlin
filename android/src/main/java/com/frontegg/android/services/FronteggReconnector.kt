@@ -106,6 +106,7 @@ object FronteggReconnector {
                             networkMonitoringIntervalSeconds = flags.networkMonitoringIntervalSeconds,
                             enableDPoP = flags.enableDPoP,
                             playIntegrityCloudProjectNumber = flags.playIntegrityCloudProjectNumber,
+                            useNativeGoogleSignIn = flags.useNativeGoogleSignIn,
                         )
                         // small delay to allow internal setup
                         delay(50)
