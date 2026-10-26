@@ -35,11 +35,9 @@ import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.RequestQueue
 import com.frontegg.android.utils.RequestPriority
-import com.frontegg.android.utils.SentryHelper
 import com.frontegg.android.utils.SessionTracker
 import com.frontegg.android.utils.calculateTimerOffset
 import com.google.gson.JsonParser
-import io.reactivex.rxjava3.core.Observable
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.DelicateCoroutinesApi
@@ -119,6 +117,7 @@ class FronteggAuthService(
     private val sessionTracker = SessionTracker(credentialManager.context)
     override val entitlements: EntitlementsService =
         EntitlementsService(api, storage.entitlementsEnabled)
+    override val sessions: SessionsService by lazy { SessionsService(api, ioDispatcher) }
 
     private val exchangeTokenDedupLock = Any()
     @Volatile private var inFlightExchangeCode: String? = null
@@ -1432,26 +1431,8 @@ class FronteggAuthService(
 
 
     @VisibleForTesting
-    internal fun initializeSubscriptions() {        
-        Observable.merge(
-            isLoading.observable,
-            isAuthenticated.observable,
-            initializing.observable,
-            webLoading.observable,
-        ).subscribe {
-            showLoader.value =
-                initializing.value || (!isAuthenticated.value && (isLoading.value || webLoading.value))
-        }
-
-        // Mirror iOS: bind current user to Sentry scope (only if 'mobile-enable-logging' feature flag is enabled).
-        user.observable.subscribe { v ->
-            val u = v.value
-            if (u != null) {
-                runCatching { SentryHelper.setUser(userId = u.id, email = u.email, username = u.name) }
-            } else {
-                runCatching { SentryHelper.clearUser() }
-            }
-        }
+    internal fun initializeSubscriptions() {
+        FronteggState.bindDerivedState()
 
         bgScope.launch {
             val enableSessionPerTenant = storage.enableSessionPerTenant

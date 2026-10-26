@@ -692,4 +692,66 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
         }
         assertRequestCount("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH, 0)
     }
+
+    @Test
+    fun testStateFlowUserEmailAppearsAfterPasswordLogin() {
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        waitForDescText("StateFlowIsAuthenticatedValue", "false")
+        waitForDescText("StateFlowUserEmailValue", "none")
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForDescText("StateFlowUserEmailValue", "test@frontegg.com")
+        waitForDescText("StateFlowIsAuthenticatedValue", "true")
+    }
+
+    @Test
+    fun testStateFlowAuthStateClearsAfterLogout() {
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 120_000)
+        waitForDescText("StateFlowUserEmailValue", "test@frontegg.com")
+        tapDesc("LogoutButton", 30_000)
+        waitForDesc("LoginPageRoot", 90_000)
+        waitForDescText("StateFlowIsAuthenticatedValue", "false")
+        waitForDescText("StateFlowUserEmailValue", "none")
+    }
+
+    @Test
+    fun testStateFlowAccessTokenUpdatesAfterTokenRefresh() {
+        val loginTokenVersion = 1
+        mock.configureTokenPolicy(
+            email = "test@frontegg.com",
+            accessTTL = 45,
+            refreshTTL = longLivedRefreshTokenTTL,
+            startVer = loginTokenVersion,
+        )
+        launchApp(resetState = true)
+        loginWithPassword()
+        waitForUserEmail("test@frontegg.com", timeoutMs = 90_000)
+        waitForDescText("StateFlowAccessTokenVersionValue", loginTokenVersion.toString())
+        val requestCountAfterLogin = oauthRefreshRequestCount()
+        val refreshedVersion = waitForAccessTokenVersionChange(
+            from = loginTokenVersion,
+            timeoutMs = 120_000,
+            contentDescription = "StateFlowAccessTokenVersionValue",
+        )
+        if (oauthRefreshRequestCount() <= requestCountAfterLogin) {
+            throw AssertionError("Expected a token refresh request before the StateFlow token changed")
+        }
+        waitForDescText("AccessTokenVersionValue", refreshedVersion.toString())
+        waitForDescText("StateFlowUserEmailValue", "test@frontegg.com")
+    }
+
+    private fun waitForDescText(contentDescription: String, expectedText: String, timeoutMs: Long = 30_000) {
+        val deadline = System.currentTimeMillis() + timeoutMs
+        var lastSeenText = descText(contentDescription)
+        while (lastSeenText != expectedText && System.currentTimeMillis() < deadline) {
+            Thread.sleep(350)
+            lastSeenText = descText(contentDescription)
+        }
+        if (lastSeenText != expectedText) {
+            throw AssertionError("Expected $contentDescription to read '$expectedText' but it read '$lastSeenText'")
+        }
+    }
 }

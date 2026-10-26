@@ -705,21 +705,28 @@ open class EmbeddedE2ETestCase {
         waitForText(email, textWait)
     }
 
-    protected fun accessTokenVersion(): Int {
-        waitForDesc("AccessTokenVersionValue", 30_000)
-        val n = device.findObject(By.desc("AccessTokenVersionValue"))?.text?.toIntOrNull()
-            ?: throw AssertionError("No AccessTokenVersionValue")
+    protected fun descText(contentDescription: String): String? =
+        runCatching { device.findObject(By.desc(contentDescription))?.text }.getOrNull()
+
+    protected fun accessTokenVersion(contentDescription: String = "AccessTokenVersionValue"): Int {
+        waitForDesc(contentDescription, 30_000)
+        val n = descText(contentDescription)?.toIntOrNull()
+            ?: throw AssertionError("No $contentDescription")
         return n
     }
 
-    protected fun waitForAccessTokenVersionChange(from: Int, timeoutMs: Long = 30_000): Int {
+    protected fun waitForAccessTokenVersionChange(
+        from: Int,
+        timeoutMs: Long = 30_000,
+        contentDescription: String = "AccessTokenVersionValue",
+    ): Int {
         val end = System.currentTimeMillis() + timeoutMs
         while (System.currentTimeMillis() < end) {
-            val v = device.findObject(By.desc("AccessTokenVersionValue"))?.text?.toIntOrNull()
+            val v = descText(contentDescription)?.toIntOrNull()
             if (v != null && v != from) return v
             Thread.sleep(350)
         }
-        throw AssertionError("Token version did not change from $from")
+        throw AssertionError("Token version in $contentDescription did not change from $from")
     }
 
     protected fun waitDurationSeconds(seconds: Long) {

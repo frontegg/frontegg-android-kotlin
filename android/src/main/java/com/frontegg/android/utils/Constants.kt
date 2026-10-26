@@ -27,6 +27,7 @@ class ApiConstants {
         const val googleSsoPostLogin: String = "identity/resources/auth/v1/user/sso/google/postlogin"
         const val socialLoginProviders: String = "identity/resources/sso/v2"
         const val userEntitlements: String = "frontegg/entitlements/api/v2/user-entitlements"
+        const val userSessions: String = "identity/resources/users/sessions/v1/me"
     }
 }
 

@@ -87,8 +87,8 @@ dependencies {
     // Add the Frontegg Android Kotlin SDK
     implementation 'com.frontegg.sdk:android:LATEST_VERSION'
 
-    // Add Frontegg observables dependency
-    implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
+    // Only needed for the deprecated RxJava subscribe API; stateFlow needs nothing extra
+    // implementation 'io.reactivex.rxjava3:rxkotlin:3.0.1'
 }
 ```
 
@@ -99,8 +99,8 @@ dependencies {
     // Add the Frontegg Android Kotlin SDK
     implementation("com.frontegg.sdk:android:LATEST_VERSION")
 
-    // Add Frontegg observables dependency
-    implementation("io.reactivex.rxjava3:rxkotlin:3.0.1")
+    // Only needed for the deprecated RxJava subscribe API; stateFlow needs nothing extra
+    // implementation("io.reactivex.rxjava3:rxkotlin:3.0.1")
 }
 ```
  
