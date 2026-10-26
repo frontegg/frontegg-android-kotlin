@@ -7,6 +7,7 @@ import com.frontegg.android.FronteggApp
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.User
+import com.frontegg.android.regions.RegionConfig
 import com.frontegg.android.utils.CredentialKeys
 import com.frontegg.android.utils.FronteggCallback
 import com.frontegg.android.utils.NetworkGate
@@ -17,20 +18,26 @@ import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.unmockkAll
 import io.mockk.verify
+import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.asCoroutineDispatcher
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 import org.junit.jupiter.api.assertThrows
 import java.io.IOException
 import java.time.Instant
 import java.util.Base64
+import java.util.concurrent.Executors
 
 class GetOrRefreshAccessTokenTest {
     private val storageMock = mockk<FronteggInnerStorage>()
@@ -42,6 +49,8 @@ class GetOrRefreshAccessTokenTest {
 
     @Before
     fun setUp() {
+        // Other test classes in this JVM leave objects such as JWTHelper mocked.
+        unmockkAll()
         FronteggState.accessToken.value = null
         FronteggState.refreshToken.value = null
         FronteggState.user.value = null
@@ -113,13 +122,21 @@ class GetOrRefreshAccessTokenTest {
         every { anyConstructed<MutableLiveData<Boolean>>().value } returns false
     }
 
-    private fun createAuth(enableOfflineMode: Boolean = false): FronteggAuthService {
+    @After
+    fun tearDown() {
+        unmockkAll()
+    }
+
+    private fun createAuth(
+        enableOfflineMode: Boolean = false,
+        ioDispatcher: CoroutineDispatcher = Dispatchers.Unconfined,
+    ): FronteggAuthService {
         return FronteggAuthService(
             credentialManager = credentialManagerMock,
             appLifecycle = appLifecycle,
             refreshTokenTimer = refreshTokenTimer,
             enableOfflineMode = enableOfflineMode,
-            ioDispatcher = Dispatchers.Unconfined,
+            ioDispatcher = ioDispatcher,
             mainDispatcher = Dispatchers.Unconfined,
         )
     }
@@ -176,6 +193,41 @@ class GetOrRefreshAccessTokenTest {
 
         assertEquals(refreshedAccessToken, result)
         assertEquals("RotatedRefreshToken", auth.refreshToken.value)
+    }
+
+    @Test
+    fun `refreshes on the io dispatcher instead of the calling thread`() {
+        var ioThread: Thread? = null
+        val ioExecutor = Executors.newSingleThreadExecutor { runnable -> Thread(runnable).also { ioThread = it } }
+        val auth = createAuth(ioDispatcher = ioExecutor.asCoroutineDispatcher())
+        auth.refreshToken.value = "RefreshToken"
+        auth.accessToken.value = jwtExpiringIn(-60)
+        var refreshThread: Thread? = null
+        every { apiMock.refreshToken("RefreshToken") } answers {
+            refreshThread = Thread.currentThread()
+            refreshResponse(jwtExpiringIn(600))
+        }
+
+        try {
+            runBlocking { auth.getOrRefreshAccessToken() }
+        } finally {
+            ioExecutor.shutdown()
+        }
+
+        assertSame(ioThread, refreshThread)
+    }
+
+    @Test
+    fun `returns null without waiting when no region is selected in a multi-region app`() {
+        every { storageMock.regions } returns listOf(RegionConfig("eu", "https://eu.frontegg.com", "EuClientId"))
+        every { storageMock.selectedRegion } returns null
+        val auth = createAuth()
+        auth.initializing.value = true
+
+        val result = runBlocking { auth.getOrRefreshAccessToken() }
+
+        assertNull(result)
+        verify(exactly = 0) { apiMock.refreshToken(any()) }
     }
 
     @Test
@@ -283,6 +335,7 @@ class GetOrRefreshAccessTokenTest {
         }
 
         assertNull(deliveredToken)
-        assertSame(networkFailure, deliveredError)
+        assertTrue(deliveredError is IOException)
+        assertEquals(networkFailure.message, deliveredError?.message)
     }
 }

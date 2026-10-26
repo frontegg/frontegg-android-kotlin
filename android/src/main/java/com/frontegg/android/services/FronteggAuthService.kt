@@ -690,6 +690,13 @@ class FronteggAuthService(
     }
 
     override suspend fun getOrRefreshAccessToken(): String? {
+        if (isMultiRegion && selectedRegion == null) {
+            return null
+        }
+        return withContext(ioDispatcher) { awaitValidAccessToken() }
+    }
+
+    private suspend fun awaitValidAccessToken(): String? {
         val settled = withTimeoutOrNull(authStateSettleTimeoutMs) {
             while (isAuthStateSettling()) {
                 delay(authStateSettlePollIntervalMs)
