@@ -20,9 +20,12 @@ import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.unmockkAll
 import io.mockk.verify
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.asCoroutineDispatcher
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -325,6 +328,25 @@ class GetOrRefreshAccessTokenTest {
         assertTrue(elapsedMs < OFFLINE_FAIL_FAST_LIMIT_MS)
         assertEquals(cachedAccessToken, result)
         assertTrue(auth.isOfflineMode.value)
+        verify(exactly = 0) { apiMock.refreshToken(any()) }
+    }
+
+    @Test
+    fun `propagates cancellation when the caller is cancelled during the refresh network wait`() {
+        val auth = createAuth()
+        auth.refreshToken.value = "RefreshToken"
+        auth.accessToken.value = jwtExpiringIn(-60)
+        every { NetworkGate.isNetworkLikelyGood(any()) } returnsMany listOf(true, false)
+        var callOutcome: Result<String?>? = null
+
+        runBlocking {
+            val caller = launch(start = CoroutineStart.UNDISPATCHED) {
+                callOutcome = runCatching { auth.getOrRefreshAccessToken() }
+            }
+            caller.cancelAndJoin()
+        }
+
+        assertTrue(callOutcome?.exceptionOrNull() is CancellationException)
         verify(exactly = 0) { apiMock.refreshToken(any()) }
     }
 
