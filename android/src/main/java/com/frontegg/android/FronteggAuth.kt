@@ -198,15 +198,21 @@ interface FronteggAuth {
      * @throws com.frontegg.android.exceptions.FailedToAuthenticateException when the in-flight work did not settle in time.
      * @throws java.io.IOException when the refresh failed because of the network or a 5xx response.
      * @throws Exception any other refresh failure, as thrown by the refresh request.
+     * @throws UnsupportedOperationException when the implementation does not override this method.
      */
-    suspend fun getOrRefreshAccessToken(): String?
+    suspend fun getOrRefreshAccessToken(): String? {
+        throw UnsupportedOperationException("getOrRefreshAccessToken is not implemented by ${this::class.java.name}")
+    }
 
     /**
      * Callback variant of [getOrRefreshAccessToken] for Java and callers without coroutines.
      * @param callback called on the main thread with the access token, or with null and no error when there
      *                 is no session. [error] is not null when the call failed, and [accessToken] is then null.
+     *                 Implementations that do not override this method report an [UnsupportedOperationException].
      */
-    fun getOrRefreshAccessToken(callback: (accessToken: String?, error: Exception?) -> Unit)
+    fun getOrRefreshAccessToken(callback: (accessToken: String?, error: Exception?) -> Unit) {
+        callback(null, UnsupportedOperationException("getOrRefreshAccessToken is not implemented by ${this::class.java.name}"))
+    }
 
     /**
      * Process queued requests when network becomes available.
