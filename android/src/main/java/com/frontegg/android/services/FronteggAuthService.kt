@@ -86,6 +86,7 @@ class FronteggAuthService(
     private val maxWaitTimeMs = 60_000L
     private val authStateSettleTimeoutMs = 20_000L
     private val authStateSettlePollIntervalMs = 200L
+    private val backgroundRefreshWaitTimeoutMs = 10_000L
     private val minimumAccessTokenValiditySeconds = 15L
     @Volatile private var isNetworkMonitoringRunning: Boolean = false
     private val monitoringIntervalMs: Long
@@ -715,21 +716,37 @@ class FronteggAuthService(
             return null
         }
 
-        val currentAccessToken = accessToken.value
-        if (currentAccessToken != null && hasMoreThanMinimumValidity(currentAccessToken)) {
-            return currentAccessToken
-        }
+        validCurrentAccessToken()?.let { return it }
 
         if (!isNetworkGoodSync()) {
             return cachedAccessTokenOrThrow(refreshFailure = null)
         }
-        if (refreshTokenAndWait()) {
-            return accessToken.value
-        }
+        val refreshErrorBeforeRefresh = lastRefreshError
+        refreshAndGetValidAccessToken()?.let { return it }
         if (refreshToken.value == null) {
             return null
         }
-        return cachedAccessTokenOrThrow(lastRefreshError)
+        return cachedAccessTokenOrThrow(lastRefreshError.takeIf { it !== refreshErrorBeforeRefresh })
+    }
+
+    private suspend fun refreshAndGetValidAccessToken(): String? {
+        if (!refreshTokenAndWait()) {
+            return null
+        }
+        validCurrentAccessToken()?.let { return it }
+
+        withTimeoutOrNull(backgroundRefreshWaitTimeoutMs) {
+            while (refreshingToken.value) {
+                delay(authStateSettlePollIntervalMs)
+            }
+        }
+        validCurrentAccessToken()?.let { return it }
+
+        return if (refreshTokenAndWait()) validCurrentAccessToken() else null
+    }
+
+    private fun validCurrentAccessToken(): String? {
+        return accessToken.value?.takeIf { hasMoreThanMinimumValidity(it) }
     }
 
     private fun cachedAccessTokenOrThrow(refreshFailure: Exception?): String? {
@@ -743,15 +760,15 @@ class FronteggAuthService(
 
     override fun getOrRefreshAccessToken(callback: (accessToken: String?, error: Exception?) -> Unit) {
         bgScope.launch {
+            var validAccessToken: String? = null
+            var failure: Exception? = null
             try {
-                val validAccessToken = getOrRefreshAccessToken()
-                withContext(mainDispatcher) {
-                    callback(validAccessToken, null)
-                }
+                validAccessToken = getOrRefreshAccessToken()
             } catch (e: Exception) {
-                withContext(mainDispatcher) {
-                    callback(null, e)
-                }
+                failure = e
+            }
+            withContext(mainDispatcher) {
+                callback(validAccessToken, failure)
             }
         }
     }

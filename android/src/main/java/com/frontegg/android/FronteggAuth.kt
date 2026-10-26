@@ -192,6 +192,7 @@ interface FronteggAuth {
      *
      * Waits up to 20 seconds for an in-flight initialization, login or refresh to settle first.
      * Refreshes through [refreshTokenAndWait], so concurrent calls share a single refresh.
+     * When a background refresh is still running after that, waits up to 10 more seconds for its token.
      * When the device is offline it does not attempt the refresh and does not wait for the network.
      * @return the access token, or null when there is no session, no region is selected in a multi-region app,
      *         or the server rejected the refresh token (the session is then cleared and the user has to log in again).

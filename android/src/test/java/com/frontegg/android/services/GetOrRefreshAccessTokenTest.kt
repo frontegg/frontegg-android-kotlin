@@ -40,7 +40,9 @@ import org.junit.jupiter.api.assertThrows
 import java.io.IOException
 import java.time.Instant
 import java.util.Base64
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
+import kotlin.concurrent.thread
 import kotlin.system.measureTimeMillis
 
 class GetOrRefreshAccessTokenTest {
@@ -239,6 +241,56 @@ class GetOrRefreshAccessTokenTest {
     }
 
     @Test
+    fun `waits for a background refresh that is still running after the refresh reports success`() {
+        val auth = createAuth()
+        val refreshedAccessToken = jwtExpiringIn(600)
+        auth.refreshToken.value = "RefreshToken"
+        auth.accessToken.value = jwtExpiringIn(5)
+        val backgroundRefreshStarted = CountDownLatch(1)
+        val releaseBackgroundRefresh = CountDownLatch(1)
+        every { apiMock.refreshToken("RefreshToken") } answers {
+            backgroundRefreshStarted.countDown()
+            releaseBackgroundRefresh.await()
+            refreshResponse(refreshedAccessToken)
+        }
+        var backgroundRefresh: Thread? = null
+        every { NetworkGate.isNetworkLikelyGood(any()) } answers {
+            if (backgroundRefresh == null) {
+                backgroundRefresh = thread { auth.sendRefreshToken() }
+                backgroundRefreshStarted.await()
+                thread {
+                    Thread.sleep(300)
+                    releaseBackgroundRefresh.countDown()
+                }
+            }
+            true
+        }
+
+        val result = runBlocking { auth.getOrRefreshAccessToken() }
+        backgroundRefresh?.join()
+
+        assertEquals(refreshedAccessToken, result)
+        verify(exactly = 1) { apiMock.refreshToken(any()) }
+    }
+
+    @Test
+    fun `reports a network failure instead of a stale refresh error when the refresh gives up`() {
+        val auth = createAuth()
+        auth.refreshToken.value = "RevokedRefreshToken"
+        auth.accessToken.value = jwtExpiringIn(-60)
+        every { apiMock.refreshToken("RevokedRefreshToken") } throws FailedToAuthenticateException(error = "401")
+        assertNull(runBlocking { auth.getOrRefreshAccessToken() })
+
+        auth.refreshToken.value = "RefreshToken"
+        auth.accessToken.value = jwtExpiringIn(-60)
+        every { NetworkGate.isNetworkLikelyGood(any()) } returns true andThenThrows IllegalStateException("probe failed")
+
+        assertThrows<IOException> { runBlocking { auth.getOrRefreshAccessToken() } }
+        assertEquals("RefreshToken", auth.refreshToken.value)
+        verify(exactly = 0) { apiMock.refreshToken("RefreshToken") }
+    }
+
+    @Test
     fun `restores the refresh token from storage before deciding there is no session`() {
         val auth = createAuth()
         val refreshedAccessToken = jwtExpiringIn(600)
@@ -379,6 +431,21 @@ class GetOrRefreshAccessTokenTest {
 
         assertEquals(validAccessToken, deliveredToken)
         assertNull(deliveredError)
+    }
+
+    @Test
+    fun `callback variant invokes a callback that throws on success only once`() {
+        val auth = createAuth()
+        auth.refreshToken.value = "RefreshToken"
+        auth.accessToken.value = jwtExpiringIn(300)
+        var callbackInvocations = 0
+
+        auth.getOrRefreshAccessToken { _, _ ->
+            callbackInvocations++
+            throw IllegalStateException("app callback failed")
+        }
+
+        assertEquals(1, callbackInvocations)
     }
 
     @Test
