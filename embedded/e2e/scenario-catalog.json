@@ -209,6 +209,24 @@
       "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
     },
     {
+      "method": "testGoogleOnTheSignUpPageUsesBrowser",
+      "title": "Google on the sign-up page uses the browser",
+      "description": "With native Google sign-in enabled, opens the login box's sign-up page, taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testGoogleOnTheActivationPageUsesBrowser",
+      "title": "Google on the activation page uses the browser",
+      "description": "With native Google sign-in enabled, opens the account activation page (/oauth/account/activate), taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
+      "method": "testGoogleOnTheInvitationPageUsesBrowser",
+      "title": "Google on the invitation page uses the browser",
+      "description": "With native Google sign-in enabled, opens the invitation page (/oauth/account/invitation/accept), taps its Google button, and verifies the browser Google flow opens without asking for a Google ID token or posting to the Google SSO postlogin.",
+      "class": "com.frontegg.demo.e2e.EmbeddedE2ETests"
+    },
+    {
       "method": "testStateFlowUserEmailAppearsAfterPasswordLogin",
       "title": "StateFlow user state shows the signed-in email",
       "description": "Verifies the login page markers collected from isAuthenticated.stateFlow and user.stateFlow read false and no user, logs in with the embedded password flow, and verifies the Home markers show true and the user's email.",

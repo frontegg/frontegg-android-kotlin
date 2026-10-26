@@ -648,6 +648,39 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
     }
 
     @Test
+    fun testGoogleOnTheSignUpPageUsesBrowser() {
+        assertGoogleUsesBrowserOnPageOpenedBy("e2e-open-sign-up")
+    }
+
+    @Test
+    fun testGoogleOnTheActivationPageUsesBrowser() {
+        assertGoogleUsesBrowserOnPageOpenedBy("e2e-open-activation")
+    }
+
+    @Test
+    fun testGoogleOnTheInvitationPageUsesBrowser() {
+        assertGoogleUsesBrowserOnPageOpenedBy("e2e-open-invitation")
+    }
+
+    private fun assertGoogleUsesBrowserOnPageOpenedBy(openButtonId: String) {
+        val googleIdTokenSource = FakeGoogleIdTokenSource { LocalMockAuthServer.GOOGLE_ID_TOKEN }
+        fakeGoogleIdTokenSource(googleIdTokenSource)
+        launchApp(resetState = true, useNativeGoogleSignIn = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedLoginBoxButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        waitForWebElement(openButtonId, 120_000)
+        clickWebElement(openButtonId)
+        waitForWebElement("e2e-page-google", 60_000)
+        clickWebElement("e2e-page-google")
+        waitForBrowserGoogleSignIn()
+        if (googleIdTokenSource.requestedServerClientIds.isNotEmpty()) {
+            throw AssertionError("Google on $openButtonId must not ask Credential Manager for an ID token")
+        }
+        assertRequestCount("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH, 0)
+    }
+
+    @Test
     fun testLoginBoxGoogleButtonUsesBrowserWhenNativeDisabled() {
         val googleIdTokenSource = FakeGoogleIdTokenSource { LocalMockAuthServer.GOOGLE_ID_TOKEN }
         fakeGoogleIdTokenSource(googleIdTokenSource)
