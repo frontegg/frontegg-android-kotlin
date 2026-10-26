@@ -48,7 +48,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import java.io.IOException
+import java.time.Instant
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Duration
 
@@ -81,6 +83,9 @@ class FronteggAuthService(
     val isReconnecting = MutableLiveData<Boolean>()
     
     private val maxWaitTimeMs = 60_000L
+    private val authStateSettleTimeoutMs = 20_000L
+    private val authStateSettlePollIntervalMs = 200L
+    private val minimumAccessTokenValiditySeconds = 15L
     @Volatile private var isNetworkMonitoringRunning: Boolean = false
     private val monitoringIntervalMs: Long
         get() = (networkMonitoringIntervalSeconds.coerceAtLeast(1) * 1000L)
@@ -682,6 +687,81 @@ class FronteggAuthService(
 
     internal suspend fun refreshTokenAndWaitInternal(source: RefreshInvocationSource): Boolean {
         return refreshIdempotent(source = source)
+    }
+
+    override suspend fun getOrRefreshAccessToken(): String? {
+        val settled = withTimeoutOrNull(authStateSettleTimeoutMs) {
+            while (isAuthStateSettling()) {
+                delay(authStateSettlePollIntervalMs)
+            }
+        }
+        if (settled == null) {
+            throw FailedToAuthenticateException(error = "Timed out waiting for authentication state to settle")
+        }
+
+        restoreTokensFromStorageIfMissing()
+        if (refreshToken.value == null) {
+            return null
+        }
+
+        val currentAccessToken = accessToken.value
+        if (currentAccessToken != null && hasMoreThanMinimumValidity(currentAccessToken)) {
+            return currentAccessToken
+        }
+
+        if (refreshTokenAndWait()) {
+            return accessToken.value
+        }
+        if (refreshToken.value == null) {
+            return null
+        }
+
+        val refreshFailure = lastRefreshError ?: IOException("Network unavailable, access token was not refreshed")
+        if (enableOfflineMode && refreshFailure is IOException) {
+            setOfflineMode(true)
+            return accessToken.value
+        }
+        throw refreshFailure
+    }
+
+    override fun getOrRefreshAccessToken(callback: (accessToken: String?, error: Exception?) -> Unit) {
+        bgScope.launch {
+            try {
+                val validAccessToken = getOrRefreshAccessToken()
+                withContext(mainDispatcher) {
+                    callback(validAccessToken, null)
+                }
+            } catch (e: Exception) {
+                withContext(mainDispatcher) {
+                    callback(null, e)
+                }
+            }
+        }
+    }
+
+    private fun isAuthStateSettling(): Boolean {
+        val loadingOnline = isLoading.value && !isOfflineMode.value
+        return initializing.value || refreshingToken.value || loadingOnline
+    }
+
+    private fun restoreTokensFromStorageIfMissing() {
+        if (refreshToken.value != null) return
+        val tenantId = if (storage.enableSessionPerTenant) credentialManager.getCurrentTenantId() else null
+        val storedRefreshToken = credentialManager.get(CredentialKeys.REFRESH_TOKEN, tenantId) ?: return
+        refreshToken.value = storedRefreshToken
+        if (accessToken.value == null) {
+            accessToken.value = credentialManager.get(CredentialKeys.ACCESS_TOKEN, tenantId)
+        }
+    }
+
+    private fun hasMoreThanMinimumValidity(token: String): Boolean {
+        return try {
+            val secondsLeft = JWTHelper.decode(token).exp - Instant.now().epochSecond
+            secondsLeft > minimumAccessTokenValiditySeconds
+        } catch (e: Exception) {
+            Log.w(TAG, "Failed to decode access token expiry, refreshing", e)
+            false
+        }
     }
 
     internal fun isAutoRefreshDisabled(): Boolean = disableAutoRefresh

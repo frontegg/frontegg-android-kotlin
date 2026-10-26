@@ -187,6 +187,28 @@ interface FronteggAuth {
     suspend fun refreshTokenAndWait(force: Boolean = false): Boolean
 
     /**
+     * Returns an access token that is valid for more than 15 seconds, refreshing it first when needed.
+     * Call it before each API request, for example after the app resumes, instead of reading [accessToken].
+     *
+     * Waits up to 20 seconds for an in-flight initialization, login or refresh to settle first.
+     * Refreshes through [refreshTokenAndWait], so concurrent calls share a single refresh.
+     * @return the access token, or null when there is no session or the server rejected the refresh token
+     *         (the session is then cleared and the user has to log in again). With offline mode enabled,
+     *         a connectivity failure returns the cached access token, which may be expired.
+     * @throws com.frontegg.android.exceptions.FailedToAuthenticateException when the in-flight work did not settle in time.
+     * @throws java.io.IOException when the refresh failed because of the network or a 5xx response.
+     * @throws Exception any other refresh failure, as thrown by the refresh request.
+     */
+    suspend fun getOrRefreshAccessToken(): String?
+
+    /**
+     * Callback variant of [getOrRefreshAccessToken] for Java and callers without coroutines.
+     * @param callback called on the main thread with the access token, or with null and no error when there
+     *                 is no session. [error] is not null when the call failed, and [accessToken] is then null.
+     */
+    fun getOrRefreshAccessToken(callback: (accessToken: String?, error: Exception?) -> Unit)
+
+    /**
      * Process queued requests when network becomes available.
      */
     fun processQueuedRequests()
