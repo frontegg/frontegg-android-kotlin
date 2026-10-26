@@ -1,3 +1,10 @@
+## v1.3.43
+
+Bug fixes:
+
+- Fixed embedded step-up never completing after MFA. The login box went on to the application's App URL instead of returning to the app, so no stepped-up token was issued and step-up never reported success. Step-up now finishes through the hosted login and returns a stepped-up token. No app or configuration changes are needed.
+- Fixed embedded step-up sometimes signing the user out before the MFA challenge appeared, because the step-up page could start before the login box had loaded the user's session. The step-up page now opens only once the session is loaded. No app or configuration changes are needed.
+
 ## v1.3.42
 
 Features:
