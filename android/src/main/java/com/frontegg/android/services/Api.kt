@@ -11,6 +11,7 @@ import com.frontegg.android.exceptions.FailedToAuthenticatePasskeysException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
+import com.frontegg.android.integrity.DeviceIntegrityInterceptor
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
 import com.frontegg.android.models.SocialLoginConfig
@@ -112,6 +113,8 @@ open class Api(
         .readTimeout(60, java.util.concurrent.TimeUnit.SECONDS)   // For slow networks (EDGE)
         .writeTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
         .addInterceptor(sentryInterceptor)
+        // Integrity runs outside DPoP so a nonce retry reuses the attested request instead of attesting again.
+        .addInterceptor(DeviceIntegrityInterceptor(baseUrlProvider = { baseUrl }))
         .addInterceptor(DPoPInterceptor(baseUrlProvider = { baseUrl }))
         .build()
 
@@ -243,10 +246,10 @@ open class Api(
         return this.httpClient.newCall(request)
     }
 
-    private fun buildDeleteRequest(url: HttpUrl): Call {
+    private fun buildDeleteRequest(url: HttpUrl, accessTokenOverride: String? = null): Call {
         val request = Request.Builder()
             .method("DELETE", null)
-            .headers(this.prepareHeaders())
+            .headers(this.prepareHeaders(accessTokenOverride = accessTokenOverride))
             .url(url)
             .build()
         return this.httpClient.newCall(request)
@@ -795,14 +798,14 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
-    fun getUserSessions(): List<UserSession> {
-        buildGetRequest(ApiConstants.userSessions).execute().use { response ->
+    fun getUserSessions(accessTokenOverride: String? = null): List<UserSession> {
+        buildGetRequest(ApiConstants.userSessions, accessTokenOverride).execute().use { response ->
             val body = response.body?.string()
             if (!response.isSuccessful || body == null) {
                 throw FailedToAuthenticateException(response.headers, body ?: "Unknown error occurred")
             }
             return try {
-                parseUserSessions(body, currentSessionId())
+                parseUserSessions(body, currentSessionId(accessTokenOverride))
             } catch (e: JsonParseException) {
                 throw IOException("The sessions response is not JSON", e)
             }
@@ -810,12 +813,12 @@ open class Api(
     }
 
     @Throws(IllegalArgumentException::class, IOException::class, FailedToAuthenticateException::class)
-    fun revokeUserSession(sessionId: String) {
+    fun revokeUserSession(sessionId: String, accessTokenOverride: String? = null) {
         val sessionUrl = "$baseUrl/${ApiConstants.userSessions}".toHttpUrl()
             .newBuilder()
             .addPathSegment(sessionId)
             .build()
-        buildDeleteRequest(sessionUrl).execute().use { response ->
+        buildDeleteRequest(sessionUrl, accessTokenOverride).execute().use { response ->
             val alreadyRevoked = response.code == HttpURLConnection.HTTP_NOT_FOUND
             if (!response.isSuccessful && !alreadyRevoked) {
                 throw FailedToAuthenticateException(
@@ -826,8 +829,9 @@ open class Api(
         }
     }
 
-    private fun currentSessionId(): String? =
-        credentialManager.get(CredentialKeys.ACCESS_TOKEN)?.let { JWTHelper.decodeClaims(it)["sid"] as? String }
+    private fun currentSessionId(accessTokenOverride: String?): String? =
+        (accessTokenOverride ?: credentialManager.get(CredentialKeys.ACCESS_TOKEN))
+            ?.let { JWTHelper.decodeClaims(it)["sid"] as? String }
 
     @Throws(IOException::class)
     private fun parseUserSessions(body: String, currentSessionId: String?): List<UserSession> {

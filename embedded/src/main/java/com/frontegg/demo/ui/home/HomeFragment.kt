@@ -19,6 +19,7 @@ import androidx.fragment.app.viewModels
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.lifecycleScope
 import androidx.lifecycle.repeatOnLifecycle
+import androidx.navigation.fragment.findNavController
 import com.bumptech.glide.Glide
 import com.frontegg.android.AdminPortalActivity
 import com.frontegg.android.fronteggAuth
@@ -260,6 +261,10 @@ class HomeFragment : Fragment() {
 
         binding.adminPortalButton.setOnClickListener {
             activity?.let { AdminPortalActivity.open(it) }
+        }
+
+        binding.composeComponentsButton.setOnClickListener {
+            findNavController().navigate(R.id.navigation_compose_components)
         }
 
         binding.loadEntitlementsButton.setOnClickListener {

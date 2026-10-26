@@ -87,6 +87,7 @@ open class EmbeddedE2ETestCase {
         forceNetworkPathOffline: Boolean = false,
         enableOfflineMode: Boolean? = null,
         enableDPoP: Boolean = false,
+        playIntegrityCloudProjectNumber: Long = 0L,
         useNativeGoogleSignIn: Boolean = false,
     ) {
         scenario?.close()
@@ -105,6 +106,7 @@ open class EmbeddedE2ETestCase {
             forceNetworkPathOffline = forceNetworkPathOffline,
             enableOfflineMode = enableOfflineMode,
             enableDPoP = enableDPoP,
+            playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
             useNativeGoogleSignIn = useNativeGoogleSignIn,
         )
         instrumentation.runOnMainSync {

@@ -515,11 +515,25 @@ class FronteggAuthServiceTest {
         every { storageMock.isEmbeddedMode }.returns(true)
 
         mockkObject(EmbeddedAuthActivity)
-        every { EmbeddedAuthActivity.directLoginAction(any(), any(), any(), any()) }.returns(Unit)
+        every { EmbeddedAuthActivity.directLoginAction(any(), any(), any(), any(), any()) }.returns(Unit)
 
         auth.directLoginAction(mockActivity, "", "")
 
-        verify { EmbeddedAuthActivity.directLoginAction(any(), any(), any(), any()) }
+        verify { EmbeddedAuthActivity.directLoginAction(mockActivity, "", "", emptyMap(), null) }
+    }
+
+    @Test
+    fun `directLoginAction passes additionalQueryParams to EmbeddedAuthActivity`() {
+        every { storageMock.isEmbeddedMode }.returns(true)
+        mockkObject(EmbeddedAuthActivity)
+        every { EmbeddedAuthActivity.directLoginAction(any(), any(), any(), any(), any()) }.returns(Unit)
+        val additionalQueryParams = mapOf("login_hint" to "user@example.com")
+
+        auth.directLoginAction(mockActivity, "social-login", "google", additionalQueryParams)
+
+        verify {
+            EmbeddedAuthActivity.directLoginAction(mockActivity, "social-login", "google", additionalQueryParams, null)
+        }
     }
 
     @Test

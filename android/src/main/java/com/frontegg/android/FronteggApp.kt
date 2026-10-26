@@ -80,6 +80,7 @@ val Context.fronteggApp: FronteggApp
                 enableSessionPerTenant = constants.enableSessionPerTenant,
                 entitlementsEnabled = constants.entitlementsEnabled,
                 enableDPoP = constants.enableDPoP,
+                playIntegrityCloudProjectNumber = constants.playIntegrityCloudProjectNumber,
                 useNativeGoogleSignIn = constants.useNativeGoogleSignIn,
                 tenantResolver = constants.fronteggOrganization?.let { org ->
                     TenantResolver { TenantResolverResult(org) }
@@ -141,6 +142,8 @@ interface FronteggApp {
          *                       have a customized login experience with different branding and
          *                       login methods. See [TenantResolver] for usage details.
          * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
+         * @param playIntegrityCloudProjectNumber Google Cloud project number for Play Integrity attestation;
+         *                                        `0` disables attestation (default: `0`).
          * @param useNativeGoogleSignIn The embedded login box's Google button signs in natively (default: `false`).
          */
         @VisibleForTesting
@@ -161,6 +164,7 @@ interface FronteggApp {
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
+            playIntegrityCloudProjectNumber: Long = 0L,
             useNativeGoogleSignIn: Boolean = false,
         ) {
             val baseUrl: String = when {
@@ -189,6 +193,7 @@ interface FronteggApp {
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
+                playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
                 useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             runDebugChecksSafe(context, fronteggDomain, clientId)
@@ -223,6 +228,7 @@ interface FronteggApp {
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
+            playIntegrityCloudProjectNumber: Long = 0L,
             useNativeGoogleSignIn: Boolean = false,
         ): FronteggApp {
             resetInstanceForTesting()
@@ -259,6 +265,7 @@ interface FronteggApp {
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
+                playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
                 useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             runDebugChecksSafe(appContext, fronteggDomain, clientId)
@@ -278,6 +285,8 @@ interface FronteggApp {
          *                       enables "Login per Account" functionality where each tenant can
          *                       have a customized login experience. See [TenantResolver] for usage.
          * @param enableDPoP Bind tokens to a device key with DPoP, RFC 9449 (default: `false`).
+         * @param playIntegrityCloudProjectNumber Google Cloud project number for Play Integrity attestation;
+         *                                        `0` disables attestation (default: `0`).
          * @param useNativeGoogleSignIn The embedded login box's Google button signs in natively (default: `false`).
          */
         fun initWithRegions(
@@ -294,6 +303,7 @@ interface FronteggApp {
             entitlementsEnabled: Boolean = false,
             tenantResolver: TenantResolver? = null,
             enableDPoP: Boolean = false,
+            playIntegrityCloudProjectNumber: Long = 0L,
             useNativeGoogleSignIn: Boolean = false,
         ): FronteggApp {
             // Prepare Sentry for later initialization via feature flag.
@@ -327,6 +337,7 @@ interface FronteggApp {
                        entitlementsEnabled = entitlementsEnabled,
                        tenantResolver = tenantResolver,
                        enableDPoP = enableDPoP,
+                       playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
                        useNativeGoogleSignIn = useNativeGoogleSignIn,
                    )
                    instance = newInstance
@@ -354,6 +365,7 @@ interface FronteggApp {
                 entitlementsEnabled = entitlementsEnabled,
                 tenantResolver = tenantResolver,
                 enableDPoP = enableDPoP,
+                playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
                 useNativeGoogleSignIn = useNativeGoogleSignIn,
             )
             instance = newInstance
@@ -369,6 +381,7 @@ interface FronteggApp {
                     enableOfflineMode = enableOfflineMode,
                     networkMonitoringIntervalSeconds = networkMonitoringIntervalSeconds,
                     enableDPoP = enableDPoP,
+                    playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
                     useNativeGoogleSignIn = useNativeGoogleSignIn,
                 )
             )

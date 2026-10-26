@@ -74,7 +74,8 @@ object FronteggConstantsProvider {
         val rawOrganization = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ORGANIZATION", "")
         val fronteggOrganization = rawOrganization.trim().takeIf { it.isNotBlank() }
         val entitlementsEnabled = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENTITLEMENTS_ENABLED", false)
-        val enableDPoP = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_DPOP", false)
+        val enableDPoP = isDPoPEnabled(buildConfigClass)
+        val playIntegrityCloudProjectNumber = cloudProjectNumber(buildConfigClass)
         val useNativeGoogleSignIn =
             safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN", false)
 
@@ -95,8 +96,38 @@ object FronteggConstantsProvider {
             fronteggOrganization = fronteggOrganization,
             entitlementsEnabled = entitlementsEnabled,
             enableDPoP = enableDPoP,
+            playIntegrityCloudProjectNumber = playIntegrityCloudProjectNumber,
             useNativeGoogleSignIn = useNativeGoogleSignIn,
         )
+    }
+
+    // Accepts a boolean or a "true"/"false" string; an absent field turns DPoP off without an error log.
+    internal fun isDPoPEnabled(buildConfigClass: Class<*>): Boolean {
+        val name = "FRONTEGG_ENABLE_DPOP"
+        val enabled = when (val rawValue = optionalValueFromBuildConfig(buildConfigClass, name)) {
+            null -> false
+            is Boolean -> rawValue
+            is String -> rawValue.trim().lowercase().ifEmpty { "false" }.toBooleanStrictOrNull()
+            else -> null
+        }
+        if (enabled == null) {
+            Log.e(TAG, "$name is not true or false, DPoP is off")
+        }
+        return enabled ?: false
+    }
+
+    // Accepts any numeric type or a numeric string; an absent, empty or non-positive value turns attestation off.
+    internal fun cloudProjectNumber(buildConfigClass: Class<*>): Long {
+        val name = "FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER"
+        val projectNumber = when (val rawValue = optionalValueFromBuildConfig(buildConfigClass, name)) {
+            is Number -> rawValue.toLong()
+            is String -> rawValue.trim().ifEmpty { "0" }.toLongOrNull()
+            else -> 0L
+        }
+        if (projectNumber == null) {
+            Log.e(TAG, "$name is not a number, Play Integrity attestation is off")
+        }
+        return projectNumber?.takeIf { it > 0L } ?: 0L
     }
 }
 
@@ -177,6 +208,26 @@ inline fun <reified T> safeGetNullableValueFromBuildConfig(
         Log.e(
             TAG, "Field '$name' not found in BuildConfig, return null"
         )
+        null
+    }
+}
+
+/**
+ * Retrieves an optional field from the given `BuildConfig` class by name.
+ *
+ * Unlike [safeGetNullableValueFromBuildConfig], an absent field is expected and is not logged.
+ *
+ * @param buildConfigClass The class from which to retrieve the field.
+ * @param name The name of the field in `BuildConfig`.
+ * @return The value of the field, or `null` if it is absent or cannot be read.
+ */
+internal fun optionalValueFromBuildConfig(buildConfigClass: Class<*>, name: String): Any? {
+    return try {
+        buildConfigClass.getField(name).get(null)
+    } catch (e: NoSuchFieldException) {
+        null
+    } catch (e: IllegalAccessException) {
+        Log.e(TAG, "Field '$name' in BuildConfig cannot be read, return null")
         null
     }
 }

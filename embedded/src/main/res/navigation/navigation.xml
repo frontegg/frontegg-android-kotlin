@@ -11,4 +11,9 @@
         android:label="@string/title_home"
         tools:layout="@layout/fragment_home" />
 
+    <fragment
+        android:id="@+id/navigation_compose_components"
+        android:name="com.frontegg.demo.ui.compose.ComposeComponentsFragment"
+        android:label="Compose components" />
+
 </navigation>

@@ -53,6 +53,7 @@ object DemoEmbeddedTestMode {
         val forceNetworkPathOffline: Boolean,
         val enableOfflineMode: Boolean?,
         val enableDPoP: Boolean = false,
+        val playIntegrityCloudProjectNumber: Long = 0L,
         val useNativeGoogleSignIn: Boolean = false,
     )
 
@@ -80,6 +81,7 @@ object DemoEmbeddedTestMode {
                 forceNetworkPathOffline = json.optBoolean("forceNetworkPathOffline", false),
                 enableOfflineMode = enableOffline,
                 enableDPoP = json.optBoolean("enableDPoP", false),
+                playIntegrityCloudProjectNumber = json.optLong("playIntegrityCloudProjectNumber", 0L),
                 useNativeGoogleSignIn = json.optBoolean("useNativeGoogleSignIn", false),
             )
             isEnabled = true

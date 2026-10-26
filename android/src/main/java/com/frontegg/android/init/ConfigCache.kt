@@ -20,6 +20,7 @@ internal object ConfigCache {
         val networkMonitoringIntervalSeconds: Int = 10,
         val useLegacySocialLoginFlow: Boolean = false,
         val enableDPoP: Boolean = false,
+        val playIntegrityCloudProjectNumber: Long = 0L,
         val useNativeGoogleSignIn: Boolean = false,
     )
 
@@ -47,6 +48,7 @@ internal object ConfigCache {
             .put("networkMonitoringIntervalSeconds", flags.networkMonitoringIntervalSeconds)
             .put("useLegacySocialLoginFlow", flags.useLegacySocialLoginFlow)
             .put("enableDPoP", flags.enableDPoP)
+            .put("playIntegrityCloudProjectNumber", flags.playIntegrityCloudProjectNumber)
             .put("useNativeGoogleSignIn", flags.useNativeGoogleSignIn)
 
         prefs.edit()
@@ -83,6 +85,7 @@ internal object ConfigCache {
                 networkMonitoringIntervalSeconds = fj.optInt("networkMonitoringIntervalSeconds", 10),
                 useLegacySocialLoginFlow = fj.optBoolean("useLegacySocialLoginFlow", false),
                 enableDPoP = fj.optBoolean("enableDPoP", false),
+                playIntegrityCloudProjectNumber = fj.optLong("playIntegrityCloudProjectNumber", 0L),
                 useNativeGoogleSignIn = fj.optBoolean("useNativeGoogleSignIn", false),
             )
             regions to flags

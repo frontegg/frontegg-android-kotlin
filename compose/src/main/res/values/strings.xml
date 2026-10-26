@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="frontegg_tenant_switcher_title">Workspaces</string>
+    <string name="frontegg_tenant_switcher_empty">You are not a member of any workspace.</string>
+    <string name="frontegg_tenant_switcher_unnamed_tenant">Unnamed workspace</string>
+    <string name="frontegg_tenant_switcher_active">Current</string>
+    <string name="frontegg_tenant_switcher_failed">Couldn\'t switch to %1$s. Try again.</string>
+
+    <string name="frontegg_security_center_account_title">Account</string>
+    <string name="frontegg_security_center_email_verified">Email verified</string>
+    <string name="frontegg_security_center_email_not_verified">Email not verified</string>
+
+    <string name="frontegg_security_center_mfa_title">Multi-factor authentication</string>
+    <string name="frontegg_security_center_mfa_enabled">Enabled</string>
+    <string name="frontegg_security_center_mfa_disabled">Not enabled</string>
+
+    <string name="frontegg_security_center_passkeys_title">Passkeys</string>
+    <string name="frontegg_security_center_passkeys_description">Sign in with your fingerprint, face or screen lock instead of a password.</string>
+    <string name="frontegg_security_center_passkeys_add">Add a passkey</string>
+    <string name="frontegg_security_center_passkeys_registered">Passkey added to this device.</string>
+    <string name="frontegg_security_center_passkeys_already_registered">This device already has a passkey.</string>
+    <string name="frontegg_security_center_passkeys_failed">Couldn\'t add a passkey. Try again.</string>
+
+    <string name="frontegg_security_center_sessions_title">Active sessions</string>
+    <string name="frontegg_security_center_sessions_empty">No other active sessions.</string>
+    <string name="frontegg_security_center_sessions_load_failed">Couldn\'t load your sessions.</string>
+    <string name="frontegg_security_center_sessions_action_failed">Couldn\'t sign out the session. Try again.</string>
+    <string name="frontegg_security_center_sessions_retry">Retry</string>
+    <string name="frontegg_security_center_sessions_unknown_device">Unknown device</string>
+    <string name="frontegg_security_center_sessions_current">This device</string>
+    <string name="frontegg_security_center_sessions_current_unknown">This device\'s session couldn\'t be identified, so sessions can\'t be signed out here.</string>
+    <string name="frontegg_security_center_sessions_revoke">Sign out</string>
+    <string name="frontegg_security_center_sessions_revoke_others">Sign out other sessions</string>
+
+    <string name="frontegg_security_center_sign_out">Sign out</string>
+</resources>

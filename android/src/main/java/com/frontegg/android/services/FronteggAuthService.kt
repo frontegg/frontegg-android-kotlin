@@ -297,10 +297,11 @@ class FronteggAuthService(
         activity: Activity,
         type: String,
         data: String,
+        additionalQueryParams: Map<String, String>,
         callback: ((Exception?) -> Unit)?
     ) {
         if (isEmbeddedMode) {
-            EmbeddedAuthActivity.directLoginAction(activity, type, data, callback)
+            EmbeddedAuthActivity.directLoginAction(activity, type, data, additionalQueryParams, callback)
         } else {
             Log.w(TAG, "Direct login action is not supported in non-embedded mode")
         }
