@@ -53,6 +53,7 @@ object DemoEmbeddedTestMode {
         val forceNetworkPathOffline: Boolean,
         val enableOfflineMode: Boolean?,
         val enableDPoP: Boolean = false,
+        val useNativeGoogleSignIn: Boolean = false,
     )
 
     /**
@@ -79,6 +80,7 @@ object DemoEmbeddedTestMode {
                 forceNetworkPathOffline = json.optBoolean("forceNetworkPathOffline", false),
                 enableOfflineMode = enableOffline,
                 enableDPoP = json.optBoolean("enableDPoP", false),
+                useNativeGoogleSignIn = json.optBoolean("useNativeGoogleSignIn", false),
             )
             isEnabled = true
             persistRuntimeOfflineOverride(context, cfg.enableOfflineMode)

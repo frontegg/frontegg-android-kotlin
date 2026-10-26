@@ -200,6 +200,9 @@ interface FronteggAuth {
      * [error] is [com.frontegg.android.exceptions.CanceledByUserException] if the user dismissed
      * the account picker or another Google sign-in is already running, and [com.frontegg.android.exceptions.GoogleSignInNotConfiguredException]
      * if Google social login is not active in Frontegg or uses Frontegg's shared Google app.
+     * Called from an open login box, a required MFA continues in it and [error] is
+     * [com.frontegg.android.exceptions.MfaRequiredException]; the login box completes the sign-in.
+     * If the login box closed before MFA could continue, [error] is CanceledByUserException.
      */
     fun loginWithGoogle(
         activity: Activity,

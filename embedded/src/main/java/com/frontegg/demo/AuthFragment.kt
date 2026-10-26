@@ -177,6 +177,16 @@ class AuthFragment : Fragment() {
                     loginHint = DemoEmbeddedTestMode.UNLOCK_EMAIL,
                 ) { Log.d("AuthFragment", "E2E confirm unlock") }
             }
+            binding.e2eEmbeddedLoginBoxButton.setOnClickListener {
+                requireContext().fronteggAuth.login(requireActivity()) {
+                    Log.d("AuthFragment", "E2E login box")
+                }
+            }
+            binding.e2eNativeGoogleButton.setOnClickListener {
+                requireContext().fronteggAuth.loginWithGoogle(requireActivity()) { error ->
+                    Log.d("AuthFragment", "E2E native Google sign-in finished, error=${error?.message}")
+                }
+            }
         }
 
         /**

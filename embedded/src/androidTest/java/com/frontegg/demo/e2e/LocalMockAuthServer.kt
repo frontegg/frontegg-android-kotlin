@@ -19,10 +19,24 @@ import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
 /** A request the mock received, with the headers and body tests assert on. */
-data class CapturedRequest(val method: String, val path: String, val headers: okhttp3.Headers, val body: String)
+data class CapturedRequest(
+    val method: String,
+    val path: String,
+    val headers: okhttp3.Headers,
+    val body: String,
+    val target: String = path,
+)
 
 /** OkHttp MockWebServer mirror of Swift `LocalMockAuthServer` for embedded E2E. */
 class LocalMockAuthServer {
+    companion object {
+        const val GOOGLE_POST_LOGIN_PATH = "/identity/resources/auth/v1/user/sso/google/postlogin"
+        const val GOOGLE_AUTHORIZE_PATH = "/idp/google/authorize"
+        const val GOOGLE_ID_TOKEN = "e2e-google-id-token"
+        const val GOOGLE_NATIVE_EMAIL = "google-native@frontegg.com"
+        private const val MFA_MOBILE_AUTHENTICATOR_PATH = "/oauth/account/mfa-mobile-authenticator"
+    }
+
     val clientId = "demo-embedded-e2e-client"
     val server = MockWebServer()
     private val gson = Gson()
@@ -127,7 +141,7 @@ class LocalMockAuthServer {
             ""
         }
         log(method, path, raw)
-        requestLogLock.withLock { capturedRequests.add(CapturedRequest(method, path, request.headers, body)) }
+        requestLogLock.withLock { capturedRequests.add(CapturedRequest(method, path, request.headers, body, raw)) }
         state.dequeue(method, path)?.let { return fromSpec(it, method) }
         val cookie = request.getHeader("Cookie")
         val authz = request.getHeader("Authorization")
@@ -186,7 +200,8 @@ class LocalMockAuthServer {
             method == "GET" && path == "/oauth/prelogin" -> hostedPrelogin(q)
             method == "POST" && path == "/oauth/postlogin" -> hostedPostlogin(body)
             method == "GET" && path == "/oauth/postlogin/redirect" -> hostedPostRedirect(q)
-            method == "GET" && path == "/idp/google/authorize" -> mockGoogle(q)
+            method == "GET" && path == GOOGLE_AUTHORIZE_PATH -> mockGoogle(q)
+            method == "POST" && path == GOOGLE_POST_LOGIN_PATH -> googlePostLogin(q)
             method == "GET" && path == "/embedded/continue" -> embeddedContinue(q)
             method == "POST" && path == "/embedded/password" -> embeddedPassword(body)
             method == "GET" && path == "/browser/complete" -> browserComplete(q)
@@ -201,6 +216,7 @@ class LocalMockAuthServer {
                 json(200, JSONObject().put("vendors", JSONArray()))
             method == "GET" && path == "/frontegg/identity/resources/sso/v2" -> socialConfigArr()
             method == "GET" && path == "/identity/resources/auth/v1/sso/config" -> androidSocialConfig()
+            method == "GET" && path == "/identity/resources/sso/v2" -> androidSocialProviders()
             method == "GET" && path == "/identity/resources/auth/v1/feature-flags" -> json(200, JSONObject())
             method == "GET" && path == "/frontegg/identity/resources/configurations/v1/public" ->
                 json(200, JSONObject().put("embeddedMode", true).put("loginBoxVisible", !state.isCustomLoginBox()).put("customLoginBox", state.isCustomLoginBox()))
@@ -269,6 +285,9 @@ class LocalMockAuthServer {
             method == "GET" && path == "/embedded/password-expiring" -> passwordExpiringPage(q)
             method == "GET" && path == "/embedded/password-expiring/skip" -> passwordExpiringSkip(q)
             method == "GET" && path == "/embedded/password-expired" -> passwordExpiredPage(q)
+            method == "GET" && path == "/oauth/account/sign-up" -> accountPageWithGoogle("Sign up")
+            method == "GET" && path == "/oauth/account/activate" -> accountPageWithGoogle("Activate your account")
+            method == "GET" && path == "/oauth/account/invitation/accept" -> accountPageWithGoogle("Accept invitation")
             method == "GET" && path == "/embedded/confirm/activation" -> confirmationPage("activation", q)
             method == "GET" && path == "/embedded/confirm/invitation" -> confirmationPage("invitation", q)
             method == "GET" && path == "/embedded/confirm/unlock" -> confirmationPage("unlock", q)
@@ -326,6 +345,9 @@ class LocalMockAuthServer {
             val dec = decodeB64Json(loginAction)
             val dest = dec?.get("data")?.asString ?: ""
             val typ = dec?.get("type")?.asString
+            if (dest.contains(MFA_MOBILE_AUTHENTICATOR_PATH)) {
+                return mfaMobileAuthenticatorPage(dest, redirect, st)
+            }
             // Embedded Google social (loginWithSocialLoginProvider): authorize carries social-login/google → mock IdP page.
             // Use HTML auto-click instead of 302 redirect — Chrome blocks 302 chains ending in custom URL schemes
             // when initiated from Custom Tab. The HTML+JS click pattern is the same one Custom SSO uses successfully.
@@ -389,7 +411,11 @@ class LocalMockAuthServer {
             val b =
                 """<h1>Login</h1><form action="/oauth/prelogin" method="get">
                 <input type="hidden" name="state" value="${htmlEsc(hs)}"/>
-                <input type="email" name="email"/><button>Continue</button></form>"""
+                <input type="email" name="email"/><button>Continue</button></form>
+                <button type="button" id="e2e-login-google" onclick="window.FronteggNativeBridge.loginWithSocialLoginProvider('google')">Continue with Google</button>
+                <button type="button" id="e2e-open-sign-up" onclick="window.location.href='/oauth/account/sign-up'">Open sign-up</button>
+                <button type="button" id="e2e-open-activation" onclick="window.location.href='/oauth/account/activate?token=e2e-activation-token'">Open activation</button>
+                <button type="button" id="e2e-open-invitation" onclick="window.location.href='/oauth/account/invitation/accept?token=e2e-invitation-token'">Open invitation</button>"""
             return html(200, "Login", b)
         }
         email = email.trim()
@@ -594,6 +620,39 @@ class LocalMockAuthServer {
         } else {
             redir(cb(ru, code, st))
         }
+    }
+
+    /** Native Google sign-in: accepts only [GOOGLE_ID_TOKEN], and asks for MFA when it is configured for the user. */
+    private fun googlePostLogin(q: Map<String, List<String>>): MockResponse {
+        val idToken = fq(q, "id_token")
+        if (idToken != GOOGLE_ID_TOKEN) {
+            return json(400, JSONObject().put("errors", JSONArray().put("Invalid Google ID token")))
+        }
+        if (state.mfaType(GOOGLE_NATIVE_EMAIL) != null) {
+            val mfaRequired = JSONObject()
+                .put("mfaRequired", true)
+                .put("mfaToken", "mfa-${UUID.randomUUID()}")
+                .put("email", GOOGLE_NATIVE_EMAIL)
+            return json(200, mfaRequired)
+        }
+        val issued = state.issueRefresh(GOOGLE_NATIVE_EMAIL)
+        return json(200, JSONObject())
+            .addHeader("Set-Cookie", "fe_refresh_demoembedded-e2e-client=${issued.token}; Path=/; HttpOnly")
+    }
+
+    /** The MFA direct action the SDK authorizes with after an MFA-required native login; its state is the post-login response. */
+    private fun mfaMobileAuthenticatorPage(mfaUrl: String, redirect: String, oauthState: String): MockResponse {
+        val mfaRequest = decodeB64Json(mfaUrl.substringAfter("state=", ""))
+        val email = mfaRequest?.get("email")?.asString
+            ?: return html(400, "mfa", "<h1>Invalid MFA state</h1>")
+        return mfaPage(
+            mapOf(
+                "email" to listOf(email),
+                "redirect_uri" to listOf(redirect),
+                "state" to listOf(oauthState),
+                "mfa_type" to listOf(state.mfaType(email) ?: "authenticator"),
+            ),
+        )
     }
 
     private fun socialSuccess(q: Map<String, List<String>>): MockResponse {
@@ -821,19 +880,19 @@ class LocalMockAuthServer {
         return json(200, a)
     }
 
-    private fun androidSocialConfig(): MockResponse {
+    private fun androidSocialConfig(): MockResponse = json(200, JSONObject().put("google", androidGoogleProvider()))
+
+    private fun androidSocialProviders(): MockResponse =
+        json(200, JSONArray().put(androidGoogleProvider().put("type", "google")))
+
+    private fun androidGoogleProvider(): JSONObject {
         val b = urlRoot()
-        return json(
-            200,
-            JSONObject().put(
-                "google",
-                JSONObject()
-                    .put("active", true)
-                    .put("clientId", "mock")
-                    .put("authorizationUrl", "$b/idp/google/authorize")
-                    .put("additionalScopes", JSONArray())
-            )
-        )
+        return JSONObject()
+            .put("active", true)
+            .put("customised", true)
+            .put("clientId", "mock")
+            .put("authorizationUrl", "$b/idp/google/authorize")
+            .put("additionalScopes", JSONArray())
     }
 
     private fun mintAccess(email: String, ver: Int, ttl: Int, confirmationThumbprint: String? = null): String {
@@ -1394,6 +1453,12 @@ class LocalMockAuthServer {
             <p id="e2e-expired-message">Your password has expired</p>
             <button type="button" id="e2e-change-password" onclick="window.location.href='/embedded/reset-password?email=${enc(email)}&redirect_uri=${enc(ru)}&state=${enc(st)}&token=expired-reset'">Change password</button>"""
         return html(200, "password-expired", b)
+    }
+
+    private fun accountPageWithGoogle(title: String): MockResponse {
+        val b = """<h1>$title</h1>
+            <button type="button" id="e2e-page-google" onclick="window.FronteggNativeBridge.loginWithSocialLoginProvider('google')">Continue with Google</button>"""
+        return html(200, title, b)
     }
 
     private fun confirmationPage(type: String, q: Map<String, List<String>>): MockResponse {

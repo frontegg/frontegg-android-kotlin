@@ -540,3 +540,47 @@ With `FronteggApp.initWithRegions(...)`, which doesn't read this field, pass `en
   is then sent without a proof.
 - OkHttp's automatic retry after a dropped connection resends the request with the same proof. If your
   environment rejects a reused proof (`jti`), that retry fails like any other rejected request.
+
+## Native Google sign-in
+
+Sign in with Google through Android Credential Manager, the system account sheet, instead of a
+browser round-trip.
+
+**Setup**
+
+1. In the Frontegg Portal, turn on Google under **Authentication → Login method → Social login**
+   with your own Google app (custom credentials), using its *web* OAuth client ID. Native sign-in
+   does not work with Frontegg's shared Google app, so the SDK uses the browser flow there.
+2. In the same Google Cloud project as that web client, create an **Android** OAuth client with
+   your app's package name and the SHA-1 of every signing certificate (debug, release and Play App
+   Signing).
+3. To have the login box's Google button use it, turn it on. `loginWithGoogle` works without this flag.
+
+   ```groovy
+   buildConfigField "boolean", "FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN", "true"
+   ```
+
+   With `FronteggApp.initWithRegions(...)`, which doesn't read this field, pass `useNativeGoogleSignIn = true`
+   instead.
+
+**Usage**
+
+- **Embedded login:** the login box's Google button opens the native sheet. If the user closes the
+  sheet they stay on the login box; any other failure falls back to the browser flow. Sign-up,
+  step-up and login per account (an organization passed to `login`, `FRONTEGG_ORGANIZATION` or a
+  tenant resolver) use the browser flow.
+- **Your own button**, in hosted or embedded mode:
+
+  ```kotlin
+  fronteggAuth.loginWithGoogle(activity) { error ->
+      when (error) {
+          null -> { /* signed in; isAuthenticated is true */ }
+          is CanceledByUserException -> { /* the user closed the sheet */ }
+          is GoogleSignInNotConfiguredException -> { /* Google login is inactive or uses the shared app */ }
+          else -> { /* sign-in failed */ }
+      }
+  }
+  ```
+
+  `CanceledByUserException` is also returned when another Google sign-in is already running, and
+  when the login box closed before MFA could continue.

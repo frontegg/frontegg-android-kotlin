@@ -75,6 +75,8 @@ object FronteggConstantsProvider {
         val fronteggOrganization = rawOrganization.trim().takeIf { it.isNotBlank() }
         val entitlementsEnabled = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENTITLEMENTS_ENABLED", false)
         val enableDPoP = safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_ENABLE_DPOP", false)
+        val useNativeGoogleSignIn =
+            safeGetValueFromBuildConfig(buildConfigClass, "FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN", false)
 
         return FronteggConstants(
             baseUrl = baseUrl,
@@ -93,6 +95,7 @@ object FronteggConstantsProvider {
             fronteggOrganization = fronteggOrganization,
             entitlementsEnabled = entitlementsEnabled,
             enableDPoP = enableDPoP,
+            useNativeGoogleSignIn = useNativeGoogleSignIn,
         )
     }
 }
