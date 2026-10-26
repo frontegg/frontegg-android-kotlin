@@ -2,6 +2,7 @@ package com.frontegg.demo.e2e
 
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.uiautomator.By
+import com.frontegg.android.exceptions.CanceledByUserException
 import androidx.test.uiautomator.Until
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
@@ -571,6 +572,125 @@ class EmbeddedE2ETests : EmbeddedE2ETestCase() {
             }
             Thread.sleep(500)
         }
+    }
+
+    @Test
+    fun testLoginBoxGoogleButtonSignsInNatively() {
+        val googleIdTokenSource = FakeGoogleIdTokenSource { LocalMockAuthServer.GOOGLE_ID_TOKEN }
+        fakeGoogleIdTokenSource(googleIdTokenSource)
+        launchApp(resetState = true, useNativeGoogleSignIn = true)
+        tapLoginBoxGoogleButton()
+        waitForUserEmail(LocalMockAuthServer.GOOGLE_NATIVE_EMAIL, timeoutMs = 120_000)
+        if (googleIdTokenSource.requestedServerClientIds.toList() != listOf("mock")) {
+            throw AssertionError("Expected one ID token request for client mock, got ${googleIdTokenSource.requestedServerClientIds}")
+        }
+        assertSingleGooglePostLogin(LocalMockAuthServer.GOOGLE_ID_TOKEN)
+    }
+
+    @Test
+    fun testNativeGoogleSignInFromApp() {
+        fakeGoogleIdTokenSource(FakeGoogleIdTokenSource { LocalMockAuthServer.GOOGLE_ID_TOKEN })
+        launchApp(resetState = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2ENativeGoogleButton")
+        waitForUserEmail(LocalMockAuthServer.GOOGLE_NATIVE_EMAIL, timeoutMs = 120_000)
+        assertSingleGooglePostLogin(LocalMockAuthServer.GOOGLE_ID_TOKEN)
+    }
+
+    @Test
+    fun testLoginBoxNativeGoogleCancelStaysOnLoginBox() {
+        val googleIdTokenSource = FakeGoogleIdTokenSource { throw CanceledByUserException() }
+        fakeGoogleIdTokenSource(googleIdTokenSource)
+        launchApp(resetState = true, useNativeGoogleSignIn = true)
+        tapLoginBoxGoogleButton()
+        waitForGoogleIdTokenRequest(googleIdTokenSource)
+        Thread.sleep(5_000)
+        assertRequestCount("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH, 0)
+        waitForWebElement("e2e-login-google")
+        if (device.findObject(By.desc("UserPageRoot")) != null) {
+            throw AssertionError("Canceling native Google sign-in must not sign the user in")
+        }
+    }
+
+    @Test
+    fun testLoginBoxNativeGoogleRejectedTokenFallsBackToBrowser() {
+        val rejectedIdToken = "e2e-rejected-google-id-token"
+        fakeGoogleIdTokenSource(FakeGoogleIdTokenSource { rejectedIdToken })
+        launchApp(resetState = true, useNativeGoogleSignIn = true)
+        tapLoginBoxGoogleButton()
+        if (!mock.waitForRequest("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH, 60_000)) {
+            throw AssertionError("Native Google sign-in never posted the ID token")
+        }
+        assertSingleGooglePostLogin(rejectedIdToken)
+        waitForBrowserGoogleSignIn()
+    }
+
+    @Test
+    fun testLoginBoxNativeGoogleMfaContinuesInLoginBox() {
+        mock.configureMfa(LocalMockAuthServer.GOOGLE_NATIVE_EMAIL, "authenticator")
+        fakeGoogleIdTokenSource(FakeGoogleIdTokenSource { LocalMockAuthServer.GOOGLE_ID_TOKEN })
+        launchApp(resetState = true, useNativeGoogleSignIn = true)
+        tapLoginBoxGoogleButton()
+        if (!mock.waitForRequest("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH, 60_000)) {
+            throw AssertionError("Native Google sign-in never posted the ID token")
+        }
+        verifyMfaPage("authenticator")
+        assertSingleGooglePostLogin(LocalMockAuthServer.GOOGLE_ID_TOKEN)
+
+        val authorizeRequestsBeforeResume = mock.requestCount("GET", "/oauth/authorize")
+        backgroundAndResumeLoginBox()
+        verifyMfaPage("authenticator")
+        Thread.sleep(3_000)
+        assertRequestCount("GET", "/oauth/authorize", authorizeRequestsBeforeResume)
+
+        submitMfaCode("123456")
+        waitForUserEmail(LocalMockAuthServer.GOOGLE_NATIVE_EMAIL, timeoutMs = 120_000)
+    }
+
+    @Test
+    fun testGoogleOnTheSignUpPageUsesBrowser() {
+        assertGoogleUsesBrowserOnPageOpenedBy("e2e-open-sign-up")
+    }
+
+    @Test
+    fun testGoogleOnTheActivationPageUsesBrowser() {
+        assertGoogleUsesBrowserOnPageOpenedBy("e2e-open-activation")
+    }
+
+    @Test
+    fun testGoogleOnTheInvitationPageUsesBrowser() {
+        assertGoogleUsesBrowserOnPageOpenedBy("e2e-open-invitation")
+    }
+
+    private fun assertGoogleUsesBrowserOnPageOpenedBy(openButtonId: String) {
+        val googleIdTokenSource = FakeGoogleIdTokenSource { LocalMockAuthServer.GOOGLE_ID_TOKEN }
+        fakeGoogleIdTokenSource(googleIdTokenSource)
+        launchApp(resetState = true, useNativeGoogleSignIn = true)
+        waitForDesc("LoginPageRoot", 120_000)
+        tapDesc("E2EEmbeddedLoginBoxButton")
+        device.wait(Until.hasObject(By.clazz("android.webkit.WebView")), 30_000)
+        waitForWebElement(openButtonId, 120_000)
+        clickWebElement(openButtonId)
+        waitForWebElement("e2e-page-google", 60_000)
+        clickWebElement("e2e-page-google")
+        waitForBrowserGoogleSignIn()
+        if (googleIdTokenSource.requestedServerClientIds.isNotEmpty()) {
+            throw AssertionError("Google on $openButtonId must not ask Credential Manager for an ID token")
+        }
+        assertRequestCount("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH, 0)
+    }
+
+    @Test
+    fun testLoginBoxGoogleButtonUsesBrowserWhenNativeDisabled() {
+        val googleIdTokenSource = FakeGoogleIdTokenSource { LocalMockAuthServer.GOOGLE_ID_TOKEN }
+        fakeGoogleIdTokenSource(googleIdTokenSource)
+        launchApp(resetState = true)
+        tapLoginBoxGoogleButton()
+        waitForBrowserGoogleSignIn()
+        if (googleIdTokenSource.requestedServerClientIds.isNotEmpty()) {
+            throw AssertionError("Native Google sign-in ran although it is disabled")
+        }
+        assertRequestCount("POST", LocalMockAuthServer.GOOGLE_POST_LOGIN_PATH, 0)
     }
 
     @Test
