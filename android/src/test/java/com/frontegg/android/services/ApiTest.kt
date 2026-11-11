@@ -123,6 +123,37 @@ class ApiTest {
     }
 
     @Test
+    fun `refreshToken throws IOException on 429 so the session is kept`() {
+        mockWebServer.enqueue(MockResponse().setResponseCode(429).setBody("Too Many Requests"))
+
+        assertThrows<java.io.IOException> {
+            api.refreshToken("Test Token")
+        }
+    }
+
+    @Test
+    fun `refreshToken throws IOException on 408 so the session is kept`() {
+        mockWebServer.enqueue(MockResponse().setResponseCode(408).setBody("Request Timeout"))
+        mockWebServer.enqueue(MockResponse().setResponseCode(408).setBody("Request Timeout"))
+
+        assertThrows<java.io.IOException> {
+            api.refreshToken("Test Token")
+        }
+        assert(mockWebServer.requestCount == 2)
+    }
+
+    @Test
+    fun `refreshToken still ends the session on 401 and other 4xx`() {
+        for (code in listOf(401, 400, 403, 404)) {
+            mockWebServer.enqueue(MockResponse().setResponseCode(code))
+
+            assertThrows<FailedToAuthenticateException> {
+                api.refreshToken("Test Token")
+            }
+        }
+    }
+
+    @Test
     fun `exchangeToken should return valid model`() {
         mockWebServer.enqueue(MockResponse().setBody(authResponseJson))
 
