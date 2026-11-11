@@ -144,6 +144,50 @@ class AdminPortalActivityTest {
             AdminPortalActivity::class.java.name,
             started.component?.className
         )
+        assertEquals(AdminPortalLayout.DESKTOP, AdminPortalActivity.layoutFrom(started))
+    }
+
+    @Test
+    fun `open passes the responsive layout to the activity`() {
+        val activity = mockk<Activity>(relaxed = true)
+        val intentSlot = slot<android.content.Intent>()
+        every { activity.startActivity(capture(intentSlot)) } returns Unit
+
+        AdminPortalActivity.open(activity, AdminPortalLayout.RESPONSIVE)
+
+        assertEquals(AdminPortalLayout.RESPONSIVE, AdminPortalActivity.layoutFrom(intentSlot.captured))
+    }
+
+    @Test
+    fun `layoutFrom defaults to desktop for a missing or unknown value`() {
+        assertEquals(AdminPortalLayout.DESKTOP, AdminPortalActivity.layoutFrom(android.content.Intent()))
+        val unknown = android.content.Intent().putExtra(AdminPortalActivity.EXTRA_LAYOUT, "SIDEWAYS")
+        assertEquals(AdminPortalLayout.DESKTOP, AdminPortalActivity.layoutFrom(unknown))
+    }
+
+    @Test
+    fun `desktop layout forces a wide viewport and a desktop user agent`() {
+        val settings = android.webkit.WebView(org.robolectric.RuntimeEnvironment.getApplication()).settings
+
+        AdminPortalActivity.applyLayout(settings, AdminPortalLayout.DESKTOP)
+
+        assertTrue(settings.useWideViewPort)
+        assertTrue(settings.loadWithOverviewMode)
+        assertTrue(settings.userAgentString.contains("Macintosh"))
+        assertEquals(AdminPortalActivity.VIEWPORT_OVERRIDE_JS, AdminPortalActivity.viewportScript(AdminPortalLayout.DESKTOP))
+    }
+
+    @Test
+    fun `responsive layout keeps the device width and the default user agent`() {
+        val settings = android.webkit.WebView(org.robolectric.RuntimeEnvironment.getApplication()).settings
+        val defaultUserAgent = settings.userAgentString
+
+        AdminPortalActivity.applyLayout(settings, AdminPortalLayout.RESPONSIVE)
+
+        assertFalse(settings.useWideViewPort)
+        assertFalse(settings.loadWithOverviewMode)
+        assertEquals(defaultUserAgent, settings.userAgentString)
+        assertEquals(null, AdminPortalActivity.viewportScript(AdminPortalLayout.RESPONSIVE))
     }
 
 }

@@ -141,6 +141,21 @@ activity?.let { AdminPortalActivity.open(it) }
 
 The portal's built-in close button (`window.close()`) finishes the activity automatically — you don't need to handle dismissal.
 
+### Layout on phones
+
+By default the portal renders its desktop layout at 1024px and scales it to fit, so the sidebar stays visible. On phones that makes the text small. Pass `AdminPortalLayout.RESPONSIVE` to use the device's real width instead; below 767px the sidebar collapses into a menu button, as it does in mobile Chrome:
+
+```kotlin
+import com.frontegg.android.AdminPortalLayout
+
+AdminPortalActivity.open(this, AdminPortalLayout.RESPONSIVE)
+```
+
+| Layout | Behaviour |
+|---|---|
+| `AdminPortalLayout.DESKTOP` (default) | Desktop layout at 1024px, scaled to fit; sidebar always visible. |
+| `AdminPortalLayout.RESPONSIVE` | Device width; the portal adapts to the screen like a mobile browser. |
+
 ## Login per account (custom login box)
 
 When your Frontegg workspace uses **login per account**, each account (tenant) has its own login URL and branded login experience. To route users to a specific account’s login from the Android app, set the account alias via config or in code.

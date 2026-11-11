@@ -12,6 +12,7 @@ import android.view.View
 import android.webkit.CookieManager
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
+import android.webkit.WebSettings
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.ProgressBar
@@ -41,6 +42,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     private lateinit var webView: WebView
     private lateinit var loader: ProgressBar
+    private var layout = AdminPortalLayout.DESKTOP
 
     @Volatile
     private var currentPageUrl: String? = null
@@ -58,6 +60,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
         webView = findViewById(R.id.admin_portal_webview)
         loader = findViewById(R.id.admin_portal_loader)
+        layout = layoutFrom(intent)
         configureWebView(webView)
 
         if (savedInstanceState != null) {
@@ -81,12 +84,6 @@ class AdminPortalActivity : FronteggBaseActivity() {
         webView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
-            // Mobile viewports collapse the portal sidebar into a hamburger drawer.
-            // Wide viewport + overview mode is the Android equivalent of iOS's
-            // `preferredContentMode = .desktop` and lets the portal render its
-            // persistent sidebar.
-            useWideViewPort = true
-            loadWithOverviewMode = true
             // Pinch-to-zoom + pan-while-zoomed: without builtInZoomControls the
             // user can zoom (because user-scalable=yes) but cannot scroll around
             // the zoomed page. displayZoomControls=false hides the legacy
@@ -95,10 +92,8 @@ class AdminPortalActivity : FronteggBaseActivity() {
             builtInZoomControls = true
             displayZoomControls = false
             setSupportZoom(true)
-            // Desktop Safari UA — backstop for any UA-sniffing branches in the
-            // portal's responsive logic.
-            userAgentString = DESKTOP_USER_AGENT
         }
+        applyLayout(webView.settings, layout)
 
         CookieManager.getInstance().setAcceptThirdPartyCookies(webView, true)
 
@@ -132,6 +127,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
         webView.setBackgroundColor(resolveThemeBackground())
         webView.webViewClient = AdminPortalWebViewClient(
             injectBridgeFunctionsOnPageStart = !bridgeFunctionsInjectedAtDocumentStart,
+            viewportScript = viewportScript(layout),
             onFirstPaint = {
                 // Hide the loader once the page has rendered (or at least
                 // reported finished). Idempotent: subsequent in-page
@@ -268,6 +264,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
 
     private class AdminPortalWebViewClient(
         private val injectBridgeFunctionsOnPageStart: Boolean,
+        private val viewportScript: String?,
         private val onFirstPaint: () -> Unit,
         private val onNavigate: (String?) -> Unit,
     ) : WebViewClient() {
@@ -288,7 +285,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
             // and JS evaluate. Material-UI's responsive hooks read
             // window.innerWidth, so this is what actually flips the breakpoint
             // from mobile to desktop.
-            view?.evaluateJavascript(VIEWPORT_OVERRIDE_JS, null)
+            viewportScript?.let { view?.evaluateJavascript(it, null) }
         }
 
         override fun onPageFinished(view: WebView?, url: String?) {
@@ -300,7 +297,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
             // Re-apply after the page's own JS has had a chance to overwrite the
             // viewport meta. The script is idempotent and installs a
             // MutationObserver, so a second invocation just refreshes its watch.
-            view?.evaluateJavascript(VIEWPORT_OVERRIDE_JS, null)
+            viewportScript?.let { view?.evaluateJavascript(it, null) }
         }
 
         override fun doUpdateVisitedHistory(view: WebView?, url: String?, isReload: Boolean) {
@@ -310,7 +307,7 @@ class AdminPortalActivity : FronteggBaseActivity() {
             // routes via React Router; without this hook a back+forward cycle
             // sometimes lands us on a route whose own viewport meta clobbered
             // ours and the layout drops to mobile.
-            view?.evaluateJavascript(VIEWPORT_OVERRIDE_JS, null)
+            viewportScript?.let { view?.evaluateJavascript(it, null) }
         }
     }
 
@@ -333,6 +330,28 @@ class AdminPortalActivity : FronteggBaseActivity() {
             }
             return builder.build().toString()
         }
+
+        internal const val EXTRA_LAYOUT = "com.frontegg.android.ADMIN_PORTAL_LAYOUT"
+
+        @JvmStatic
+        internal fun layoutFrom(intent: Intent): AdminPortalLayout =
+            intent.getStringExtra(EXTRA_LAYOUT)
+                ?.let { name -> AdminPortalLayout.values().firstOrNull { it.name == name } }
+                ?: AdminPortalLayout.DESKTOP
+
+        @JvmStatic
+        internal fun applyLayout(settings: WebSettings, layout: AdminPortalLayout) {
+            if (layout != AdminPortalLayout.DESKTOP) return
+            // Wide viewport + overview mode is the Android equivalent of iOS's
+            // `preferredContentMode = .desktop`; the desktop UA backs up any UA sniffing.
+            settings.useWideViewPort = true
+            settings.loadWithOverviewMode = true
+            settings.userAgentString = DESKTOP_USER_AGENT
+        }
+
+        @JvmStatic
+        internal fun viewportScript(layout: AdminPortalLayout): String? =
+            if (layout == AdminPortalLayout.DESKTOP) VIEWPORT_OVERRIDE_JS else null
 
         private const val DESKTOP_USER_AGENT =
             "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) " +
@@ -383,8 +402,11 @@ class AdminPortalActivity : FronteggBaseActivity() {
          * See [AdminPortalActivity] for the full beta caveat.
          */
         @JvmStatic
-        fun open(activity: Activity) {
-            activity.startActivity(Intent(activity, AdminPortalActivity::class.java))
+        @JvmOverloads
+        fun open(activity: Activity, layout: AdminPortalLayout = AdminPortalLayout.DESKTOP) {
+            activity.startActivity(
+                Intent(activity, AdminPortalActivity::class.java).putExtra(EXTRA_LAYOUT, layout.name)
+            )
         }
     }
 }
