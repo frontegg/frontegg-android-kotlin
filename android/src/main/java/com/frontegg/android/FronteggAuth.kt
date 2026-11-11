@@ -200,7 +200,7 @@ interface FronteggAuth {
      *         which may be expired or null.
      * @throws com.frontegg.android.exceptions.FailedToAuthenticateException when the in-flight work did not settle in time.
      * @throws java.io.IOException when the device is offline, or the refresh failed because of the network
-     *         or a 5xx response, and offline mode is disabled.
+     *         or a 408, 429 or 5xx response, and offline mode is disabled.
      * @throws Exception any other refresh failure, as thrown by the refresh request.
      * @throws UnsupportedOperationException when the implementation does not override this method.
      */

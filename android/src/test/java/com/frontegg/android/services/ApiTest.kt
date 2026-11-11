@@ -4,6 +4,7 @@ import android.util.Log
 import com.frontegg.android.dpop.DPoPInterceptor
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
+import com.frontegg.android.exceptions.RefreshTokenRetryLaterException
 import org.junit.jupiter.api.assertThrows
 import com.frontegg.android.fixtures.authResponseJson
 import com.frontegg.android.fixtures.getAuthResponse
@@ -119,6 +120,41 @@ class ApiTest {
 
         assertThrows<FailedToAuthenticateException> {
             api.refreshToken("Test Token")
+        }
+    }
+
+    @Test
+    fun `refreshToken throws IOException on 429 so the session is kept`() {
+        mockWebServer.enqueue(
+            MockResponse().setResponseCode(429).setHeader("Retry-After", "30").setBody("Too Many Requests")
+        )
+
+        val error = assertThrows<RefreshTokenRetryLaterException> {
+            api.refreshToken("Test Token")
+        }
+        assert(error.statusCode == 429)
+        assert(error.retryAfterMillis == 30_000L)
+    }
+
+    @Test
+    fun `refreshToken throws IOException on 408 so the session is kept`() {
+        mockWebServer.enqueue(MockResponse().setResponseCode(408).setBody("Request Timeout"))
+        mockWebServer.enqueue(MockResponse().setResponseCode(408).setBody("Request Timeout"))
+
+        assertThrows<java.io.IOException> {
+            api.refreshToken("Test Token")
+        }
+        assert(mockWebServer.requestCount == 2)
+    }
+
+    @Test
+    fun `refreshToken still ends the session on 401 and other 4xx`() {
+        for (code in listOf(401, 400, 403, 404)) {
+            mockWebServer.enqueue(MockResponse().setResponseCode(code))
+
+            assertThrows<FailedToAuthenticateException> {
+                api.refreshToken("Test Token")
+            }
         }
     }
 

@@ -13,6 +13,7 @@ import com.frontegg.android.AuthenticationActivity
 import com.frontegg.android.EmbeddedAuthActivity
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.exceptions.FailedToAuthenticateException
+import com.frontegg.android.exceptions.RefreshTokenRetryLaterException
 import com.frontegg.android.embedded.CredentialManagerHandler
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
@@ -1386,6 +1387,29 @@ class FronteggAuthServiceTest {
         assert(auth.isAuthenticated.value) {
             "isAuthenticated should remain true on a transient probe failure with valid stored tokens — currently flips to false because clearCredentials() is called"
         }
+        verify(exactly = 0) { credentialManagerMock.clear(any()) }
+    }
+
+    @Test
+    fun `initializeSubscriptions keeps the session and stops loading when the startup refresh gets 429`() = runBlocking {
+        every { credentialManagerMock.get(CredentialKeys.ACCESS_TOKEN, null) } returns "expired-access-token"
+        every { credentialManagerMock.get(CredentialKeys.REFRESH_TOKEN, null) } returns "saved-refresh-token"
+        every { credentialManagerMock.clear() } returns Unit
+        every { credentialManagerMock.clear(any()) } returns Unit
+        every { NetworkGate.isNetworkLikelyGood(any()) } returns true
+        every { apiMock.me() } throws FailedToAuthenticateException(error = "401")
+        every { apiMock.refreshToken(any()) } throws
+            RefreshTokenRetryLaterException(statusCode = 429, retryAfterMillis = null, message = "429")
+        auth.isLoading.value = true
+        auth.initializing.value = true
+
+        auth.initializeSubscriptions()
+        delay(300)
+
+        assert(auth.refreshToken.value == "saved-refresh-token")
+        assert(auth.isAuthenticated.value)
+        assert(!auth.isLoading.value) { "isLoading must clear, or getOrRefreshAccessToken waits for it to settle" }
+        assert(!auth.initializing.value)
         verify(exactly = 0) { credentialManagerMock.clear(any()) }
     }
 
