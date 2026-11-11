@@ -1,136 +1,14 @@
 ## v1.3.45
-Jira: FR-25952
 
-## Summary
+Features:
 
-- Added `getOrRefreshAccessToken()` (suspend) and `getOrRefreshAccessToken { accessToken, error -> }`. They return an access token valid for more than 15 seconds and refresh it first when needed (iOS parity). Use them before API calls to avoid 401s after the app resumes.
-- Fixed: cancelling a coroutine that is waiting in `refreshTokenAndWait()` (including a caller's own `withTimeout`) now cancels it, instead of returning `false`. The refresh lock and state are still released, so the next refresh works.
+- Added `getOrRefreshAccessToken()` (suspend) and `getOrRefreshAccessToken { accessToken, error -> }`, matching the iOS SDK. They return an access token that is valid for more than 15 seconds, refreshing it first when needed, so API calls made right after the app resumes don't fail with a 401. They wait up to 20 seconds for an initialization, login or refresh already in progress, and return `null` when there is no session or the refresh token was rejected. With offline mode on and no network, they return the cached token, which may be expired. Both are safe to call from the main thread; the callback runs on the main thread.
+- Added `AdminPortalLayout` for the embedded admin portal. `AdminPortalActivity.open(activity)` keeps the current layout: the portal renders at 1024px and is scaled to fit, with the sidebar always visible. `AdminPortalActivity.open(activity, AdminPortalLayout.RESPONSIVE)` uses the device's real width, so on phones the sidebar collapses into a menu button, as it does in Chrome. Apps that don't pass a layout are unaffected.
 
-## Behaviour
+Bug fixes:
 
-- Waits up to 20 s for an in-flight initialization, login or refresh to finish; otherwise throws `FailedToAuthenticateException`.
-- Returns `null` when there is no session, when no region is selected in a multi-region app, or when the server rejected the refresh token.
-- Returns the cached token when it is valid for more than 15 s.
-- Device offline: with offline mode on, returns the cached token (which may be expired or null) without trying a refresh; with offline mode off, throws `IOException` without starting a refresh.
-- Otherwise refreshes through `refreshTokenAndWait()`, which handles the refresh lock, retry and per-tenant sessions. If a refresh the SDK started in the background was still finishing, it waits up to 10 s for it and checks the token again, so it never returns a token that is about to expire.
-- A failure reports the error from this attempt, not one left over from an earlier refresh.
-- Runs on the IO dispatcher, so it is safe to call from the main thread. The callback variant calls back once, on the main thread.
-- `FronteggAuth` gives both methods default implementations (`UnsupportedOperationException`), so Kotlin implementations of the interface, such as test fakes, keep compiling from source.
-
-Differences from iOS: a 5xx response counts as a network error, and there is no tenant-specific refresh endpoint to fall back from.
-
-## Notes for review
-
-- The cancellation fix is its own commit (`2588ece`) and cherry-picks cleanly onto master if it should ship separately. It changes behaviour for every caller of `refreshTokenAndWait()`.
-- Cancellation is cooperative: a network request already in flight finishes before the cancellation takes effect.
-- Not changed: `RequestQueue.processAll()` also catches `Exception` around queued suspend requests and so swallows cancellation. It empties the queue before running them, so rethrowing would drop the remaining requests; a proper fix needs re-queueing.
-- If the app's callback itself throws, the exception is no longer passed back to the callback; it propagates like any exception thrown on the main thread.
-
-## Docs
-
-`docs/api.md` and `docs/usage.md`.
-
-## Testing
-
-- `./gradlew :android:detektDebug :android:testDebugUnitTest :compose:testDebugUnitTest` passes (android 939/939, compose 55/55, none skipped). `GetOrRefreshAccessTokenTest` has 18 tests, including the main-thread call, the multi-region case, both offline paths, cancellation, a callback that throws, a stale earlier error, and a background refresh still running.
-- `./gradlew :app:build :compose:assembleDebug` passes.
-- Not run on a device.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-https://claude.ai/code/session_01S2yW3aohcrkGZ96iyLpv3a
-
-Jira: [FR-28388](https://frontegg.atlassian.net/browse/FR-28388)
-
-## Problem
-
-`AdminPortalActivity` always forces the desktop layout: `useWideViewPort`, `loadWithOverviewMode`, a Mac Safari user agent and a script that pins the viewport at `width=1024` across SPA navigations. On a phone the portal renders at 1024px and is scaled down, so the text is tiny and the sidebar stays pinned. The same portal in mobile Chrome collapses the sidebar into a menu button below 767px. Apps have no way to turn the desktop layout off.
-
-## Change
-
-A new `AdminPortalLayout` option, `DESKTOP` by default, so nothing changes for existing apps.
-
-```kotlin
-AdminPortalActivity.open(activity)                                // desktop, as before
-AdminPortalActivity.open(activity, AdminPortalLayout.RESPONSIVE)  // device width
-```
-
-The layout travels to the activity as an intent extra; a missing or unknown value falls back to `DESKTOP`. `RESPONSIVE` leaves the WebView's viewport, overview mode and user agent at their defaults and skips the viewport script on page start, page finish and SPA route changes. `open` keeps its single-argument form for Java callers (`@JvmOverloads`).
-
-The iOS counterpart is frontegg/frontegg-ios-swift#349.
-
-## Tests
-
-- `AdminPortalActivityTest`:
-  - `open` passes `DESKTOP` by default and `RESPONSIVE` when asked.
-  - A missing or unknown extra falls back to `DESKTOP`.
-  - `DESKTOP` sets a wide viewport, overview mode, the Mac user agent and the viewport script.
-  - `RESPONSIVE` keeps the defaults and has no viewport script.
-- `./gradlew :android:testDebugUnitTest`: 943 tests, 0 failures. `detektDebug` clean.
-- Not checked on a device against a live portal.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-https://claude.ai/code/session_01S2yW3aohcrkGZ96iyLpv3a
-
-[FR-28388]: https://frontegg.atlassian.net/browse/FR-28388?atlOrigin=eyJpIjoiNWRkNTljNzYxNjVmNDY3MDlhMDU5Y2ZhYzA5YTRkZjUiLCJwIjoiZ2l0aHViLWNvbS1KU1cifQ
-
-Jira: [FR-28398](https://frontegg.atlassian.net/browse/FR-28398)
-
-## Problem
-
-A customer saw widespread logouts on Android after shortening the access token lifetime to 15 minutes. The shorter token multiplied refresh volume, and the gateway rate-limited `/oauth/token` (about 2,000 × 429 in a day; none after going back to a 7-day token).
-
-`Api.refreshToken()` treated every 4xx other than 401 as a rejected refresh token. A 429 or 408 threw `FailedToAuthenticateException`, which clears the credentials in `refreshIdempotent`, during initialization, in `RefreshTokenJobService` and in `RefreshTokenAlarmReceiver`. The refresh token was still valid, and a retry a few seconds later would have succeeded.
-
-## Fix
-
-- **408 and 429 keep the session.** They now throw `RefreshTokenRetryLaterException`, an `IOException` that carries the status and `Retry-After` (in seconds). Every caller already treats `IOException` as transient and keeps the credentials. 5xx still throws a plain `IOException`. 401 and other 4xx still end the session.
-- **No immediate retry on 408/429.** `refreshIdempotent` retries a failed refresh once right away, after evicting connections. That retry no longer runs for 408/429, so a rate-limited refresh sends one request instead of two. With OkHttp's own 408 retry, it sends two instead of four. These failures also skip the offline-mode retry queue, which would run them again straight away while the network is up.
-- **The refresh retries itself with backoff.** Before, a transient failure in the foreground left the timer unarmed until the next app start or stop, or a network reconnect. Now the timer is re-armed with exponential backoff (10 s, doubling to 5 min). A longer `Retry-After` is honoured in full. This happens:
-  - when `refreshIdempotent` fails transiently with offline mode off, or with a 408/429;
-  - when the refresh during initialization fails.
-
-  The backoff and retry deadline reset on a successful refresh, on new tokens (login, tenant switch), on `logout()` and on `clearCredentials()`. Nothing is scheduled when auto refresh is disabled.
-- **App start/stop respects the pending retry.** `refreshTokenWhenNeeded` runs on every app start and stop.
-  - Before the retry is due, it re-arms the timer for the remaining wait instead of refreshing. So a cold start no longer sends a second request right after the startup 429. Re-arming also moves the timer between the foreground timer and the background alarm/job.
-  - Once the retry is due, it refreshes at once, even while the access token is still valid, instead of falling back to the 80%-of-TTL timer.
-
-  `getOrRefreshAccessToken` still refreshes on demand.
-- **Startup no longer stays loading.** With offline mode off, a transient failure of the startup refresh kept the session but left `isLoading` true. `getOrRefreshAccessToken` then waited for the auth state to settle and timed out. It now clears loading, as the other startup branch already did.
-- **Docs.** The `getOrRefreshAccessToken` KDoc now lists 408 and 429 among the failures that throw `IOException`.
-
-This matches the iOS SDK, which treats 408, 429 and 5xx on refresh as transient (`Api.isTransientRefreshHTTPStatus`).
-
-Not changed:
-- `RefreshTokenJobService` keeps its fixed 10 s retry.
-- The alarm receiver still doesn't reschedule.
-- A network reconnect still refreshes at once.
-- When the network-quality check fails, the refresh is still not rescheduled with offline mode off.
-
-## Tests
-
-- `ApiTest`:
-  - 429 throws `RefreshTokenRetryLaterException` with status 429 and `Retry-After` 30 s.
-  - 408 throws `IOException` after OkHttp's own retry (two requests).
-  - 401, 400, 403 and 404 still throw `FailedToAuthenticateException`.
-- `RefreshTokenRetryLaterTest`:
-  - 429 keeps the session, sends one request, schedules the retry after `Retry-After`, and queues nothing.
-  - Repeated 429s back off 10 s, 20 s, 40 s.
-  - A 600 s `Retry-After` is honoured in full.
-  - An app lifecycle event before the retry is due re-arms the timer for the remaining wait and sends no request.
-  - An app lifecycle event after the retry is due refreshes even with a valid access token.
-  - Clearing the session resets the backoff.
-  - A transient failure with offline mode off re-arms the timer.
-- `FronteggAuthServiceTest`: a 429 on the startup refresh keeps the session and clears loading and initializing.
-
-The follow-up commits were not run locally: the review environment has no Android SDK. CI runs the unit tests on each push.
-
-🤖 Generated with [Claude Code](https://claude.com/claude-code)
-
-https://claude.ai/code/session_01S2yW3aohcrkGZ96iyLpv3a
-
-[FR-28398]: https://frontegg.atlassian.net/browse/FR-28398?atlOrigin=eyJpIjoiNWRkNTljNzYxNjVmNDY3MDlhMDU5Y2ZhYzA5YTRkZjUiLCJwIjoiZ2l0aHViLWNvbS1KU1cifQ
+- Fixed users being signed out when the token endpoint rate-limited a refresh. A 429 or 408 response was treated as a rejected refresh token and cleared the session, although the refresh token was still valid; with short access token lifetimes this showed up as widespread logouts. These responses now keep the session, and the SDK retries the refresh with backoff, from 10 seconds up to 5 minutes, or after the server's `Retry-After` when that is longer. A rejected refresh token (401) still ends the session. No app or configuration changes are needed.
+- Fixed cancelling a coroutine that waits in `refreshTokenAndWait()`, including through the caller's own `withTimeout`: it now cancels instead of returning `false`, and the next refresh still works.
 
 ## v1.3.44
 
