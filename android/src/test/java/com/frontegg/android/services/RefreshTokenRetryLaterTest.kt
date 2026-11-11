@@ -6,6 +6,8 @@ import androidx.lifecycle.MutableLiveData
 import com.frontegg.android.FronteggApp
 import com.frontegg.android.exceptions.RefreshTokenRetryLaterException
 import com.frontegg.android.utils.FronteggCallback
+import com.frontegg.android.utils.JWT
+import com.frontegg.android.utils.JWTHelper
 import com.frontegg.android.utils.NetworkGate
 import com.frontegg.android.utils.RequestQueue
 import io.mockk.coEvery
@@ -15,6 +17,7 @@ import io.mockk.mockk
 import io.mockk.mockkConstructor
 import io.mockk.mockkObject
 import io.mockk.mockkStatic
+import io.mockk.unmockkObject
 import io.mockk.verify
 import io.mockk.verifyOrder
 import kotlinx.coroutines.Dispatchers
@@ -179,6 +182,25 @@ class RefreshTokenRetryLaterTest {
 
         verify(exactly = 1) { apiMock.refreshToken(any()) }
         verify(exactly = 2) { refreshTokenTimer.scheduleTimer(match { it in 1L..30_000L }) }
+    }
+
+    @Test
+    fun `an app lifecycle event runs a due retry even while the access token is still valid`() {
+        val auth = createAuth(enableOfflineMode = true)
+        every { apiMock.refreshToken(any()) } throws
+            RefreshTokenRetryLaterException(statusCode = 429, retryAfterMillis = 30_000L, message = "429")
+        auth.refreshOnce()
+        mockkObject(JWTHelper)
+        try {
+            every { JWTHelper.decode(any()) } returns JWT().apply { exp = System.currentTimeMillis() / 1000 + 600 }
+            auth.refreshRetryNotBeforeMs = System.currentTimeMillis() - 1
+
+            auth.refreshTokenWhenNeeded()
+
+            verify(exactly = 2) { apiMock.refreshToken(any()) }
+        } finally {
+            unmockkObject(JWTHelper)
+        }
     }
 
     @Test

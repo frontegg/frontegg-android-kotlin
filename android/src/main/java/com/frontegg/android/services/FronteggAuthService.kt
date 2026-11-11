@@ -89,7 +89,9 @@ class FronteggAuthService(
     private val refreshRetryBaseDelayMs = 10_000L
     private val refreshRetryMaxDelayMs = 300_000L
     private val consecutiveRefreshRetries = AtomicInteger(0)
-    @Volatile private var refreshRetryNotBeforeMs = 0L
+    @VisibleForTesting
+    @Volatile
+    internal var refreshRetryNotBeforeMs = 0L
     private val authStateSettleTimeoutMs = 20_000L
     private val authStateSettlePollIntervalMs = 200L
     private val backgroundRefreshWaitTimeoutMs = 10_000L
@@ -1221,6 +1223,7 @@ class FronteggAuthService(
         }
 
         refreshTokenTimer.cancelLastTimer()
+        resetRefreshRetryBackoff()
 
         val decoded = JWTHelper.decode(accessToken)
         if (decoded.exp > 0) {
@@ -1965,6 +1968,7 @@ class FronteggAuthService(
             refreshTokenTimer.scheduleTimer(pendingRetryWaitMs)
             return
         }
+        val isRefreshRetryDue = refreshRetryNotBeforeMs > 0L
 
         if (accessToken == null) {
             // Check network quality before attempting refresh
@@ -1998,7 +2002,7 @@ class FronteggAuthService(
         val decoded = JWTHelper.decode(accessToken)
         if (decoded.exp > 0) {
             val offset = decoded.exp.calculateTimerOffset()
-            if (offset <= 0) {
+            if (offset <= 0 || isRefreshRetryDue) {
                 // Check network quality before attempting refresh
                 bgScope.launch {
                     if (!isNetworkGood()) {
