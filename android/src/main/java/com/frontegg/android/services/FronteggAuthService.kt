@@ -1700,6 +1700,8 @@ class FronteggAuthService(
                             credentialManager.getOfflineUser()?.let { this@FronteggAuthService.user.value = it }
                             this@FronteggAuthService.setOfflineMode(true)
                             this@FronteggAuthService.isLoading.value = true
+                        } else {
+                            isLoading.value = false
                         }
                     } else {
                         // Other error, logout
