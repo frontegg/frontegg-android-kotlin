@@ -169,6 +169,19 @@ class RefreshTokenRetryLaterTest {
     }
 
     @Test
+    fun `an app lifecycle event waits for the pending retry instead of refreshing at once`() {
+        val auth = createAuth(enableOfflineMode = true)
+        every { apiMock.refreshToken(any()) } throws
+            RefreshTokenRetryLaterException(statusCode = 429, retryAfterMillis = 30_000L, message = "429")
+        auth.refreshOnce()
+
+        auth.refreshTokenWhenNeeded()
+
+        verify(exactly = 1) { apiMock.refreshToken(any()) }
+        verify(exactly = 2) { refreshTokenTimer.scheduleTimer(match { it in 1L..30_000L }) }
+    }
+
+    @Test
     fun `clearing the session resets the backoff`() {
         val auth = createAuth(enableOfflineMode = true)
         every { apiMock.refreshToken(any()) } throws

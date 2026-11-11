@@ -89,6 +89,7 @@ class FronteggAuthService(
     private val refreshRetryBaseDelayMs = 10_000L
     private val refreshRetryMaxDelayMs = 300_000L
     private val consecutiveRefreshRetries = AtomicInteger(0)
+    @Volatile private var refreshRetryNotBeforeMs = 0L
     private val authStateSettleTimeoutMs = 20_000L
     private val authStateSettlePollIntervalMs = 200L
     private val backgroundRefreshWaitTimeoutMs = 10_000L
@@ -233,7 +234,7 @@ class FronteggAuthService(
     ) {
         isLoading.value = true
         refreshTokenTimer.cancelLastTimer()
-        consecutiveRefreshRetries.set(0)
+        resetRefreshRetryBackoff()
 
         bgScope.launch {
             val logoutRefreshToken = refreshToken.value
@@ -1388,7 +1389,7 @@ class FronteggAuthService(
         sessionTracker.clearSessionData(tenantId)
         credentialManager.clear(tenantId)
         refreshTokenTimer.cancelLastTimer()
-        consecutiveRefreshRetries.set(0)
+        resetRefreshRetryBackoff()
         // Other tenants' sessions stay signed in and their tokens are bound to the current key.
         if (!enableSessionPerTenant) DPoPProvider.rotateKeyIfEnabled()
 
@@ -1755,7 +1756,7 @@ class FronteggAuthService(
         try {
             val data = api.refreshToken(refreshToken)
             lastRefreshError = null
-            consecutiveRefreshRetries.set(0)
+            resetRefreshRetryBackoff()
 
             val enableSessionPerTenant = storage.enableSessionPerTenant
             val tenantId = if (enableSessionPerTenant) {
@@ -1892,12 +1893,18 @@ class FronteggAuthService(
         val retryAfterMs = (failure as? RefreshTokenRetryLaterException)?.retryAfterMillis ?: 0L
         val delayMs = maxOf(backoffMs.coerceAtMost(refreshRetryMaxDelayMs), retryAfterMs)
         Log.w(TAG, "Scheduling refresh retry in $delayMs ms (attempt $attempt)")
+        refreshRetryNotBeforeMs = System.currentTimeMillis() + delayMs
         try {
             refreshTokenTimer.cancelLastTimer()
             refreshTokenTimer.scheduleTimer(delayMs)
         } catch (e: Exception) {
             Log.w(TAG, "Failed to schedule refresh retry", e)
         }
+    }
+
+    private fun resetRefreshRetryBackoff() {
+        consecutiveRefreshRetries.set(0)
+        refreshRetryNotBeforeMs = 0L
     }
 
     internal fun evictSharedHttpConnectionPool() {
@@ -1952,6 +1959,12 @@ class FronteggAuthService(
         }
 
         refreshTokenTimer.cancelLastTimer()
+
+        val pendingRetryWaitMs = refreshRetryNotBeforeMs - System.currentTimeMillis()
+        if (pendingRetryWaitMs > 0) {
+            refreshTokenTimer.scheduleTimer(pendingRetryWaitMs)
+            return
+        }
 
         if (accessToken == null) {
             // Check network quality before attempting refresh
