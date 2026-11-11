@@ -1,3 +1,15 @@
+## v1.3.45
+
+Features:
+
+- Added `getOrRefreshAccessToken()` (suspend) and `getOrRefreshAccessToken { accessToken, error -> }`, matching the iOS SDK. They return an access token that is valid for more than 15 seconds, refreshing it first when needed, so API calls made right after the app resumes don't fail with a 401. They wait up to 20 seconds for an initialization, login or refresh already in progress, and return `null` when there is no session or the refresh token was rejected. With offline mode on and no network, they return the cached token, which may be expired. Both are safe to call from the main thread; the callback runs on the main thread.
+- Added `AdminPortalLayout` for the embedded admin portal. `AdminPortalActivity.open(activity)` keeps the current layout: the portal renders at 1024px and is scaled to fit, with the sidebar always visible. `AdminPortalActivity.open(activity, AdminPortalLayout.RESPONSIVE)` uses the device's real width, so on phones the sidebar collapses into a menu button, as it does in Chrome. Apps that don't pass a layout are unaffected.
+
+Bug fixes:
+
+- Fixed users being signed out when the token endpoint rate-limited a refresh. A 429 or 408 response was treated as a rejected refresh token and cleared the session, although the refresh token was still valid; with short access token lifetimes this showed up as widespread logouts. These responses now keep the session, and the SDK retries the refresh with backoff, from 10 seconds up to 5 minutes, or after the server's `Retry-After` when that is longer. A rejected refresh token (401) still ends the session. No app or configuration changes are needed.
+- Fixed cancelling a coroutine that waits in `refreshTokenAndWait()`, including through the caller's own `withTimeout`: it now cancels instead of returning `false`, and the next refresh still works.
+
 ## v1.3.44
 
 Features:

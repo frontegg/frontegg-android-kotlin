@@ -1,3 +1,19 @@
+## v1.3.44
+
+Features:
+
+- Added native Google sign-in. `fronteggAuth.loginWithGoogle(activity) { error -> }` signs the user in through Android Credential Manager, the system account sheet, instead of a browser round-trip. Set `FRONTEGG_USE_NATIVE_GOOGLE_SIGN_IN` to `true` (or pass `useNativeGoogleSignIn = true` to `FronteggApp.initWithRegions(...)`) to have the embedded login box's Google button use it too; sign-up, step-up, login per account, and the activation, invitation and other account pages keep the browser flow. Closing the sheet keeps the user on the login box, any other failure falls back to the browser flow, and MFA continues in the open login box. Requires Google social login with your own Google app in Frontegg and an Android OAuth client in the same Google Cloud project; with Frontegg's shared Google app the SDK uses the browser flow and `loginWithGoogle` returns `GoogleSignInNotConfiguredException`. Off by default.
+- Added opt-in DPoP token binding (RFC 9449). With `FRONTEGG_ENABLE_DPOP` set to `true` (or `enableDPoP = true` on `initWithRegions`), the SDK keeps a non-exportable P-256 key in the Android Keystore and signs a proof for each token request, so bound tokens can't be replayed from another device. Bound tokens are sent as `Authorization: DPoP`, unbound ones stay `Bearer`, and logout rotates the key. The environment must also enforce DPoP for tokens to be bound. Off by default; see "DPoP token binding" in the advanced docs for the WebView and own-backend caveats.
+- Added opt-in Play Integrity device attestation. Set `FRONTEGG_PLAY_INTEGRITY_CLOUD_PROJECT_NUMBER` (or `playIntegrityCloudProjectNumber` on `initWithRegions`) and the SDK sends a Play Integrity token in the `frontegg-device-integrity-token` header on the authorization code exchange and the passkey and native social post-logins. Token refreshes are not attested. Attestation never blocks sign-in: if Play Integrity is unavailable or slow (over about 5 seconds), the request goes without the header. Off by default.
+- Added Kotlin Flow support: every value on `FronteggAuth` (`isAuthenticated`, `user`, `accessToken` and the rest) exposes `stateFlow`. `kotlinx-coroutines-core` is now an `api` dependency. The RxJava-based `subscribe` and `observable` still work and are deprecated.
+- Added the `com.frontegg.sdk:android-compose` artifact, released with the core SDK: `rememberFronteggAuth()`, a `FronteggTenantSwitcher` and a `FronteggSecurityCenter` screen (account, MFA status, passkeys, active sessions, sign out). Both components follow `MaterialTheme`.
+- Added `fronteggAuth.sessions` to list the user's active sessions, sign out one session, or sign out every other session.
+- Added an `additionalQueryParams` overload of `directLoginAction`, matching the iOS SDK. The params are merged over the default `prompt=consent`. Existing calls are unchanged.
+
+Bug fixes:
+
+- Fixed embedded login sometimes opening with an empty client ID and showing "Check your internet connection" until the app restarted. On a cold start, loading feature flags could run the default initialization while the SDK was still being created, overwriting the configuration of apps that configure the SDK in code (the React Native, Flutter and Capacitor plugins). No app or configuration changes are needed.
+
 ## v1.3.43
 
 Bug fixes:
