@@ -11,6 +11,7 @@ import com.frontegg.android.exceptions.FailedToAuthenticatePasskeysException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
 import com.frontegg.android.exceptions.MfaRequiredException
 import com.frontegg.android.exceptions.NotAuthenticatedException
+import com.frontegg.android.exceptions.RefreshTokenRetryLaterException
 import com.frontegg.android.integrity.DeviceIntegrityInterceptor
 import com.frontegg.android.models.AuthResponse
 import com.frontegg.android.models.EntitlementState
@@ -441,7 +442,14 @@ open class Api(
         // Handle other errors
         Log.e(TAG, "Refresh token failed: code=${response.code}, body=$errorBody")
         // 408, 429 and 5xx are transient: IOException keeps the credentials and retries.
-        if (response.code == 408 || response.code == 429 || response.code in 500..599) {
+        if (response.code == 408 || response.code == 429) {
+            throw RefreshTokenRetryLaterException(
+                statusCode = response.code,
+                retryAfterMillis = response.header("Retry-After")?.trim()?.toLongOrNull()?.times(1000),
+                message = "Refresh token retry later: ${response.code} - $errorBody"
+            )
+        }
+        if (response.code in 500..599) {
             throw IOException("Refresh token transient server error: ${response.code} - $errorBody")
         }
         throw FailedToAuthenticateException(

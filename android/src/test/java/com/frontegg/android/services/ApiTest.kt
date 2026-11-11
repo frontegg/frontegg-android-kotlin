@@ -4,6 +4,7 @@ import android.util.Log
 import com.frontegg.android.dpop.DPoPInterceptor
 import com.frontegg.android.exceptions.FailedToAuthenticateException
 import com.frontegg.android.exceptions.FailedToRegisterWebAuthnDevice
+import com.frontegg.android.exceptions.RefreshTokenRetryLaterException
 import org.junit.jupiter.api.assertThrows
 import com.frontegg.android.fixtures.authResponseJson
 import com.frontegg.android.fixtures.getAuthResponse
@@ -124,11 +125,15 @@ class ApiTest {
 
     @Test
     fun `refreshToken throws IOException on 429 so the session is kept`() {
-        mockWebServer.enqueue(MockResponse().setResponseCode(429).setBody("Too Many Requests"))
+        mockWebServer.enqueue(
+            MockResponse().setResponseCode(429).setHeader("Retry-After", "30").setBody("Too Many Requests")
+        )
 
-        assertThrows<java.io.IOException> {
+        val error = assertThrows<RefreshTokenRetryLaterException> {
             api.refreshToken("Test Token")
         }
+        assert(error.statusCode == 429)
+        assert(error.retryAfterMillis == 30_000L)
     }
 
     @Test
