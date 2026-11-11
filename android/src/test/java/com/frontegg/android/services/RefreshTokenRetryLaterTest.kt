@@ -158,6 +158,32 @@ class RefreshTokenRetryLaterTest {
     }
 
     @Test
+    fun `Retry-After longer than the backoff cap is honoured in full`() {
+        val auth = createAuth(enableOfflineMode = true)
+        every { apiMock.refreshToken(any()) } throws
+            RefreshTokenRetryLaterException(statusCode = 429, retryAfterMillis = 600_000L, message = "429")
+
+        auth.refreshOnce()
+
+        verify(exactly = 1) { refreshTokenTimer.scheduleTimer(600_000L) }
+    }
+
+    @Test
+    fun `clearing the session resets the backoff`() {
+        val auth = createAuth(enableOfflineMode = true)
+        every { apiMock.refreshToken(any()) } throws
+            RefreshTokenRetryLaterException(statusCode = 429, retryAfterMillis = null, message = "429")
+        repeat(2) { auth.refreshOnce() }
+
+        auth.clearCredentials()
+        auth.refreshToken.value = "NextSessionRefreshToken"
+        auth.accessToken.value = "NextSessionAccessToken"
+        auth.refreshOnce()
+
+        verify(exactly = 2) { refreshTokenTimer.scheduleTimer(10_000L) }
+    }
+
+    @Test
     fun `transient failure without offline mode re-arms the refresh timer`() {
         val auth = createAuth(enableOfflineMode = false)
         every { apiMock.refreshToken(any()) } throws IOException("503")

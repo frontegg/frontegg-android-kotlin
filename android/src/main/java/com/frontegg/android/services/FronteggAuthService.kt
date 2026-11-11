@@ -233,6 +233,7 @@ class FronteggAuthService(
     ) {
         isLoading.value = true
         refreshTokenTimer.cancelLastTimer()
+        consecutiveRefreshRetries.set(0)
 
         bgScope.launch {
             val logoutRefreshToken = refreshToken.value
@@ -1387,6 +1388,7 @@ class FronteggAuthService(
         sessionTracker.clearSessionData(tenantId)
         credentialManager.clear(tenantId)
         refreshTokenTimer.cancelLastTimer()
+        consecutiveRefreshRetries.set(0)
         // Other tenants' sessions stay signed in and their tokens are bound to the current key.
         if (!enableSessionPerTenant) DPoPProvider.rotateKeyIfEnabled()
 
@@ -1888,7 +1890,7 @@ class FronteggAuthService(
         val attempt = consecutiveRefreshRetries.incrementAndGet().coerceAtMost(6)
         val backoffMs = refreshRetryBaseDelayMs shl (attempt - 1)
         val retryAfterMs = (failure as? RefreshTokenRetryLaterException)?.retryAfterMillis ?: 0L
-        val delayMs = maxOf(backoffMs, retryAfterMs).coerceAtMost(refreshRetryMaxDelayMs)
+        val delayMs = maxOf(backoffMs.coerceAtMost(refreshRetryMaxDelayMs), retryAfterMs)
         Log.w(TAG, "Scheduling refresh retry in $delayMs ms (attempt $attempt)")
         try {
             refreshTokenTimer.cancelLastTimer()
