@@ -35,7 +35,6 @@ import com.google.gson.JsonParser
 import com.google.gson.JsonPrimitive
 import com.google.gson.reflect.TypeToken
 import okhttp3.Call
-import okhttp3.ConnectionPool
 import okhttp3.Headers
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.HttpUrl
@@ -50,7 +49,6 @@ import java.io.IOException
 import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLEncoder
-import java.util.concurrent.TimeUnit
 
 open class Api(
     private var credentialManager: CredentialManager
@@ -202,7 +200,6 @@ open class Api(
             .connectTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
             .readTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
             .writeTimeout(timeoutMs.toLong(), java.util.concurrent.TimeUnit.MILLISECONDS)
-            .connectionPool(ConnectionPool(1, 1, TimeUnit.NANOSECONDS))
             .build()
 
         val request = requestBuilder.build()
