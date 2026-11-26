@@ -21,12 +21,14 @@ import io.mockk.mockkObject
 import io.mockk.mockkStatic
 import io.mockk.verify
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.mockwebserver.MockResponse
 import okhttp3.mockwebserver.MockWebServer
 import org.junit.After
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.util.concurrent.TimeUnit
 
 
 class ApiTest {
@@ -112,6 +114,29 @@ class ApiTest {
         val response = api.refreshToken("Test Token")
 
         assert(response == getAuthResponse())
+    }
+
+    @Test
+    fun `refreshToken keeps the connection open until an HTTP2 body is fully read`() {
+        mockWebServer.shutdown()
+        mockWebServer = MockWebServer().apply {
+            protocols = listOf(Protocol.H2_PRIOR_KNOWLEDGE)
+            start()
+        }
+        every { mockStorage.baseUrl }.returns(mockWebServer.url("").toString())
+        val httpClientField = Api::class.java.getDeclaredField("httpClient").apply { isAccessible = true }
+        val http2Client = (httpClientField.get(api) as OkHttpClient).newBuilder()
+            .protocols(listOf(Protocol.H2_PRIOR_KNOWLEDGE))
+            .build()
+        httpClientField.set(api, http2Client)
+
+        repeat(30) {
+            mockWebServer.enqueue(
+                MockResponse().setBody(authResponseJson).setBodyDelay(150, TimeUnit.MILLISECONDS)
+            )
+
+            assert(api.refreshToken("Test Token") == getAuthResponse())
+        }
     }
 
     @Test
